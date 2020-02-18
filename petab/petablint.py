@@ -3,10 +3,11 @@
 """Command line tool to check for correct format"""
 
 import argparse
-import os
-import petab
-import sys
 import logging
+import os
+import sys
+
+import petab
 from colorama import (init as init_colorama, Fore)
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class LintFormatter(logging.Formatter):
     }
 
     def format(self, record):
+        # pylint: disable=protected-access
         format_orig = self._style._fmt
         self._style._fmt = LintFormatter.formats.get(record.levelno, self._fmt)
         result = logging.Formatter.format(self, record)
@@ -49,11 +51,15 @@ def parse_cli_args():
     parser.add_argument('-p', '--parameters', dest='parameter_file_name',
                         help='Parameter table')
 
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-y', '--yaml', dest='yaml_file_name',
+                       help='PEtab YAML problem filename')
+
     # or with model name, following default naming
-    parser.add_argument('-n', '--model-name', dest='model_name',
-                        help='Model name where all files are in the working '
-                        'directory and follow PEtab naming convention. '
-                        'Specifying -[smcp] will override defaults')
+    group.add_argument('-n', '--model-name', dest='model_name',
+                       help='Model name where all files are in the working '
+                            'directory and follow PEtab naming convention. '
+                            'Specifying -[smcp] will override defaults')
     parser.add_argument('-d', '--directory', dest='directory',
                         default=os.getcwd())
     args = parser.parse_args()
@@ -81,9 +87,16 @@ def parse_cli_args():
                 folder=args.directory,
             )
 
-    if not args.model_name and not args.sbml_file_name \
-        and not args.condition_file_name and not args.measurement_file_name \
-            and not args.parameter_file_name:
+    if (args.yaml_file_name
+            and any((args.sbml_file_name, args.condition_file_name,
+                     args.measurement_file_name, args.parameter_file_name))):
+        parser.error('When providing a yaml file, no other files may '
+                     'be specified.')
+
+    if (not args.model_name
+            and not any([args.sbml_file_name, args.condition_file_name,
+                         args.measurement_file_name, args.parameter_file_name,
+                         args.yaml_file_name])):
         parser.error('Neither model name nor any filename specified. '
                      'What shall I do?')
 
@@ -91,6 +104,7 @@ def parse_cli_args():
 
 
 def main():
+    """Run PEtab validator"""
     args = parse_cli_args()
     init_colorama(autoreset=True)
 
@@ -102,26 +116,45 @@ def main():
     ch.setFormatter(LintFormatter())
     logging.basicConfig(level=logging.DEBUG, handlers=[ch])
 
-    logger.debug('Looking for...')
-    if args.sbml_file_name:
-        logger.debug(f'\tSBML model: {args.sbml_file_name}')
-    if args.condition_file_name:
-        logger.debug(f'\tCondition table: {args.condition_file_name}')
-    if args.measurement_file_name:
-        logger.debug(f'\tMeasurement table: {args.measurement_file_name}')
-    if args.parameter_file_name:
-        logger.debug(f'\tParameter table: {args.parameter_file_name}')
+    if args.yaml_file_name:
+        from petab.yaml import validate
+        from jsonschema.exceptions import ValidationError
+        try:
+            validate(args.yaml_file_name)
+        except ValidationError as e:
+            logger.error("Provided YAML file does not adhere to PEtab "
+                         f"schema: {e}")
+            sys.exit(1)
 
-    try:
-        problem = petab.Problem.from_files(
-            sbml_file=args.sbml_file_name,
-            condition_file=args.condition_file_name,
-            measurement_file=args.measurement_file_name,
-            parameter_file=args.parameter_file_name,
-        )
-    except FileNotFoundError as e:
-        logger.error(e)
-        sys.exit(1)
+        if petab.is_composite_problem(args.yaml_file_name):
+            # TODO: further checking:
+            #  https://github.com/ICB-DCM/PEtab/issues/191
+            #  problem = petab.CompositeProblem.from_yaml(args.yaml_file_name)
+            return
+
+        problem = petab.Problem.from_yaml(args.yaml_file_name)
+
+    else:
+        logger.debug('Looking for...')
+        if args.sbml_file_name:
+            logger.debug(f'\tSBML model: {args.sbml_file_name}')
+        if args.condition_file_name:
+            logger.debug(f'\tCondition table: {args.condition_file_name}')
+        if args.measurement_file_name:
+            logger.debug(f'\tMeasurement table: {args.measurement_file_name}')
+        if args.parameter_file_name:
+            logger.debug(f'\tParameter table: {args.parameter_file_name}')
+
+        try:
+            problem = petab.Problem.from_files(
+                sbml_file=args.sbml_file_name,
+                condition_file=args.condition_file_name,
+                measurement_file=args.measurement_file_name,
+                parameter_file=args.parameter_file_name,
+            )
+        except FileNotFoundError as e:
+            logger.error(e)
+            sys.exit(1)
 
     ret = petab.lint.lint_problem(problem)
     sys.exit(ret)
