@@ -47,6 +47,7 @@ def getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id)
                 # get important formula
                 obs_Formula = libsedml.formulaToString(sedml_file.getDataGenerator(iObservable).getMath())    # sbml_file.getModel().getReaction(0).getKineticLaw().getMath()
                 obs_Id = sedml_file.getDataGenerator(iObservable).getId()
+                obs_Name = sedml_file.getDataGenerator(iObservable).getName()
 
                 # SBML_model_Id,Observable_Id = obs_Id.split('_',1)
                 new_obs_Id = 'observable_' + obs_Id
@@ -74,12 +75,19 @@ def getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id)
 
                 else:
                     for iCount in range(0, num_par):
-                        list_par_id.append(sedml_file.getDataGenerator(iObservable).getParameter(iCount).getId())
+                        par_id = sedml_file.getDataGenerator(iObservable).getParameter(iCount).getId()
+                        new_par_id = 'observableParameter' + f'{iCount}' + '_' + obs_Name
+                        list_par_id.append(new_par_id)
                         list_par_value.append(
                             sedml_file.getDataGenerator(iObservable).getParameter(iCount).getValue())
                         almost_all_par_id.append(
                             sedml_file.getDataGenerator(iObservable).getParameter(iCount).getId())
 
+                        # replace par_id by new_par_id in formula
+                        if par_id in obs_Formula:
+                            obs_Formula = obs_Formula.replace(par_id, new_par_id)
+
+                        # check if two parameters have the same name
                         for iNum in range(0, len(almost_all_par_id)):
                             all_par_id = almost_all_par_id[iNum]
                             almost_all_par_id.remove(almost_all_par_id[len(almost_all_par_id) - 1])
