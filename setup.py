@@ -24,23 +24,30 @@ ENTRY_POINTS = {
 }
 
 # project metadata
+# noinspection PyUnresolvedReferences
 setup(name='petab',
-        version=__version__,  # noqa: F821
+      version=__version__,  # noqa: F821
       description='Parameter estimation tabular data',
       long_description=read('README.md'),
       long_description_content_type="text/markdown",
       author='The PEtab developers',
       author_email='daniel.weindl@helmholtz-muenchen.de',
-      url='https://github.com/icb-dcm/petab',
+      url='https://github.com/PEtab-dev/PEtab',
       packages=find_packages(exclude=['doc*', 'test*']),
       install_requires=['numpy>=1.15.1',
-                        'pandas>=0.23.4',
+                        'pandas>=1.0.1',
                         'matplotlib>=2.2.3',
                         'python-libsbml>=5.17.0',
                         'sympy',
                         'colorama',
-                        'seaborn'],
+                        'seaborn',
+                        'pyyaml',
+                        'jsonschema',
+                        'python-libcombine'
+                        ],
+      include_package_data=True,
       tests_require=['flake8', 'pytest'],
       python_requires='>=3.6',
       entry_points=ENTRY_POINTS,
+      extras_require={'reports': ['Jinja2']},
       )

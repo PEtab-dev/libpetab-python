@@ -5,7 +5,7 @@ import tempfile
 from warnings import warn
 
 import pandas as pd
-import libcombine
+
 import libsbml
 from typing import Optional, List, Union, Dict, Iterable
 from . import (parameter_mapping, measurements, conditions, parameters,
@@ -237,6 +237,9 @@ class Problem:
         Returns:
             A ``petab.Problem`` instance.
         """
+        # function-level import, because module-level import interfered with
+        # other SWIG interfaces
+        import libcombine
 
         archive = libcombine.CombineArchive()
         if archive.initializeFromArchive(filename) is None:

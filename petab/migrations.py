@@ -33,7 +33,9 @@ def sbml_observables_to_table(problem: Problem):
     grouping_cols = get_notnull_columns(
         measurement_df, [OBSERVABLE_ID, OBSERVABLE_TRANSFORMATION,
                          NOISE_DISTRIBUTION])
-    grouped = measurement_df.groupby(grouping_cols).count().reset_index()
+
+    grouped = measurement_df.fillna('').groupby(grouping_cols).count()\
+        .reset_index()
 
     if len(grouped[OBSERVABLE_ID]) != len(grouped[OBSERVABLE_ID]):
         raise ValueError("In order to create an observable table, all "
@@ -79,9 +81,7 @@ def sbml_observables_to_table(problem: Problem):
     observable_df = pd.DataFrame(observables).transpose().reset_index()
     observable_df.rename(columns={"index": OBSERVABLE_ID,
                                   "name": OBSERVABLE_NAME,
-                                  "formula": OBSERVABLE_FORMULA},
-                         #errors="raise",
-                         inplace=True)
+                                  "formula": OBSERVABLE_FORMULA})
     observable_df[OBSERVABLE_ID] = observable_df[OBSERVABLE_ID].apply(
         get_observable_id)
     observable_df.set_index([OBSERVABLE_ID], inplace=True)
