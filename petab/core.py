@@ -261,11 +261,6 @@ def is_empty(val) -> bool:
     """
     return val == '' or pd.isnull(val)
 
-    try:
-        return float(x)
-    except (ValueError, TypeError):
-        return x
-
 
 def create_combine_archive(
         yaml_file: str, filename: str,

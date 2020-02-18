@@ -129,12 +129,6 @@ def check_measurement_df(df: pd.DataFrame,
                 raise ValueError('Measurements with observable transformation '
                                  f'{trafo} must be positive, but {mes} <= 0.')
 
-
-    if observable_df is not None:
-        assert_measured_observables_defined(df, observable_df)
-        measurements.assert_overrides_match_parameter_count(
-            df, observable_df)
-
     if observable_df is not None:
         assert_measured_observables_defined(df, observable_df)
         measurements.assert_overrides_match_parameter_count(
