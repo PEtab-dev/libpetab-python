@@ -136,6 +136,10 @@ def plot_lowlevel(plot_spec: pd.Series,
             ax.bar(x_name, ms['sim'], color='white',
                    edgecolor=colors, **bar_kwargs)
 
+        for label in ax.get_xmajorticklabels():
+            label.set_rotation(30)
+            label.set_horizontalalignment("right")
+
     # construct scatter plot
     elif plot_spec[PLOT_TYPE_SIMULATION] == SCATTER_PLOT:
         if not plot_sim:
