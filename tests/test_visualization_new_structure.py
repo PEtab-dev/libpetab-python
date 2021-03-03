@@ -87,4 +87,17 @@ def test_visualization(data_file_Isensee,
     plotter.generate_plot()
 
 
+def test_VisualizationSpec():
+    test_spec = {'plotName':'test_plot',
+                          'plotTypeSimulation':'test_plot_type',
+                          'plotTypeData': 'test_data_type',
+                          'xValues': 'test_xValues',
+                          'xScale': 'test_xScale',
+                          'yScale': 'test_yScale',
+                          'legendEntry': 'test_legend',
+                          'datasetId': ['test_dataset_id'],
+                          'yValues': ['test_yValue'],
+                          'yOffset': ['test_yOffset'],
+                          'xOffset': ['test_xOffset']
+                          }
 
