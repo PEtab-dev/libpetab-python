@@ -3,6 +3,7 @@ import pandas as pd
 
 from typing import Dict, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
+import matplotlib.ticker as mtick
 
 from .plotting import Figure, SinglePlot, BarPlot, LinePlot, ScatterPlot
 from ..problem import Problem
@@ -61,18 +62,18 @@ class MPLPlotter(Plotter):
     def __init__(self):
         super().__init__()
 
-    def generate_lineplot(self, ax):
-        # it should be possible to plot data or simulation or both
+    def generate_lineplot(self, ax, subplot: LinePlot):
+        # it should be possible to plot only data or only simulation or both
 
         # set xScale
-        if plot_spec[X_SCALE] == LIN:
+        if subplot.vis_spec.xScale == LIN:
             ax.set_xscale("linear")
-        elif plot_spec[X_SCALE] == LOG10:
+        elif subplot.vis_spec.xScale == LOG10:
             ax.set_xscale("log")
-        elif plot_spec[X_SCALE] == LOG:
+        elif subplot.vis_spec.xScale == LOG:
             ax.set_xscale("log", basex=np.e)
         # equidistant
-        elif plot_spec[X_SCALE] == 'order':
+        elif subplot.vis_spec.xScale == 'order':
             ax.set_xscale("linear")
             # check if conditions are monotone decreasing or increasing
             if np.all(np.diff(conditions) < 0):             # monot. decreasing
@@ -89,11 +90,11 @@ class MPLPlotter(Plotter):
                                  ' decreasing')
 
         # add xOffset
-        conditions = conditions + plot_spec[X_OFFSET]
+        conditions = conditions + subplot.vis_spec.xOffset
 
         # plotting all measurement data
-        label_base = plot_spec[LEGEND_ENTRY]
-        if plot_spec[PLOT_TYPE_DATA] == REPLICATE:
+        label_base = subplot.vis_spec.legendEntry
+        if subplot.vis_spec[PLOT_TYPE_DATA] == REPLICATE:
             p = ax.plot(
                 conditions[conditions.index.values],
                 ms.repl[ms.repl.index.values], 'x',
@@ -129,8 +130,8 @@ class MPLPlotter(Plotter):
                 label=label_base + " simulation", color=colors
             )
 
-    def generate_barplot(self, ax):
-        x_name = plot_spec[LEGEND_ENTRY]
+    def generate_barplot(self, ax, subplot: BarPlot):
+        x_name = subplot.vis_spec.legendEntry
 
         if plot_sim:
             bar_kwargs = {
@@ -152,7 +153,7 @@ class MPLPlotter(Plotter):
             ax.bar(x_name, ms['sim'], color='white',
                    edgecolor=colors, **bar_kwargs)
 
-    def generate_scatterplot(self, ax):
+    def generate_scatterplot(self, ax, subplot: ScatterPlot):
         if not plot_sim:
             raise NotImplementedError('Scatter plots do not work without'
                                       ' simulation data')
@@ -174,6 +175,7 @@ class MPLPlotter(Plotter):
         elif subplot.vis_spec.yScale == LOG:
             ax.set_yscale("log", basey=np.e)
 
+        # ms thing should be inside a single plot
         # add yOffset
         ms.loc[:, 'mean'] = ms['mean'] + subplot.vis_spec.yOffset
         ms.loc[:, 'repl'] = ms['repl'] + subplot.vis_spec.yOffset
@@ -189,11 +191,11 @@ class MPLPlotter(Plotter):
             noise_col = 'noise_model'
 
         if isinstance(subplot, BarPlot):
-            self.generate_barplot(subplot)
+            self.generate_barplot(ax, subplot)
         elif isinstance(subplot, ScatterPlot):
-            self.generate_scatterplot(subplot)
+            self.generate_scatterplot(ax, subplot)
         else:
-            self.generate_lineplot(subplot)
+            self.generate_lineplot(ax, subplot)
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
