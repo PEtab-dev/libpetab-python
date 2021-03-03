@@ -33,23 +33,7 @@ class Plotter:
 
         # data_to_plot
 
-        # get unique plotIDs
-        plot_ids = np.unique(self.vis_spec_df[PLOT_ID])
-        self.figure = self.create_figure(len(plot_ids))
-
-        # loop over unique plotIds
-        for plot_id in plot_ids:
-            # get subplot data to plot
-
-            # get indices for specific plotId
-            # get entrances of vis spec corresponding to this plot?
-            ind_plot = (vis_spec[PLOT_ID] == var_plot_id)
-
-            subplot_type = vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION] # take first one?
-            data_to_plot =
-
-            # add plots
-            self._add_subplot_to_figure(data_to_plot, subplot_type)
+        self.figure = Figure(self.vis_spec_df)
 
     def check_and_extend_dfs(self):
         # check_ex_exp_columns for measurements_df
@@ -59,20 +43,6 @@ class Plotter:
 
     def create_figure(self, num_subplots) -> Figure:
         pass
-
-    def _add_subplot_to_figure(self,
-                               data_to_plot,
-                               subplot_type: str = 'LinePlot'):
-        vis_spec = None
-
-        if subplot_type == 'BarPlot':
-            subplot = BarPlot(vis_spec, self.measurements_df, self.simulation_df)
-        elif subplot_type == 'ScatterPlot':
-            subplot = ScatterPlot(vis_spec, self.measurements_df, self.simulation_df)
-        else:
-            subplot = LinePlot(vis_spec, self.measurements_df, self.simulation_df)
-
-        self.figure.subplots.append(subplot)
 
     def generate_plot(self):
         if plots_to_file:
@@ -192,30 +162,30 @@ class MPLPlotter(Plotter):
 
     def generate_subplot(self,
                          ax,
-                         subplot: SinglePlot,
-                         plot_spec):
+                         subplot: SinglePlot):
+        #subplot should already have a plot_vis_spec information
         # plot_lowlevel
 
         # set yScale
-        if plot_spec[Y_SCALE] == LIN:
+        if subplot.vis_spec.yScale == LIN:
             ax.set_yscale("linear")
-        elif plot_spec[Y_SCALE] == LOG10:
+        elif subplot.vis_spec.yScale == LOG10:
             ax.set_yscale("log")
-        elif plot_spec[Y_SCALE] == LOG:
+        elif subplot.vis_spec.yScale == LOG:
             ax.set_yscale("log", basey=np.e)
 
         # add yOffset
-        ms.loc[:, 'mean'] = ms['mean'] + plot_spec[Y_OFFSET]
-        ms.loc[:, 'repl'] = ms['repl'] + plot_spec[Y_OFFSET]
+        ms.loc[:, 'mean'] = ms['mean'] + subplot.vis_spec.yOffset
+        ms.loc[:, 'repl'] = ms['repl'] + subplot.vis_spec.yOffset
         if plot_sim: # TODO: different df for that
-            ms.loc[:, 'sim'] = ms['sim'] + plot_spec[Y_OFFSET]
+            ms.loc[:, 'sim'] = ms['sim'] + subplot.vis_spec.yOffset
 
         # set type of noise
-        if plot_spec[PLOT_TYPE_DATA] == MEAN_AND_SD:
+        if subplot.vis_spec.plotTypeData == MEAN_AND_SD:
             noise_col = 'sd'
-        elif plot_spec[PLOT_TYPE_DATA] == MEAN_AND_SEM:
+        elif subplot.vis_spec.plotTypeData == MEAN_AND_SEM:
             noise_col = 'sem'
-        elif plot_spec[PLOT_TYPE_DATA] == PROVIDED:
+        elif subplot.vis_spec.plotTypeData == PROVIDED:
             noise_col = 'noise_model'
 
         if isinstance(subplot, BarPlot):
@@ -229,19 +199,18 @@ class MPLPlotter(Plotter):
         def ticks(y, _):
             return r'$e^{{{:.0f}}}$'.format(np.log(y))
 
-        if plot_spec[X_SCALE] == LOG:
+        if subplot.vis_spec.xScale == LOG:
             ax.xaxis.set_major_formatter(mtick.FuncFormatter(ticks))
-        if plot_spec[Y_SCALE] == LOG:
+        if subplot.vis_spec.yScale == LOG:
             ax.yaxis.set_major_formatter(mtick.FuncFormatter(ticks))
 
         if not isinstance(subplot, BarPlot):
             ax.legend()
-        ax.set_title(plot_spec[PLOT_NAME])
+        ax.set_title(subplot.vis_spec.plotName)
         ax.relim()
         ax.autoscale_view()
 
         return ax
-
 
     def generate_plot(self):
         # Set Options for plots
@@ -265,8 +234,8 @@ class MPLPlotter(Plotter):
 
         axes = dict(zip(uni_plot_ids, axes.flat))
 
-        for subplot in self.figure.subplots:
-            pass
+        for idx, subplot in enumerate(self.figure.subplots):
+            self.generate_subplot(axes[idx], subplot)
 
 
 class SeabornPlotter(Plotter):
