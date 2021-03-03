@@ -77,11 +77,17 @@ class VisualisationSpec:
 
 class Figure:
     def __init__(self, vis_spec):
+        """
+
+        :param vis_spec: the whole vis spec
+        """
         self.num_subplots = 1
         self.subplots = []  # list of SinglePlots
+        # TODO: what type is this vis_spec - ?
+        self.vis_spec = vis_spec
 
         # get unique plotIDs
-        plot_ids = np.unique(self.vis_spec_df[PLOT_ID])
+        plot_ids = np.unique(self.vis_spec[PLOT_ID])
 
         # loop over unique plotIds
         for plot_id in plot_ids:
@@ -89,25 +95,23 @@ class Figure:
 
             # get indices for specific plotId
             # get entrances of vis spec corresponding to this plot?
-            ind_plot = (vis_spec[PLOT_ID] == var_plot_id)
+            ind_plot = (vis_spec[PLOT_ID] == plot_id)
 
             subplot_type = vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION] # take first one?
-            data_to_plot =
 
             # add plots
-            self._add_subplot_to_figure(data_to_plot, subplot_type)
+            self._add_subplot(vis_spec[ind_plot], subplot_type)
 
     def _add_subplot(self,
-                     data_to_plot,
+                     subplot_vis_spec,
                      subplot_type: str = 'LinePlot'):
-        vis_spec = None
 
         if subplot_type == 'BarPlot':
-            subplot = BarPlot(vis_spec, self.measurements_df, self.simulation_df)
+            subplot = BarPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
         elif subplot_type == 'ScatterPlot':
-            subplot = ScatterPlot(vis_spec, self.measurements_df, self.simulation_df)
+            subplot = ScatterPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
         else:
-            subplot = LinePlot(vis_spec, self.measurements_df, self.simulation_df)
+            subplot = LinePlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
 
         self.subplots.append(subplot)
 
