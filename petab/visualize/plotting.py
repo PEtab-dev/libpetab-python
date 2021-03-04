@@ -64,13 +64,29 @@ class VisualisationSpec:
         if X_SCALE not in vars(self):
             setattr(self, X_SCALE, LIN)
         # TODO yValues optional but should be created one level above
-        # TODO yValues list of observables, so how can it be label
+        # TODO in docs: yValues list of observables, how default label?
         if Y_LABEL not in vars(self):
             setattr(self, Y_LABEL, 'values')
         if Y_OFFSET not in vars(self):
             setattr(self, Y_OFFSET, 0)
         if LEGEND_ENTRY not in vars(self):
             setattr(self, LEGEND_ENTRY, getattr(self, DATASET_ID))
+
+    @staticmethod
+    def from_df(vis_spec_df: Union[pd.DataFrame, str]):
+        if isinstance(vis_spec_df, str):
+            vis_spec_df = pd.read_csv(vis_spec_df, sep='\t', index_col=PLOT_ID)
+        uni_plot_ids = vis_spec_df[PLOT_ID].index.unique().to_list()
+        vis_spec_list = []
+        for plot_id in uni_plot_ids:
+            vis_spec_dict = {}
+            for col in vis_spec_df:
+                entry = vis_spec_df.loc[plot_id, col].unique()
+                if entry.size==1:
+                    entry=entry[0]
+                vis_spec_dict[col] = entry
+            vis_spec_list.append(VisualisationSpec(plot_id, vis_spec_dict))
+        return vis_spec_list
 
 
 class Figure:
