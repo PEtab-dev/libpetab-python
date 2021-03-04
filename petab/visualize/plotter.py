@@ -5,7 +5,8 @@ from typing import Dict, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 
-from .plotting import Figure, SinglePlot, BarPlot, LinePlot, ScatterPlot
+from .plotting import (Figure, SinglePlot, BarPlot, LinePlot, ScatterPlot,
+                       VisualisationSpec_full, VisualisationSpec)
 from ..problem import Problem
 from ..C import *
 
@@ -16,25 +17,42 @@ NumList = List[int]
 
 class Plotter:
     def __init__(self,
-                 exp_conditions: Union[str, pd.DataFrame],
-                 exp_data: Union[str, pd.DataFrame],
-                 sim_data: Optional[Union[str, pd.DataFrame]] = None,
-                 vis_spec: Optional[Union[str, pd.DataFrame]] = None,
-                 dataset_id_list: Optional[List[IdsList]] = None,
-                 sim_cond_id_list: Optional[List[IdsList]] = None,
-                 sim_cond_num_list: Optional[List[NumList]] = None,
-                 observable_id_list: Optional[List[IdsList]] = None,
-                 observable_num_list: Optional[List[NumList]] = None,
-                 plotted_noise: Optional[str] = MEAN_AND_SD):
-        self.conditions_df = None
-        self.measurements_df = None
-        self.simulation_df = None
-        self.vis_spec_df = None  # pd dataframe
-        self.check_and_extend_dfs()
+                 figure: Figure
+                 # conditions: Union[str, pd.DataFrame],
+                 # measurements: Union[str, pd.DataFrame],
+                 # # sim_data: Optional[Union[str, pd.DataFrame]] = None,
+                 # # vis_spec: Optional[Union[str, pd.DataFrame]] = None,  # full vis_spec
+                 # dataset_ids_per_plot: Optional[List[IdsList]] = None,
+                 # # sim_cond_id_list: Optional[List[IdsList]] = None,
+                 # # sim_cond_num_list: Optional[List[NumList]] = None,
+                 # # observable_id_list: Optional[List[IdsList]] = None,
+                 # # observable_num_list: Optional[List[NumList]] = None,
+                 # plotted_noise: Optional[str] = MEAN_AND_SD
+                 ):
+        """
+
+        :param conditions:
+        :param measurements:
+        :param dataset_ids_per_plot:
+            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
+                                         ['dataset_1', 'dataset_4', 'dataset_5']]
+        :param plotted_noise:
+        """
+        # self.conditions_df = None
+        # self.measurements_df = None
+        # self.simulation_df = None
+        # self.vis_spec_df = None  # pd dataframe
+        # self.check_and_extend_dfs()
 
         # data_to_plot
 
-        self.figure = Figure(self.vis_spec_df)
+        # if dataset_ids_per_plot:
+        #     self.vis_spec = VisualisationSpec_full.from_dataset_ids(
+        #         dataset_ids_per_plot, plotted_noise)
+        #
+        # self.data_provider = DataProvider()
+        #
+        # self.figure = Figure(self.vis_spec, self.data_provider)
 
     def check_and_extend_dfs(self):
         # check_ex_exp_columns for measurements_df
@@ -42,8 +60,8 @@ class Plotter:
         # extend vis_spec
         pass
 
-    def create_figure(self, num_subplots) -> Figure:
-        pass
+    # def create_figure(self, num_subplots) -> Figure:
+    #     pass
 
     def generate_plot(self):
         if plots_to_file:
@@ -76,13 +94,14 @@ class MPLPlotter(Plotter):
         elif subplot.vis_spec.xScale == 'order':
             ax.set_xscale("linear")
             # check if conditions are monotone decreasing or increasing
-            if np.all(np.diff(conditions) < 0):             # monot. decreasing
-                xlabel = conditions[::-1]                   # reversing
-                conditions = range(len(conditions))[::-1]   # reversing
+            # todo: conditions
+            if np.all(np.diff(subplot.conditions) < 0):             # monot. decreasing
+                xlabel = subplot.conditions[::-1]                   # reversing
+                conditions = range(len(subplot.conditions))[::-1]   # reversing
                 ax.set_xticks(range(len(conditions)), xlabel)
-            elif np.all(np.diff(conditions) > 0):
-                xlabel = conditions
-                conditions = range(len(conditions))
+            elif np.all(np.diff(subplot.conditions) > 0):
+                xlabel = subplot.conditions
+                conditions = range(len(subplot.conditions))
                 ax.set_xticks(range(len(conditions)), xlabel)
             else:
                 raise ValueError('Error: x-conditions do not coincide, '
@@ -94,7 +113,7 @@ class MPLPlotter(Plotter):
 
         # plotting all measurement data
         label_base = subplot.vis_spec.legendEntry
-        if subplot.vis_spec[PLOT_TYPE_DATA] == REPLICATE:
+        if subplot.vis_spec.plotTypeData == REPLICATE:
             p = ax.plot(
                 conditions[conditions.index.values],
                 ms.repl[ms.repl.index.values], 'x',
@@ -215,6 +234,9 @@ class MPLPlotter(Plotter):
         return ax
 
     def generate_plot(self):
+        # to generate plot a Figure is needed
+        # the Figure has
+
         # Set Options for plots
         # possible options: see: plt.rcParams.keys()
         plt.rcParams['font.size'] = 10
@@ -249,3 +271,12 @@ class SeabornPlotter(Plotter):
 
     def generate_plot(self):
         pass
+
+def plot_measurements():
+    pass
+
+def plot_simulations():
+    pass
+
+def plot_problem():
+    pass

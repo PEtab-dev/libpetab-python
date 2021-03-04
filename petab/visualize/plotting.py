@@ -3,6 +3,7 @@ import pandas as pd
 
 from typing import Dict, List, Optional, Tuple, Union
 
+from .. import core
 from ..problem import Problem
 from ..C import *
 from collections.abc import Sequence
@@ -12,27 +13,63 @@ IdsList = List[str]
 NumList = List[int]
 
 
-class VisualisationSpec_old:
+class VisualisationSpec_full:
     def __init__(self,
-                 vis_spec: Union[str, pd.DataFrame],
-                 exp_data: pd.DataFrame,
-                 exp_conditions: pd.DataFrame
+                 measurements: pd.DataFrame,
+                 conditions: pd.DataFrame,
+                 vis_spec: Union[str, pd.DataFrame]
                  ):
-        # vis spec file + additioal styles/settings ?
-        self.create_or_update(exp_conditions,
-                              exp_data,
-                              vis_spec)
+        """
+        full visualization specification
 
-    def create_or_update(self,
-                         exp_data: pd.DataFrame,
-                         exp_conditions: pd.DataFrame,
-                         vis_spec: Optional[pd.DataFrame] = None,
-                         dataset_id_list: Optional[List[IdsList]] = None,
-                         sim_cond_id_list: Optional[List[IdsList]] = None,
-                         sim_cond_num_list: Optional[List[NumList]] = None,
-                         observable_id_list: Optional[List[IdsList]] = None,
-                         observable_num_list: Optional[List[NumList]] = None,
-                         plotted_noise: Optional[str] = MEAN_AND_SD):
+        if vis_spec is not provided directly it can be generated from
+        dataset_id_list or sim_cond_id_list or sim_cond_num_list or
+        observable_id_list or observable_num_list
+        # TODO: all of these options should be kept?
+
+        :param measurements:
+        :param conditions:
+        :param vis_spec:
+        """
+        self.measurements = measurements
+        self.conditions = conditions
+        self.subplot_vis_specs = []
+        # vis spec file + additioal styles/settings ?
+
+        # import visualization specification, if file was specified
+        if isinstance(vis_spec, str):
+            vis_spec = core.get_visualization_df(vis_spec)
+
+        # TODO: vis_spec doesn't need to be extended anymoe? will be done in
+        #  VisualisationSpec
+
+        # get unique plotIDs
+        plot_ids = np.unique(vis_spec[PLOT_ID])
+
+        # loop over unique plotIds
+        for plot_id in plot_ids:
+            # get indices for specific plotId
+            ind_plot = (vis_spec[PLOT_ID] == plot_id)
+            self.subplot_vis_specs.append(
+                VisualisationSpec.from_df(vis_spec[ind_plot]))
+
+    @staticmethod
+    def from_dataset_ids(dataset_id_list: Optional[List[IdsList]] = None,
+                         plotted_noise: Optional[str] = MEAN_AND_SD
+                         ) -> 'VisualisationSpec_full':
+        # create vis spec dataframe
+        pass
+
+    @staticmethod
+    def from_condition_ids(sim_cond_id_list: Optional[List[IdsList]] = None,
+                           plotted_noise: Optional[str] = MEAN_AND_SD
+                           ) -> 'VisualisationSpec_full':
+        pass
+
+    @staticmethod
+    def from_observable_ids(observable_id_list: Optional[List[IdsList]] = None,
+                            plotted_noise: Optional[str] = MEAN_AND_SD,
+                            ) -> 'VisualisationSpec_full':
         pass
 
 
@@ -42,6 +79,13 @@ class VisualisationSpec:
                  plot_settings: Dict,
                  fig_id: str = 'fig0'
                  ):
+        """
+        visualization specification for one plot
+
+        :param plot_id:
+        :param plot_settings:
+        :param fig_id:
+        """
         # vis spec file + additioal styles/settings ?
         self.figureId = fig_id
         setattr(self, PLOT_ID, plot_id)
@@ -90,7 +134,9 @@ class VisualisationSpec:
 
 
 class Figure:
-    def __init__(self, vis_spec):
+    def __init__(self,
+                 vis_spec: Optional[pd.DataFrame],
+                 dataset_ids_per_plot: Optional[List[IdsList]] = None):
         """
 
         :param vis_spec: the whole vis spec
@@ -100,7 +146,7 @@ class Figure:
         self.title = ''
         self.subplots = []  # list of SinglePlots
         # TODO: what type is this vis_spec - ?
-        self.vis_spec = vis_spec
+        self.vis_spec = vis_spec  # full vis_spec
 
         # get unique plotIDs
         plot_ids = np.unique(self.vis_spec[PLOT_ID])
@@ -110,7 +156,6 @@ class Figure:
             # get subplot data to plot
 
             # get indices for specific plotId
-            # get entrances of vis spec corresponding to this plot?
             ind_plot = (vis_spec[PLOT_ID] == plot_id)
 
             subplot_type = vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION] # take first one?
@@ -121,9 +166,10 @@ class Figure:
     def _add_subplot(self,
                      subplot_vis_spec,
                      subplot_type: str = 'LinePlot'):
+        measurements_to_plot, simulation_to_plot = data_provider.select_by_vis_spec(subplot_vis_spec)
 
         if subplot_type == 'BarPlot':
-            subplot = BarPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
+            subplot = BarPlot(subplot_vis_spec, measurements_to_plot, simulation_to_plot)
         elif subplot_type == 'ScatterPlot':
             subplot = ScatterPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
         else:
@@ -236,7 +282,6 @@ class SinglePlot:
         self.title = ''
         self.xLabel = X_LABEL
         self.yLabel = Y_LABEL
-
 
     def matches_plot_spec(df: pd.DataFrame,
                           col_id: str,
