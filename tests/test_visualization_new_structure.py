@@ -94,6 +94,31 @@ def test_visualization(data_file_Isensee,
     plotter.generate_plot()
 
 
+def test_visualization_with_dataset_list(data_file_Isensee,
+                                         condition_file_Isensee,
+                                         simulation_file_Isensee):
+    datasets = [['JI09_150302_Drg345_343_CycNuc__4_ABnOH_and_ctrl',
+                 'JI09_150302_Drg345_343_CycNuc__4_ABnOH_and_Fsk'],
+                ['JI09_160201_Drg453-452_CycNuc__ctrl',
+                 'JI09_160201_Drg453-452_CycNuc__Fsk',
+                 'JI09_160201_Drg453-452_CycNuc__Sp8_Br_cAMPS_AM']]
+
+    figure = Figure(condition_file_Isensee,
+                    data_file_Fujita,
+                    dataset_ids_per_plot=datasets)
+
+    plotter = MPLPlotter(figure)
+    plotter.generate_plot()
+
+    figure = Figure(condition_file_Isensee,
+                    data_file_Fujita,
+                    simulation_file_Isensee,
+                    dataset_ids_per_plot=datasets)
+
+    plotter = MPLPlotter(figure)
+    plotter.generate_plot()
+
+
 def test_VisualizationSpec():
     test_spec = {PLOT_NAME:'test_plot',
                  PLOT_TYPE_SIMULATION: LINE_PLOT,

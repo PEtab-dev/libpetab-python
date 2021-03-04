@@ -3,7 +3,7 @@ import pandas as pd
 
 from typing import Dict, List, Optional, Tuple, Union, TypedDict
 
-from .. import core
+from .. import problem, measurements, core, conditions
 from ..problem import Problem
 from ..C import *
 from collections.abc import Sequence
@@ -34,9 +34,9 @@ class VisDict(TypedDict):
 
 class VisualizationSpec_full:
     def __init__(self,
-                 measurements: pd.DataFrame,
-                 conditions: pd.DataFrame,
-                 vis_spec: Union[str, pd.DataFrame]
+                 conditions_data: pd.DataFrame,
+                 exp_data: pd.DataFrame,
+                 vis_spec: pd.DataFrame
                  ):
         """
         full visualization specification
@@ -46,21 +46,17 @@ class VisualizationSpec_full:
         observable_id_list or observable_num_list
         # TODO: all of these options should be kept?
 
-        :param measurements:
-        :param conditions:
+        :param exp_data:
+        :param conditions_data:
         :param vis_spec:
         """
-        self.measurements = measurements
-        self.conditions = conditions
+        # self.measurements = exp_data
+        # self.conditions = conditions_data
         self.subplot_vis_specs = []
         # vis spec file + additioal styles/settings ?
 
-        # import visualization specification, if file was specified
-        if isinstance(vis_spec, str):
-            vis_spec = core.get_visualization_df(vis_spec)
-
         # TODO: vis_spec doesn't need to be extended anymore? will be done in
-        #  VisualizationSpec
+        #  VisualizationSpec ?
 
         # get unique plotIDs
         plot_ids = np.unique(vis_spec[PLOT_ID])
@@ -77,6 +73,13 @@ class VisualizationSpec_full:
                          plotted_noise: Optional[str] = MEAN_AND_SD
                          ) -> 'VisualizationSpec_full':
         # create vis spec dataframe
+
+        # vis spec that is created for the first plot
+        # plotId | datasetId | legendEntry | yValues | plotTypeData
+        # plot1  | dataset_1 | dataset_1   |         | plotted_noise
+        # plot1  | dataset_2 | dataset_2   |         | plotted_noise
+
+
         pass
 
     @staticmethod
@@ -184,8 +187,8 @@ class VisualizationSpec:
 
 class Figure:
     def __init__(self,
-                 conditions: Union[str, pd.DataFrame],
-                 measurements: Union[str, pd.DataFrame],
+                 conditions_data: Union[str, pd.DataFrame],
+                 exp_data: Union[str, pd.DataFrame],
                  simulations: Optional[Union[str, pd.DataFrame]] = None,
                  vis_spec: Optional[Union[str, pd.DataFrame]] = None,  # full vis_spec
                  dataset_ids_per_plot: Optional[List[IdsList]] = None,
@@ -199,12 +202,20 @@ class Figure:
         :param vis_spec: the whole vis spec
         :param dataset_ids_per_plot
             e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
-                                 ['dataset_1', 'dataset_4', 'dataset_5']]
+                                         ['dataset_1', 'dataset_4', 'dataset_5']]
+        :param plotted_noise
+            only in addition to one of the lists with ids or numbers
         """
         # TODO: rename this class?
-        # TODO: what type is this vis_spec - ?
+        if isinstance(conditions_data, str):
+            conditions_data = conditions.get_condition_df(conditions_data)
+
+        # import from file in case experimental data is provided in file
+        if isinstance(exp_data, str):
+            exp_data = measurements.get_measurement_df(exp_data)
+
         if vis_spec:
-            self.vis_spec = VisualizationSpec_full(measurements, conditions,
+            self.vis_spec = VisualizationSpec_full(exp_data, conditions_data,
                                                    vis_spec)
         elif dataset_ids_per_plot:
             self.vis_spec = VisualizationSpec_full.from_dataset_ids(
@@ -219,7 +230,8 @@ class Figure:
                             "dataset_ids_per_plot, sim_cond_id_list, "
                             "sim_cond_num_list, observable_id_list, "
                             "observable_num_list")
-        self.data_provider = DataProvider(conditions, measurements, simulations)
+        self.data_provider = DataProvider(conditions_data, exp_data,
+                                          simulations)
         self.subplots = []  # list of SinglePlots
 
         for subplot_vis_spec in self.vis_spec.subplot_vis_specs:
@@ -231,7 +243,8 @@ class Figure:
 
     def _add_subplot(self,
                      subplot_vis_spec):
-        measurements_to_plot, simulation_to_plot = self.data_provider.select_by_vis_spec(subplot_vis_spec)
+        measurements_to_plot, simulation_to_plot = \
+            self.data_provider.select_by_vis_spec(subplot_vis_spec)
 
         if subplot_vis_spec.plotTypeSimulation == 'BarPlot':
             subplot = BarPlot(subplot_vis_spec, measurements_to_plot,
@@ -248,7 +261,7 @@ class Figure:
 
 class DataToPlot:
     """
-    data for one individial line
+    data for one individual line
     """
     def __init__(self):
         # so far created based on the dataframe returned by get_data_to_plot
@@ -268,7 +281,7 @@ class DataProvider:
                  exp_conditions: Union[str, pd.DataFrame],
                  measurements: Union[str, pd.DataFrame],
                  simulations: Optional[Union[str, pd.DataFrame]] = None):
-        self.exp_conditions = exp_conditions
+        self.conditions = exp_conditions
         self.measurements = measurements
         self.simulations = simulations
         # validation of dfs?
@@ -293,23 +306,7 @@ class DataProvider:
         datasets = [['dataset_1', 'dataset_2'],
                    ['dataset_1', 'dataset_4', 'dataset_5']]
         """
-
-        data_per_plot = []
-
-        for plot_id, dataset_ids in enumerate(dataset_ids_per_plot):
-            self.check_datarequest_consistency(dataset_ids)
-            # TODO: probably vis spec shouldn't be create here
-            plot_vis_spec = VisualizationSpec.from_dataset_ids(
-                f'plot_{plot_id}', dataset_ids, plotted_noise)
-            # vis spec that is created for the first plot
-            # plotId | datasetId | legendEntry | yValues | plotTypeData
-            # plot1  | dataset_1 | dataset_1   |         | plotted_noise
-            # plot1  | dataset_2 | dataset_2   |         | plotted_noise
-
-            # plus non-mandatory columns are fulled with defaults
-            data_per_plot.append(self.select_by_vis_spec(plot_vis_spec))
-
-        return data_per_plot
+        pass
 
     def select_by_condition_ids(self, condition_ids: IdsList):
         pass
@@ -325,6 +322,7 @@ class DataProvider:
 
     def select_by_vis_spec(self, vis_spec: VisualizationSpec
                            ) -> Tuple[DataToPlot, DataToPlot]:
+        # TODO: maybe other select_by aren't needed
         measurements_to_plot = None
         simulations_to_plot = None
         return measurements_to_plot, simulations_to_plot
