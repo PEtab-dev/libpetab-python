@@ -1,11 +1,12 @@
 import warnings
 from os import path
 from tempfile import TemporaryDirectory
+import pandas as pd
 import pytest
 from petab.C import *
 from petab import Problem
 # from petab.visualize import (MPLPlotter)
-from petab.visualize.plotting import VisualisationSpec
+from petab.visualize.plotting import VisualizationSpec
 import matplotlib.pyplot as plt
 
 
@@ -89,20 +90,29 @@ def test_visualization(data_file_Isensee,
 
 
 def test_VisualizationSpec():
-    test_spec = {'plotName':'test_plot',
-                 'plotTypeSimulation':'test_plot_type',
-                 'plotTypeData': 'test_data_type',
-                 'xValues': 'test_xValues',
-                 'xScale': 'test_xScale',
-                 'yScale': 'test_yScale',
-                 'legendEntry': 'test_legend',
-                 'datasetId': ['test_dataset_id'],
-                 'yValues': ['test_yValue'],
-                 'yOffset': ['test_yOffset'],
-                 'xOffset': ['test_xOffset'],
-                 'xLabel': 'test_xLabel',
-                 'yLabel': 'test_yLabel'
+    test_spec = {PLOT_NAME:'test_plot',
+                 PLOT_TYPE_SIMULATION: LINE_PLOT,
+                 PLOT_TYPE_DATA: MEAN_AND_SD,
+                 X_VALUES: 'test_xValues',
+                 X_SCALE: LOG,
+                 Y_SCALE: LIN,
+                 LEGEND_ENTRY: ['test_legend'],
+                 DATASET_ID: ['test_dataset_id'],
+                 Y_VALUES: ['test_yValue'],
+                 Y_OFFSET: [0.],
+                 X_OFFSET: [0.],
+                 X_LABEL: 'test_xLabel',
+                 Y_LABEL: 'test_yLabel'
                   }
     assert {**{'figureId': 'fig0', PLOT_ID: 'plot0'}, **test_spec} == \
-        VisualisationSpec(plot_id='plot0', plot_settings=test_spec).__dict__
+        VisualizationSpec(plot_id='plot0', plot_settings=test_spec).__dict__
 
+
+def test_VisualizationSpec_from_df():
+    dir_path = path.dirname(path.realpath(__file__))
+    example_path = f'{dir_path}/../doc/example/example_Isensee/' \
+                   f'Isensee_visualizationSpecification.tsv'
+    VisualizationSpec.from_df(example_path)
+    VisualizationSpec.from_df(pd.read_csv(example_path, sep='\t'))
+    # TODO some assertion
+    pass

@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 
 from .plotting import (Figure, SinglePlot, BarPlot, LinePlot, ScatterPlot,
-                       VisualisationSpec_full, VisualisationSpec)
+                       VisualizationSpec_full, VisualizationSpec)
 from ..problem import Problem
 from ..C import *
 
@@ -47,7 +47,7 @@ class Plotter:
         # data_to_plot
 
         # if dataset_ids_per_plot:
-        #     self.vis_spec = VisualisationSpec_full.from_dataset_ids(
+        #     self.vis_spec = VisualizationSpec_full.from_dataset_ids(
         #         dataset_ids_per_plot, plotted_noise)
         #
         # self.data_provider = DataProvider()
