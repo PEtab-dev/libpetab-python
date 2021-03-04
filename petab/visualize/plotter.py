@@ -16,49 +16,12 @@ NumList = List[int]
 
 
 class Plotter:
-    def __init__(self,
-                 figure: Figure
-                 # conditions: Union[str, pd.DataFrame],
-                 # measurements: Union[str, pd.DataFrame],
-                 # # sim_data: Optional[Union[str, pd.DataFrame]] = None,
-                 # # vis_spec: Optional[Union[str, pd.DataFrame]] = None,  # full vis_spec
-                 # dataset_ids_per_plot: Optional[List[IdsList]] = None,
-                 # # sim_cond_id_list: Optional[List[IdsList]] = None,
-                 # # sim_cond_num_list: Optional[List[NumList]] = None,
-                 # # observable_id_list: Optional[List[IdsList]] = None,
-                 # # observable_num_list: Optional[List[NumList]] = None,
-                 # plotted_noise: Optional[str] = MEAN_AND_SD
-                 ):
+    def __init__(self, figure: Figure):
         """
 
-        :param conditions:
-        :param measurements:
-        :param dataset_ids_per_plot:
-            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
-                                         ['dataset_1', 'dataset_4', 'dataset_5']]
-        :param plotted_noise:
+        :param figure:
         """
-        # self.conditions_df = None
-        # self.measurements_df = None
-        # self.simulation_df = None
-        # self.vis_spec_df = None  # pd dataframe
-        # self.check_and_extend_dfs()
-
-        # data_to_plot
-
-        # if dataset_ids_per_plot:
-        #     self.vis_spec = VisualisationSpec_full.from_dataset_ids(
-        #         dataset_ids_per_plot, plotted_noise)
-        #
-        # self.data_provider = DataProvider()
-        #
-        # self.figure = Figure(self.vis_spec, self.data_provider)
-
-    def check_and_extend_dfs(self):
-        # check_ex_exp_columns for measurements_df
-        # check_ex_exp_columns for simulation_df
-        # extend vis_spec
-        pass
+        self.figure = figure
 
     # def create_figure(self, num_subplots) -> Figure:
     #     pass
@@ -77,8 +40,8 @@ class MPLPlotter(Plotter):
     """
     matplotlib wrapper
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, figure: Figure):
+        super().__init__(figure)
 
     def generate_lineplot(self, ax, subplot: LinePlot):
         # it should be possible to plot only data or only simulation or both
@@ -266,8 +229,8 @@ class SeabornPlotter(Plotter):
     """
     seaborn wrapper
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, figure: Figure):
+        super().__init__(figure)
 
     def generate_plot(self):
         pass

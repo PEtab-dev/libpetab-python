@@ -40,7 +40,7 @@ class VisualisationSpec_full:
         if isinstance(vis_spec, str):
             vis_spec = core.get_visualization_df(vis_spec)
 
-        # TODO: vis_spec doesn't need to be extended anymoe? will be done in
+        # TODO: vis_spec doesn't need to be extended anymore? will be done in
         #  VisualisationSpec
 
         # get unique plotIDs
@@ -135,45 +135,64 @@ class VisualisationSpec:
 
 class Figure:
     def __init__(self,
-                 vis_spec: Optional[pd.DataFrame],
-                 dataset_ids_per_plot: Optional[List[IdsList]] = None):
+                 conditions: Union[str, pd.DataFrame],
+                 measurements: Union[str, pd.DataFrame],
+                 simulations: Optional[Union[str, pd.DataFrame]] = None,
+                 vis_spec: Optional[Union[str, pd.DataFrame]] = None,  # full vis_spec
+                 dataset_ids_per_plot: Optional[List[IdsList]] = None,
+                 sim_cond_id_list: Optional[List[IdsList]] = None,
+                 sim_cond_num_list: Optional[List[NumList]] = None,
+                 observable_id_list: Optional[List[IdsList]] = None,
+                 observable_num_list: Optional[List[NumList]] = None,
+                 plotted_noise: Optional[str] = MEAN_AND_SD):
         """
 
         :param vis_spec: the whole vis spec
+        :param dataset_ids_per_plot
+            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
+                                 ['dataset_1', 'dataset_4', 'dataset_5']]
         """
         # TODO: rename this class?
-        self.num_subplots = 1
-        self.title = ''
-        self.subplots = []  # list of SinglePlots
         # TODO: what type is this vis_spec - ?
-        self.vis_spec = vis_spec  # full vis_spec
+        if vis_spec:
+            self.vis_spec = VisualisationSpec_full(measurements, conditions,
+                                                   vis_spec)
+        elif dataset_ids_per_plot:
+            self.vis_spec = VisualisationSpec_full.from_dataset_ids(
+                dataset_ids_per_plot, plotted_noise)
+        elif sim_cond_id_list:
+            pass
+        elif observable_id_list:
+            pass
+        else:
+            raise TypeError("Not enough arguments. Either vis_spec should be "
+                            "provided or one of the following lists: "
+                            "dataset_ids_per_plot, sim_cond_id_list, "
+                            "sim_cond_num_list, observable_id_list, "
+                            "observable_num_list")
+        self.data_provider = DataProvider(conditions, measurements, simulations)
+        self.subplots = []  # list of SinglePlots
 
-        # get unique plotIDs
-        plot_ids = np.unique(self.vis_spec[PLOT_ID])
+        for subplot_vis_spec in self.vis_spec.subplot_vis_specs:
+            self._add_subplot(subplot_vis_spec)
 
-        # loop over unique plotIds
-        for plot_id in plot_ids:
-            # get subplot data to plot
-
-            # get indices for specific plotId
-            ind_plot = (vis_spec[PLOT_ID] == plot_id)
-
-            subplot_type = vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION] # take first one?
-
-            # add plots
-            self._add_subplot(vis_spec[ind_plot], subplot_type)
+    @property
+    def num_subplots(self) -> int:
+        return len(self.subplots)
 
     def _add_subplot(self,
-                     subplot_vis_spec,
-                     subplot_type: str = 'LinePlot'):
-        measurements_to_plot, simulation_to_plot = data_provider.select_by_vis_spec(subplot_vis_spec)
+                     subplot_vis_spec):
+        measurements_to_plot, simulation_to_plot = self.data_provider.select_by_vis_spec(subplot_vis_spec)
 
-        if subplot_type == 'BarPlot':
-            subplot = BarPlot(subplot_vis_spec, measurements_to_plot, simulation_to_plot)
-        elif subplot_type == 'ScatterPlot':
-            subplot = ScatterPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
+        if subplot_vis_spec.plotTypeSimulation == 'BarPlot':
+            subplot = BarPlot(subplot_vis_spec, measurements_to_plot,
+                              simulation_to_plot)
+        elif subplot_vis_spec.plotTypeSimulation == 'ScatterPlot':
+            subplot = ScatterPlot(subplot_vis_spec, measurements_to_plot,
+                                  simulation_to_plot)
         else:
-            subplot = LinePlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
+            subplot = LinePlot(subplot_vis_spec, measurements_to_plot,
+                               simulation_to_plot)
 
         self.subplots.append(subplot)
 
@@ -265,16 +284,16 @@ class DataProvider:
 class SinglePlot:
     def __init__(self,
                  plot_spec,
-                 measurements_df: Optional[pd.DataFrame],
-                 simulations_df: Optional[pd.DataFrame]):
+                 measurements_to_plot: Optional[DataToPlot],
+                 simulations_to_plot: Optional[DataToPlot]):
         self.id = None
         self.plot_spec = plot_spec  # dataframe, vis spec of a single plot
-        self.measurements_df = measurements_df
-        self.simulations_df = simulations_df
 
-        # if both meas and simu dfs are None error
-        self.measurements_to_plot = self.get_measurements_to_plot()  # dataframe?
-        self.simulations_to_plot = self.get_simulations_to_plot()
+        if measurements_to_plot is None and simulations_to_plot is None:
+            raise TypeError('Not enough arguments. Either measurements_to_plot '
+                            'or simulations_to_plot should be provided.')
+        self.measurements_to_plot = measurements_to_plot
+        self.simulations_to_plot = simulations_to_plot
 
         self.xValues = plot_spec[X_VALUES]
 
@@ -283,7 +302,8 @@ class SinglePlot:
         self.xLabel = X_LABEL
         self.yLabel = Y_LABEL
 
-    def matches_plot_spec(df: pd.DataFrame,
+    def matches_plot_spec(self,
+                          df: pd.DataFrame,
                           col_id: str,
                           x_value: Union[float, str],
                           plot_spec: pd.Series) -> pd.Series:
@@ -448,48 +468,22 @@ class SinglePlot:
 class LinePlot(SinglePlot):
     def __init__(self,
                  vis_spec,
-                 measurements_df: Optional[pd.DataFrame],
-                 simulations_df: Optional[pd.DataFrame]):
+                 measurements_df: Optional[DataToPlot],
+                 simulations_df: Optional[DataToPlot]):
         super().__init__(vis_spec, measurements_df, simulations_df)
-
-    # def add_legends(self):
-    #     # legends with rotation
-    #     pass
 
 
 class BarPlot(SinglePlot):
     def __init__(self,
                  vis_spec,
-                 measurements_df: Optional[pd.DataFrame],
-                 simulations_df: Optional[pd.DataFrame]):
+                 measurements_df: Optional[DataToPlot],
+                 simulations_df: Optional[DataToPlot]):
         super().__init__(vis_spec, measurements_df, simulations_df)
-
-    # def add_legends(self):
-    #     # legends with rotation
-    #     pass
 
 
 class ScatterPlot(SinglePlot):
     def __init__(self,
                  vis_spec,
-                 measurements_df: Optional[pd.DataFrame],
-                 simulations_df: Optional[pd.DataFrame]):
+                 measurements_df: Optional[DataToPlot],
+                 simulations_df: Optional[DataToPlot]):
         super().__init__(vis_spec, measurements_df, simulations_df)
-
-
-
-
-
-
-# class Validator:
-#     def __init__(self):
-#         pass
-#
-#     def check_vis_spec(self,
-#                        vis_spec):
-#         # TODO: create_or_update_vis_spec functionality
-#         pass
-#
-#     def check_measurements_df(self):
-#         # TODO: create_or_update_vis_spec functionality
-#         pass
