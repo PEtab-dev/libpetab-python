@@ -128,7 +128,9 @@ class SinglePlot:
                  measurements_df: Optional[pd.DataFrame],
                  simulations_df: Optional[pd.DataFrame]):
         self.id = None
-        self.plot_spec = None  # dataframe, vis spec of a single plot
+        self.plot_spec = plot_spec  # dataframe, vis spec of a single plot
+        self.measurements_df = measurements_df
+        self.simulations_df = simulations_df
 
         # if both meas and simu dfs are None error
         self.measurements_to_plot = self.get_measurements_to_plot()  # dataframe?
@@ -141,14 +143,76 @@ class SinglePlot:
         self.xLabel = X_LABEL
         self.yLabel = Y_LABEL
 
+
+    def matches_plot_spec(df: pd.DataFrame,
+                          col_id: str,
+                          x_value: Union[float, str],
+                          plot_spec: pd.Series) -> pd.Series:
+        """
+        constructs an index for subsetting of the dataframe according to what is
+        specified in plot_spec.
+
+        Parameters:
+            df:
+                pandas data frame to subset, can be from measurement file or
+                simulation file
+            col_id:
+                name of the column that will be used for indexing in x variable
+            x_value:
+                subsetted x value
+            plot_spec:
+                visualization spec from the visualization file
+
+        Returns:
+            index:
+                Boolean series that can be used for subsetting of the passed
+                dataframe
+        """
+
+        subset = (
+                (df[col_id] == x_value) &
+                (df[DATASET_ID] == plot_spec[DATASET_ID])
+        )
+        if plot_spec[Y_VALUES] == '':
+            if len(df.loc[subset, OBSERVABLE_ID].unique()) > 1:
+                ValueError(
+                    f'{Y_VALUES} must be specified in visualization table if '
+                    f'multiple different observables are available.'
+                )
+        else:
+            subset &= (df[OBSERVABLE_ID] == plot_spec[Y_VALUES])
+        return subset
+
     def get_measurements_to_plot(self) -> Optional[pd.DataFrame]:
+
+        # get datasetID and independent variable of first entry of plot1
+        dataset_id = self.plot_spec[DATASET_ID]
+        indep_var = self.xValues
+
+        # define index to reduce exp_data to data linked to datasetId
+        ind_dataset = self.measurements_df[DATASET_ID] == dataset_id
+
+        # gather simulationConditionIds belonging to datasetId
+        uni_condition_id, uind = np.unique(
+            self.measurements_df[ind_dataset][SIMULATION_CONDITION_ID],
+            return_index=True)
+        # keep the ordering which was given by user from top to bottom
+        # (avoid ordering by names '1','10','11','2',...)'
+        uni_condition_id = uni_condition_id[np.argsort(uind)]
+        col_name_unique = SIMULATION_CONDITION_ID
+
+        # Case separation of independent parameter: condition, time or custom
+        if indep_var == TIME:
+            # obtain unique observation times
+            uni_condition_id = np.unique(measurements_df[ind_dataset][TIME])
+            col_name_unique = TIME
 
         # create empty dataframe for means and SDs
         meas_to_plot = pd.DataFrame(
             columns=['mean', 'noise_model', 'sd', 'sem', 'repl'],
-            index=condition_ids
+            index=uni_condition_id
         )
-        for var_cond_id in condition_ids:
+        for var_cond_id in uni_condition_id:
 
             # TODO (#117): Here not the case: So, if entries in measurement file:
             #  preequCondId, time, observableParams, noiseParams,
@@ -164,8 +228,10 @@ class SinglePlot:
             # would take rows 0,6 and forget about rows 12,18
 
             # compute mean and standard deviation across replicates
-            subset = matches_plot_spec(m_data, col_id, var_cond_id, plot_spec)
-            data_measurements = m_data.loc[
+            subset = matches_plot_spec(self.measurements_df,
+                                       col_id, var_cond_id,
+                                       self.plot_spec)
+            data_measurements = self.measurements_df.loc[
                 subset,
                 MEASUREMENT
             ]
@@ -174,11 +240,11 @@ class SinglePlot:
             meas_to_plot.at[var_cond_id, 'sd'] = np.std(data_measurements)
 
             if (plot_spec.plotTypeData == PROVIDED) & sum(subset):
-                if len(m_data.loc[subset, NOISE_PARAMETERS].unique()) > 1:
+                if len(self.measurements_df.loc[subset, NOISE_PARAMETERS].unique()) > 1:
                     raise NotImplementedError(
                         f"Datapoints with inconsistent {NOISE_PARAMETERS} is "
                         f"currently not implemented. Stopping.")
-                tmp_noise = m_data.loc[subset, NOISE_PARAMETERS].values[0]
+                tmp_noise = self.measurements_df.loc[subset, NOISE_PARAMETERS].values[0]
                 if isinstance(tmp_noise, str):
                     raise NotImplementedError(
                         "No numerical noise values provided in the measurement "
@@ -197,7 +263,47 @@ class SinglePlot:
         return meas_to_plot
 
     def get_simulations_to_plot(self) -> Optional[pd.DataFrame]:
-        return None
+        if self.simulations_df is None:
+            return None
+
+         # get datasetID and independent variable of first entry of plot1
+        dataset_id = self.plot_spec[DATASET_ID]
+        indep_var = self.xValues
+
+        # define index to reduce exp_data to data linked to datasetId
+        ind_dataset = self.simulations_df[DATASET_ID] == dataset_id
+
+        # gather simulationConditionIds belonging to datasetId
+        uni_condition_id, uind = np.unique(
+            self.simulations_df[ind_dataset][SIMULATION_CONDITION_ID],
+            return_index=True)
+        # keep the ordering which was given by user from top to bottom
+        # (avoid ordering by names '1','10','11','2',...)'
+        uni_condition_id = uni_condition_id[np.argsort(uind)]
+        col_name_unique = SIMULATION_CONDITION_ID
+
+        # Case separation of independent parameter: condition, time or custom
+        if indep_var == TIME:
+            # obtain unique observation times
+            uni_condition_id = np.unique(self.simulations_df_df[ind_dataset][TIME])
+            col_name_unique = TIME
+
+        # create empty dataframe for means and SDs
+        sim_to_plot = pd.DataFrame(
+            columns=['sim'],
+            index=uni_condition_id
+        )
+        for var_cond_id in uni_condition_id:
+
+            simulation_measurements = self.simulations_df.loc[
+                matches_plot_spec(self.simulations_df, col_id, var_cond_id,
+                                  self.plot_spec),
+                SIMULATION
+            ]
+            sim_to_plot.at[var_cond_id, 'sim'] = np.mean(
+                simulation_measurements
+            )
+        return sim_to_plot
 
 
 class LinePlot(SinglePlot):
