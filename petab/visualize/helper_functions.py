@@ -712,6 +712,7 @@ def check_ex_exp_columns(
                 sim_cond_id_list, sim_cond_num_list, observable_id_list,
                 observable_num_list, exp_data, exp_conditions, group_by)
 
+    # if DATASET_ID is in exp_data.columns, legend dict will be empty
     return exp_data, dataset_id_list, legend_dict
 
 

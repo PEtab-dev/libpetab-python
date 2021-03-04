@@ -73,15 +73,15 @@ class VisualisationSpec:
             setattr(self, LEGEND_ENTRY, getattr(self, DATASET_ID))
 
 
-
-
 class Figure:
     def __init__(self, vis_spec):
         """
 
         :param vis_spec: the whole vis spec
         """
+        # TODO: rename this class?
         self.num_subplots = 1
+        self.title = ''
         self.subplots = []  # list of SinglePlots
         # TODO: what type is this vis_spec - ?
         self.vis_spec = vis_spec
@@ -117,9 +117,87 @@ class Figure:
 
 
 class DataToPlot:
+    """
+    data for one individial line
+    """
     def __init__(self):
-        sim_data = None
-        meas_data = None
+        # so far created based on the dataframe returned by get_data_to_plot
+        self.xValues = []  # what is in the condition_ids parameter of get_data_to_plot
+        self.mean = []  # means of replicates
+        self.noise_model = None
+        self.sd = []
+        self.sem = []  # standard error of mean
+        self.repl = []  # single replicates
+
+
+class DataProvider:
+    """
+    Handles data selection
+    """
+    def __init__(self,
+                 exp_conditions: Union[str, pd.DataFrame],
+                 measurements: Union[str, pd.DataFrame],
+                 simulations: Optional[Union[str, pd.DataFrame]] = None):
+        self.exp_conditions = exp_conditions
+        self.measurements = measurements
+        self.simulations = simulations
+        # validation of dfs?
+        # extending
+        pass
+
+    def check_datarequest_consistency(self):
+        # check if data request is meaningful
+        # check_vis_spec_consistency functionality
+        pass
+
+    def group_by_measurement(self):
+        pass
+
+    def select_by_dataset_ids(self, dataset_ids_per_plot: IdsList
+                              ) -> List[Tuple[DataToPlot, DataToPlot]]:
+        """
+
+        :param dataset_ids_per_plot:
+        :return:
+
+        datasets = [['dataset_1', 'dataset_2'],
+                   ['dataset_1', 'dataset_4', 'dataset_5']]
+        """
+
+        data_per_plot = []
+
+        for plot_id, dataset_ids in enumerate(dataset_ids_per_plot):
+            self.check_datarequest_consistency(dataset_ids)
+            # TODO: probably vis spec shouldn't be create here
+            plot_vis_spec = VisualisationSpec.from_dataset_ids(
+                f'plot_{plot_id}', dataset_ids, plotted_noise)
+            # vis spec that is created for the first plot
+            # plotId | datasetId | legendEntry | yValues | plotTypeData
+            # plot1  | dataset_1 | dataset_1   |         | plotted_noise
+            # plot1  | dataset_2 | dataset_2   |         | plotted_noise
+
+            # plus non-mandatory columns are fulled with defaults
+            data_per_plot.append(self.select_by_vis_spec(plot_vis_spec))
+
+        return data_per_plot
+
+    def select_by_condition_ids(self, condition_ids: IdsList):
+        pass
+
+    def select_by_condition_numbers(self, condition_nums: NumList):
+        pass
+
+    def select_by_observable_ids(self, observable_ids: IdsList):
+        pass
+
+    def select_by_observable_numbers(self, observable_nums: NumList):
+        pass
+
+    def select_by_vis_spec(self, vis_spec: VisualisationSpec
+                           ) -> Tuple[DataToPlot, DataToPlot]:
+        measurements_to_plot = None
+        simulations_to_plot = None
+        return measurements_to_plot, simulations_to_plot
 
 
 class SinglePlot:
