@@ -4,7 +4,8 @@ from tempfile import TemporaryDirectory
 import pytest
 from petab.C import *
 from petab import Problem
-from petab.visualize import (MPLPlotter)
+# from petab.visualize import (MPLPlotter)
+from petab.visualize.plotting import VisualisationSpec
 import matplotlib.pyplot as plt
 
 
@@ -89,15 +90,18 @@ def test_visualization(data_file_Isensee,
 
 def test_VisualizationSpec():
     test_spec = {'plotName':'test_plot',
-                          'plotTypeSimulation':'test_plot_type',
-                          'plotTypeData': 'test_data_type',
-                          'xValues': 'test_xValues',
-                          'xScale': 'test_xScale',
-                          'yScale': 'test_yScale',
-                          'legendEntry': 'test_legend',
-                          'datasetId': ['test_dataset_id'],
-                          'yValues': ['test_yValue'],
-                          'yOffset': ['test_yOffset'],
-                          'xOffset': ['test_xOffset']
-                          }
+                  'plotTypeSimulation':'test_plot_type',
+                  'plotTypeData': 'test_data_type',
+                  'xValues': 'test_xValues',
+                  'xScale': 'test_xScale',
+                  'yScale': 'test_yScale',
+                  'legendEntry': 'test_legend',
+                  'datasetId': ['test_dataset_id'],
+                  'yValues': ['test_yValue'],
+                  'yOffset': ['test_yOffset'],
+                  'xOffset': ['test_xOffset']
+                  }
+    assert({**{'figureId': 'fig0', PLOT_ID: 'plot0'}, **test_spec},
+           VisualisationSpec(plot_id='plot0',
+                             plot_settings=test_spec).__dict__)
 
