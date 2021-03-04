@@ -120,4 +120,5 @@ def test_VisualizationSpec_from_df():
     VisualizationSpec.from_df(example_path)
     VisualizationSpec.from_df(pd.read_csv(example_path, sep='\t'))
     # TODO some assertion
+    # TODO check warning and error
     pass
