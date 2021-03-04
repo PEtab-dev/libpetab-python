@@ -4,8 +4,8 @@ from tempfile import TemporaryDirectory
 import pytest
 from petab.C import *
 from petab import Problem
-# from petab.visualize import (MPLPlotter)
-from petab.visualize.plotting import VisualisationSpec
+from petab.visualize.plotter import (MPLPlotter)
+from petab.visualize.plotting import Figure, VisualisationSpec
 import matplotlib.pyplot as plt
 
 
@@ -84,7 +84,10 @@ def test_visualization(data_file_Isensee,
                        vis_spec_file_Isensee,
                        simulation_file_Isensee):
 
-    plotter = MPLPlotter()
+    figure = Figure(condition_file_Isensee,
+                    data_file_Fujita,
+                    vis_spec_file_Isensee)
+    plotter = MPLPlotter(figure)
     plotter.generate_plot()
 
 
