@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from ..problem import Problem
 from ..C import *
-from collections import Sequence
+from collections.abc import Sequence
 
 # for typehints
 IdsList = List[str]
@@ -45,7 +45,7 @@ class VisualisationSpec:
         # vis spec file + additioal styles/settings ?
         self.figureId = fig_id
         setattr(self, PLOT_ID, plot_id)
-        for key,val in plot_settings.values():
+        for key,val in plot_settings.items():
             setattr(self,key,val)
         if PLOT_NAME not in vars(self):
             setattr(self, PLOT_NAME, getattr(self, PLOT_ID))
@@ -53,7 +53,7 @@ class VisualisationSpec:
             setattr(self, PLOT_TYPE_SIMULATION, LINE_PLOT)
         if PLOT_TYPE_DATA not in vars(self):
             setattr(self, PLOT_TYPE_DATA, MEAN_AND_SD)
-        # TODO datasetId optional but should be created one level above
+        # TODO datasetId optional so default should be created
         if X_VALUES not in vars(self):
             setattr(self, X_VALUES, TIME)
         if X_OFFSET not in vars(self):
@@ -66,7 +66,7 @@ class VisualisationSpec:
         # TODO yValues optional but should be created one level above
         # TODO yValues list of observables, so how can it be label
         if Y_LABEL not in vars(self):
-            setattr(self, Y_LABEL, getattr(self, Y_VALUES))
+            setattr(self, Y_LABEL, 'values')
         if Y_OFFSET not in vars(self):
             setattr(self, Y_OFFSET, 0)
         if LEGEND_ENTRY not in vars(self):
