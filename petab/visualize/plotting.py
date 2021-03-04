@@ -5,13 +5,14 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from ..problem import Problem
 from ..C import *
+from collections import Sequence
 
 # for typehints
 IdsList = List[str]
 NumList = List[int]
 
 
-class VisualisationSpec:
+class VisualisationSpec_old:
     def __init__(self,
                  vis_spec: Union[str, pd.DataFrame],
                  exp_data: pd.DataFrame,
@@ -35,10 +36,84 @@ class VisualisationSpec:
         pass
 
 
+class VisualisationSpec:
+    def __init__(self,
+                 plot_id: str,
+                 plot_settings: Dict,
+                 fig_id: str = 'fig0'
+                 ):
+        # vis spec file + additioal styles/settings ?
+        self.figureId = fig_id
+        setattr(self, PLOT_ID, plot_id)
+        for key,val in plot_settings.values():
+            setattr(self,key,val)
+        if PLOT_NAME not in vars(self):
+            setattr(self, PLOT_NAME, getattr(self, PLOT_ID))
+        if PLOT_TYPE_SIMULATION not in vars(self):
+            setattr(self, PLOT_TYPE_SIMULATION, LINE_PLOT)
+        if PLOT_TYPE_DATA not in vars(self):
+            setattr(self, PLOT_TYPE_DATA, MEAN_AND_SD)
+        # TODO datasetId optional but should be created one level above
+        if X_VALUES not in vars(self):
+            setattr(self, X_VALUES, TIME)
+        if X_OFFSET not in vars(self):
+            setattr(self, X_OFFSET, 0)
+        if X_LABEL not in vars(self):
+            setattr(self, X_LABEL, getattr(self, X_VALUES))
+
+        if X_SCALE not in vars(self):
+            setattr(self, X_SCALE, LIN)
+        # TODO yValues optional but should be created one level above
+        # TODO yValues list of observables, so how can it be label
+        if Y_LABEL not in vars(self):
+            setattr(self, Y_LABEL, getattr(self, Y_VALUES))
+        if Y_OFFSET not in vars(self):
+            setattr(self, Y_OFFSET, 0)
+        if LEGEND_ENTRY not in vars(self):
+            setattr(self, LEGEND_ENTRY, getattr(self, DATASET_ID))
+
+
+
+
 class Figure:
-    def __init__(self):
+    def __init__(self, vis_spec):
+        """
+
+        :param vis_spec: the whole vis spec
+        """
         self.num_subplots = 1
         self.subplots = []  # list of SinglePlots
+        # TODO: what type is this vis_spec - ?
+        self.vis_spec = vis_spec
+
+        # get unique plotIDs
+        plot_ids = np.unique(self.vis_spec[PLOT_ID])
+
+        # loop over unique plotIds
+        for plot_id in plot_ids:
+            # get subplot data to plot
+
+            # get indices for specific plotId
+            # get entrances of vis spec corresponding to this plot?
+            ind_plot = (vis_spec[PLOT_ID] == plot_id)
+
+            subplot_type = vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION] # take first one?
+
+            # add plots
+            self._add_subplot(vis_spec[ind_plot], subplot_type)
+
+    def _add_subplot(self,
+                     subplot_vis_spec,
+                     subplot_type: str = 'LinePlot'):
+
+        if subplot_type == 'BarPlot':
+            subplot = BarPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
+        elif subplot_type == 'ScatterPlot':
+            subplot = ScatterPlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
+        else:
+            subplot = LinePlot(subplot_vis_spec, self.measurements_df, self.simulation_df)
+
+        self.subplots.append(subplot)
 
 
 class DataToPlot:
