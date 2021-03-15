@@ -197,7 +197,7 @@ def create_dataset_id_list(
     tmp_obs = list(exp_data[OBSERVABLE_ID])
     for ind, cond_id in enumerate(tmp_simcond):
         # create and add dummy datasetID
-        dataset_id = tmp_simcond[ind] + '_' + tmp_obs[ind]
+        dataset_id = cond_id + '_' + tmp_obs[ind]
         dataset_id_column.append(dataset_id)
 
         # create nicer legend entries from condition names instead of IDs
@@ -270,6 +270,125 @@ def create_dataset_id_list(
         dataset_id_list.append(datasets_for_this_plot)
 
     return exp_data, dataset_id_list, legend_dict, yvalues_dict
+
+
+def create_dataset_id_list_new(exp_data: pd.DataFrame,
+                               group_by: str,
+                               id_list: List[IdsList],
+                               # simcond_num_list: List[NumList],
+                               # observable_id_list: List[IdsList] = None,
+                               # observable_num_list: List[NumList],
+                               #exp_conditions: pd.DataFrame,
+                               ) -> Tuple[pd.DataFrame, List[IdsList]]:
+    """
+    Create dataset id list and corresponding plot legends.
+    Additionally, update/create DATASET_ID column of exp_data
+
+    Parameters:
+        group_by: defines  grouping of data to plot
+
+    Returns:
+        A tuple of experimental DataFrame, list of datasetIds and
+        dictionary of plot legends, corresponding to the datasetIds
+
+    For additional documentation, see main function plot_data_and_simulation()
+    """
+
+    # create a column of dummy datasetIDs and legend entries: preallocate
+    dataset_id_column = []
+    # legend_dict = {}
+    # yvalues_dict = {}
+
+    # loop over experimental data table, create datasetId for each entry
+    tmp_simcond = list(exp_data[SIMULATION_CONDITION_ID])
+    tmp_obs = list(exp_data[OBSERVABLE_ID])
+
+    for ind, cond_id in enumerate(tmp_simcond):
+        # create and add dummy datasetID
+        dataset_id = cond_id + '_' + tmp_obs[ind]
+        dataset_id_column.append(dataset_id)
+
+        # TODO: move to a separate function
+        # # create nicer legend entries from condition names instead of IDs
+        # if dataset_id not in legend_dict.keys():
+        #     tmp = exp_conditions.loc[exp_conditions.index == cond_id]
+        #     if CONDITION_NAME not in tmp.columns or tmp[
+        #         CONDITION_NAME].isna().any():
+        #         tmp.loc[:, CONDITION_NAME] = tmp.index.tolist()
+        #     legend_dict[dataset_id] = tmp[CONDITION_NAME][0] + ' - ' + \
+        #                               tmp_obs[ind]
+        #     yvalues_dict[dataset_id] = tmp_obs[ind]
+
+    # add these column to the measurement table (possibly overwrite)
+    if DATASET_ID in exp_data.columns:
+        exp_data = exp_data.drop(DATASET_ID, axis=1)
+    exp_data.insert(loc=exp_data.columns.size, column=DATASET_ID,
+                    value=dataset_id_column)
+
+    # make dummy dataset names unique and iterable
+    unique_dataset_list = exp_data[DATASET_ID].unique()
+    unique_simcond_list = exp_data[SIMULATION_CONDITION_ID].unique()
+    unique_obs_list = exp_data[OBSERVABLE_ID].unique()
+
+    # we will need a dictionary for mapping simulation conditions
+    # /observables to datasets
+    ds_dict = {}
+    dataset_id_list = []
+
+    if group_by == 'simulation':
+        groupping_col = SIMULATION_CONDITION_ID
+    elif group_by == 'observable':
+        groupping_col = OBSERVABLE_ID
+    else:
+        raise ValueError
+
+    for sublist in id_list:
+        plot_id_list = []
+        for cond_id in sublist:
+            plot_id_list.extend(list(
+                exp_data[exp_data[groupping_col] == cond_id][
+                    DATASET_ID].unique()))
+        dataset_id_list.append(plot_id_list)
+
+    # if group_by == 'simulation':
+    #     for sublist in simcond_id_list:
+    #         plot_id_list = []
+    #         for cond_id in sublist:
+    #             plot_id_list.extend(list(
+    #                 exp_data[exp_data[SIMULATION_CONDITION_ID] == cond_id][
+    #                     DATASET_ID].unique()))
+    #         dataset_id_list.append(plot_id_list)
+    #
+    # elif group_by == 'observable':
+    #     # if not observable_id_list and not observable_num_list:
+    #     #     observable_id_list = [unique_obs_list]
+    #     # TODO ?
+    #     # if observable_id_list is None:
+    #     #     observable_id_list = [[unique_obs_list[i_obs] for i_obs in
+    #     #                            i_obs_list] for i_obs_list in
+    #     #                           observable_num_list]
+    #     # for observable in unique_obs_list:
+    #     #     # ds_dict[observable] = [ds for ds in unique_dataset_list if ds[
+    #     #     #    -len(observable)-3:] == ' - ' + observable]
+    #     #     ds_dict[observable] = [ds for ds in unique_dataset_list if
+    #     #                            ds[
+    #     #                            -len(
+    #     #                                observable) - 1:] == '_' + observable]
+    #
+    #     for sublist in observable_id_list:
+    #         plot_id_list = []
+    #         for obs_id in sublist:
+    #             plot_id_list.extend(list(
+    #                 exp_data[exp_data[OBSERVABLE_ID] == obs_id][
+    #                     DATASET_ID].unique()))
+    #         dataset_id_list.append(plot_id_list)
+    #
+    # else:
+    #     raise NotImplementedError(
+    #         "Very, very weird error. Should not have happened. Something "
+    #         "went wrong in how datasets should be grouped. Very weird...")
+
+    return exp_data, dataset_id_list #, legend_dict, yvalues_dict
 
 
 def create_figure(
@@ -441,22 +560,22 @@ def get_vis_spec_dependent_columns_dict(
         dataset_label_column = dataset_id_column
         yvalues_column = ['']*len(dataset_id_column)
 
+    # # get number of plots and create plotId-lists
+    # if group_by == 'observable':
+    #     obs_uni = list(np.unique(exp_data[OBSERVABLE_ID]))
+    #     # copy of dataset ids, for later replacing with plot ids
+    #     plot_id_column = dataset_id_column.copy()
+    #     for i_obs in range(0, len(obs_uni)):
+    #         # get dataset_ids which include observable name
+    #         matching = [s for s in dataset_id_column if obs_uni[i_obs] in s]
+    #         # replace the dataset ids with plot id with grouping of observables
+    #         for m_i in matching:
+    #             plot_id_column = [sub.replace(m_i, 'plot%s' % str(i_obs + 1))
+    #                               for sub in plot_id_column]
+    # else:
     # get number of plots and create plotId-lists
-    if group_by == 'observable':
-        obs_uni = list(np.unique(exp_data[OBSERVABLE_ID]))
-        # copy of dataset ids, for later replacing with plot ids
-        plot_id_column = dataset_id_column.copy()
-        for i_obs in range(0, len(obs_uni)):
-            # get dataset_ids which include observable name
-            matching = [s for s in dataset_id_column if obs_uni[i_obs] in s]
-            # replace the dataset ids with plot id with grouping of observables
-            for m_i in matching:
-                plot_id_column = [sub.replace(m_i, 'plot%s' % str(i_obs + 1))
-                                  for sub in plot_id_column]
-    else:
-        # get number of plots and create plotId-lists
-        plot_id_column = ['plot%s' % str(ind + 1) for ind, inner_list in
-                          enumerate(dataset_id_list) for _ in inner_list]
+    plot_id_column = ['plot%s' % str(ind + 1) for ind, inner_list in
+                      enumerate(dataset_id_list) for _ in inner_list]
 
     columns_dict = {PLOT_ID: plot_id_column,
                     DATASET_ID: dataset_id_column,
@@ -808,6 +927,45 @@ def matches_plot_spec(df: pd.DataFrame,
             )
     else:
         subset &= (df[OBSERVABLE_ID] == plot_spec[Y_VALUES])
+    return subset
+
+
+def matches_plot_spec_new(df: pd.DataFrame,
+                          # col_id: str,
+                          # x_value: Union[float, str],
+                          plot_spec: 'VisualizationSpec',
+                          dataset_id) -> pd.Series:
+    """
+    constructs an index for subsetting of the dataframe according to what is
+    specified in plot_spec.
+
+    Parameters:
+        df:
+            pandas data frame to subset, can be from measurement file or
+            simulation file
+        col_id:
+            name of the column that will be used for indexing in x variable
+        x_value:
+            subsetted x value
+        plot_spec:
+            visualization spec from the visualization file
+
+    Returns:
+        index:
+            Boolean series that can be used for subsetting of the passed
+            dataframe
+    """
+    subset = (
+        (df[DATASET_ID] == dataset_id)
+    )
+    if getattr(plot_spec, Y_VALUES) == '':
+        if len(df.loc[subset, OBSERVABLE_ID].unique()) > 1:
+            ValueError(
+                f'{Y_VALUES} must be specified in visualization table if '
+                f'multiple different observables are available.'
+            )
+    else:
+        subset &= (df[OBSERVABLE_ID] == getattr(plot_spec, Y_VALUES))
     return subset
 
 

@@ -7,7 +7,7 @@ from petab.C import *
 from petab import Problem
 # from petab.visualize import (MPLPlotter)
 from petab.visualize.plotter import (MPLPlotter)
-from petab.visualize.plotting import VisualizationSpec, Figure
+from petab.visualize.plotting import VisualizationSpec, Figure, VisSpecParser
 
 import matplotlib.pyplot as plt
 
@@ -82,18 +82,6 @@ def simulation_file_Isensee():
     return "doc/example/example_Isensee/Isensee_simulationData.tsv"
 
 
-def test_visualization(data_file_Isensee,
-                       condition_file_Isensee,
-                       vis_spec_file_Isensee,
-                       simulation_file_Isensee):
-
-    figure = Figure(condition_file_Isensee,
-                    data_file_Fujita,
-                    vis_spec_file_Isensee)
-    plotter = MPLPlotter(figure)
-    plotter.generate_plot()
-
-
 def test_visualization_with_dataset_list(data_file_Isensee,
                                          condition_file_Isensee,
                                          simulation_file_Isensee):
@@ -103,20 +91,37 @@ def test_visualization_with_dataset_list(data_file_Isensee,
                  'JI09_160201_Drg453-452_CycNuc__Fsk',
                  'JI09_160201_Drg453-452_CycNuc__Sp8_Br_cAMPS_AM']]
 
-    figure = Figure(condition_file_Isensee,
-                    data_file_Fujita,
-                    dataset_ids_per_plot=datasets)
+    # TODO: is condition_file needed here
+    vis_spec_parcer = VisSpecParser(condition_file_Isensee, data_file_Isensee)
+    figure, dataprovider = vis_spec_parcer.parse_from_dataset_ids(datasets)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()  # assemple actual plot
 
-    plotter = MPLPlotter(figure)
-    plotter.generate_plot()
 
-    figure = Figure(condition_file_Isensee,
-                    data_file_Fujita,
-                    simulation_file_Isensee,
-                    dataset_ids_per_plot=datasets)
+def test_visualization_without_datasets(data_file_Fujita,
+                                        condition_file_Fujita,
+                                        simu_file_Fujita):
+    # sim_cond_num_list = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]]
+    sim_cond_id_list = [['model1_data1'], ['model1_data2', 'model1_data3'],
+                        ['model1_data4', 'model1_data5'], ['model1_data6']]
+    # observable_num_list = [[0], [1], [2], [0, 2], [1, 2]]
+    observable_id_list = [['pS6_tot'], ['pEGFR_tot'], ['pAkt_tot']]
 
-    plotter = MPLPlotter(figure)
-    plotter.generate_plot()
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
+    figure, dataprovider = vis_spec_parcer.parse_from_condition_ids(
+        sim_cond_id_list)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()  # assemple actual plot
+
+    # TODO: with simu_file
+
+    figure, dataprovider = vis_spec_parcer.parse_from_observable_ids(
+        observable_id_list)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()  # assemple actual plot
+
+    # TODO: with simu_file
+    # TODO: with provided noise
 
 
 def test_VisualizationSpec():

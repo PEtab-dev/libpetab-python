@@ -5,8 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 
-from .plotting import (Figure, SinglePlot, BarPlot, LinePlot, ScatterPlot,
-                       VisualizationSpec_full, VisualizationSpec)
+from .plotting import (Figure, DataProvider, Subplot, DataPlot)
 from ..problem import Problem
 from ..C import *
 
@@ -16,12 +15,13 @@ NumList = List[int]
 
 
 class Plotter:
-    def __init__(self, figure: Figure):
+    def __init__(self, figure: Figure, data_provider: DataProvider):
         """
 
         :param figure:
         """
         self.figure = figure
+        self.data_provider = data_provider
 
     # def create_figure(self, num_subplots) -> Figure:
     #     pass
@@ -40,79 +40,74 @@ class MPLPlotter(Plotter):
     """
     matplotlib wrapper
     """
-    def __init__(self, figure: Figure):
-        super().__init__(figure)
+    def __init__(self, figure: Figure, data_provider: DataProvider):
+        super().__init__(figure, data_provider)
 
-    def generate_lineplot(self, ax, subplot: LinePlot):
+    def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
         # it should be possible to plot only data or only simulation or both
 
-        # set xScale
-        if subplot.vis_spec.xScale == LIN:
-            ax.set_xscale("linear")
-        elif subplot.vis_spec.xScale == LOG10:
-            ax.set_xscale("log")
-        elif subplot.vis_spec.xScale == LOG:
-            ax.set_xscale("log", basex=np.e)
-        # equidistant
-        elif subplot.vis_spec.xScale == 'order':
-            ax.set_xscale("linear")
-            # check if conditions are monotone decreasing or increasing
-            # todo: conditions
-            if np.all(np.diff(subplot.conditions) < 0):             # monot. decreasing
-                xlabel = subplot.conditions[::-1]                   # reversing
-                conditions = range(len(subplot.conditions))[::-1]   # reversing
-                ax.set_xticks(range(len(conditions)), xlabel)
-            elif np.all(np.diff(subplot.conditions) > 0):
-                xlabel = subplot.conditions
-                conditions = range(len(subplot.conditions))
-                ax.set_xticks(range(len(conditions)), xlabel)
-            else:
-                raise ValueError('Error: x-conditions do not coincide, '
-                                 'some are mon. increasing, some monotonically'
-                                 ' decreasing')
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot)
+
+        # set type of noise
+        if plotTypeData == MEAN_AND_SD:
+            noise_col = 'sd'
+        elif plotTypeData == MEAN_AND_SEM:
+            noise_col = 'sem'
+        elif plotTypeData == PROVIDED:
+            noise_col = 'noise_model'
 
         # add xOffset
-        conditions = conditions + subplot.vis_spec.xOffset
+        data_to_plot.conditions += dataplot.xOffset
+        label_base = dataplot.legendEntry
 
-        # plotting all measurement data
-        label_base = subplot.vis_spec.legendEntry
-        if subplot.vis_spec.plotTypeData == REPLICATE:
-            p = ax.plot(
-                conditions[conditions.index.values],
-                ms.repl[ms.repl.index.values], 'x',
-                label=label_base
-            )
+        if data_to_plot.measurements_to_plot is not None:
+            # plotting all measurement data
 
-        # construct errorbar-plots: noise specified above
-        else:
-            # sort index for the case that indices of conditions and
-            # measurements differ if indep_var='time', conditions is a numpy
-            # array, for indep_var=observable its a Series
-            if isinstance(conditions, np.ndarray):
-                conditions.sort()
-            elif isinstance(conditions, pd.core.series.Series):
-                conditions.sort_index(inplace=True)
+            if plotTypeData == REPLICATE:
+                p = ax.plot(
+                    data_to_plot.conditions[conditions.index.values],
+                    data_to_plot.measurements_to_plot.repl[
+                        data_to_plot.measurements_to_plot.repl.index.values], 'x',
+                    label=label_base
+                )
+
+            # construct errorbar-plots: noise specified above
             else:
-                raise ValueError('Strange: conditions object is neither numpy'
-                                 ' nor series...')
-            ms.sort_index(inplace=True)
-            # sorts according to ascending order of conditions
-            scond, smean, snoise = \
-                zip(*sorted(zip(conditions, ms['mean'], ms[noise_col])))
-            p = ax.errorbar(
-                scond, smean, snoise,
-                linestyle='-.', marker='.', label=label_base
-            )
+                # sort index for the case that indices of conditions and
+                # measurements differ if indep_var='time', conditions is a numpy
+                # array, for indep_var=observable its a Series
+                if isinstance(data_to_plot.conditions, np.ndarray):
+                    data_to_plot.conditions.sort()
+                elif isinstance(data_to_plot.conditions, pd.core.series.Series):
+                    data_to_plot.conditions.sort_index(inplace=True)
+                else:
+                    raise ValueError('Strange: conditions object is neither numpy'
+                                     ' nor series...')
+                data_to_plot.measurements_to_plot.sort_index(inplace=True)
+                # sorts according to ascending order of conditions
+                scond, smean, snoise = \
+                    zip(*sorted(zip(data_to_plot.conditions,
+                                    data_to_plot.measurements_to_plot['mean'],
+                                    data_to_plot.measurements_to_plot[noise_col])))
+                p = ax.errorbar(
+                    scond, smean, snoise,
+                    linestyle='-.', marker='.', label=label_base
+                )
+
+
         # construct simulation plot
-        colors = p[0].get_color()
-        if plot_sim:
-            xs, ys = zip(*sorted(zip(conditions, ms['sim'])))
+        if data_to_plot.simulations_to_plot is not None:
+
+            # TODO: what if only simulation is being plotted
+            colors = p[0].get_color()
+            xs, ys = zip(*sorted(zip(data_to_plot.conditions,
+                                     data_to_plot.simulations_to_plot)))
             ax.plot(
                 xs, ys, linestyle='-', marker='o',
                 label=label_base + " simulation", color=colors
             )
 
-    def generate_barplot(self, ax, subplot: BarPlot):
+    def generate_barplot(self, ax, subplot: Subplot):
         x_name = subplot.vis_spec.legendEntry
 
         if plot_sim:
@@ -135,7 +130,7 @@ class MPLPlotter(Plotter):
             ax.bar(x_name, ms['sim'], color='white',
                    edgecolor=colors, **bar_kwargs)
 
-    def generate_scatterplot(self, ax, subplot: ScatterPlot):
+    def generate_scatterplot(self, ax, subplot: Subplot):
         if not plot_sim:
             raise NotImplementedError('Scatter plots do not work without'
                                       ' simulation data')
@@ -145,66 +140,95 @@ class MPLPlotter(Plotter):
 
     def generate_subplot(self,
                          ax,
-                         subplot: SinglePlot):
-        #subplot should already have a plot_vis_spec information
+                         subplot: Subplot):
+
         # plot_lowlevel
 
         # set yScale
-        if subplot.vis_spec.yScale == LIN:
+        if subplot.yScale == LIN:
             ax.set_yscale("linear")
-        elif subplot.vis_spec.yScale == LOG10:
+        elif subplot.yScale == LOG10:
             ax.set_yscale("log")
-        elif subplot.vis_spec.yScale == LOG:
+        elif subplot.yScale == LOG:
             ax.set_yscale("log", basey=np.e)
 
         # ms thing should be inside a single plot
-        # add yOffset
-        ms.loc[:, 'mean'] = ms['mean'] + subplot.vis_spec.yOffset
-        ms.loc[:, 'repl'] = ms['repl'] + subplot.vis_spec.yOffset
-        if plot_sim: # TODO: different df for that
-            ms.loc[:, 'sim'] = ms['sim'] + subplot.vis_spec.yOffset
 
-        # set type of noise
-        if subplot.vis_spec.plotTypeData == MEAN_AND_SD:
-            noise_col = 'sd'
-        elif subplot.vis_spec.plotTypeData == MEAN_AND_SEM:
-            noise_col = 'sem'
-        elif subplot.vis_spec.plotTypeData == PROVIDED:
-            noise_col = 'noise_model'
+        # TODO:
+        # if subplot.measurements_to_plot:
+        #     # add yOffset
+        #     subplot.measurements_to_plot.loc[:, 'mean'] = \
+        #         subplot.measurements_to_plot['mean'] + subplot.yOffset
+        #     subplot.measurements_to_plot.loc[:, 'repl'] = \
+        #         subplot.measurements_to_plot['repl'] + subplot.yOffset
+        #
+        # if subplot.simulations_to_plot:
+        #     ms.loc[:, 'sim'] = ms['sim'] + subplot.vis_spec.yOffset
 
-        if isinstance(subplot, BarPlot):
-            self.generate_barplot(ax, subplot)
-        elif isinstance(subplot, ScatterPlot):
-            self.generate_scatterplot(ax, subplot)
+        if subplot.plotTypeSimulation == BAR_PLOT:
+            for data_plot in subplot.data_plots:
+                self.generate_barplot(ax, data_plot)
+        elif subplot.plotTypeSimulation == SCATTER_PLOT:
+            for data_plot in subplot.data_plots:
+                self.generate_scatterplot(ax, data_plot)
         else:
-            self.generate_lineplot(ax, subplot)
+
+            # set xScale
+            if subplot.xScale == LIN:
+                ax.set_xscale("linear")
+            elif subplot.xScale == LOG10:
+                ax.set_xscale("log")
+            elif subplot.xScale == LOG:
+                ax.set_xscale("log", basex=np.e)
+            # equidistant
+            elif subplot.xScale == 'order':
+                ax.set_xscale("linear")
+                # check if conditions are monotone decreasing or increasing
+                # todo: conditions
+                if np.all(
+                        np.diff(subplot.conditions) < 0):  # monot. decreasing
+                    xlabel = subplot.conditions[::-1]  # reversing
+                    conditions = range(len(subplot.conditions))[
+                                 ::-1]  # reversing
+                    ax.set_xticks(range(len(conditions)), xlabel)
+                elif np.all(np.diff(subplot.conditions) > 0):
+                    xlabel = subplot.conditions
+                    conditions = range(len(subplot.conditions))
+                    ax.set_xticks(range(len(conditions)), xlabel)
+                else:
+                    raise ValueError('Error: x-conditions do not coincide, '
+                                     'some are mon. increasing, some monotonically'
+                                     ' decreasing')
+
+            for data_plot in subplot.data_plots:
+                self.generate_lineplot(ax, data_plot, subplot.plotTypeData)
+                # TODO: change to generate_dataplot?
+                #  and delete generate_barplot, generate_scatterplot?
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
             return r'$e^{{{:.0f}}}$'.format(np.log(y))
 
-        if subplot.vis_spec.xScale == LOG:
+        if subplot.xScale == LOG:
             ax.xaxis.set_major_formatter(mtick.FuncFormatter(ticks))
-        if subplot.vis_spec.yScale == LOG:
+        if subplot.yScale == LOG:
             ax.yaxis.set_major_formatter(mtick.FuncFormatter(ticks))
 
-        if not isinstance(subplot, BarPlot):
+        if not subplot.plotTypeSimulation == BAR_PLOT:
             ax.legend()
-        ax.set_title(subplot.vis_spec.plotName)
+        ax.set_title(subplot.plotName)
         ax.relim()
         ax.autoscale_view()
 
         return ax
 
-    def generate_plot(self):
-        # to generate plot a Figure is needed
-        # the Figure has
+    def generate_figure(self):
 
         # Set Options for plots
         # possible options: see: plt.rcParams.keys()
         plt.rcParams['font.size'] = 10
         plt.rcParams['axes.titlesize'] = 10
-        plt.rcParams['figure.figsize'] = [20, 10]
+        plt.rcParams['figure.figsize'] = self.figure.size
         plt.rcParams['errorbar.capsize'] = 2
 
         # Set Colormap
@@ -219,18 +243,19 @@ class MPLPlotter(Plotter):
         for ax in axes.flat[self.figure.num_subplots:]:
             ax.remove()
 
-        axes = dict(zip(uni_plot_ids, axes.flat))
+        axes = dict(zip([plot.plotId for plot in self.figure.subplots],
+                        axes.flat))
 
         for idx, subplot in enumerate(self.figure.subplots):
-            self.generate_subplot(axes[idx], subplot)
+            self.generate_subplot(axes[subplot.plotId], subplot)
 
 
 class SeabornPlotter(Plotter):
     """
     seaborn wrapper
     """
-    def __init__(self, figure: Figure):
-        super().__init__(figure)
+    def __init__(self, figure: Figure, data_provider: DataProvider):
+        super().__init__(figure, data_provider)
 
     def generate_plot(self):
         pass
