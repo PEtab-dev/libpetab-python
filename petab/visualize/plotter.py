@@ -269,13 +269,14 @@ class MPLPlotter(Plotter):
 
         # Set Options for plots
         # possible options: see: plt.rcParams.keys()
+
+        # TODO: or some other style
+        plt.style.use('tableau-colorblind10')
+
         plt.rcParams['font.size'] = 10
         plt.rcParams['axes.titlesize'] = 10
         plt.rcParams['figure.figsize'] = self.figure.size
         plt.rcParams['errorbar.capsize'] = 2
-
-        # Set Colormap
-        # sns.set(style="ticks", palette="colorblind") ?
 
         # compute, how many rows and columns we need for the subplots
         num_row = int(np.round(np.sqrt(self.figure.num_subplots)))

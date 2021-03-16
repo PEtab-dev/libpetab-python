@@ -20,7 +20,7 @@ from ..C import *
 
 from typing import Dict, List, Optional, Tuple, Union
 
-sns.set()
+# sns.set() This messes up plotting settings if one just imports this file
 
 # for typehints
 IdsList = List[str]

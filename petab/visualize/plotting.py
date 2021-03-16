@@ -1,9 +1,7 @@
-import functools
-
 import numpy as np
 import pandas as pd
 
-from typing import Dict, List, Optional, Tuple, Union, TypedDict
+from typing import List, Optional, Tuple, Union, TypedDict
 
 from .helper_functions import (generate_dataset_id_col,
                                create_dataset_id_list_new,
@@ -762,7 +760,6 @@ class VisSpecParser:
                 loc=self.simulations_data.columns.size,
                 column=DATASET_ID,
                 value=generate_dataset_id_col(self.simulations_data))
-
 
     # def create_legend(self, dataset_id_column):
     #     legend_dict = {}

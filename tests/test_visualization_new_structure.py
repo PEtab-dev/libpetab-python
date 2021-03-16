@@ -7,7 +7,7 @@ from petab.C import *
 from petab import Problem
 # from petab.visualize import (MPLPlotter)
 from petab.visualize.plotter import (MPLPlotter)
-from petab.visualize.plotting import VisualizationSpec, Figure, VisSpecParser
+from petab.visualize.plotting import VisualizationSpec, VisSpecParser
 
 import matplotlib.pyplot as plt
 
