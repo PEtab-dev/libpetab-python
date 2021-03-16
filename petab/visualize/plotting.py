@@ -456,7 +456,6 @@ class DataProvider:
                 measurements_to_plot.at[var_cond_id, 'repl'] = \
                     data_measurements
 
-        # TODO: simulations
         if self.simulations_data is not None:
             simulations_to_plot = []
             for var_cond_id in uni_condition_id:
@@ -612,12 +611,14 @@ class VisSpecParser:
         -------
 
         """
+        data_df = self.measurements_data if self.measurements_data is not None \
+            else self.simulations_data
 
         if all(isinstance(x, int) for sublist in conditions_per_plot
                for x in sublist):
             # TODO: should unique_simcond_list be taken from conditons_df or
             #       measurements_df?
-            unique_simcond_list = self.measurements_data[
+            unique_simcond_list = data_df[
                 SIMULATION_CONDITION_ID].unique()
             conditions_id_list = [[unique_simcond_list[i_cond] for i_cond in
                                    i_cond_list] for i_cond_list in
@@ -636,7 +637,7 @@ class VisSpecParser:
         #  - only in the local variable, not in the tsv-file)
 
         self.add_dataset_id_col()
-        dataset_id_list = create_dataset_id_list_new(self.measurements_data,
+        dataset_id_list = create_dataset_id_list_new(data_df,
                                                      group_by,
                                                      conditions_id_list)
 
@@ -669,10 +670,12 @@ class VisSpecParser:
                                                                 List[NumList]],
                                     plotted_noise: Optional[str] = MEAN_AND_SD
                                     ) -> Tuple[Figure, DataProvider]:
+        data_df = self.measurements_data if self.measurements_data is not None \
+            else self.simulations_data
 
         if all(isinstance(x, int) for sublist in observables_per_plot
                for x in sublist):
-            unique_obs_list = self.measurements_data[OBSERVABLE_ID].unique()
+            unique_obs_list = data_df[OBSERVABLE_ID].unique()
             observable_id_list = [[unique_obs_list[i_obs] for i_obs in
                                    i_obs_list] for i_obs_list in
                                   observables_per_plot]
@@ -690,7 +693,7 @@ class VisSpecParser:
         #  - only in the local variable, not in the tsv-file)
 
         self.add_dataset_id_col()
-        dataset_id_list = create_dataset_id_list_new(self.measurements_data,
+        dataset_id_list = create_dataset_id_list_new(data_df,
                                                      group_by,
                                                      observable_id_list)
 

@@ -46,6 +46,7 @@ class MPLPlotter(Plotter):
     def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
         # it should be possible to plot only data or only simulation or both
 
+        simu_colors = None
         data_to_plot = self.data_provider.get_data_to_plot(dataplot)
 
         # set type of noise
@@ -81,30 +82,32 @@ class MPLPlotter(Plotter):
                 elif isinstance(data_to_plot.conditions, pd.core.series.Series):
                     data_to_plot.conditions.sort_index(inplace=True)
                 else:
-                    raise ValueError('Strange: conditions object is neither numpy'
-                                     ' nor series...')
+                    raise ValueError('Strange: conditions object is '
+                                     'neither numpy nor series...')
                 data_to_plot.measurements_to_plot.sort_index(inplace=True)
                 # sorts according to ascending order of conditions
                 scond, smean, snoise = \
-                    zip(*sorted(zip(data_to_plot.conditions,
-                                    data_to_plot.measurements_to_plot['mean'],
-                                    data_to_plot.measurements_to_plot[noise_col])))
+                    zip(*sorted(zip(
+                        data_to_plot.conditions,
+                        data_to_plot.measurements_to_plot['mean'],
+                        data_to_plot.measurements_to_plot[noise_col])))
                 p = ax.errorbar(
                     scond, smean, snoise,
                     linestyle='-.', marker='.', label=label_base
                 )
 
+                # simulations should have the same colors if both measurements
+                # and simulations are plotted
+                simu_colors = p[0].get_color()
 
         # construct simulation plot
         if data_to_plot.simulations_to_plot is not None:
 
-            # TODO: what if only simulation is being plotted
-            colors = p[0].get_color()
             xs, ys = zip(*sorted(zip(data_to_plot.conditions,
                                      data_to_plot.simulations_to_plot)))
             ax.plot(
                 xs, ys, linestyle='-', marker='o',
-                label=label_base + " simulation", color=colors
+                label=label_base + " simulation", color=simu_colors
             )
 
     def generate_barplot(self, ax, subplot: Subplot):

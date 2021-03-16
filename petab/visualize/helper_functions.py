@@ -300,7 +300,7 @@ def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
     return dataset_id_column
 
 
-def create_dataset_id_list_new(exp_data: pd.DataFrame,
+def create_dataset_id_list_new(df: pd.DataFrame,
                                group_by: str,
                                id_list: List[IdsList],
                                #exp_conditions: pd.DataFrame,
@@ -310,6 +310,7 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
     Additionally, update/create DATASET_ID column of exp_data
 
     Parameters:
+        df: measurements or simulations df
         group_by: defines  grouping of data to plot
 
     Returns:
@@ -318,15 +319,15 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
 
     For additional documentation, see main function plot_data_and_simulation()
     """
-    if DATASET_ID not in exp_data.columns:
+    if DATASET_ID not in df.columns:
         raise ValueError(f'{DATASET_ID} column must be in exp_data DataFrame')
 
     # legend_dict = {}
     # yvalues_dict = {}
 
     # loop over experimental data table, create datasetId for each entry
-    tmp_simcond = list(exp_data[SIMULATION_CONDITION_ID])
-    tmp_obs = list(exp_data[OBSERVABLE_ID])
+    tmp_simcond = list(df[SIMULATION_CONDITION_ID])
+    tmp_obs = list(df[OBSERVABLE_ID])
 
     for ind, cond_id in enumerate(tmp_simcond):
         # TODO: move to a separate function
@@ -344,9 +345,9 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
         #     yvalues_dict[dataset_id] = tmp_obs[ind]
 
     # make dummy dataset names unique and iterable
-    unique_dataset_list = exp_data[DATASET_ID].unique()
-    unique_simcond_list = exp_data[SIMULATION_CONDITION_ID].unique()
-    unique_obs_list = exp_data[OBSERVABLE_ID].unique()
+    unique_dataset_list = df[DATASET_ID].unique()
+    unique_simcond_list = df[SIMULATION_CONDITION_ID].unique()
+    unique_obs_list = df[OBSERVABLE_ID].unique()
 
     # we will need a dictionary for mapping simulation conditions
     # /observables to datasets
@@ -364,7 +365,7 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
         plot_id_list = []
         for cond_id in sublist:
             plot_id_list.extend(list(
-                exp_data[exp_data[groupping_col] == cond_id][
+                df[df[groupping_col] == cond_id][
                     DATASET_ID].unique()))
         dataset_id_list.append(plot_id_list)
 
