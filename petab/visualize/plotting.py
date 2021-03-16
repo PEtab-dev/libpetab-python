@@ -476,6 +476,10 @@ class DataProvider:
 
 
 class VisSpecParser:
+    """
+
+
+    """
     def __init__(self,
                  conditions_data: Union[str, pd.DataFrame],
                  exp_data: Optional[Union[str, pd.DataFrame]] = None,
@@ -590,7 +594,7 @@ class VisSpecParser:
 
     def parse_from_conditions_list(self,
                                    conditions_per_plot: Union[List[IdsList],
-                                                            List[NumList]],
+                                                              List[NumList]],
                                    plotted_noise: Optional[str] = MEAN_AND_SD
                                    ) -> Tuple[Figure, DataProvider]:
         """
@@ -608,8 +612,6 @@ class VisSpecParser:
         -------
 
         """
-
-        # TODO: cover also cond_num_list
 
         if all(isinstance(x, int) for sublist in conditions_per_plot
                for x in sublist):
@@ -664,11 +666,9 @@ class VisSpecParser:
 
     def parse_from_observables_list(self,
                                     observables_per_plot: Union[List[IdsList],
-                                                              List[NumList]],
+                                                                List[NumList]],
                                     plotted_noise: Optional[str] = MEAN_AND_SD
                                     ) -> Tuple[Figure, DataProvider]:
-
-        # TODO: cover also observable_num_list
 
         if all(isinstance(x, int) for sublist in observables_per_plot
                for x in sublist):
@@ -747,21 +747,32 @@ class VisSpecParser:
 
         if self.simulations_data is not None:
             if DATASET_ID in self.simulations_data.columns:
-                sim_data = self.simulations_data.drop(DATASET_ID, axis=1)
+                self.simulations_data = self.simulations_data.drop(DATASET_ID,
+                                                                   axis=1)
             self.simulations_data.insert(
                 loc=self.simulations_data.columns.size,
                 column=DATASET_ID,
                 value=generate_dataset_id_col(self.simulations_data))
 
 
-# def create_legend(self, dataset_id_column):
-#
-#     # create nicer legend entries from condition names instead of IDs
-#     if dataset_id not in legend_dict.keys():
-#         tmp = exp_conditions.loc[exp_conditions.index == cond_id]
-#         if CONDITION_NAME not in tmp.columns or tmp[
-#             CONDITION_NAME].isna().any():
-#             tmp.loc[:, CONDITION_NAME] = tmp.index.tolist()
-#         legend_dict[dataset_id] = tmp[CONDITION_NAME][0] + ' - ' + \
-#                                   tmp_obs[ind]
-#         yvalues_dict[dataset_id] = tmp_obs[ind]
+    # def create_legend(self, dataset_id_column):
+    #     legend_dict = {}
+    #     yvalues_dict = {}
+    #
+    #     tmp_simcond = list(self.measurements_data[SIMULATION_CONDITION_ID])
+    #     tmp_obs = list(self.measurements_data[OBSERVABLE_ID])
+    #
+    #     for dataset_id in dataset_id_column:
+    #
+    #         # create nicer legend entries from condition names instead of IDs
+    #         if dataset_id not in legend_dict.keys():
+    #             cond_id = self.measurements_data.loc[]
+    #             tmp = self.conditions_data.loc[self.conditions_data.index == cond_id]
+    #             if CONDITION_NAME not in tmp.columns or tmp[
+    #                 CONDITION_NAME].isna().any():
+    #                 tmp.loc[:, CONDITION_NAME] = tmp.index.tolist()
+    #             legend_dict[dataset_id] = tmp[CONDITION_NAME][0] + ' - ' + \
+    #                                       tmp_obs[ind]
+    #             yvalues_dict[dataset_id] = tmp_obs[ind]
+    #
+    #     return legend_dict
