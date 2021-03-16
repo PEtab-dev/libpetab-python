@@ -249,6 +249,8 @@ class MPLPlotter(Plotter):
         for idx, subplot in enumerate(self.figure.subplots):
             self.generate_subplot(axes[subplot.plotId], subplot)
 
+        return axes
+
 
 class SeabornPlotter(Plotter):
     """

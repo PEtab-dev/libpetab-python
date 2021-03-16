@@ -5,7 +5,9 @@ import pandas as pd
 
 from typing import Dict, List, Optional, Tuple, Union, TypedDict
 
-from .helper_functions import create_dataset_id_list_new, matches_plot_spec_new
+from .helper_functions import (generate_dataset_id_col,
+                               create_dataset_id_list_new,
+                               matches_plot_spec_new)
 from .. import problem, measurements, core, conditions
 from ..problem import Problem
 from ..C import *
@@ -303,6 +305,10 @@ class DataProvider:
                  measurements_data: Union[str, pd.DataFrame],
                  simulations_data: Optional[Union[str, pd.DataFrame]] = None):
         self.conditions_data = exp_conditions
+
+        if measurements_data is None and simulations_data is None:
+            raise TypeError('Not enough arguments. Either measurements_data '
+                            'or simulations_data should be provided.')
         self.measurements_data = measurements_data
         self.simulations_data = simulations_data
         # validation of dfs?
@@ -313,6 +319,54 @@ class DataProvider:
         # check if data request is meaningful
         # check_vis_spec_consistency functionality
         pass
+
+    def get_uni_condition_id(self, df: pd.DataFrame, dataplot: DataPlot):
+        """
+
+        Parameters
+        ----------
+        df:
+            pandas data frame to subset, can be from measurement file or
+            simulation file
+        dataplot:
+
+        Returns
+        -------
+
+        """
+
+        indep_var = getattr(dataplot, X_VALUES)
+
+        dataset_id = getattr(dataplot, DATASET_ID)
+
+        # TODO: move matches_plot_spec to this class?
+        single_m_data = df[matches_plot_spec_new(
+            df, dataplot, dataset_id)]
+
+        # gather simulationConditionIds belonging to datasetId
+        uni_condition_id, uind = np.unique(
+            single_m_data[SIMULATION_CONDITION_ID],
+            return_index=True)
+        # keep the ordering which was given by user from top to bottom
+        # (avoid ordering by names '1','10','11','2',...)'
+        uni_condition_id = uni_condition_id[np.argsort(uind)]
+        col_name_unique = SIMULATION_CONDITION_ID
+
+        if indep_var == TIME:
+            # obtain unique observation times
+            uni_condition_id = single_m_data[TIME].unique()
+            col_name_unique = TIME
+            conditions = uni_condition_id
+        elif indep_var == 'condition':
+            # TODO: not described in docs?
+            conditions = None
+        else:
+            # parameterOrStateId case ?
+            # extract conditions (plot input) from condition file
+            ind_cond = self.conditions_data.index.isin(uni_condition_id)
+            conditions = self.conditions_data[ind_cond][indep_var]
+
+        return uni_condition_id, col_name_unique, conditions
 
     def get_data_to_plot(self, dataplot: DataPlot) -> DataToPlot:
         """
@@ -327,38 +381,20 @@ class DataProvider:
 
         # handle one "line" of plot
 
-        indep_var = getattr(dataplot, X_VALUES)
-
         dataset_id = getattr(dataplot, DATASET_ID)
 
         if self.measurements_data is not None:
+            uni_condition_id, col_name_unique, conditions = \
+                self.get_uni_condition_id(self.measurements_data, dataplot)
+        else:
+            uni_condition_id, col_name_unique, conditions = \
+                self.get_uni_condition_id(self.simulations_data, dataplot)
+
+        if self.measurements_data is not None:
             # define index to reduce exp_data to data linked to datasetId
-            # TODO: move matches_plot_spec to this class?
+
             single_m_data = self.measurements_data[matches_plot_spec_new(
                 self.measurements_data, dataplot, dataset_id)]
-
-            # gather simulationConditionIds belonging to datasetId
-            uni_condition_id, uind = np.unique(
-                single_m_data[SIMULATION_CONDITION_ID],
-                return_index=True)
-            # keep the ordering which was given by user from top to bottom
-            # (avoid ordering by names '1','10','11','2',...)'
-            uni_condition_id = uni_condition_id[np.argsort(uind)]
-            col_name_unique = SIMULATION_CONDITION_ID
-
-            if indep_var == TIME:
-                # obtain unique observation times
-                uni_condition_id = single_m_data[TIME].unique()
-                col_name_unique = TIME
-                conditions = uni_condition_id
-            elif indep_var == 'condition':
-                # TODO: not described in docs?
-                conditions = None
-            else:
-                # parameterOrStateId case ?
-                # extract conditions (plot input) from condition file
-                ind_cond = self.conditions_data.index.isin(uni_condition_id)
-                conditions = self.conditions_data[ind_cond][indep_var]
 
             # create empty dataframe for means and SDs
             measurements_to_plot = pd.DataFrame(
@@ -421,41 +457,20 @@ class DataProvider:
                     data_measurements
 
         # TODO: simulations
-        # if self.simulations is not None:
-        #
-        #     # gather simulationConditionIds belonging to datasetId
-        #     uni_condition_id, uind = np.unique(
-        #         single_m_data[SIMULATION_CONDITION_ID],
-        #         return_index=True)
-        #     # keep the ordering which was given by user from top to bottom
-        #     # (avoid ordering by names '1','10','11','2',...)'
-        #     uni_condition_id = uni_condition_id[np.argsort(uind)]
-        #     col_name_unique = SIMULATION_CONDITION_ID
-        #
-        #     if indep_var == TIME:
-        #         # obtain unique observation times
-        #         uni_condition_id = single_m_data[TIME].unique()
-        #         col_name_unique = TIME
-        #         conditions = uni_condition_id
-        #     elif indep_var == 'condition':
-        #         # TODO: not described in docs?
-        #         conditions = None
-        #     else:
-        #         # parameterOrStateId case ?
-        #         # extract conditions (plot input) from condition file
-        #         ind_cond = self.conditions.index.isin(uni_condition_id)
-        #         conditions = self.conditions[ind_cond][indep_var]
-        #
-        #     for var_cond_id in uni_condition_id:
-        #         simulation_measurements = self.simulations.loc[
-        #             matches_plot_spec_new(self.simulations,
-        #                                   vis_spec, dataset_id),
-        #             SIMULATION
-        #         ]
-        #         subset = (simulation_measurements[col_name_unique] == var_cond_id)
-        #         simulations_to_plot = np.mean(
-        #             simulation_measurements
-        #         )
+        if self.simulations_data is not None:
+            simulations_to_plot = []
+            for var_cond_id in uni_condition_id:
+                # TODO: put == var_cond_id back in matches_plot_spec_new?
+                simulation_measurements = self.simulations_data.loc[
+                    matches_plot_spec_new(self.simulations_data,
+                                          dataplot, dataset_id) &
+                    (self.simulations_data[col_name_unique] == var_cond_id),
+                    SIMULATION
+                ]
+
+                simulations_to_plot.append(np.mean(
+                    simulation_measurements
+                ))
 
         return DataToPlot(conditions, measurements_to_plot, simulations_to_plot)
 
@@ -463,8 +478,8 @@ class DataProvider:
 class VisSpecParser:
     def __init__(self,
                  conditions_data: Union[str, pd.DataFrame],
-                 exp_data: Union[str, pd.DataFrame],
-                 simulations: Optional[Union[str, pd.DataFrame]] = None,
+                 exp_data: Optional[Union[str, pd.DataFrame]] = None,
+                 sim_data: Optional[Union[str, pd.DataFrame]] = None,
                  ):
         if isinstance(conditions_data, str):
             conditions_data = conditions.get_condition_df(conditions_data)
@@ -473,9 +488,12 @@ class VisSpecParser:
         if isinstance(exp_data, str):
             exp_data = measurements.get_measurement_df(exp_data)
 
+        if isinstance(sim_data, str):
+            sim_data = core.get_simulation_df(sim_data)
+
         self.conditions_data = conditions_data
         self.measurements_data = exp_data
-        self.simulations_data = simulations
+        self.simulations_data = sim_data
 
     def create_subplot(self,
                        plot_id,
@@ -614,10 +632,11 @@ class VisSpecParser:
         group_by = 'simulation'  # TODO: why simulation btw?
         # datasetId_list will be created (possibly overwriting previous list
         #  - only in the local variable, not in the tsv-file)
-        self.measurements_data, dataset_id_list = \
-            create_dataset_id_list_new(self.measurements_data,
-                                       group_by,
-                                       conditions_id_list)
+
+        self.add_dataset_id_col()
+        dataset_id_list = create_dataset_id_list_new(self.measurements_data,
+                                                     group_by,
+                                                     conditions_id_list)
 
         dataset_id_column = [i_dataset for sublist in dataset_id_list
                              for i_dataset in sublist]
@@ -669,9 +688,11 @@ class VisSpecParser:
         group_by = 'observable'
         # datasetId_list will be created (possibly overwriting previous list
         #  - only in the local variable, not in the tsv-file)
-        self.measurements_data, dataset_id_list = \
-            create_dataset_id_list_new(self.measurements_data, group_by,
-                                       observable_id_list)
+
+        self.add_dataset_id_col()
+        dataset_id_list = create_dataset_id_list_new(self.measurements_data,
+                                                     group_by,
+                                                     observable_id_list)
 
         dataset_id_column = [i_dataset for sublist in dataset_id_list
                              for i_dataset in sublist]
@@ -710,6 +731,27 @@ class VisSpecParser:
         vis_spec_df = pd.DataFrame(columns_dict)
 
         return self.parse_from_vis_spec(vis_spec_df)
+
+    def add_dataset_id_col(self):
+        # add dataset_id column to the measurement table and simulations table
+        # (possibly overwrite)
+
+        if self.measurements_data is not None:
+            if DATASET_ID in self.measurements_data.columns:
+                self.measurements_data = self.measurements_data.drop(DATASET_ID,
+                                                                     axis=1)
+            self.measurements_data.insert(
+                loc=self.measurements_data.columns.size,
+                column=DATASET_ID,
+                value=generate_dataset_id_col(self.measurements_data))
+
+        if self.simulations_data is not None:
+            if DATASET_ID in self.simulations_data.columns:
+                sim_data = self.simulations_data.drop(DATASET_ID, axis=1)
+            self.simulations_data.insert(
+                loc=self.simulations_data.columns.size,
+                column=DATASET_ID,
+                value=generate_dataset_id_col(self.simulations_data))
 
 
 # def create_legend(self, dataset_id_column):

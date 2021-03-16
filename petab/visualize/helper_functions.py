@@ -272,12 +272,37 @@ def create_dataset_id_list(
     return exp_data, dataset_id_list, legend_dict, yvalues_dict
 
 
+def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
+    """
+    generate DATASET_ID column from condition_ids and observable ids
+
+    Parameters
+    ----------
+    exp_data
+
+    Returns
+    -------
+
+    """
+
+    # create a column of dummy datasetIDs and legend entries: preallocate
+    dataset_id_column = []
+
+    # loop over experimental data table, create datasetId for each entry
+    tmp_simcond = list(exp_data[SIMULATION_CONDITION_ID])
+    tmp_obs = list(exp_data[OBSERVABLE_ID])
+
+    for ind, cond_id in enumerate(tmp_simcond):
+        # create and add dummy datasetID
+        dataset_id = cond_id + '_' + tmp_obs[ind]
+        dataset_id_column.append(dataset_id)
+
+    return dataset_id_column
+
+
 def create_dataset_id_list_new(exp_data: pd.DataFrame,
                                group_by: str,
                                id_list: List[IdsList],
-                               # simcond_num_list: List[NumList],
-                               # observable_id_list: List[IdsList] = None,
-                               # observable_num_list: List[NumList],
                                #exp_conditions: pd.DataFrame,
                                ) -> Tuple[pd.DataFrame, List[IdsList]]:
     """
@@ -293,9 +318,9 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
 
     For additional documentation, see main function plot_data_and_simulation()
     """
+    if DATASET_ID not in exp_data.columns:
+        raise ValueError(f'{DATASET_ID} column must be in exp_data DataFrame')
 
-    # create a column of dummy datasetIDs and legend entries: preallocate
-    dataset_id_column = []
     # legend_dict = {}
     # yvalues_dict = {}
 
@@ -304,11 +329,10 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
     tmp_obs = list(exp_data[OBSERVABLE_ID])
 
     for ind, cond_id in enumerate(tmp_simcond):
+        # TODO: move to a separate function
         # create and add dummy datasetID
         dataset_id = cond_id + '_' + tmp_obs[ind]
-        dataset_id_column.append(dataset_id)
 
-        # TODO: move to a separate function
         # # create nicer legend entries from condition names instead of IDs
         # if dataset_id not in legend_dict.keys():
         #     tmp = exp_conditions.loc[exp_conditions.index == cond_id]
@@ -318,12 +342,6 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
         #     legend_dict[dataset_id] = tmp[CONDITION_NAME][0] + ' - ' + \
         #                               tmp_obs[ind]
         #     yvalues_dict[dataset_id] = tmp_obs[ind]
-
-    # add these column to the measurement table (possibly overwrite)
-    if DATASET_ID in exp_data.columns:
-        exp_data = exp_data.drop(DATASET_ID, axis=1)
-    exp_data.insert(loc=exp_data.columns.size, column=DATASET_ID,
-                    value=dataset_id_column)
 
     # make dummy dataset names unique and iterable
     unique_dataset_list = exp_data[DATASET_ID].unique()
@@ -388,7 +406,7 @@ def create_dataset_id_list_new(exp_data: pd.DataFrame,
     #         "Very, very weird error. Should not have happened. Something "
     #         "went wrong in how datasets should be grouped. Very weird...")
 
-    return exp_data, dataset_id_list #, legend_dict, yvalues_dict
+    return dataset_id_list #, legend_dict, yvalues_dict
 
 
 def create_figure(
@@ -811,6 +829,7 @@ def check_ex_exp_columns(
                         value='')
     legend_dict = {}
     if DATASET_ID not in exp_data.columns:
+        # TODO: ?
         if dataset_id_list is not None:
             exp_data.insert(loc=4, column=DATASET_ID,
                             value=dataset_id_list)
