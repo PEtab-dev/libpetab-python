@@ -184,7 +184,7 @@ class DataPlot:
 
         vis_spec_dict = plot_spec.to_dict()
 
-        return DataPlot(vis_spec_dict)  # measurements_to_plot, simulations_to_plot)
+        return DataPlot(vis_spec_dict)
 
 
 class Subplot:
@@ -315,10 +315,11 @@ class DataProvider:
         # extending
         pass
 
-    def check_datarequest_consistency(self):
-        # check if data request is meaningful
-        # check_vis_spec_consistency functionality
-        pass
+    # def check_datarequest_consistency(self):
+    # TODO: not needed anymore?
+    #     # check if data request is meaningful
+    #     # check_vis_spec_consistency functionality
+    #     pass
 
     def get_uni_condition_id(self, df: pd.DataFrame, dataplot: DataPlot):
         """
@@ -532,6 +533,10 @@ class VisSpecParser:
                             ) -> Tuple[Figure, DataProvider]:
 
         # TODO: vis_spec_df without datasetId was provided
+
+        # import visualization specification, if file was specified
+        if isinstance(vis_spec, str):
+            vis_spec = core.get_visualization_df(vis_spec)
 
         figure = Figure([])
 

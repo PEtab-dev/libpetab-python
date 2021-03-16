@@ -82,6 +82,19 @@ def simulation_file_Isensee():
     return "doc/example/example_Isensee/Isensee_simulationData.tsv"
 
 
+def test_visualization_with_vis_and_sim(data_file_Isensee,
+                                        condition_file_Isensee,
+                                        vis_spec_file_Isensee,
+                                        simulation_file_Isensee):
+
+    vis_spec_parcer = VisSpecParser(condition_file_Isensee, data_file_Isensee,
+                                    simulation_file_Isensee)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        vis_spec_file_Isensee)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()  # assemble actual plot
+
+
 def test_visualization_with_dataset_list(data_file_Isensee,
                                          condition_file_Isensee,
                                          simulation_file_Isensee):

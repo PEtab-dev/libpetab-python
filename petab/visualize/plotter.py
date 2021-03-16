@@ -4,9 +4,11 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
+import seaborn as sns
 
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
 from ..problem import Problem
+from .plotting_config import square_plot_equal_ranges
 from ..C import *
 
 # for typehints
@@ -26,13 +28,8 @@ class Plotter:
     # def create_figure(self, num_subplots) -> Figure:
     #     pass
 
-    def generate_plot(self):
-        if plots_to_file:
-            # TODO save plot
-            pass
-        else:
-            pass
-
+    def generate_figure(self):
+        # TODO save plot
         pass
 
 
@@ -44,7 +41,19 @@ class MPLPlotter(Plotter):
         super().__init__(figure, data_provider)
 
     def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
-        # it should be possible to plot only data or only simulation or both
+        """
+        It is possible to plot only data or only simulation or both
+
+        Parameters
+        ----------
+        ax
+        dataplot
+        plotTypeData
+
+        Returns
+        -------
+
+        """
 
         simu_colors = None
         data_to_plot = self.data_provider.get_data_to_plot(dataplot)
@@ -64,13 +73,15 @@ class MPLPlotter(Plotter):
         if data_to_plot.measurements_to_plot is not None:
             # plotting all measurement data
 
+            # TODO:
             if plotTypeData == REPLICATE:
-                p = ax.plot(
-                    data_to_plot.conditions[conditions.index.values],
-                    data_to_plot.measurements_to_plot.repl[
-                        data_to_plot.measurements_to_plot.repl.index.values], 'x',
-                    label=label_base
-                )
+                pass
+                # p = ax.plot(
+                #     data_to_plot.conditions[conditions.index.values],
+                #     data_to_plot.measurements_to_plot.repl[
+                #         data_to_plot.measurements_to_plot.repl.index.values], 'x',
+                #     label=label_base
+                # )
 
             # construct errorbar-plots: noise specified above
             else:
@@ -110,10 +121,22 @@ class MPLPlotter(Plotter):
                 label=label_base + " simulation", color=simu_colors
             )
 
-    def generate_barplot(self, ax, subplot: Subplot):
-        x_name = subplot.vis_spec.legendEntry
+    def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData):
 
-        if plot_sim:
+        # set type of noise
+        if plotTypeData == MEAN_AND_SD:
+            noise_col = 'sd'
+        elif plotTypeData == MEAN_AND_SEM:
+            noise_col = 'sem'
+        elif plotTypeData == PROVIDED:
+            noise_col = 'noise_model'
+
+        simu_colors = None
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot)
+
+        x_name = dataplot.legendEntry
+
+        if data_to_plot.simulations_to_plot:
             bar_kwargs = {
                 'align': 'edge',
                 'width': -1/3,
@@ -124,22 +147,34 @@ class MPLPlotter(Plotter):
                 'width': 2/3,
             }
 
-        p = ax.bar(x_name, ms['mean'], yerr=ms[noise_col],
-                   color=sns.color_palette()[0], **bar_kwargs)
+        # TODO shouldn't be any seaborn dependency here
+        color = sns.color_palette()[0]
 
-        if plot_sim:
-            colors = p[0].get_facecolor()
+        if data_to_plot.measurements_to_plot is not None:
+            p = ax.bar(x_name, data_to_plot.measurements_to_plot['mean'],
+                       yerr=data_to_plot.measurements_to_plot[noise_col],
+                       color=color, **bar_kwargs)
+            simu_colors = p[0].get_facecolor()
+
+        if data_to_plot.simulations_to_plot is not None:
             bar_kwargs['width'] = -bar_kwargs['width']
-            ax.bar(x_name, ms['sim'], color='white',
-                   edgecolor=colors, **bar_kwargs)
+            ax.bar(x_name, data_to_plot.simulations_to_plot, color='white',
+                   edgecolor=simu_colors, **bar_kwargs)
 
-    def generate_scatterplot(self, ax, subplot: Subplot):
-        if not plot_sim:
+    def generate_scatterplot(self, ax, dataplot: DataPlot):
+
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot)
+
+        if data_to_plot.simulations_to_plot is None:
             raise NotImplementedError('Scatter plots do not work without'
                                       ' simulation data')
-        ax.scatter(ms['mean'], ms['sim'],
-                   label=plot_spec[LEGEND_ENTRY])
+        ax.scatter(data_to_plot.measurements_to_plot['mean'],
+                   data_to_plot.simulations_to_plot,
+                   label=getattr(dataplot, LEGEND_ENTRY))
         ax = square_plot_equal_ranges(ax)
+
+    def generate_dataplot(self, ax, dataplot: DataPlot, plotTypeData):
+        pass
 
     def generate_subplot(self,
                          ax,
@@ -170,7 +205,7 @@ class MPLPlotter(Plotter):
 
         if subplot.plotTypeSimulation == BAR_PLOT:
             for data_plot in subplot.data_plots:
-                self.generate_barplot(ax, data_plot)
+                self.generate_barplot(ax, data_plot, subplot.plotTypeData)
         elif subplot.plotTypeSimulation == SCATTER_PLOT:
             for data_plot in subplot.data_plots:
                 self.generate_scatterplot(ax, data_plot)
@@ -205,8 +240,6 @@ class MPLPlotter(Plotter):
 
             for data_plot in subplot.data_plots:
                 self.generate_lineplot(ax, data_plot, subplot.plotTypeData)
-                # TODO: change to generate_dataplot?
-                #  and delete generate_barplot, generate_scatterplot?
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
