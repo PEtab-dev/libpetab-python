@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 import seaborn as sns
@@ -86,11 +86,12 @@ class MPLPlotter(Plotter):
             # construct errorbar-plots: noise specified above
             else:
                 # sort index for the case that indices of conditions and
-                # measurements differ if indep_var='time', conditions is a numpy
-                # array, for indep_var=observable its a Series
+                # measurements differ if indep_var='time', conditions is a
+                # numpy array, for indep_var=observable its a Series
                 if isinstance(data_to_plot.conditions, np.ndarray):
                     data_to_plot.conditions.sort()
-                elif isinstance(data_to_plot.conditions, pd.core.series.Series):
+                elif isinstance(data_to_plot.conditions,
+                                pd.core.series.Series):
                     data_to_plot.conditions.sort_index(inplace=True)
                 else:
                     raise ValueError('Strange: conditions object is '
@@ -121,7 +122,7 @@ class MPLPlotter(Plotter):
                 label=label_base + " simulation", color=simu_colors
             )
 
-    def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData):
+    def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData: str):
 
         # set type of noise
         if plotTypeData == MEAN_AND_SD:
@@ -235,8 +236,8 @@ class MPLPlotter(Plotter):
                     ax.set_xticks(range(len(conditions)), xlabel)
                 else:
                     raise ValueError('Error: x-conditions do not coincide, '
-                                     'some are mon. increasing, some monotonically'
-                                     ' decreasing')
+                                     'some are mon. increasing, some '
+                                     'monotonically decreasing')
 
             for data_plot in subplot.data_plots:
                 self.generate_lineplot(ax, data_plot, subplot.plotTypeData)
@@ -255,6 +256,12 @@ class MPLPlotter(Plotter):
         ax.set_title(subplot.plotName)
         ax.relim()
         ax.autoscale_view()
+
+        # Beautify plots
+        ax.set_xlabel(
+            subplot.xLabel)
+        ax.set_ylabel(
+            subplot.yLabel)
 
         return ax
 
@@ -284,6 +291,8 @@ class MPLPlotter(Plotter):
 
         for idx, subplot in enumerate(self.figure.subplots):
             self.generate_subplot(axes[subplot.plotId], subplot)
+
+        fig.tight_layout()
 
         return axes
 

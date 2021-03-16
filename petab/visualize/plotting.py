@@ -139,8 +139,8 @@ class DataToPlot:
 
         self.conditions = conditions_
         if measurements_to_plot is None and simulations_to_plot is None:
-            raise TypeError('Not enough arguments. Either measurements_to_plot '
-                            'or simulations_to_plot should be provided.')
+            raise TypeError('Not enough arguments. Either measurements_to_plot'
+                            ' or simulations_to_plot should be provided.')
         self.measurements_to_plot = measurements_to_plot
         self.simulations_to_plot = simulations_to_plot
 
@@ -472,7 +472,8 @@ class DataProvider:
                     simulation_measurements
                 ))
 
-        return DataToPlot(conditions, measurements_to_plot, simulations_to_plot)
+        return DataToPlot(conditions, measurements_to_plot,
+                          simulations_to_plot)
 
 
 class VisSpecParser:
@@ -529,7 +530,7 @@ class VisSpecParser:
         return subplot
 
     def parse_from_vis_spec(self,
-                            vis_spec: Optional[Union[str, pd.DataFrame]],  # full vis_spec
+                            vis_spec: Optional[Union[str, pd.DataFrame]],
                             ) -> Tuple[Figure, DataProvider]:
 
         # TODO: vis_spec_df without datasetId was provided
