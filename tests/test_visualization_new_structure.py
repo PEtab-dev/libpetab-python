@@ -101,24 +101,34 @@ def test_visualization_with_dataset_list(data_file_Isensee,
 def test_visualization_without_datasets(data_file_Fujita,
                                         condition_file_Fujita,
                                         simu_file_Fujita):
-    # sim_cond_num_list = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]]
+    sim_cond_num_list = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]]
     sim_cond_id_list = [['model1_data1'], ['model1_data2', 'model1_data3'],
                         ['model1_data4', 'model1_data5'], ['model1_data6']]
-    # observable_num_list = [[0], [1], [2], [0, 2], [1, 2]]
+    observable_num_list = [[0], [1], [2], [0, 2], [1, 2]]
     observable_id_list = [['pS6_tot'], ['pEGFR_tot'], ['pAkt_tot']]
 
     vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_condition_ids(
+    figure, dataprovider = vis_spec_parcer.parse_from_conditions_list(
         sim_cond_id_list)
     plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()  # assemple actual plot
+    plotter.generate_figure()
+
+    figure, dataprovider = vis_spec_parcer.parse_from_conditions_list(
+        sim_cond_num_list)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
 
     # TODO: with simu_file
 
-    figure, dataprovider = vis_spec_parcer.parse_from_observable_ids(
+    figure, dataprovider = vis_spec_parcer.parse_from_observables_list(
         observable_id_list)
     plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()  # assemple actual plot
+    plotter.generate_figure()
+
+    figure, dataprovider = vis_spec_parcer.parse_from_observables_list(
+        observable_num_list)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
 
     # TODO: with simu_file
     # TODO: with provided noise
