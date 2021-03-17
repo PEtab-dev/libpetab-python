@@ -69,8 +69,6 @@ class MPLPlotter(Plotter):
         elif plotTypeData == PROVIDED:
             noise_col = 'noise_model'
 
-        # add xOffset
-        data_to_plot.conditions += dataplot.xOffset
         label_base = dataplot.legendEntry
 
         if data_to_plot.measurements_to_plot is not None:
@@ -194,19 +192,6 @@ class MPLPlotter(Plotter):
             ax.set_yscale("log")
         elif subplot.yScale == LOG:
             ax.set_yscale("log", basey=np.e)
-
-        # ms thing should be inside a single plot
-
-        # TODO:
-        # if subplot.measurements_to_plot:
-        #     # add yOffset
-        #     subplot.measurements_to_plot.loc[:, 'mean'] = \
-        #         subplot.measurements_to_plot['mean'] + subplot.yOffset
-        #     subplot.measurements_to_plot.loc[:, 'repl'] = \
-        #         subplot.measurements_to_plot['repl'] + subplot.yOffset
-        #
-        # if subplot.simulations_to_plot:
-        #     ms.loc[:, 'sim'] = ms['sim'] + subplot.vis_spec.yOffset
 
         if subplot.plotTypeSimulation == BAR_PLOT:
             for data_plot in subplot.data_plots:

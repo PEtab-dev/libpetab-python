@@ -127,11 +127,11 @@ class VisualizationSpec:
         return vis_spec_list
 
 
-class DataToPlot:
+class DataSeries:
     """
     data for one individual line
     """
-    def __init__(self, conditions_,
+    def __init__(self, conditions_: Optional[Union[np.ndarray, pd.Series]],
                  measurements_to_plot: Optional[pd.DataFrame] = None,
                  simulations_to_plot: Optional[pd.DataFrame] = None):
 
@@ -142,11 +142,24 @@ class DataToPlot:
         self.measurements_to_plot = measurements_to_plot
         self.simulations_to_plot = simulations_to_plot
 
-    def add_xOffset(self):
-        pass
+    def add_x_offset(self, offset):
+        if self.conditions is not None:
+            self.conditions += offset
 
-    def add_yOffset(self):
-        pass
+    def add_y_offset(self, offset):
+        if self.measurements_to_plot is not None:
+            self.measurements_to_plot['mean'] = \
+                self.measurements_to_plot['mean'] + offset
+            self.measurements_to_plot['repl'] = \
+                self.measurements_to_plot['repl'] + offset
+
+        if self.simulations_to_plot is not None:
+            self.simulations_to_plot = [x + offset for x in
+                                        self.simulations_to_plot]
+
+    def add_offsets(self, x_offset=0, y_offset=0):
+        self.add_x_offset(x_offset)
+        self.add_y_offset(y_offset)
 
 
 class DataPlot:
@@ -368,7 +381,7 @@ class DataProvider:
         return uni_condition_id, col_name_unique, conditions
 
     def get_data_to_plot(self, dataplot: DataPlot, plotTypeData: str
-                         ) -> DataToPlot:
+                         ) -> DataSeries:
         """
 
         Parameters
@@ -422,7 +435,7 @@ class DataProvider:
                     MEASUREMENT
                 ]
 
-                # TODO: all this rather inside DataToPlot?
+                # TODO: all this rather inside DataSeries?
                 # process the data
                 measurements_to_plot.at[var_cond_id, 'mean'] = np.mean(
                     data_measurements)
@@ -471,8 +484,11 @@ class DataProvider:
                     simulation_measurements
                 ))
 
-        return DataToPlot(conditions, measurements_to_plot,
-                          simulations_to_plot)
+        data_series = DataSeries(conditions, measurements_to_plot,
+                                 simulations_to_plot)
+        data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
+
+        return data_series
 
 
 class VisSpecParser:
