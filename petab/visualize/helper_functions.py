@@ -302,8 +302,8 @@ def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
 
 def create_dataset_id_list_new(df: pd.DataFrame,
                                group_by: str,
-                               id_list: List[IdsList],
-                               #exp_conditions: pd.DataFrame,
+                               id_list: List[IdsList]
+                               # exp_conditions: pd.DataFrame,
                                ) -> Tuple[pd.DataFrame, List[IdsList]]:
     """
     Create dataset id list and corresponding plot legends.
@@ -312,6 +312,7 @@ def create_dataset_id_list_new(df: pd.DataFrame,
     Parameters:
         df: measurements or simulations df
         group_by: defines  grouping of data to plot
+        id_list:
 
     Returns:
         A tuple of experimental DataFrame, list of datasetIds and
@@ -407,7 +408,7 @@ def create_dataset_id_list_new(df: pd.DataFrame,
     #         "Very, very weird error. Should not have happened. Something "
     #         "went wrong in how datasets should be grouped. Very weird...")
 
-    return dataset_id_list #, legend_dict, yvalues_dict
+    return dataset_id_list  #, legend_dict, yvalues_dict
 
 
 def create_figure(

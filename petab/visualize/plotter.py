@@ -134,7 +134,8 @@ class MPLPlotter(Plotter):
             noise_col = 'noise_model'
 
         simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot, plotTypeData)
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot,
+                                                           plotTypeData)
 
         x_name = dataplot.legendEntry
 
@@ -309,11 +310,14 @@ class SeabornPlotter(Plotter):
     def generate_plot(self):
         pass
 
+
 def plot_measurements():
     pass
 
+
 def plot_simulations():
     pass
+
 
 def plot_problem():
     pass

@@ -53,8 +53,8 @@ class VisualizationSpec:
         # vis spec file + additioal styles/settings ?
         self.figureId = fig_id
         setattr(self, PLOT_ID, plot_id)
-        for key,val in plot_settings.items():
-            setattr(self,key,val)
+        for key, val in plot_settings.items():
+            setattr(self, key, val)
         if PLOT_NAME not in vars(self):
             setattr(self, PLOT_NAME, getattr(self, PLOT_ID))
         if PLOT_TYPE_SIMULATION not in vars(self):
@@ -632,8 +632,8 @@ class VisSpecParser:
         -------
 
         """
-        data_df = self.measurements_data if self.measurements_data is not None \
-            else self.simulations_data
+        data_df = self.measurements_data if self.measurements_data is not \
+            None else self.simulations_data
 
         if all(isinstance(x, int) for sublist in conditions_per_plot
                for x in sublist):
@@ -691,8 +691,8 @@ class VisSpecParser:
                                                                 List[NumList]],
                                     plotted_noise: Optional[str] = MEAN_AND_SD
                                     ) -> Tuple[Figure, DataProvider]:
-        data_df = self.measurements_data if self.measurements_data is not None \
-            else self.simulations_data
+        data_df = self.measurements_data if self.measurements_data is not \
+            None else self.simulations_data
 
         if all(isinstance(x, int) for sublist in observables_per_plot
                for x in sublist):
@@ -706,8 +706,8 @@ class VisSpecParser:
         else:
             raise TypeError("observables_per_plot should be a list of lists. "
                             "Each sublist corresponds to a plot. "
-                            "Elements of sublists should be either "
-                            "observable ids (str) or observable numbers (int) ")
+                            "Elements of sublists should be either observable "
+                            "ids (str) or observable numbers (int) ")
 
         group_by = 'observable'
         # datasetId_list will be created (possibly overwriting previous list
@@ -737,7 +737,8 @@ class VisSpecParser:
         # for i_obs in range(0, len(obs_uni)):
         #     # get dataset_ids which include observable name
         #     matching = [s for s in dataset_id_column if obs_uni[i_obs] in s]
-        #     # replace the dataset ids with plot id with grouping of observables
+        #     # replace the dataset ids with plot id with grouping of
+        #     # observables
         #     for m_i in matching:
         #         plot_id_column = [sub.replace(m_i, 'plot%s' % str(i_obs + 1))
         #                           for sub in plot_id_column]
@@ -762,8 +763,8 @@ class VisSpecParser:
 
         if self.measurements_data is not None:
             if DATASET_ID in self.measurements_data.columns:
-                self.measurements_data = self.measurements_data.drop(DATASET_ID,
-                                                                     axis=1)
+                self.measurements_data = self.measurements_data.drop(
+                    DATASET_ID, axis=1)
             self.measurements_data.insert(
                 loc=self.measurements_data.columns.size,
                 column=DATASET_ID,
@@ -790,7 +791,8 @@ class VisSpecParser:
     #         # create nicer legend entries from condition names instead of IDs
     #         if dataset_id not in legend_dict.keys():
     #             cond_id = self.measurements_data.loc[]
-    #             tmp = self.conditions_data.loc[self.conditions_data.index == cond_id]
+    #             tmp = self.conditions_data.loc[self.conditions_data.index
+    #                                            == cond_id]
     #             if CONDITION_NAME not in tmp.columns or tmp[
     #                 CONDITION_NAME].isna().any():
     #                 tmp.loc[:, CONDITION_NAME] = tmp.index.tolist()

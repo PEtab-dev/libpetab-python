@@ -232,7 +232,7 @@ def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
 
 
 def test_VisualizationSpec():
-    test_spec = {PLOT_NAME:'test_plot',
+    test_spec = {PLOT_NAME: 'test_plot',
                  PLOT_TYPE_SIMULATION: LINE_PLOT,
                  PLOT_TYPE_DATA: MEAN_AND_SD,
                  X_VALUES: 'test_xValues',
@@ -245,7 +245,7 @@ def test_VisualizationSpec():
                  X_OFFSET: [0.],
                  X_LABEL: 'test_xLabel',
                  Y_LABEL: 'test_yLabel'
-                  }
+                 }
     assert {**{'figureId': 'fig0', PLOT_ID: 'plot0'}, **test_spec} == \
         VisualizationSpec(plot_id='plot0', plot_settings=test_spec).__dict__
 
