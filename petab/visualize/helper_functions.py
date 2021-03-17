@@ -710,7 +710,9 @@ def create_or_update_vis_spec(
             vis_spec = expand_vis_spec_settings(vis_spec, columns_dict)
 
         # if dataset_id is there, then nothing to expand?
-    vis_spec[PLOT_TYPE_DATA] = plotted_noise
+
+    if PLOT_TYPE_DATA not in vis_spec.columns:
+        vis_spec[PLOT_TYPE_DATA] = plotted_noise
 
     # check columns, and add non-mandatory default columns
     vis_spec = check_ex_visu_columns(vis_spec, exp_data, exp_conditions)

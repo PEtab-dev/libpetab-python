@@ -1,7 +1,9 @@
+import os
+
 import numpy as np
 import pandas as pd
 
-from typing import List
+from typing import List, Optional
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 import seaborn as sns
@@ -28,7 +30,7 @@ class Plotter:
     # def create_figure(self, num_subplots) -> Figure:
     #     pass
 
-    def generate_figure(self):
+    def generate_figure(self, subplot_file_path: str = ''):
         # TODO save plot
         pass
 
@@ -56,7 +58,8 @@ class MPLPlotter(Plotter):
         """
 
         simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot)
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot,
+                                                           plotTypeData)
 
         # set type of noise
         if plotTypeData == MEAN_AND_SD:
@@ -73,7 +76,7 @@ class MPLPlotter(Plotter):
         if data_to_plot.measurements_to_plot is not None:
             # plotting all measurement data
 
-            # TODO:
+            # TODO: I don't think this works in the current code
             if plotTypeData == REPLICATE:
                 pass
                 # p = ax.plot(
@@ -133,7 +136,7 @@ class MPLPlotter(Plotter):
             noise_col = 'noise_model'
 
         simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot)
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot, plotTypeData)
 
         x_name = dataplot.legendEntry
 
@@ -162,9 +165,10 @@ class MPLPlotter(Plotter):
             ax.bar(x_name, data_to_plot.simulations_to_plot, color='white',
                    edgecolor=simu_colors, **bar_kwargs)
 
-    def generate_scatterplot(self, ax, dataplot: DataPlot):
+    def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
 
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot)
+        data_to_plot = self.data_provider.get_data_to_plot(dataplot,
+                                                           plotTypeData)
 
         if data_to_plot.simulations_to_plot is None:
             raise NotImplementedError('Scatter plots do not work without'
@@ -209,7 +213,7 @@ class MPLPlotter(Plotter):
                 self.generate_barplot(ax, data_plot, subplot.plotTypeData)
         elif subplot.plotTypeSimulation == SCATTER_PLOT:
             for data_plot in subplot.data_plots:
-                self.generate_scatterplot(ax, data_plot)
+                self.generate_scatterplot(ax, data_plot, subplot.plotTypeData)
         else:
 
             # set xScale
@@ -265,7 +269,7 @@ class MPLPlotter(Plotter):
 
         return ax
 
-    def generate_figure(self):
+    def generate_figure(self, subplot_file_path: Optional[str] = None):
 
         # Set Options for plots
         # possible options: see: plt.rcParams.keys()
@@ -278,24 +282,36 @@ class MPLPlotter(Plotter):
         plt.rcParams['figure.figsize'] = self.figure.size
         plt.rcParams['errorbar.capsize'] = 2
 
-        # compute, how many rows and columns we need for the subplots
-        num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
-        num_col = int(np.ceil(self.figure.num_subplots / num_row))
+        if subplot_file_path is None:
+            # compute, how many rows and columns we need for the subplots
+            num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
+            num_col = int(np.ceil(self.figure.num_subplots / num_row))
 
-        fig, axes = plt.subplots(num_row, num_col, squeeze=False)
+            fig, axes = plt.subplots(num_row, num_col, squeeze=False)
 
-        for ax in axes.flat[self.figure.num_subplots:]:
-            ax.remove()
+            for ax in axes.flat[self.figure.num_subplots:]:
+                ax.remove()
 
-        axes = dict(zip([plot.plotId for plot in self.figure.subplots],
-                        axes.flat))
+            axes = dict(zip([plot.plotId for plot in self.figure.subplots],
+                            axes.flat))
 
         for idx, subplot in enumerate(self.figure.subplots):
-            self.generate_subplot(axes[subplot.plotId], subplot)
+            if subplot_file_path is not None:
+                fig, ax = plt.subplots()
+            else:
+                ax = axes[subplot.plotId]
 
-        fig.tight_layout()
+            self.generate_subplot(ax, subplot)
 
-        return axes
+            if subplot_file_path is not None:
+                plt.tight_layout()
+                plt.savefig(os.path.join(subplot_file_path,
+                                         f'{subplot.plotId}.png'))
+                plt.close()
+
+        if subplot_file_path is None:
+            fig.tight_layout()
+            return axes
 
 
 class SeabornPlotter(Plotter):

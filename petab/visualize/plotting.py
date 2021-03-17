@@ -367,12 +367,14 @@ class DataProvider:
 
         return uni_condition_id, col_name_unique, conditions
 
-    def get_data_to_plot(self, dataplot: DataPlot) -> DataToPlot:
+    def get_data_to_plot(self, dataplot: DataPlot, plotTypeData: str
+                         ) -> DataToPlot:
         """
 
         Parameters
         ----------
         dataplot:
+        plotTypeData:
         """
 
         measurements_to_plot = None
@@ -428,23 +430,22 @@ class DataProvider:
                     data_measurements)
 
                 # TODO: one level above?
-                # if (getattr(dataplot,
-                #             PLOT_TYPE_DATA) == PROVIDED) & sum(subset):
-                #     if len(single_m_data.loc[
-                #                subset, NOISE_PARAMETERS].unique()) > 1:
-                #         raise NotImplementedError(
-                #             f"Datapoints with inconsistent {NOISE_PARAMETERS} is "
-                #             f"currently not implemented. Stopping.")
-                #     tmp_noise = \
-                #     single_m_data.loc[subset, NOISE_PARAMETERS].values[0]
-                #     if isinstance(tmp_noise, str):
-                #         raise NotImplementedError(
-                #             "No numerical noise values provided in the measurement "
-                #             "table. Stopping.")
-                #     if isinstance(tmp_noise,
-                #                   Number) or tmp_noise.dtype == 'float64':
-                #         measurements_to_plot.at[
-                #             var_cond_id, 'noise_model'] = tmp_noise
+                if (plotTypeData == PROVIDED) & sum(subset):
+                    if len(single_m_data.loc[
+                               subset, NOISE_PARAMETERS].unique()) > 1:
+                        raise NotImplementedError(
+                            f"Datapoints with inconsistent {NOISE_PARAMETERS} "
+                            f"is currently not implemented. Stopping.")
+                    tmp_noise = \
+                        single_m_data.loc[subset, NOISE_PARAMETERS].values[0]
+                    if isinstance(tmp_noise, str):
+                        raise NotImplementedError(
+                            "No numerical noise values provided in the "
+                            "measurement table. Stopping.")
+                    if isinstance(tmp_noise,
+                                  Number) or tmp_noise.dtype == 'float64':
+                        measurements_to_plot.at[
+                            var_cond_id, 'noise_model'] = tmp_noise
 
                 # standard error of mean
                 measurements_to_plot.at[var_cond_id, 'sem'] = \

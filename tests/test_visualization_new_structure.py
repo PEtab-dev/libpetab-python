@@ -9,8 +9,6 @@ from petab import Problem
 from petab.visualize.plotter import (MPLPlotter)
 from petab.visualize.plotting import VisualizationSpec, VisSpecParser
 
-import matplotlib.pyplot as plt
-
 
 @pytest.fixture
 def data_file_Fujita():
@@ -93,6 +91,21 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
         vis_spec_file_Isensee)
     plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()  # assemble actual plot
+
+
+def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
+                                                   condition_file_Fujita,
+                                                   visu_file_Fujita_small):
+    """
+    Test: visualization spezification file only with few columns in
+    particular datasetId
+    (optional columns are optional)
+    """
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        visu_file_Fujita_small)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
 
 
 def test_visualization_with_dataset_list(data_file_Isensee,
@@ -204,6 +217,18 @@ def test_visualization_only_simulations(condition_file_Fujita,
     plotter.generate_figure()
 
     # TODO: with provided noise
+
+
+def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
+                            vis_spec_file_Isensee, simulation_file_Isensee):
+    with TemporaryDirectory() as temp_dir:
+        vis_spec_parcer = VisSpecParser(condition_file_Isensee,
+                                        data_file_Isensee,
+                                        simulation_file_Isensee)
+        figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+            vis_spec_file_Isensee)
+        plotter = MPLPlotter(figure, dataprovider)
+        plotter.generate_figure(temp_dir)  # assemble actual plot
 
 
 def test_VisualizationSpec():
