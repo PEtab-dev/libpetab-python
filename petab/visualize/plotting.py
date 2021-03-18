@@ -205,7 +205,7 @@ class Subplot:
     def __init__(self,
                  plot_id: str,
                  plot_settings: VisDict,
-                 dataplots: List[DataPlot]):
+                 dataplots: Optional[List[DataPlot]] = None):
         """
         Visualization specification of a subplot
 
@@ -218,8 +218,7 @@ class Subplot:
 
         setattr(self, PLOT_ID, plot_id)
         for key, val in plot_settings.items():
-            if not isinstance(val, list):
-                setattr(self, key, val)
+            setattr(self, key, val)
 
         if PLOT_NAME not in vars(self):
             setattr(self, PLOT_NAME, getattr(self, PLOT_ID))
@@ -236,11 +235,11 @@ class Subplot:
         if Y_SCALE not in vars(self):
             setattr(self, Y_SCALE, LIN)
 
-        self.data_plots = dataplots
+        self.data_plots = dataplots if dataplots is not None else []
 
     @classmethod
     def from_df(cls, plot_id: str, vis_spec: pd.DataFrame,
-                dataplots: List[DataPlot]):
+                dataplots: Optional[List[DataPlot]] = None):
 
         vis_spec_dict = {}
         for col in vis_spec:
@@ -282,10 +281,11 @@ class Subplot:
 
 
 class Figure:
-    def __init__(self, subplots: List[Subplot],
+    def __init__(self, subplots: Optional[List[Subplot]] = None,
                  size: Tuple = (20, 10),
                  title: Optional[Tuple] = None):
         """
+        Visualization specification of a figure
 
         Parameters
         ----------
@@ -297,7 +297,7 @@ class Figure:
         # TODO: Isensee meas table doesn't correspond to documentation
         self.size = size
         self.title = title
-        self.subplots = subplots
+        self.subplots = subplots if subplots is not None else []
 
         # TODO: Should we put in the documentation which combination of fields
         #  must be unique? is there such  check
@@ -536,7 +536,7 @@ class VisSpecParser:
         subplot_columns = [col for col in subplot_vis_spec.columns if col in
                            VISUALIZATION_DF_SUBPLOT_LEVEL_COLS]
         subplot = Subplot.from_df(plot_id,
-                                  subplot_vis_spec.loc[:, subplot_columns], [])
+                                  subplot_vis_spec.loc[:, subplot_columns])
 
         dataplot_cols = [col for col in subplot_vis_spec.columns if col in
                          VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS]
@@ -558,7 +558,12 @@ class VisSpecParser:
         if isinstance(vis_spec, str):
             vis_spec = core.get_visualization_df(vis_spec)
 
-        figure = Figure([])
+        # TODO: remove from this helper function generation of new spec
+        # vis_spec = create_or_update_vis_spec(self.measurements_data,
+        #                                      self.conditions_data,
+        #                                      vis_spec)
+
+        figure = Figure()
 
         # get unique plotIDs
         plot_ids = np.unique(vis_spec[PLOT_ID])

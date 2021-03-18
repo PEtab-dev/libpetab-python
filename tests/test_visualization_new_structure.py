@@ -1,12 +1,9 @@
-import warnings
 from os import path
 from tempfile import TemporaryDirectory
 import pandas as pd
 import pytest
 from petab.C import *
-from petab import Problem
-# from petab.visualize import (MPLPlotter)
-from petab.visualize.plotter import (MPLPlotter)
+from petab.visualize.plotter import MPLPlotter
 from petab.visualize.plotting import VisualizationSpec, VisSpecParser
 
 

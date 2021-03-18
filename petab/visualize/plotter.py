@@ -155,13 +155,13 @@ class MPLPlotter(Plotter):
         if data_to_plot.measurements_to_plot is not None:
             p = ax.bar(x_name, data_to_plot.measurements_to_plot['mean'],
                        yerr=data_to_plot.measurements_to_plot[noise_col],
-                       color=color, **bar_kwargs)
+                       color=color, **bar_kwargs, label='measurement')
             simu_colors = p[0].get_facecolor()
 
         if data_to_plot.simulations_to_plot is not None:
             bar_kwargs['width'] = -bar_kwargs['width']
             ax.bar(x_name, data_to_plot.simulations_to_plot, color='white',
-                   edgecolor=simu_colors, **bar_kwargs)
+                   edgecolor=simu_colors, **bar_kwargs, label='simulation')
 
     def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
 
@@ -196,6 +196,19 @@ class MPLPlotter(Plotter):
         if subplot.plotTypeSimulation == BAR_PLOT:
             for data_plot in subplot.data_plots:
                 self.generate_barplot(ax, data_plot, subplot.plotTypeData)
+
+            # get rid of duplicate legends
+            handles, labels = ax.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            ax.legend(by_label.values(), by_label.keys())
+
+            x_names = [x.legendEntry for x in subplot.data_plots]
+            ax.set_xticks(range(len(x_names)))
+            ax.set_xticklabels(x_names)
+
+            for label in ax.get_xmajorticklabels():
+                label.set_rotation(30)
+                label.set_horizontalalignment("right")
         elif subplot.plotTypeSimulation == SCATTER_PLOT:
             for data_plot in subplot.data_plots:
                 self.generate_scatterplot(ax, data_plot, subplot.plotTypeData)
