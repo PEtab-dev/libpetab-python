@@ -161,7 +161,8 @@ def flatten_timepoint_specific_output_overrides(
                 )
             measurements[OBSERVABLE_ID] = replacement_id
             measurements.drop(columns=[NOISE_PARAMETERS,
-                                       OBSERVABLE_PARAMETERS], inplace=True)
+                                       OBSERVABLE_PARAMETERS], inplace=True,
+                              errors='ignore')
             new_measurement_dfs.append(measurements)
             new_observable_dfs.append(observable)
 
