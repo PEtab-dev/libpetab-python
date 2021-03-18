@@ -328,7 +328,6 @@ class DataProvider:
         self.simulations_data = simulations_data
         # validation of dfs?
         # extending
-        pass
 
     # def check_datarequest_consistency(self):
     # TODO: not needed anymore?
@@ -424,14 +423,6 @@ class DataProvider:
                 # TODO: should be self.measurements ?
 
                 subset = (single_m_data[col_name_unique] == var_cond_id)
-                # if vis_spec[Y_VALUES] == '':
-                #     if len(single_m_data.loc[subset, OBSERVABLE_ID].unique()) > 1:
-                #         ValueError(
-                #             f'{Y_VALUES} must be specified in visualization table if '
-                #             f'multiple different observables are available.'
-                #         )
-                # else:
-                #     subset &= (single_m_data[OBSERVABLE_ID] == vis_spec[Y_VALUES])
 
                 # what has to be plotted is selected
                 data_measurements = single_m_data.loc[
