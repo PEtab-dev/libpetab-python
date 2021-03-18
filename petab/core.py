@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from typing import Iterable, Optional, Callable, Union, Any, Sequence, List
 from warnings import warn
 
@@ -153,8 +154,10 @@ def flatten_timepoint_specific_output_overrides(
             if target not in observable:
                 continue
             for ipar, par in enumerate(obs_pars.split(';')):
-                observable[target] = observable[target].replace(
-                    f'{name}{ipar + 1}_{obs_id}', par
+                observable[target] = re.sub(
+                    fr'^(\w){name}{ipar + 1}_{obs_id}^(\w)',
+                    par,
+                    observable[target]
                 )
             measurements[OBSERVABLE_ID] = replacement_id
             measurements.drop(columns=[NOISE_PARAMETERS,
