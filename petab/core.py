@@ -148,28 +148,12 @@ def flatten_timepoint_specific_output_overrides(
                                'present in observable table')
         observable = petab_problem.observable_df.loc[obs_id]
         observable.name = replacement_id
-        for name, values, target in [
-            ('observableParameter', obs_pars, OBSERVABLE_FORMULA),
-            ('noiseParameter', noise_pars, NOISE_FORMULA)
-        ]:
-            if target not in observable:
-                continue
-            for ipar, par in enumerate(obs_pars.split(';')):
-                observable[target] = re.sub(
-                    fr'^(\w){name}{ipar + 1}_{obs_id}^(\w)',
-                    par,
-                    observable[target]
-                )
-            measurements[OBSERVABLE_ID] = replacement_id
-            measurements.drop(columns=[NOISE_PARAMETERS,
-                                       OBSERVABLE_PARAMETERS], inplace=True,
-                              errors='ignore')
-            new_measurement_dfs.append(measurements)
-            new_observable_dfs.append(observable)
+        new_measurement_dfs.append(measurements)
+        new_observable_dfs.append(observable)
 
-        petab_problem.observable_df = pd.concat(new_observable_dfs, axis=1).T
-        petab_problem.observable_df.index.name = OBSERVABLE_ID
-        petab_problem.measurement_df = pd.concat(new_measurement_dfs)
+    petab_problem.observable_df = pd.concat(new_observable_dfs, axis=1).T
+    petab_problem.observable_df.index.name = OBSERVABLE_ID
+    petab_problem.measurement_df = pd.concat(new_measurement_dfs)
 
 
 def concat_tables(
