@@ -134,6 +134,7 @@ def flatten_timepoint_specific_output_overrides(
     for (obs_id, obs_pars, noise_pars), measurements in \
             petab_problem.measurement_df.groupby([
                 OBSERVABLE_ID, OBSERVABLE_PARAMETERS, NOISE_PARAMETERS,
+                SIMULATION_CONDITION_ID, PREEQUILIBRATION_CONDITION_ID
             ], dropna=False):
         replacement_id = \
             f'{obs_id}__{obs_pars.replace(";", "_")}__' \
@@ -165,7 +166,6 @@ def flatten_timepoint_specific_output_overrides(
                               errors='ignore')
             new_measurement_dfs.append(measurements)
             new_observable_dfs.append(observable)
-
 
         petab_problem.observable_df = pd.concat(new_observable_dfs, axis=1).T
         petab_problem.observable_df.index.name = OBSERVABLE_ID
