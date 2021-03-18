@@ -125,17 +125,16 @@ def flatten_timepoint_specific_output_overrides(
         petab_problem:
             PEtab problem to work on
     """
-    if OBSERVABLE_PARAMETERS not in petab_problem.measurement_df:
-        petab_problem.measurement_df[OBSERVABLE_PARAMETERS] = 'nan'
-    if NOISE_PARAMETERS not in petab_problem.measurement_df:
-        petab_problem.measurement_df[NOISE_PARAMETERS] = 'nan'
     new_measurement_dfs = []
     new_observable_dfs = []
     for (obs_id, obs_pars, noise_pars), measurements in \
-            petab_problem.measurement_df.groupby([
-                OBSERVABLE_ID, OBSERVABLE_PARAMETERS, NOISE_PARAMETERS,
-                SIMULATION_CONDITION_ID, PREEQUILIBRATION_CONDITION_ID
-            ], dropna=False):
+            petab_problem.measurement_df.groupby(
+                [OBSERVABLE_ID] +
+                [x for x in [OBSERVABLE_PARAMETERS, NOISE_PARAMETERS,
+                             SIMULATION_CONDITION_ID,
+                             PREEQUILIBRATION_CONDITION_ID]
+                 if x in petab_problem.measurement_df], dropna=False
+            ):
         replacement_id = \
             f'{obs_id}__{obs_pars.replace(";", "_")}__' \
             f'{noise_pars.replace(";", "_")}'
