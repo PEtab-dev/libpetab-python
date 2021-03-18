@@ -11,7 +11,9 @@ the `petab` Python package for reading, writing and validating PEtab files.
 
 ## Documentation
 
-Documentation of the PEtab data format and Python library is available at
+Documentation of the `petab` Python package is available at
+[https://libpetab-python.readthedocs.io/en/latest/](https://libpetab-python.readthedocs.io/en/latest/).
+Documentation of the PEtab format in general is available at
 [https://petab.readthedocs.io/en/latest/](https://petab.readthedocs.io/en/latest/).
 
 ## Installation
