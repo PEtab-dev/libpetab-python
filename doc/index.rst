@@ -3,13 +3,6 @@
 
 .. toctree::
    :maxdepth: 3
-   :caption: Data format
-
-   Data format <documentation_data_format.rst>
-   tutorial
-
-.. toctree::
-   :maxdepth: 3
    :caption: Python package
 
    modules
@@ -22,8 +15,6 @@
    Development <development>
    how_to_cite
    license
-   editorial_board
-   logo/LICENSE.md
 
 .. toctree::
    :maxdepth: 2
