@@ -5,7 +5,8 @@ from typing import List, Optional, Tuple, Union, TypedDict
 
 from .helper_functions import (generate_dataset_id_col,
                                create_dataset_id_list_new,
-                               matches_plot_spec_new)
+                               matches_plot_spec_new,
+                               create_or_update_vis_spec)
 from .. import problem, measurements, core, conditions
 from ..problem import Problem
 from ..C import *
@@ -19,6 +20,7 @@ NumList = List[int]
 
 
 # also for type hints
+# TODO: split into dataplot and subplot level dicts?
 class VisDict(TypedDict):
     PLOT_NAME: str
     PLOT_TYPE_SIMULATION: str
@@ -166,6 +168,8 @@ class DataPlot:
     def __init__(self,
                  plot_settings: VisDict):
         """
+        Visualization specification of a plot of one data series, e.g. for
+        an individual line on the subplot
 
         Parameters
         ----------
@@ -174,11 +178,10 @@ class DataPlot:
         """
 
         for key, val in plot_settings.items():
-            if not isinstance(val, list):
-                setattr(self, key, val)
+            setattr(self, key, val)
 
-        # TODO datasetId mandatory here
-
+        if DATASET_ID not in vars(self):
+            raise ValueError(f'{DATASET_ID} must be specified')
         if X_VALUES not in vars(self):  # TODO: singular?
             setattr(self, X_VALUES, TIME)
         if X_OFFSET not in vars(self):
@@ -190,12 +193,12 @@ class DataPlot:
         if LEGEND_ENTRY not in vars(self):
             setattr(self, LEGEND_ENTRY, getattr(self, DATASET_ID))
 
-    @staticmethod
-    def from_df(plot_spec: pd.DataFrame):
+    @classmethod
+    def from_df(cls, plot_spec: pd.DataFrame):
 
         vis_spec_dict = plot_spec.to_dict()
 
-        return DataPlot(vis_spec_dict)
+        return cls(vis_spec_dict)
 
 
 class Subplot:
@@ -204,6 +207,7 @@ class Subplot:
                  plot_settings: VisDict,
                  dataplots: List[DataPlot]):
         """
+        Visualization specification of a subplot
 
         Parameters
         ----------
@@ -234,8 +238,8 @@ class Subplot:
 
         self.data_plots = dataplots
 
-    @staticmethod
-    def from_df(plot_id: str, vis_spec: pd.DataFrame,
+    @classmethod
+    def from_df(cls, plot_id: str, vis_spec: pd.DataFrame,
                 dataplots: List[DataPlot]):
 
         vis_spec_dict = {}
@@ -271,7 +275,7 @@ class Subplot:
                 vis_spec_dict[col] = entry
             else:
                 raise
-        return Subplot(plot_id, vis_spec_dict, dataplots)
+        return cls(plot_id, vis_spec_dict, dataplots)
 
     def add_dataplot(self, dataplot: DataPlot):
         self.data_plots.append(dataplot)

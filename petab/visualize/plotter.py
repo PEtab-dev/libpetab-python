@@ -3,13 +3,13 @@ import os
 import numpy as np
 import pandas as pd
 
+from abc import ABC, abstractmethod
 from typing import List, Optional
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 import seaborn as sns
 
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
-from ..problem import Problem
 from .plotting_config import square_plot_equal_ranges
 from ..C import *
 
@@ -18,20 +18,19 @@ IdsList = List[str]
 NumList = List[int]
 
 
-class Plotter:
+class Plotter(ABC):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         """
+        Plotter base class, not functional on its own.
 
         :param figure:
         """
         self.figure = figure
         self.data_provider = data_provider
 
-    # def create_figure(self, num_subplots) -> Figure:
-    #     pass
-
-    def generate_figure(self, subplot_file_path: str = ''):
-        # TODO save plot
+    @abstractmethod
+    def generate_figure(self, subplot_file_path: Optional[str] = None
+                        ) -> Optional[plt.Axes]:
         pass
 
 
@@ -307,7 +306,7 @@ class SeabornPlotter(Plotter):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_plot(self):
+    def generate_figure(self, subplot_file_path: Optional[str] = None):
         pass
 
 
