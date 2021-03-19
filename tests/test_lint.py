@@ -63,16 +63,18 @@ def test_measurement_table_has_timepoint_specific_mappings():
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is True
 
+    # both measurements different anyways
     measurement_df.loc[1, OBSERVABLE_ID] = 'obs2'
-
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is False
 
+    # mixed numeric string
     measurement_df.loc[1, OBSERVABLE_ID] = 'obs1'
     measurement_df.loc[1, OBSERVABLE_PARAMETERS] = 'obsParOverride'
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is False
-    
+
+    # different numeric values
     measurement_df.loc[1, NOISE_PARAMETERS] = 2.0
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is True
