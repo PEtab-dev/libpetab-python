@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
-import seaborn as sns
 
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
 from .plotting_config import square_plot_equal_ranges
@@ -73,16 +72,25 @@ class MPLPlotter(Plotter):
         if data_to_plot.measurements_to_plot is not None:
             # plotting all measurement data
 
-            # TODO: I don't think this works in the current code
             if plotTypeData == REPLICATE:
-                pass
-                # p = ax.plot(
-                #     data_to_plot.conditions[conditions.index.values],
-                #     data_to_plot.measurements_to_plot.repl[
-                #         data_to_plot.measurements_to_plot.repl.index.values],
-                #         'x',
-                #     label=label_base
-                # )
+                replicates = np.stack(
+                    data_to_plot.measurements_to_plot.repl.values)
+
+                # plot first replicate
+                p = ax.plot(
+                    data_to_plot.conditions.values,
+                    replicates[:, 0],
+                    linestyle='-.',
+                    marker='x', label=label_base
+                )
+
+                # plot other replicates with the same color
+                ax.plot(
+                    data_to_plot.conditions.values,
+                    replicates[:, 1:],
+                    linestyle='-.',
+                    marker='x', color=p[0].get_color()
+                )
 
             # construct errorbar-plots: noise specified above
             else:
@@ -109,16 +117,16 @@ class MPLPlotter(Plotter):
                     linestyle='-.', marker='.', label=label_base
                 )
 
-                # simulations should have the same colors if both measurements
-                # and simulations are plotted
-                simu_colors = p[0].get_color()
+            # simulations should have the same colors if both measurements
+            # and simulations are plotted
+            simu_colors = p[0].get_color()
 
         # construct simulation plot
         if data_to_plot.simulations_to_plot is not None:
 
             xs, ys = zip(*sorted(zip(data_to_plot.conditions,
                                      data_to_plot.simulations_to_plot)))
-            ax.plot(
+            p = ax.plot(
                 xs, ys, linestyle='-', marker='o',
                 label=label_base + " simulation", color=simu_colors
             )
@@ -150,8 +158,7 @@ class MPLPlotter(Plotter):
                 'width': 2/3,
             }
 
-        # TODO shouldn't be any seaborn dependency here
-        color = sns.color_palette()[0]
+        color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
 
         if data_to_plot.measurements_to_plot is not None:
             p = ax.bar(x_name, data_to_plot.measurements_to_plot['mean'],

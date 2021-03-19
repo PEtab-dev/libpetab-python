@@ -461,7 +461,7 @@ class DataProvider:
 
                 # single replicates
                 measurements_to_plot.at[var_cond_id, 'repl'] = \
-                    data_measurements
+                    data_measurements.values
 
         if self.simulations_data is not None:
             simulations_to_plot = []
@@ -508,7 +508,7 @@ class VisSpecParser:
         self.conditions_data = conditions_data
         self.measurements_data = exp_data
         self.simulations_data = sim_data
-        
+
     @classmethod
     def from_problem(cls, petab_problem: Problem, sim_data):
         return cls(petab_problem.condition_df,
@@ -605,6 +605,7 @@ class VisSpecParser:
                                ) -> Tuple[Figure, DataProvider]:
         """
 
+        group_by = 'dataset'
         Parameters
         ----------
         dataset_ids_per_plot:
@@ -619,7 +620,6 @@ class VisSpecParser:
         -------
         """
 
-        group_by = 'dataset'
         dataset_id_column = [i_dataset for sublist in dataset_ids_per_plot
                              for i_dataset in sublist]
         dataset_label_column = dataset_id_column
