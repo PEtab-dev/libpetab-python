@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/PEtab-dev/libpetab-python/branch/master/graph/badge.svg)](https://codecov.io/gh/PEtab-dev/libpetab-python)
 [![PyPI version](https://badge.fury.io/py/petab.svg)](https://badge.fury.io/py/petab)
 
-# `petab` - a Python package for handling PEtab files
+# petab - a Python package for handling PEtab files
 
 [PEtab](https://petab.readthedocs.io/) is a data format for specifying
 parameter estimation problems in systems biology. This repository provides
