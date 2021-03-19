@@ -57,8 +57,12 @@ def write_observable_df(df: pd.DataFrame, filename: str) -> None:
         df.to_csv(fh, sep='\t', index=True)
 
 
-def get_output_parameters(observable_df: pd.DataFrame,
-                          sbml_model: libsbml.Model) -> List[str]:
+def get_output_parameters(
+        observable_df: pd.DataFrame,
+        sbml_model: libsbml.Model,
+        observables: bool = True,
+        noise: bool = True,
+) -> List[str]:
     """Get output parameters
 
     Returns IDs of parameters used in observable and noise formulas that are
@@ -67,12 +71,16 @@ def get_output_parameters(observable_df: pd.DataFrame,
     Arguments:
         observable_df: PEtab observable table
         sbml_model: SBML model
+        observables: Include parameters from observableFormulas
+        noise: Include parameters from noiseFormulas
 
     Returns:
         List of output parameter IDs
     """
-    formulas = list(observable_df[OBSERVABLE_FORMULA])
-    if NOISE_FORMULA in observable_df:
+    formulas = []
+    if observables:
+        formulas.extend(observable_df[OBSERVABLE_FORMULA])
+    if noise and NOISE_FORMULA in observable_df:
         formulas.extend(observable_df[NOISE_FORMULA])
     output_parameters = OrderedDict()
 
@@ -125,12 +133,18 @@ def get_formula_placeholders(formula_string: str, observable_id: str,
     return placeholders
 
 
-def get_placeholders(observable_df: pd.DataFrame) -> List[str]:
+def get_placeholders(
+        observable_df: pd.DataFrame,
+        observables: bool = True,
+        noise: bool = True,
+) -> List[str]:
     """Get all placeholder parameters from observable table observableFormulas
     and noiseFormulas
 
     Arguments:
         observable_df: PEtab observable table
+        observables: Include parameters from observableFormulas
+        noise: Include parameters from noiseFormulas
 
     Returns:
         List of placeholder parameters from observable table observableFormulas
@@ -139,11 +153,19 @@ def get_placeholders(observable_df: pd.DataFrame) -> List[str]:
 
     # collect placeholder parameters overwritten by
     # {observable,noise}Parameters
+    placeholder_types = []
+    formula_columns = []
+    if observables:
+        placeholder_types.append('observable')
+        formula_columns.append(OBSERVABLE_FORMULA)
+    if noise:
+        placeholder_types.append('noise')
+        formula_columns.append(NOISE_FORMULA)
+
     placeholders = []
     for _, row in observable_df.iterrows():
         for placeholder_type, formula_column \
-                in zip(['observable', 'noise'],
-                       [OBSERVABLE_FORMULA, NOISE_FORMULA]):
+                in zip(placeholder_types, formula_columns):
             if formula_column not in row:
                 continue
 

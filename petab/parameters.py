@@ -215,12 +215,15 @@ def get_required_parameters_for_parameter_table(
             row.get(NOISE_PARAMETERS, None)))
 
     # Add output parameters except for placeholders
-    output_parameters = observables.get_output_parameters(
-        observable_df, sbml_model)
-    placeholders = observables.get_placeholders(observable_df)
-    for p in output_parameters:
-        if p not in placeholders and sbml_model.getParameter(p) is None:
-            parameter_ids[p] = None
+    for kwargs in [dict(observables=True, noise=False),
+                   dict(observables=False, noise=True)]:
+        output_parameters = observables.get_output_parameters(
+            observable_df, sbml_model, **kwargs)
+        placeholders = observables.get_placeholders(
+            observable_df, **kwargs)
+        for p in output_parameters:
+            if p not in placeholders and sbml_model.getParameter(p) is None:
+                parameter_ids[p] = None
 
     # Add condition table parametric overrides unless already defined in the
     # SBML model
