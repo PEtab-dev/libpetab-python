@@ -127,26 +127,44 @@ def flatten_timepoint_specific_output_overrides(
     """
     new_measurement_dfs = []
     new_observable_dfs = []
-    for (obs_id, obs_pars, noise_pars), measurements in \
-            petab_problem.measurement_df.groupby(
-                [OBSERVABLE_ID] +
-                [x for x in [OBSERVABLE_PARAMETERS, NOISE_PARAMETERS,
-                             SIMULATION_CONDITION_ID,
-                             PREEQUILIBRATION_CONDITION_ID]
-                 if x in petab_problem.measurement_df], dropna=False
-            ):
-        replacement_id = \
-            f'{obs_id}__{obs_pars.replace(";", "_")}__' \
-            f'{noise_pars.replace(";", "_")}'
-        logger.debug(f'Creating synthetic observable {obs_id} with '
-                     f'observable parameters {obs_pars} and noise '
-                     f'parameters {noise_pars}')
+    possible_groupvars = [OBSERVABLE_ID, OBSERVABLE_PARAMETERS,
+                          NOISE_PARAMETERS, SIMULATION_CONDITION_ID,
+                          PREEQUILIBRATION_CONDITION_ID]
+    groupvars = get_notnull_columns(petab_problem.measurement_df,
+                                    possible_groupvars)
+    for groupvar, measurements in \
+            petab_problem.measurement_df.groupby(groupvars, dropna=False):
+        obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
+        # construct replacement id
+        replacement_id = ''
+        for field in possible_groupvars:
+            if field in groupvars:
+                val = groupvar[groupvars.index(field)
+                               ].replace(';', '_').replace('.', '_')
+                if replacement_id == '':
+                    replacement_id = val
+                elif val != '':
+                    replacement_id += f'__{val}'
+
+        logger.debug(f'Creating synthetic observable {obs_id}')
         if replacement_id in petab_problem.observable_df.index:
             raise RuntimeError('could not create synthetic observables '
                                f'since {replacement_id} was already '
                                'present in observable table')
-        observable = petab_problem.observable_df.loc[obs_id]
+        observable = petab_problem.observable_df.loc[obs_id].copy()
         observable.name = replacement_id
+        for field, parname, target in [
+            (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
+            (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
+        ]:
+            if field in measurements:
+                observable[target] = re.sub(
+                    fr'{parname}([0-9]+)_{obs_id}',
+                    f'{parname}\\1_{replacement_id}',
+                    observable[target]
+                )
+
+        measurements[OBSERVABLE_ID] = replacement_id
         new_measurement_dfs.append(measurements)
         new_observable_dfs.append(observable)
 
