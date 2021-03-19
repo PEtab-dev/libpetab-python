@@ -527,13 +527,24 @@ def assert_parameter_estimate_is_boolean(parameter_df: pd.DataFrame) -> None:
 
 
 def measurement_table_has_timepoint_specific_mappings(
-        measurement_df: pd.DataFrame) -> bool:
+        measurement_df: pd.DataFrame,
+        allow_scalar_numeric_noise_parameters: bool = False,
+        allow_scalar_numeric_observable_parameters: bool = False,
+) -> bool:
     """
     Are there time-point or replicate specific parameter assignments in the
     measurement table.
 
     Arguments:
-        measurement_df: PEtab measurement table
+        measurement_df:
+            PEtab measurement table
+
+        allow_scalar_numeric_noise_parameters:
+            ignore scalar numeric assignments to noiseParamater placeholders
+
+        allow_scalar_numeric_observable_parameters:
+            ignore scalar numeric assignments to observableParamater
+            placeholders
 
     Returns:
         True if there are time-point or replicate specific parameter
@@ -542,29 +553,17 @@ def measurement_table_has_timepoint_specific_mappings(
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
 
-    def is_numeric(x: Union[str, numbers.Number]) -> bool:
-        """
-        Checks whether x can be transformed into a (list of) float(s)
-        :param x:
-            number or string containing numbers seperated by ;
-        :return:
-            True if conversion is possible for all values
-        """
-        if isinstance(x, numbers.Number):
-            return True
-        if not isinstance(x, str):
-            return False
-        try:
-            [float(y) for y in x.split(';')]
-            return True
-        except (ValueError, TypeError):
-            return False
-
     # mask numeric values
-    for col in [OBSERVABLE_PARAMETERS, NOISE_PARAMETERS]:
-        if col not in measurement_df:
+    for col, allow_scalar_numeric in [
+        (OBSERVABLE_PARAMETERS, allow_scalar_numeric_observable_parameters),
+        (NOISE_PARAMETERS, allow_scalar_numeric_noise_parameters)
+    ]:
+        if col not in measurement_df or not allow_scalar_numeric:
             continue
-        measurement_df.loc[measurement_df[col].apply(is_numeric), col] = np.nan
+        measurement_df.loc[
+            measurement_df.noiseParameters.apply(isinstance,
+                                                 args=(numbers.Number,)), col
+        ] = np.nan
 
     grouping_cols = core.get_notnull_columns(
         measurement_df,
@@ -572,8 +571,7 @@ def measurement_table_has_timepoint_specific_mappings(
          SIMULATION_CONDITION_ID,
          PREEQUILIBRATION_CONDITION_ID,
          OBSERVABLE_PARAMETERS,
-         NOISE_PARAMETERS,
-         ])
+         NOISE_PARAMETERS])
     grouped_df = measurement_df.groupby(grouping_cols,
                                         dropna=False).size().reset_index()
 
