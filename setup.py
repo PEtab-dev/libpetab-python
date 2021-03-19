@@ -11,8 +11,11 @@ def read(fname):
 
 def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
-    raw_base = "(https://raw.githubusercontent.com/petab-dev/petab/master/"
-    embedded_base = "(https://github.com/petab-dev/petab/tree/master/"
+
+    raw_base = "(https://raw.githubusercontent.com/"\
+               "petab-dev/libpetab-python/master/"
+    embedded_base = "(https://github.com/petab-dev/libpetab-python/"\
+                    "tree/master/"
     # iterate over links
     for var in re.findall(r'\[.*?\]\((?!http).*?\)', txt):
         if re.match(r'.*?.(png|svg)\)', var):
