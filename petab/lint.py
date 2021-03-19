@@ -547,8 +547,8 @@ def measurement_table_has_timepoint_specific_mappings(
             placeholders
 
     Returns:
-        True if there are time-point or replicate specific parameter
-        assignments in the measurement table, False otherwise.
+        True if there are time-point or replicate specific (non-numeric)
+        parameter assignments in the measurement table, False otherwise.
     """
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
@@ -588,6 +588,23 @@ def measurement_table_has_timepoint_specific_mappings(
     return len(grouped_df.index) != len(grouped_df2.index)
 
 
+def observable_table_has_nontrivial_noise_formula(
+        observable_df: pd.DataFrame) -> bool:
+    """
+    Does any observable have a noise formula that is not just a single
+    parameter?
+
+    Arguments:
+        observable_df: PEtab observable table
+
+    Returns:
+        True if any noise formula does not consist of a single identifier,
+        False otherwise.
+    """
+
+    return not observable_df[NOISE_FORMULA].apply(is_valid_identifier).all()
+
+
 def measurement_table_has_observable_parameter_numeric_overrides(
         measurement_df: pd.DataFrame) -> bool:
     """Are there any numbers to override observable parameters?
@@ -596,7 +613,7 @@ def measurement_table_has_observable_parameter_numeric_overrides(
         measurement_df: PEtab measurement table
 
     Returns:
-        True if there any numbers to override observable parameters,
+        True if there any numbers to override observable/noise parameters,
         False otherwise.
     """
     if OBSERVABLE_PARAMETERS not in measurement_df:
