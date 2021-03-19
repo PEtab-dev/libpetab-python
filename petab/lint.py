@@ -615,7 +615,7 @@ def measurement_table_has_observable_parameter_numeric_overrides(
         measurement_df: PEtab measurement table
 
     Returns:
-        True if there any numbers to override observable/noise parameters,
+        True if there are any numbers to override observable/noise parameters,
         False otherwise.
     """
     if OBSERVABLE_PARAMETERS not in measurement_df:
