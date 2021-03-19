@@ -4,7 +4,7 @@ import copy
 import logging
 import numbers
 import re
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Union
 from collections import Counter
 
 import libsbml
@@ -542,12 +542,29 @@ def measurement_table_has_timepoint_specific_mappings(
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
 
-    if NOISE_PARAMETERS not in measurement_df:
-        measurement_df[NOISE_PARAMETERS] = np.nan
+    def is_numeric(x: Union[str, numbers.Number]) -> bool:
+        """
+        Checks whether x can be transformed into a (list of) float(s)
+        :param x:
+            number or string containing numbers seperated by ;
+        :return:
+            True if conversion is possible for all values
+        """
+        if isinstance(x, numbers.Number):
+            return True
+        if not isinstance(x, str):
+            return False
+        try:
+            [float(y) for y in x.split(';')]
+            return True
+        except (ValueError, TypeError):
+            return False
 
-    measurement_df.loc[
-        measurement_df.noiseParameters.apply(isinstance, args=(
-            numbers.Number,)), NOISE_PARAMETERS] = np.nan
+    # mask numeric values
+    for col in [OBSERVABLE_PARAMETERS, NOISE_PARAMETERS]:
+        if col not in measurement_df:
+            continue
+        measurement_df.loc[measurement_df[col].apply(is_numeric), col] = np.nan
 
     grouping_cols = core.get_notnull_columns(
         measurement_df,
@@ -557,8 +574,8 @@ def measurement_table_has_timepoint_specific_mappings(
          OBSERVABLE_PARAMETERS,
          NOISE_PARAMETERS,
          ])
-    grouped_df = measurement_df.fillna('').groupby(grouping_cols).size()\
-        .reset_index()
+    grouped_df = measurement_df.groupby(grouping_cols,
+                                        dropna=False).size().reset_index()
 
     grouping_cols = core.get_notnull_columns(
         grouped_df,
@@ -567,11 +584,10 @@ def measurement_table_has_timepoint_specific_mappings(
          PREEQUILIBRATION_CONDITION_ID])
     grouped_df2 = grouped_df.groupby(grouping_cols).size().reset_index()
 
-    if len(grouped_df.index) != len(grouped_df2.index):
-        logger.warning("Measurement table has timepoint-specific "
-                       f"mappings:\n{grouped_df}")
-        return True
-    return False
+    # data frame has timepoint specific overrides if grouping by noise
+    # parameters and observable parameters in addition to observable,
+    # condition and preeq id yields more groups
+    return len(grouped_df.index) != len(grouped_df2.index)
 
 
 def measurement_table_has_observable_parameter_numeric_overrides(
@@ -744,7 +760,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
         logger.warning('Not all files of the PEtab problem definition could '
                        'be checked.')
     else:
-        logger.info('OK')
+        logger.info('PEtab format check completed successfully.')
 
     return errors_occurred
 

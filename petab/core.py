@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from typing import Iterable, Optional, Callable, Union, Any, Sequence, List
 from warnings import warn
 
@@ -124,125 +125,52 @@ def flatten_timepoint_specific_output_overrides(
         petab_problem:
             PEtab problem to work on
     """
-    measurement_df = petab_problem.measurement_df
+    new_measurement_dfs = []
+    new_observable_dfs = []
+    possible_groupvars = [OBSERVABLE_ID, OBSERVABLE_PARAMETERS,
+                          NOISE_PARAMETERS, SIMULATION_CONDITION_ID,
+                          PREEQUILIBRATION_CONDITION_ID]
+    groupvars = get_notnull_columns(petab_problem.measurement_df,
+                                    possible_groupvars)
+    for groupvar, measurements in \
+            petab_problem.measurement_df.groupby(groupvars, dropna=False):
+        obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
+        # construct replacement id
+        replacement_id = ''
+        for field in possible_groupvars:
+            if field in groupvars:
+                val = groupvar[groupvars.index(field)
+                               ].replace(';', '_').replace('.', '_')
+                if replacement_id == '':
+                    replacement_id = val
+                elif val != '':
+                    replacement_id += f'__{val}'
 
-    # remember if columns exist
-    has_obs_par = OBSERVABLE_PARAMETERS in measurement_df
-    has_noise_par = NOISE_PARAMETERS in measurement_df
-    has_preeq = PREEQUILIBRATION_CONDITION_ID in measurement_df
-
-    # fill in optional columns to avoid special cases later
-    if not has_obs_par \
-            or np.all(measurement_df[OBSERVABLE_PARAMETERS].isnull()):
-        measurement_df[OBSERVABLE_PARAMETERS] = ''
-    if not has_noise_par \
-            or np.all(measurement_df[NOISE_PARAMETERS].isnull()):
-        measurement_df[NOISE_PARAMETERS] = ''
-    if not has_preeq \
-            or np.all(measurement_df[PREEQUILIBRATION_CONDITION_ID].isnull()):
-        measurement_df[PREEQUILIBRATION_CONDITION_ID] = ''
-    # convert to str row by row
-    for irow, row in measurement_df.iterrows():
-        if is_empty(row[OBSERVABLE_PARAMETERS]):
-            measurement_df.at[irow, OBSERVABLE_PARAMETERS] = ''
-        if is_empty(row[NOISE_PARAMETERS]):
-            measurement_df.at[irow, NOISE_PARAMETERS] = ''
-        if is_empty(row[PREEQUILIBRATION_CONDITION_ID]):
-            measurement_df.at[irow, PREEQUILIBRATION_CONDITION_ID] = ''
-
-    # Create empty df -> to be filled with replicate-specific observables
-    df_new = pd.DataFrame()
-
-    # Get observableId, preequilibrationConditionId
-    # and simulationConditionId columns in measurement df
-    cols = get_notnull_columns(
-        measurement_df,
-        [OBSERVABLE_ID, PREEQUILIBRATION_CONDITION_ID,
-         SIMULATION_CONDITION_ID]
-    )
-    df = measurement_df[cols]
-
-    # Get unique combinations of observableId, preequilibrationConditionId
-    # and simulationConditionId
-    df_unique_values = df.drop_duplicates()
-
-    # replaced observables: new ID => old ID
-    replacements = dict()
-
-    # Loop over each unique combination
-    for irow in df_unique_values.index:
-        df = measurement_df.loc[
-            (measurement_df[OBSERVABLE_ID] ==
-             df_unique_values.loc[irow, OBSERVABLE_ID])
-            & (measurement_df[PREEQUILIBRATION_CONDITION_ID] ==
-               df_unique_values.loc[irow, PREEQUILIBRATION_CONDITION_ID])
-            & (measurement_df[SIMULATION_CONDITION_ID] ==
-               df_unique_values.loc[irow, SIMULATION_CONDITION_ID])
-            ]
-
-        # Get list of unique observable parameters
-        unique_sc = df[OBSERVABLE_PARAMETERS].unique()
-        # Get list of unique noise parameters
-        unique_noise = df[NOISE_PARAMETERS].unique()
-
-        # Loop
-        for i_noise, cur_noise in enumerate(unique_noise):
-            for i_sc, cur_sc in enumerate(unique_sc):
-                # Find the position of all instances of cur_noise
-                # and unique_sc[j] in their corresponding column
-                # (full-string matches are denoted by zero)
-                idxs = (
-                    df[NOISE_PARAMETERS].astype(str).str.find(cur_noise) +
-                    df[OBSERVABLE_PARAMETERS].astype(str).str.find(cur_sc)
+        logger.debug(f'Creating synthetic observable {obs_id}')
+        if replacement_id in petab_problem.observable_df.index:
+            raise RuntimeError('could not create synthetic observables '
+                               f'since {replacement_id} was already '
+                               'present in observable table')
+        observable = petab_problem.observable_df.loc[obs_id].copy()
+        observable.name = replacement_id
+        for field, parname, target in [
+            (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
+            (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
+        ]:
+            if field in measurements:
+                observable[target] = re.sub(
+                    fr'{parname}([0-9]+)_{obs_id}',
+                    f'{parname}\\1_{replacement_id}',
+                    observable[target]
                 )
-                tmp_ = df.loc[idxs == 0, OBSERVABLE_ID]
-                # Create replicate-specific observable name
-                tmp = tmp_ + "_" + str(i_noise + i_sc + 1)
-                # Check if replicate-specific observable name already exists
-                # in df. If true, rename replicate-specific observable
-                counter = 2
-                while (df[OBSERVABLE_ID].str.find(
-                        tmp.to_string()
-                ) == 0).any():
-                    tmp = tmp_ + counter * "_" + str(i_noise + i_sc + 1)
-                    counter += 1
-                if not tmp_.empty:
-                    replacements[tmp.values[0]] = tmp_.values[0]
-                df.loc[idxs == 0, OBSERVABLE_ID] = tmp
-                # Append the result in a new df
-                df_new = df_new.append(df.loc[idxs == 0])
-                # Restore the observable name in the original df
-                # (for continuation of the loop)
-                df.loc[idxs == 0, OBSERVABLE_ID] = tmp
 
-    # remove previously non-existent columns again
-    if not has_obs_par:
-        df_new.drop(columns=OBSERVABLE_PARAMETERS, inplace=True)
-    if not has_noise_par:
-        df_new.drop(columns=NOISE_PARAMETERS, inplace=True)
-    if not has_preeq:
-        df_new.drop(columns=PREEQUILIBRATION_CONDITION_ID, inplace=True)
+        measurements[OBSERVABLE_ID] = replacement_id
+        new_measurement_dfs.append(measurements)
+        new_observable_dfs.append(observable)
 
-    # Update/Redefine measurement df with replicate-specific observables
-    petab_problem.measurement_df = df_new
-
-    observable_df = petab_problem.observable_df
-
-    # Update observables table
-    for replacement, replacee in replacements.items():
-        new_obs = observable_df.loc[replacee].copy()
-        new_obs.name = replacement
-        new_obs[OBSERVABLE_FORMULA] = new_obs[OBSERVABLE_FORMULA].replace(
-            replacee, replacement)
-        new_obs[NOISE_FORMULA] = new_obs[NOISE_FORMULA].replace(
-            replacee, replacement)
-        observable_df = observable_df.append(
-            new_obs
-        )
-
-    petab_problem.observable_df = observable_df
-    petab_problem.observable_df.drop(index=set(replacements.values()),
-                                     inplace=True)
+    petab_problem.observable_df = pd.concat(new_observable_dfs, axis=1).T
+    petab_problem.observable_df.index.name = OBSERVABLE_ID
+    petab_problem.measurement_df = pd.concat(new_measurement_dfs)
 
 
 def concat_tables(

@@ -11,8 +11,11 @@ def read(fname):
 
 def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
-    raw_base = "(https://raw.githubusercontent.com/petab-dev/petab/master/"
-    embedded_base = "(https://github.com/petab-dev/petab/tree/master/"
+
+    raw_base = "(https://raw.githubusercontent.com/"\
+               "petab-dev/libpetab-python/master/"
+    embedded_base = "(https://github.com/petab-dev/libpetab-python/"\
+                    "tree/master/"
     # iterate over links
     for var in re.findall(r'\[.*?\]\((?!http).*?\)', txt):
         if re.match(r'.*?.(png|svg)\)', var):
@@ -26,8 +29,8 @@ def absolute_links(txt):
 
 
 # Python version check. We need >= 3.6 due to e.g. f-strings
-if sys.version_info < (3, 6):
-    sys.exit('PEtab requires at least Python version 3.6')
+if sys.version_info < (3, 7, 1):
+    sys.exit('PEtab requires at least Python version 3.7.1')
 
 # read version from file
 __version__ = ''
@@ -64,7 +67,7 @@ setup(name='petab',
                         ],
       include_package_data=True,
       tests_require=['flake8', 'pytest', 'python-libcombine'],
-      python_requires='>=3.6',
+      python_requires='>=3.7.1',
       entry_points=ENTRY_POINTS,
       extras_require={'reports': ['Jinja2'],
                       'combine': ['python-libcombine>=0.2.6']},
