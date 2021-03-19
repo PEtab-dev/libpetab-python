@@ -79,7 +79,8 @@ class MPLPlotter(Plotter):
                 # p = ax.plot(
                 #     data_to_plot.conditions[conditions.index.values],
                 #     data_to_plot.measurements_to_plot.repl[
-                #         data_to_plot.measurements_to_plot.repl.index.values], 'x',
+                #         data_to_plot.measurements_to_plot.repl.index.values],
+                #         'x',
                 #     label=label_base
                 # )
 

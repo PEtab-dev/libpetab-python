@@ -6,12 +6,10 @@ from typing import Dict, List, Optional, Tuple, Union, TypedDict
 from .helper_functions import (generate_dataset_id_col,
                                create_dataset_id_list_new,
                                matches_plot_spec_new,
-                               expand_vis_spec_settings,
-                               create_or_update_vis_spec)
-from .. import problem, measurements, core, conditions
+                               expand_vis_spec_settings)
+from .. import measurements, core, conditions
 from ..problem import Problem
 from ..C import *
-from collections.abc import Sequence
 from numbers import Number
 import warnings
 
@@ -106,7 +104,7 @@ class VisualizationSpec:
                                       f'{col} contradictory settings ({entry})'
                                       f'. Proceeding with first entry '
                                       f'({entry[0]}).')
-                    entry=entry[0]
+                    entry = entry[0]
 
                 # check if values are allowed
                 if col in [Y_SCALE, X_SCALE] and entry not in \
@@ -222,13 +220,13 @@ class Subplot:
             setattr(self, key, val)
 
         if PLOT_NAME not in vars(self):
-            setattr(self, PLOT_NAME, getattr(self, PLOT_ID))
+            setattr(self, PLOT_NAME, '')
         if PLOT_TYPE_SIMULATION not in vars(self):
             setattr(self, PLOT_TYPE_SIMULATION, LINE_PLOT)
         if PLOT_TYPE_DATA not in vars(self):
             setattr(self, PLOT_TYPE_DATA, MEAN_AND_SD)
         if X_LABEL not in vars(self):
-            setattr(self, X_LABEL, TIME)  #getattr(self, X_VALUES)
+            setattr(self, X_LABEL, TIME)  # getattr(self, X_VALUES)
         if X_SCALE not in vars(self):
             setattr(self, X_SCALE, LIN)
         if Y_LABEL not in vars(self):
@@ -510,6 +508,12 @@ class VisSpecParser:
         self.conditions_data = conditions_data
         self.measurements_data = exp_data
         self.simulations_data = sim_data
+        
+    @classmethod
+    def from_problem(cls, petab_problem: Problem, sim_data):
+        return cls(petab_problem.condition_df,
+                   petab_problem.measurement_df,
+                   sim_data)
 
     @property
     def data_df(self):
@@ -806,10 +810,13 @@ class VisSpecParser:
         #     plot_id_column = dataset_id_column.copy()
         #     for i_obs in range(0, len(obs_uni)):
         #         # get dataset_ids which include observable name
-        #         matching = [s for s in dataset_id_column if obs_uni[i_obs] in s]
-        #         # replace the dataset ids with plot id with grouping of observables
+        #         matching = [s for s in dataset_id_column if
+        #                     obs_uni[i_obs] in s]
+        #         # replace the dataset ids with plot id with grouping of
+        #         # observables
         #         for m_i in matching:
-        #             plot_id_column = [sub.replace(m_i, 'plot%s' % str(i_obs + 1))
+        #             plot_id_column = [sub.replace(m_i, 'plot%s' %
+        #                                           str(i_obs + 1))
         #                               for sub in plot_id_column]
         # else:
         # get number of plots and create plotId-lists
