@@ -602,7 +602,9 @@ def observable_table_has_nontrivial_noise_formula(
         False otherwise.
     """
 
-    return not observable_df[NOISE_FORMULA].apply(is_valid_identifier).all()
+    return not observable_df[NOISE_FORMULA].apply(
+        lambda x: re.match(r'^[\w_\.]+$', x)
+    ).all()
 
 
 def measurement_table_has_observable_parameter_numeric_overrides(
