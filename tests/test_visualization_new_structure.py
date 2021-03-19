@@ -105,6 +105,49 @@ def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
     plotter.generate_figure()
 
 
+def test_visualization_small_visu_file_wo_datasetid(data_file_Fujita,
+                                                    condition_file_Fujita,
+                                                    visu_file_Fujita_wo_dsid):
+    """
+    Test: visualization spezification file only with few columns in
+    particular no datasetId column
+    (optional columns are optional)
+    """
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        visu_file_Fujita_wo_dsid)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
+
+
+def test_visualization_minimal_visu_file(data_file_Fujita,
+                                         condition_file_Fujita,
+                                         visu_file_Fujita_minimal):
+    """
+    Test: visualization spezification file only with mandatory column plotId
+    (optional columns are optional)
+    """
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        visu_file_Fujita_minimal)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
+
+
+def test_visualization_empty_visu_file(data_file_Fujita,
+                                       condition_file_Fujita,
+                                       visu_file_Fujita_empty):
+    """
+    Test: Empty visualization spezification file should default to routine
+    for no file at all
+    """
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        visu_file_Fujita_empty)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
+
+
 def test_visualization_with_dataset_list(data_file_Isensee,
                                          condition_file_Isensee,
                                          simulation_file_Isensee):
