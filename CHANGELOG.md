@@ -2,6 +2,10 @@
 
 ## 0.1 series
 
+### 0.1.16
+
+Update python version for pypi deployment, no further changes
+
 ### 0.1.15
 
 **NOTE:** The original PEtab format + petab package repository has been split
