@@ -69,8 +69,8 @@ def test_measurement_table_has_timepoint_specific_mappings():
         measurement_df) is False
 
 
-def test_measurement_table_has_timepoint_specific_mappings():
-    # Ensure we fail if we have time-point specific assignments
+def test_observable_table_has_nontrivial_noise_formula():
+    # Ensure we fail if we have nontrivial noise formulas
 
     observable_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['0obsPar1noisePar', '2obsPar0noisePar'],
@@ -86,7 +86,7 @@ def test_measurement_table_has_timepoint_specific_mappings():
     observable_df.loc[0, NOISE_FORMULA] = 'sigma1'
 
     assert lint.observable_table_has_nontrivial_noise_formula(observable_df) \
-           is False
+        is False
 
 
 def test_assert_overrides_match_parameter_count():

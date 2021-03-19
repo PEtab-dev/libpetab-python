@@ -603,7 +603,7 @@ def observable_table_has_nontrivial_noise_formula(
     """
 
     return not observable_df[NOISE_FORMULA].apply(
-        lambda x: re.match(r'^[\w_\.]+$', x)
+        lambda x: re.match(r'^[\w_\.]+$', x) is not None
     ).all()
 
 
