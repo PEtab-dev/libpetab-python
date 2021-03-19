@@ -4,7 +4,7 @@ import copy
 import logging
 import numbers
 import re
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable
 from collections import Counter
 
 import libsbml
