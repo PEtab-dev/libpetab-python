@@ -561,8 +561,7 @@ def measurement_table_has_timepoint_specific_mappings(
         if col not in measurement_df or not allow_scalar_numeric:
             continue
         measurement_df.loc[
-            measurement_df.noiseParameters.apply(isinstance,
-                                                 args=(numbers.Number,)), col
+            measurement_df[col].apply(isinstance, args=(numbers.Number,)), col
         ] = np.nan
 
     grouping_cols = core.get_notnull_columns(
