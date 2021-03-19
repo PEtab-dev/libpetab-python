@@ -587,7 +587,7 @@ def measurement_table_has_timepoint_specific_mappings(
     # data frame has timepoint specific overrides if grouping by noise
     # parameters and observable parameters in addition to observable,
     # condition and preeq id yields more groups
-    return len(grouped_df.index) == len(grouped_df2.index)
+    return len(grouped_df.index) != len(grouped_df2.index)
 
 
 def measurement_table_has_observable_parameter_numeric_overrides(
