@@ -4,7 +4,7 @@ import copy
 import logging
 import numbers
 import re
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Any
 from collections import Counter
 
 import libsbml
@@ -553,16 +553,37 @@ def measurement_table_has_timepoint_specific_mappings(
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
 
+    def is_scalar_float(x: Any):
+        """
+        Checks whether input is a number or can be transformed into a number
+        via float
+        :param x:
+            input
+        :return:
+            True if is or can be converted to number, False otherwise.
+        """
+        if isinstance(x, numbers.Number):
+            return True
+        try:
+            float(x)
+            return True
+        except (ValueError, TypeError):
+            return False
+
     # mask numeric values
     for col, allow_scalar_numeric in [
         (OBSERVABLE_PARAMETERS, allow_scalar_numeric_observable_parameters),
         (NOISE_PARAMETERS, allow_scalar_numeric_noise_parameters)
     ]:
-        if col not in measurement_df or not allow_scalar_numeric:
+        if col not in measurement_df:
             continue
-        measurement_df.loc[
-            measurement_df[col].apply(isinstance, args=(numbers.Number,)), col
-        ] = np.nan
+
+        measurement_df[col] = measurement_df[col].apply(str)
+
+        if allow_scalar_numeric:
+            measurement_df.loc[
+                measurement_df[col].apply(is_scalar_float), col
+            ] = np.nan
 
     grouping_cols = core.get_notnull_columns(
         measurement_df,
@@ -571,20 +592,19 @@ def measurement_table_has_timepoint_specific_mappings(
          PREEQUILIBRATION_CONDITION_ID,
          OBSERVABLE_PARAMETERS,
          NOISE_PARAMETERS])
-    grouped_df = measurement_df.groupby(grouping_cols,
-                                        dropna=False).size().reset_index()
+    grouped_df = measurement_df.groupby(grouping_cols, dropna=False)
 
     grouping_cols = core.get_notnull_columns(
-        grouped_df,
+        measurement_df,
         [OBSERVABLE_ID,
          SIMULATION_CONDITION_ID,
          PREEQUILIBRATION_CONDITION_ID])
-    grouped_df2 = grouped_df.groupby(grouping_cols).size().reset_index()
+    grouped_df2 = measurement_df.groupby(grouping_cols)
 
     # data frame has timepoint specific overrides if grouping by noise
     # parameters and observable parameters in addition to observable,
     # condition and preeq id yields more groups
-    return len(grouped_df.index) != len(grouped_df2.index)
+    return len(grouped_df) != len(grouped_df2)
 
 
 def observable_table_has_nontrivial_noise_formula(

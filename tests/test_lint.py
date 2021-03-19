@@ -57,7 +57,7 @@ def test_measurement_table_has_timepoint_specific_mappings():
         PREEQUILIBRATION_CONDITION_ID: [nan, nan],
         TIME: [1.0, 2.0],
         OBSERVABLE_PARAMETERS: ['obsParOverride', ''],
-        NOISE_PARAMETERS: ['', '']
+        NOISE_PARAMETERS: ['1.0', 1.0]
     })
 
     assert lint.measurement_table_has_timepoint_specific_mappings(
@@ -67,6 +67,17 @@ def test_measurement_table_has_timepoint_specific_mappings():
 
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is False
+
+    measurement_df.loc[1, OBSERVABLE_ID] = 'obs1'
+    measurement_df.loc[1, OBSERVABLE_PARAMETERS] = 'obsParOverride'
+    assert lint.measurement_table_has_timepoint_specific_mappings(
+        measurement_df) is False
+    
+    measurement_df.loc[1, NOISE_PARAMETERS] = 2.0
+    assert lint.measurement_table_has_timepoint_specific_mappings(
+        measurement_df) is True
+    assert lint.measurement_table_has_timepoint_specific_mappings(
+        measurement_df, allow_scalar_numeric_noise_parameters=True) is False
 
 
 def test_observable_table_has_nontrivial_noise_formula():
