@@ -526,6 +526,24 @@ def assert_parameter_estimate_is_boolean(parameter_df: pd.DataFrame) -> None:
                 f"Expected 0 or 1 but got {estimate} in {ESTIMATE} column.")
 
 
+def is_scalar_float(x: Any):
+    """
+    Checks whether input is a number or can be transformed into a number
+    via float
+    :param x:
+        input
+    :return:
+        True if is or can be converted to number, False otherwise.
+    """
+    if isinstance(x, numbers.Number):
+        return True
+    try:
+        float(x)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def measurement_table_has_timepoint_specific_mappings(
         measurement_df: pd.DataFrame,
         allow_scalar_numeric_noise_parameters: bool = False,
@@ -552,23 +570,6 @@ def measurement_table_has_timepoint_specific_mappings(
     """
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
-
-    def is_scalar_float(x: Any):
-        """
-        Checks whether input is a number or can be transformed into a number
-        via float
-        :param x:
-            input
-        :return:
-            True if is or can be converted to number, False otherwise.
-        """
-        if isinstance(x, numbers.Number):
-            return True
-        try:
-            float(x)
-            return True
-        except (ValueError, TypeError):
-            return False
 
     # mask numeric values
     for col, allow_scalar_numeric in [
@@ -622,7 +623,8 @@ def observable_table_has_nontrivial_noise_formula(
     """
 
     return not observable_df[NOISE_FORMULA].apply(
-        lambda x: re.match(r'^[\w_\.]+$', x) is not None
+        lambda x: is_scalar_float(x) or
+        re.match(r'^[\w]+$', str(x)) is not None
     ).all()
 
 

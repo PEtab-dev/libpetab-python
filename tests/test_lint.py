@@ -86,11 +86,14 @@ def test_observable_table_has_nontrivial_noise_formula():
     # Ensure we fail if we have nontrivial noise formulas
 
     observable_df = pd.DataFrame(data={
-        OBSERVABLE_ID: ['0obsPar1noisePar', '2obsPar0noisePar'],
+        OBSERVABLE_ID: ['0obsPar1noisePar', '2obsPar0noisePar',
+                        '3obsPar0noisePar'],
         OBSERVABLE_FORMULA: ['1.0',
+                             '1.0',
                              '1.0'],
         NOISE_FORMULA: ['noiseParameter1_0obsPar1noisePar + 3.0',
-                        '1.0']
+                        1e18,
+                        '1e18']
     })
 
     assert lint.observable_table_has_nontrivial_noise_formula(observable_df)\
