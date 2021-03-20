@@ -624,7 +624,7 @@ def observable_table_has_nontrivial_noise_formula(
 
     return not observable_df[NOISE_FORMULA].apply(
         lambda x: is_scalar_float(x) or
-        re.match(r'^[\w_\.]+$', str(x)) is not None
+        re.match(r'^[\w]+$', str(x)) is not None
     ).all()
 
 
