@@ -92,7 +92,7 @@ def test_observable_table_has_nontrivial_noise_formula():
                              '1.0',
                              '1.0'],
         NOISE_FORMULA: ['noiseParameter1_0obsPar1noisePar + 3.0',
-                        1.0,
+                        1e18,
                         '0.5']
     })
 
