@@ -148,6 +148,22 @@ def test_visualization_empty_visu_file(data_file_Fujita,
     plotter.generate_figure()
 
 
+def test_visualization_minimal_data_file(data_file_Fujita_minimal,
+                                         condition_file_Fujita,
+                                         visu_file_Fujita_wo_dsid):
+    """
+    Test visualization, with the case: data file only with mandatory columns
+    (optional columns are optional)
+    """
+
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita,
+                                    data_file_Fujita_minimal)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        visu_file_Fujita_wo_dsid)
+    plotter = MPLPlotter(figure, dataprovider)
+    plotter.generate_figure()
+
+
 def test_visualization_with_dataset_list(data_file_Isensee,
                                          condition_file_Isensee,
                                          simulation_file_Isensee):

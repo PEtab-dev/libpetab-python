@@ -12,6 +12,8 @@ from .helper_functions import (create_figure,
                                check_ex_exp_columns,
                                create_or_update_vis_spec)
 
+from .plotter import MPLPlotter
+from .plotting import VisSpecParser
 from .. import problem, measurements, core, conditions
 from ..C import *
 
@@ -112,6 +114,8 @@ def plot_data_and_simulation(
     if isinstance(exp_data, str):
         exp_data = measurements.get_measurement_df(exp_data)
     # check columns, and add non-mandatory default columns
+
+    # TODO: legend_dict is not used?
     exp_data, dataset_id_list, legend_dict = \
         check_ex_exp_columns(exp_data,
                              dataset_id_list,
@@ -135,6 +139,7 @@ def plot_data_and_simulation(
                                                    observable_num_list,
                                                    plotted_noise)
 
+    # TODO: causing some problems?
     if sim_data is not None:
         sim_data[DATASET_ID] = exp_data[DATASET_ID]
 
@@ -164,7 +169,7 @@ def plot_data_and_simulation(
             handle_dataset_plot(plot_spec, ax, exp_data,
                                 exp_conditions, sim_data)
 
-        if BAR_PLOT in vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION]:
+        if all(vis_spec.loc[ind_plot, PLOT_TYPE_SIMULATION].isin([BAR_PLOT])):
 
             legend = ['measurement']
 
@@ -337,3 +342,164 @@ def save_vis_spec(
                                             plotted_noise)
 
     vis_spec.to_csv(output_file_path, sep='\t', index=False)
+
+
+def plot_with_vis_spec(
+        vis_spec_df,
+        conditions_df: Union[str, pd.DataFrame],
+        measurements_df: Optional[Union[str, pd.DataFrame]] = None,
+        simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+        subplot_file_path: Optional[str] = None,
+        plotter_type: str = 'mpl') -> Optional[Dict[str, plt.Subplot]]:
+    """
+    Plot measurements and/or simulations. Specification of the visualization
+    routines is provided in visualization table.
+
+    Parameters
+    ----------
+    vis_spec_df: visualization table
+    conditions_df:
+        condition DataFrame in the PEtab format or path to the condition file.
+    measurements_df:
+        measurement DataFrame in the PEtab format or path to the data file.
+    simulations_df:
+        simulation DataFrame in the PEtab format or path to the simulation
+        output data file.
+    subplot_file_path:
+        path to the folder where single subplots should be saved.
+        PlotIDs will be taken as file names.
+    plotter_type:
+        specifies which library should be used for plot generation. Currently,
+        only matplotlib is supported
+    Returns
+    -------
+
+    """
+
+    if measurements_df is None and simulations_df is None:
+        raise TypeError('Not enough arguments. Either measurements_data '
+                        'or simulations_data should be provided.')
+
+    vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
+                                    simulations_df)
+    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+        vis_spec_df)
+
+    if plotter_type == 'mpl':
+        plotter = MPLPlotter(figure, dataprovider)
+    else:
+        raise NotImplementedError('Currently, only visualization with '
+                                  'matplotlib is possible.')
+    ax = plotter.generate_figure(subplot_file_path)
+    return ax
+
+
+def plot_without_vis_spec(
+        grouping_list: List[IdsList],
+        group_by: str,
+        conditions_df: Union[str, pd.DataFrame],
+        measurements_df: Optional[Union[str, pd.DataFrame]] = None,
+        simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+        plotted_noise: str = MEAN_AND_SD,
+        subplot_file_path: Optional[str] = None,
+        plotter_type: str = 'mpl'
+) -> Optional[Dict[str, plt.Subplot]]:
+    """
+    Plot measurements and/or simulations. What exactly should be plotted is
+    specified in a grouping_list.
+
+    Parameters
+    ----------
+    grouping_list:
+        A list of lists. Each sublist corresponds to a plot, each subplot
+        contains the Ids of datasets or observables or simulation conditions
+        for this plot.
+    group_by:
+        Possible values: 'dataset', 'observable', 'simulation'
+    conditions_df:
+        condition DataFrame in the PEtab format or path to the condition file.
+    measurements_df:
+        measurement DataFrame in the PEtab format or path to the data file.
+    simulations_df:
+        simulation DataFrame in the PEtab format or path to the simulation
+        output data file.
+    plotted_noise:
+        string indicating how noise should be visualized:
+        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+    subplot_file_path:
+        path to the folder where single subplots should be saved.
+        PlotIDs will be taken as file names.
+    plotter_type:
+        specifies which library should be used for plot generation. Currently,
+        only matplotlib is supported
+    Returns
+    -------
+
+    """
+
+    if measurements_df is None and simulations_df is None:
+        raise TypeError('Not enough arguments. Either measurements_data '
+                        'or simulations_data should be provided.')
+
+    vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
+                                    simulations_df)
+
+    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
+        grouping_list, group_by, plotted_noise)
+
+    if plotter_type == 'mpl':
+        plotter = MPLPlotter(figure, dataprovider)
+    else:
+        raise NotImplementedError('Currently, only visualization with '
+                                  'matplotlib is possible.')
+    ax = plotter.generate_figure(subplot_file_path)
+    return ax
+
+
+def plot_by_observable(conditions_df: Union[str, pd.DataFrame],
+                       measurements_df: Union[str, pd.DataFrame] = None,
+                       simulations_df: Union[str, pd.DataFrame] = None,
+                       plotted_noise: str = MEAN_AND_SD,
+                       subplot_file_path: Optional[str] = None,
+                       plotter_type: str = 'mpl'
+                       ) -> Optional[Dict[str, plt.Subplot]]:
+    """
+    Plot measurements and/or simulations. Measurements will be grouped by
+    observables. All measurements for a particular observable will be
+    visualized on one plot.
+
+    Parameters
+    ----------
+    conditions_df:
+        condition DataFrame in the PEtab format or path to the condition file.
+    measurements_df:
+        measurement DataFrame in the PEtab format or path to the data file.
+    simulations_df:
+        simulation DataFrame in the PEtab format or path to the simulation
+        output data file.
+    plotted_noise:
+        string indicating how noise should be visualized:
+        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+    subplot_file_path:
+        string which is taken as path to the folder where single subplots
+        should be saved. PlotIDs will be taken as file names.
+    plotter_type:
+        specifies which library should be used for plot generation. Currently,
+        only matplotlib is supported
+    Returns
+    -------
+
+    """
+
+    vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
+                                    simulations_df)
+    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
+        plotted_noise=plotted_noise)
+
+    if plotter_type == 'mpl':
+        plotter = MPLPlotter(figure, dataprovider)
+    else:
+        raise NotImplementedError('Currently, only visualization with '
+                                  'matplotlib is possible.')
+    ax = plotter.generate_figure(subplot_file_path)
+    return ax

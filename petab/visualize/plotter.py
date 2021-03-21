@@ -4,17 +4,12 @@ import numpy as np
 import pandas as pd
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mtick
 
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
-from .plotting_config import square_plot_equal_ranges
 from ..C import *
-
-# for typehints
-IdsList = List[str]
-NumList = List[int]
 
 
 class Plotter(ABC):
@@ -22,14 +17,18 @@ class Plotter(ABC):
         """
         Plotter base class, not functional on its own.
 
-        :param figure:
+        Parameters
+        ----------
+        figure: Figure instance that serves are a markup for the figure that
+            should be generated
+        data_provider:
         """
         self.figure = figure
         self.data_provider = data_provider
 
     @abstractmethod
     def generate_figure(self, subplot_file_path: Optional[str] = None
-                        ) -> Optional[plt.Axes]:
+                        ) -> Optional[Dict[str, plt.Subplot]]:
         pass
 
 
@@ -42,6 +41,7 @@ class MPLPlotter(Plotter):
 
     def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
         """
+        Generate lineplot.
         It is possible to plot only data or only simulation or both
 
         Parameters
@@ -49,16 +49,12 @@ class MPLPlotter(Plotter):
         ax
         dataplot
         plotTypeData
-
-        Returns
-        -------
-
         """
 
         simu_colors = None
         data_to_plot = self.data_provider.get_data_to_plot(dataplot,
                                                            plotTypeData)
-
+        noise_col = None
         # set type of noise
         if plotTypeData == MEAN_AND_SD:
             noise_col = 'sd'
@@ -81,7 +77,7 @@ class MPLPlotter(Plotter):
                     data_to_plot.conditions.values,
                     replicates[:, 0],
                     linestyle='-.',
-                    marker='x', label=label_base
+                    marker='x', markersize=10, label=label_base
                 )
 
                 # plot other replicates with the same color
@@ -89,7 +85,7 @@ class MPLPlotter(Plotter):
                     data_to_plot.conditions.values,
                     replicates[:, 1:],
                     linestyle='-.',
-                    marker='x', color=p[0].get_color()
+                    marker='x', markersize=10, color=p[0].get_color()
                 )
 
             # construct errorbar-plots: noise specified above
@@ -126,14 +122,16 @@ class MPLPlotter(Plotter):
 
             xs, ys = zip(*sorted(zip(data_to_plot.conditions,
                                      data_to_plot.simulations_to_plot)))
-            p = ax.plot(
+            ax.plot(
                 xs, ys, linestyle='-', marker='o',
                 label=label_base + " simulation", color=simu_colors
             )
 
     def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData: str):
 
+        # TODO: plotTypeData == REPLICATE?
         # set type of noise
+        noise_col = None
         if plotTypeData == MEAN_AND_SD:
             noise_col = 'sd'
         elif plotTypeData == MEAN_AND_SEM:
@@ -182,16 +180,19 @@ class MPLPlotter(Plotter):
         ax.scatter(data_to_plot.measurements_to_plot['mean'],
                    data_to_plot.simulations_to_plot,
                    label=getattr(dataplot, LEGEND_ENTRY))
-        ax = square_plot_equal_ranges(ax)
-
-    def generate_dataplot(self, ax, dataplot: DataPlot, plotTypeData):
-        pass
+        ax = self._square_plot_equal_ranges(ax)
 
     def generate_subplot(self,
                          ax,
                          subplot: Subplot):
+        """
+        Generate subplot based on markup provided by subplot
 
-        # plot_lowlevel
+        Parameters
+        ----------
+        ax
+        subplot
+        """
 
         # set yScale
         if subplot.yScale == LIN:
@@ -233,7 +234,6 @@ class MPLPlotter(Plotter):
             elif subplot.xScale == 'order':
                 ax.set_xscale("linear")
                 # check if conditions are monotone decreasing or increasing
-                # todo: conditions
                 if np.all(
                         np.diff(subplot.conditions) < 0):  # monot. decreasing
                     xlabel = subplot.conditions[::-1]  # reversing
@@ -273,9 +273,22 @@ class MPLPlotter(Plotter):
         ax.set_ylabel(
             subplot.yLabel)
 
-        return ax
+    def generate_figure(self, subplot_file_path: Optional[str] = None
+                        ) -> Optional[Dict[str, plt.Subplot]]:
+        """
+        Generate the full figure based on markup in figure attribute
 
-    def generate_figure(self, subplot_file_path: Optional[str] = None):
+        Parameters
+        ----------
+        subplot_file_path:
+            path to the folder where single subplots should be saved.
+            PlotIDs will be taken as file names.
+
+        Returns
+        -------
+        ax: Axis object of the created plot.
+        None: In case subplots are save to file
+        """
 
         # Set Options for plots
         # possible options: see: plt.rcParams.keys()
@@ -283,8 +296,8 @@ class MPLPlotter(Plotter):
         # TODO: or some other style
         plt.style.use('tableau-colorblind10')
 
-        plt.rcParams['font.size'] = 10
-        plt.rcParams['axes.titlesize'] = 10
+        plt.rcParams['font.size'] = 12
+        plt.rcParams['axes.titlesize'] = 12
         plt.rcParams['figure.figsize'] = self.figure.size
         plt.rcParams['errorbar.capsize'] = 2
 
@@ -319,6 +332,34 @@ class MPLPlotter(Plotter):
             fig.tight_layout()
             return axes
 
+    @staticmethod
+    def _square_plot_equal_ranges(
+            ax: 'matplotlib.pyplot.Axes',
+            lim: Optional[Union[List, Tuple]] = None
+    ) -> 'matplotlib.pyplot.Axes':
+        """
+        Square plot with equal range for scatter plots
+
+        Returns:
+            Updated axis object.
+        """
+
+        ax.axis('square')
+
+        if lim is None:
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            lim = [np.min([xlim[0], ylim[0]]),
+                   np.max([xlim[1], ylim[1]])]
+
+        ax.set_xlim(lim)
+        ax.set_ylim(lim)
+
+        # Same tick mark on x and y
+        ax.yaxis.set_major_locator(ax.xaxis.get_major_locator())
+
+        return ax
+
 
 class SeabornPlotter(Plotter):
     """
@@ -327,17 +368,6 @@ class SeabornPlotter(Plotter):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_figure(self, subplot_file_path: Optional[str] = None):
+    def generate_figure(self, subplot_file_path: Optional[str] = None
+                        ) -> Optional[Dict[str, plt.Subplot]]:
         pass
-
-
-def plot_measurements():
-    pass
-
-
-def plot_simulations():
-    pass
-
-
-def plot_problem():
-    pass
