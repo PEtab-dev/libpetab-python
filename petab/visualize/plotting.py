@@ -775,8 +775,8 @@ class VisSpecParser:
                              f"{DATASET_ID} column is missing from data table")
 
         if group_by != 'dataset':
-            # datasetId_list will be created (possibly overwriting previous list
-            #  - only in the local variable, not in the tsv-file)
+            # datasetId_list will be created (possibly overwriting previous
+            # list - only in the local variable, not in the tsv-file)
             self.add_dataset_id_col()
 
         columns_dict = self.get_vis_spec_dependent_columns_dict(
