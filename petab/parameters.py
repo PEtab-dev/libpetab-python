@@ -364,8 +364,7 @@ def scale(parameter: numbers.Number, scale_str: 'str') -> numbers.Number:
             One of 'lin' (synonymous with ''), 'log', 'log10'.
 
     Returns:
-        parameter:
-            The scaled parameter.
+        The scaled parameter.
     """
 
     if scale_str == LIN or not scale_str:
@@ -387,8 +386,7 @@ def unscale(parameter: numbers.Number, scale_str: 'str') -> numbers.Number:
             One of 'lin' (synonymous with ''), 'log', 'log10'.
 
     Returns:
-        parameter:
-            The unscaled parameter.
+        The unscaled parameter.
     """
 
     if scale_str == LIN or not scale_str:

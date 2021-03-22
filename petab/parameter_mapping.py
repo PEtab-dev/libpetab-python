@@ -48,7 +48,8 @@ def get_optimization_to_simulation_parameter_mapping(
     Create list of mapping dicts from PEtab-problem to SBML parameters.
 
     Mapping can be performed in parallel. The number of threads is controlled
-    by the environment variable with the name of petab.ENV_NUM_THREADS.
+    by the environment variable with the name of
+    :py:data:`petab.ENV_NUM_THREADS`.
 
     Parameters:
         condition_df, measurement_df, parameter_df, observable_df:
@@ -78,9 +79,9 @@ def get_optimization_to_simulation_parameter_mapping(
         Parameter value and parameter scale mapping for all conditions.
 
         The length of the returned array is the number of unique combinations
-        of ``simulationConditionId``s and ``preequilibrationConditionId``s from
-        the measurement table. Each entry is a tuple of four dicts of length
-        equal to the number of model parameters.
+        of ``simulationConditionId`` s and ``preequilibrationConditionId`` s
+        from the measurement table. Each entry is a tuple of four dicts of
+        length equal to the number of model parameters.
         The first two dicts map simulation parameter IDs to optimization
         parameter IDs or values (where values are fixed) for preequilibration
         and simulation condition, respectively.
@@ -160,7 +161,9 @@ def _map_condition_arg_packer(
 def _map_condition(packed_args):
     """Helper function for parallel condition mapping.
 
-    For arguments see get_optimization_to_simulation_parameter_mapping"""
+    For arguments see
+    :py:func:`get_optimization_to_simulation_parameter_mapping`.
+    """
 
     (condition, measurement_df, condition_df, parameter_df, sbml_model,
      simulation_parameters, warn_unmapped, scaled_parameters,
@@ -264,7 +267,7 @@ def get_parameter_mapping_for_condition(
         to mapped parameters IDs to be estimated or to filled-in values in case
         of non-estimated parameters.
         Second dictionary mapping model parameter IDs to their scale.
-        NaN is used where no mapping exists.
+        ``NaN`` is used where no mapping exists.
     """
     _perform_mapping_checks(
         cur_measurement_df,
@@ -323,7 +326,7 @@ def _apply_output_parameter_overrides(
 
     Arguments:
         mapping: parameter mapping dict as obtained from
-            ``get_parameter_mapping_for_condition``
+            :py:func:`get_parameter_mapping_for_condition`.
         cur_measurement_df:
             Subset of the measurement table for the current condition
     """
@@ -376,7 +379,7 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
     table parameter values (in-place).
 
     Arguments:
-        par_mapping: see get_parameter_mapping_for_condition
+        par_mapping: see :py:func:`get_parameter_mapping_for_condition`
         condition_id: ID of condition to work on
         condition_df: PEtab condition table
     """
@@ -410,7 +413,8 @@ def _apply_parameter_table(par_mapping: ParMappingDict,
 
     Arguments:
         par_mapping:
-            mapping dict obtained from ``get_parameter_mapping_for_condition``
+            mapping dict obtained from
+            :py:func:`get_parameter_mapping_for_condition`
         parameter_df:
             PEtab parameter table
     """
@@ -495,7 +499,7 @@ def handle_missing_overrides(mapping_par_opt_to_par_sim: ParMappingDict,
 
     Parameters:
         mapping_par_opt_to_par_sim:
-            Output of get_parameter_mapping_for_condition
+            Output of :py:func:`get_parameter_mapping_for_condition`
         warn:
             If True, log warning regarding unmapped parameters
         condition_id:
@@ -538,10 +542,10 @@ def merge_preeq_and_sim_pars_condition(
     Arguments:
         condition_map_preeq, condition_map_sim:
             Parameter mapping as obtained from
-            `get_parameter_mapping_for_condition`
+            :py:func:`get_parameter_mapping_for_condition`
         condition_scale_map_preeq, condition_scale_map_sim:
             Parameter scale mapping as obtained from
-            `get_get_scale_mapping_for_condition`
+            :py:func:`get_parameter_mapping_for_condition`
         condition: Condition identifier for more informative error messages
     """
     if not condition_map_preeq:
@@ -610,9 +614,10 @@ def merge_preeq_and_sim_pars(
     Parameters:
         parameter_mappings:
             As returned by
-            petab.get_optimization_to_simulation_parameter_mapping
+            :py:func:`petab.get_optimization_to_simulation_parameter_mapping`.
         scale_mappings:
-            As returned by petab.get_optimization_to_simulation_scale_mapping.
+            As returned by
+            :py:func:`petab.get_optimization_to_simulation_parameter_mapping`.
 
     Returns:
         The parameter and scale simulation mappings, modified and checked.
