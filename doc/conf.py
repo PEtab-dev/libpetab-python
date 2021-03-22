@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'PEtab'
-copyright = '2018-2021, the PEtab developers'
+copyright = '2018, the PEtab developers'
 author = 'PEtab developers'
 
 # The full version, including alpha/beta/rc tags
@@ -49,7 +49,12 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['build/doctrees', 'build/html']
+exclude_patterns = [
+    'build/doctrees',
+    'build/html',
+    '**.ipynb_checkpoints',
+    'logo/LICENSE.md',
+]
 
 master_doc = 'index'
 
