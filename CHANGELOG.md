@@ -2,6 +2,13 @@
 
 ## 0.1 series
 
+### 0.1.17
+
+* Updated package URL
+* Fixed noise formula check (#49)
+* Fixed override check and add noise formula check (#48)
+* Fixed timepoint override check (#47)
+
 ### 0.1.16
 
 Update python version for pypi deployment, no further changes
