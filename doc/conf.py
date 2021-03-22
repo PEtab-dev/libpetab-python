@@ -108,3 +108,13 @@ html_context = {
 }
 
 html_logo = 'logo/PEtab.png'
+
+
+def skip_some_objects(app, what, name, obj, skip, options):
+    """Exclude some objects from the documentation"""
+    if getattr(obj, '__module__', None) == 'collections':
+        return True
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', skip_some_objects)

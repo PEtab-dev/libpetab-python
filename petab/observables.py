@@ -1,6 +1,6 @@
 """Functions for working with the PEtab observables table"""
 
-from _collections import OrderedDict
+from collections import OrderedDict
 from typing import Union, List
 
 import libsbml
