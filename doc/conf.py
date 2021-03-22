@@ -117,4 +117,5 @@ def skip_some_objects(app, what, name, obj, skip, options):
 
 
 def setup(app):
+    """Sphinx setup"""
     app.connect('autodoc-skip-member', skip_some_objects)
