@@ -355,7 +355,8 @@ def unique_preserve_order(seq: Sequence) -> List:
     """Return a list of unique elements in Sequence, keeping only the first
     occurrence of each element
 
-    seq: Sequence to prune
+    Parameters:
+        seq: Sequence to prune
 
     Returns:
         List of unique elements in ``seq``

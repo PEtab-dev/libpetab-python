@@ -448,7 +448,7 @@ def assert_parameter_prior_type_is_valid(
         parameter_df: PEtab parameter table
 
     Raises:
-        AssertionError in case of invalid prior
+        AssertionError: in case of invalid prior
     """
     for col in [INITIALIZATION_PRIOR_TYPE, OBJECTIVE_PRIOR_TYPE]:
         if col not in parameter_df.columns:
@@ -468,7 +468,7 @@ def assert_parameter_prior_parameters_are_valid(
         parameter_df: PEtab parameter table
 
     Raises:
-        AssertionError in case of invalide prior parameters
+        AssertionError: in case of invalid prior parameters
     """
     prior_type_cols = [INITIALIZATION_PRIOR_TYPE,
                        OBJECTIVE_PRIOR_TYPE]
@@ -534,7 +534,7 @@ def is_scalar_float(x: Any):
     :param x:
         input
     :return:
-        True if is or can be converted to number, False otherwise.
+        ``True`` if is or can be converted to number, ``False`` otherwise.
     """
     if isinstance(x, numbers.Number):
         return True
