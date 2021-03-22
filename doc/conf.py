@@ -39,11 +39,20 @@ subprocess.run(['python', 'md2rst.py'])
 extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
-    'recommonmark',
     'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.viewcode',
+    'recommonmark',
     'sphinx_markdown_tables',
     'nbsphinx',
 ]
+
+intersphinx_mapping = {
+    'pandas': ('https://pandas.pydata.org/docs/', None),
+    'numpy': ('https://numpy.org/devdocs/', None),
+    'sympy': ('https://docs.sympy.org/latest/', None),
+    'python': ('https://docs.python.org/3', None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
