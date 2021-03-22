@@ -165,7 +165,7 @@ def _map_condition(packed_args):
     (condition, measurement_df, condition_df, parameter_df, sbml_model,
      simulation_parameters, warn_unmapped, scaled_parameters,
      fill_fixed_parameters,
-     allow_scalar_timepoint_specific_numeric_noise_parameters) = packed_args
+     allow_timepoint_specific_numeric_noise_parameters) = packed_args
 
     cur_measurement_df = measurements.get_rows_for_condition(
         measurement_df, condition)
