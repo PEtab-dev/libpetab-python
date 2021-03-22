@@ -69,6 +69,18 @@ setup(name='petab',
       tests_require=['flake8', 'pytest', 'python-libcombine'],
       python_requires='>=3.7.1',
       entry_points=ENTRY_POINTS,
-      extras_require={'reports': ['Jinja2'],
-                      'combine': ['python-libcombine>=0.2.6']},
+      extras_require={
+          'reports': ['Jinja2'],
+          'combine': ['python-libcombine>=0.2.6'],
+          'doc': [
+              'sphinx>=3.5.3',
+              'sphinxcontrib-napoleon>=0.7',
+              'sphinx-markdown-tables>=0.0.15',
+              'sphinx-rtd-theme>=0.5.1',
+              'recommonmark>=0.7.1',
+              'nbsphinx>=0.8.2',
+              'm2r>=0.2.1',
+              'ipython>=7.21.0',
+          ]
+      }
       )
