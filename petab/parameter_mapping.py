@@ -42,7 +42,7 @@ def get_optimization_to_simulation_parameter_mapping(
         warn_unmapped: Optional[bool] = True,
         scaled_parameters: bool = False,
         fill_fixed_parameters: bool = True,
-        allow_scalar_timepoint_specific_numeric_noise_parameters: bool = False
+        allow_timepoint_specific_numeric_noise_parameters: bool = False
 ) -> List[ParMappingDictQuadruple]:
     """
     Create list of mapping dicts from PEtab-problem to SBML parameters.
@@ -66,7 +66,7 @@ def get_optimization_to_simulation_parameter_mapping(
         fill_fixed_parameters:
             Whether to fill in nominal values for fixed parameters
             (estimate=0 in parameters table).
-        allow_scalar_timepoint_specific_numeric_noise_parameters:
+        allow_timepoint_specific_numeric_noise_parameters:
             Mapping of timepoint-specific parameters overrides is generally
             not supported. If this option is set to True, this function will
             not fail in case of timepoint-specific fixed noise parameters,
@@ -94,8 +94,8 @@ def get_optimization_to_simulation_parameter_mapping(
     # Ensure inputs are okay
     _perform_mapping_checks(
         measurement_df,
-        allow_scalar_timepoint_specific_numeric_noise_parameters=
-        allow_scalar_timepoint_specific_numeric_noise_parameters)
+        allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters)
 
     if simulation_conditions is None:
         simulation_conditions = measurements.get_simulation_conditions(
@@ -121,7 +121,7 @@ def get_optimization_to_simulation_parameter_mapping(
                 simulation_conditions, measurement_df, condition_df,
                 parameter_df, sbml_model, simulation_parameters, warn_unmapped,
                 scaled_parameters, fill_fixed_parameters,
-                allow_scalar_timepoint_specific_numeric_noise_parameters))
+                allow_timepoint_specific_numeric_noise_parameters))
         return list(mapping)
 
     # Run multi-threaded
@@ -133,7 +133,7 @@ def get_optimization_to_simulation_parameter_mapping(
                 simulation_conditions, measurement_df, condition_df,
                 parameter_df, sbml_model, simulation_parameters, warn_unmapped,
                 scaled_parameters, fill_fixed_parameters,
-                allow_scalar_timepoint_specific_numeric_noise_parameters))
+                allow_timepoint_specific_numeric_noise_parameters))
     return list(mapping)
 
 
@@ -147,14 +147,14 @@ def _map_condition_arg_packer(
         warn_unmapped,
         scaled_parameters,
         fill_fixed_parameters,
-        allow_scalar_timepoint_specific_numeric_noise_parameters
+        allow_timepoint_specific_numeric_noise_parameters
 ):
     """Helper function to pack extra arguments for _map_condition"""
     for _, condition in simulation_conditions.iterrows():
         yield(condition, measurement_df, condition_df, parameter_df,
               sbml_model, simulation_parameters, warn_unmapped,
               scaled_parameters, fill_fixed_parameters,
-              allow_scalar_timepoint_specific_numeric_noise_parameters)
+              allow_timepoint_specific_numeric_noise_parameters)
 
 
 def _map_condition(packed_args):
@@ -187,8 +187,8 @@ def _map_condition(packed_args):
             warn_unmapped=warn_unmapped,
             scaled_parameters=scaled_parameters,
             fill_fixed_parameters=fill_fixed_parameters,
-            allow_scalar_timepoint_specific_numeric_noise_parameters=
-            allow_scalar_timepoint_specific_numeric_noise_parameters
+            allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters
         )
 
     par_map_sim, scale_map_sim = get_parameter_mapping_for_condition(
@@ -202,8 +202,8 @@ def _map_condition(packed_args):
         warn_unmapped=warn_unmapped,
         scaled_parameters=scaled_parameters,
         fill_fixed_parameters=fill_fixed_parameters,
-        allow_scalar_timepoint_specific_numeric_noise_parameters=
-        allow_scalar_timepoint_specific_numeric_noise_parameters
+        allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters
     )
 
     return par_map_preeq, par_map_sim, scale_map_preeq, scale_map_sim
@@ -220,7 +220,7 @@ def get_parameter_mapping_for_condition(
         warn_unmapped: bool = True,
         scaled_parameters: bool = False,
         fill_fixed_parameters: bool = True,
-        allow_scalar_timepoint_specific_numeric_noise_parameters: bool = False,
+        allow_timepoint_specific_numeric_noise_parameters: bool = False,
 ) -> Tuple[ParMappingDict, ScaleMappingDict]:
     """
     Create dictionary of parameter value and parameter scale mappings from
@@ -251,7 +251,7 @@ def get_parameter_mapping_for_condition(
         fill_fixed_parameters:
             Whether to fill in nominal values for fixed parameters
             (estimate=0 in parameters table).
-        allow_scalar_timepoint_specific_numeric_noise_parameters:
+        allow_timepoint_specific_numeric_noise_parameters:
             Mapping of timepoint-specific parameters overrides is generally
             not supported. If this option is set to True, this function will
             not fail in case of timepoint-specific fixed noise parameters,
@@ -268,8 +268,8 @@ def get_parameter_mapping_for_condition(
     """
     _perform_mapping_checks(
         cur_measurement_df,
-        allow_scalar_timepoint_specific_numeric_noise_parameters=
-        allow_scalar_timepoint_specific_numeric_noise_parameters)
+        allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters)
 
     if simulation_parameters is None:
         simulation_parameters = sbml.get_model_parameters(sbml_model,
@@ -468,15 +468,15 @@ def _apply_parameter_table(par_mapping: ParMappingDict,
 
 def _perform_mapping_checks(
         measurement_df: pd.DataFrame,
-        allow_scalar_timepoint_specific_numeric_noise_parameters: bool = False
+        allow_timepoint_specific_numeric_noise_parameters: bool = False
 ) -> None:
     """Check for PEtab features which we can't account for during parameter
     mapping."""
 
     if lint.measurement_table_has_timepoint_specific_mappings(
             measurement_df,
-            allow_scalar_numeric_noise_parameters=
-            allow_scalar_timepoint_specific_numeric_noise_parameters):
+            allow_scalar_numeric_noise_parameters=  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters):
         # we could allow that for floats, since they don't matter in this
         # function and would be simply ignored
         raise ValueError(

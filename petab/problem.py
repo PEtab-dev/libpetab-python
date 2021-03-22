@@ -611,7 +611,7 @@ class Problem:
             self,
             warn_unmapped: bool = True,
             scaled_parameters: bool = False,
-            allow_scalar_timepoint_specific_numeric_noise_parameters:
+            allow_timepoint_specific_numeric_noise_parameters:
             bool = False,
     ):
         """
@@ -626,9 +626,9 @@ class Problem:
                 self.sbml_model,
                 warn_unmapped=warn_unmapped,
                 scaled_parameters=scaled_parameters,
-                allow_scalar_timepoint_specific_numeric_noise_parameters=
-                allow_scalar_timepoint_specific_numeric_noise_parameters
-        )
+                allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+                allow_timepoint_specific_numeric_noise_parameters
+            )
 
     def create_parameter_df(self, *args, **kwargs):
         """Create a new PEtab parameter table
