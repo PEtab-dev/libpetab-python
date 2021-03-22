@@ -530,6 +530,7 @@ def is_scalar_float(x: Any):
     """
     Checks whether input is a number or can be transformed into a number
     via float
+
     :param x:
         input
     :return:
