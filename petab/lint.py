@@ -558,10 +558,10 @@ def measurement_table_has_timepoint_specific_mappings(
             PEtab measurement table
 
         allow_scalar_numeric_noise_parameters:
-            ignore scalar numeric assignments to noiseParamater placeholders
+            ignore scalar numeric assignments to noiseParameter placeholders
 
         allow_scalar_numeric_observable_parameters:
-            ignore scalar numeric assignments to observableParamater
+            ignore scalar numeric assignments to observableParameter
             placeholders
 
     Returns:
@@ -601,7 +601,6 @@ def measurement_table_has_timepoint_specific_mappings(
          SIMULATION_CONDITION_ID,
          PREEQUILIBRATION_CONDITION_ID])
     grouped_df2 = measurement_df.groupby(grouping_cols)
-
     # data frame has timepoint specific overrides if grouping by noise
     # parameters and observable parameters in addition to observable,
     # condition and preeq id yields more groups
