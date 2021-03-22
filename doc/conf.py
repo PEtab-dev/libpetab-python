@@ -4,20 +4,23 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+import subprocess
+import sys
+import warnings
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
 sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
 project = 'PEtab'
-copyright = '2018-2021, the PEtab developers'
+copyright = '2018, the PEtab developers'
 author = 'PEtab developers'
 
 # The full version, including alpha/beta/rc tags
@@ -25,7 +28,6 @@ release = 'latest'
 
 # -- Custom pre-build --------------------------------------------------------
 
-import subprocess
 
 subprocess.run(['python', 'md2rst.py'])
 
@@ -49,7 +51,12 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['build/doctrees', 'build/html']
+exclude_patterns = [
+    'build/doctrees',
+    'build/html',
+    '**.ipynb_checkpoints',
+    'logo/LICENSE.md',
+]
 
 master_doc = 'index'
 
@@ -72,14 +79,21 @@ source_suffix = {
     '.md': 'markdown',
 }
 
+# ignore numpy warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+# ignore recommonmark warnings
+#  https://github.com/readthedocs/recommonmark/issues/177
+warnings.filterwarnings("ignore",
+                        message="Container node skipped: type=document")
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
-def setup(app):
-    app.add_stylesheet('custom.css')
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
@@ -94,3 +108,14 @@ html_context = {
 }
 
 html_logo = 'logo/PEtab.png'
+
+
+def skip_some_objects(app, what, name, obj, skip, options):
+    """Exclude some objects from the documentation"""
+    if getattr(obj, '__module__', None) == 'collections':
+        return True
+
+
+def setup(app):
+    """Sphinx setup"""
+    app.connect('autodoc-skip-member', skip_some_objects)

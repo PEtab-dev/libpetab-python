@@ -380,10 +380,11 @@ def get_model_parameters(sbml_model: libsbml.Model, with_values=False
 
     Arguments:
         sbml_model: SBML model
-        with_values: If false, returns list of SBML model parameter IDs which
-        are not AssignmentRule targets for observables or sigmas. If true,
-        returns a dictionary with those parameter IDs as keys and parameter
-        values from the SBML model as values.
+        with_values:
+            If False, returns list of SBML model parameter IDs which
+            are not AssignmentRule targets for observables or sigmas. If True,
+            returns a dictionary with those parameter IDs as keys and parameter
+            values from the SBML model as values.
     """
     if not with_values:
         return [p.getId() for p in sbml_model.getListOfParameters()
