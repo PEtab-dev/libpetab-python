@@ -5,3 +5,4 @@ sphinx-rtd-theme
 recommonmark
 nbsphinx
 m2r
+ipython>=7.21.0
