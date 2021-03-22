@@ -77,10 +77,12 @@ setup(name='petab',
               'sphinxcontrib-napoleon>=0.7',
               'sphinx-markdown-tables>=0.0.15',
               'sphinx-rtd-theme>=0.5.1',
+              'sphinx-autodoc-typehints>=1.11.1',
               'recommonmark>=0.7.1',
               'nbsphinx>=0.8.2',
               'm2r>=0.2.1',
               'ipython>=7.21.0',
+
           ]
       }
       )

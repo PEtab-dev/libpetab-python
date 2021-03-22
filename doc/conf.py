@@ -44,6 +44,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'recommonmark',
     'sphinx_markdown_tables',
+    'sphinx_autodoc_typehints',
     'nbsphinx',
 ]
 
@@ -53,6 +54,12 @@ intersphinx_mapping = {
     'sympy': ('https://docs.sympy.org/latest/', None),
     'python': ('https://docs.python.org/3', None),
 }
+
+# sphinx-autodoc-typehints
+typehints_fully_qualified = True
+typehints_document_rtype = True
+set_type_checking_flag = False
+always_document_param_types = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
