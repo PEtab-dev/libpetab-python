@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'PEtab'
+project = 'libpetab-python'
 copyright = '2018, the PEtab developers'
 author = 'PEtab developers'
 

@@ -363,5 +363,9 @@ def calculate_single_llh(
         nllh = log(2*sigma*m) + abs((log(s)-log(m))/sigma)
     elif noise_distribution == LAPLACE and scale == LOG10:
         nllh = log(2*sigma*m*log(10)) + abs((log10(s)-log10(m))/sigma)
+    else:
+        raise NotImplementedError(
+            "Unsupported combination of noise_distribution and scale "
+            f"specified: {noise_distribution}, {scale}.")
     llh = - nllh
     return llh
