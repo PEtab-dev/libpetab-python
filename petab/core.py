@@ -238,7 +238,8 @@ def is_empty(val) -> bool:
 
 
 def create_combine_archive(
-        yaml_file: str, filename: str,
+        yaml_file: str,
+        filename: str,
         family_name: Optional[str] = None,
         given_name: Optional[str] = None,
         email: Optional[str] = None,
@@ -249,6 +250,7 @@ def create_combine_archive(
 
     Arguments:
         yaml_file: Path to PEtab YAML file
+        filename: Destination file name
         family_name: Family name of archive creator
         given_name: Given name of archive creator
         email: E-mail address of archive creator
@@ -355,7 +357,8 @@ def unique_preserve_order(seq: Sequence) -> List:
     """Return a list of unique elements in Sequence, keeping only the first
     occurrence of each element
 
-    seq: Sequence to prune
+    Parameters:
+        seq: Sequence to prune
 
     Returns:
         List of unique elements in ``seq``

@@ -2,6 +2,12 @@
 
 ## 0.1 series
 
+### 0.1.18
+
+* Fixed various documentation issues
+* Parameter mapping: Added option to ignore time-point specific
+  noiseParameters (#51)
+
 ### 0.1.17
 
 * Updated package URL

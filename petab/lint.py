@@ -307,8 +307,8 @@ def assert_all_parameters_present_in_parameter_df(
 def assert_measured_observables_defined(
         measurement_df: pd.DataFrame,
         observable_df: pd.DataFrame) -> None:
-    """Check if all observables in the measurement table have been defined in the
-    observable table
+    """Check if all observables in the measurement table have been defined in
+    the observable table
 
     Arguments:
         measurement_df: PEtab measurement table
@@ -448,7 +448,7 @@ def assert_parameter_prior_type_is_valid(
         parameter_df: PEtab parameter table
 
     Raises:
-        AssertionError in case of invalid prior
+        AssertionError: in case of invalid prior
     """
     for col in [INITIALIZATION_PRIOR_TYPE, OBJECTIVE_PRIOR_TYPE]:
         if col not in parameter_df.columns:
@@ -468,7 +468,7 @@ def assert_parameter_prior_parameters_are_valid(
         parameter_df: PEtab parameter table
 
     Raises:
-        AssertionError in case of invalide prior parameters
+        AssertionError: in case of invalid prior parameters
     """
     prior_type_cols = [INITIALIZATION_PRIOR_TYPE,
                        OBJECTIVE_PRIOR_TYPE]
@@ -530,10 +530,11 @@ def is_scalar_float(x: Any):
     """
     Checks whether input is a number or can be transformed into a number
     via float
+
     :param x:
         input
     :return:
-        True if is or can be converted to number, False otherwise.
+        ``True`` if is or can be converted to number, ``False`` otherwise.
     """
     if isinstance(x, numbers.Number):
         return True
@@ -558,10 +559,10 @@ def measurement_table_has_timepoint_specific_mappings(
             PEtab measurement table
 
         allow_scalar_numeric_noise_parameters:
-            ignore scalar numeric assignments to noiseParamater placeholders
+            ignore scalar numeric assignments to noiseParameter placeholders
 
         allow_scalar_numeric_observable_parameters:
-            ignore scalar numeric assignments to observableParamater
+            ignore scalar numeric assignments to observableParameter
             placeholders
 
     Returns:
@@ -601,7 +602,6 @@ def measurement_table_has_timepoint_specific_mappings(
          SIMULATION_CONDITION_ID,
          PREEQUILIBRATION_CONDITION_ID])
     grouped_df2 = measurement_df.groupby(grouping_cols)
-
     # data frame has timepoint specific overrides if grouping by noise
     # parameters and observable parameters in addition to observable,
     # condition and preeq id yields more groups
