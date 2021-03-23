@@ -307,8 +307,8 @@ def assert_all_parameters_present_in_parameter_df(
 def assert_measured_observables_defined(
         measurement_df: pd.DataFrame,
         observable_df: pd.DataFrame) -> None:
-    """Check if all observables in the measurement table have been defined in the
-    observable table
+    """Check if all observables in the measurement table have been defined in
+    the observable table
 
     Arguments:
         measurement_df: PEtab measurement table
