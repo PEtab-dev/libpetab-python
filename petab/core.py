@@ -238,7 +238,8 @@ def is_empty(val) -> bool:
 
 
 def create_combine_archive(
-        yaml_file: str, filename: str,
+        yaml_file: str,
+        filename: str,
         family_name: Optional[str] = None,
         given_name: Optional[str] = None,
         email: Optional[str] = None,
@@ -249,6 +250,7 @@ def create_combine_archive(
 
     Arguments:
         yaml_file: Path to PEtab YAML file
+        filename: Destination file name
         family_name: Family name of archive creator
         given_name: Given name of archive creator
         email: E-mail address of archive creator
