@@ -546,7 +546,7 @@ def is_scalar_float(x: Any):
 
 
 def measurement_table_has_timepoint_specific_mappings(
-        measurement_df: pd.DataFrame,
+        measurement_df: Optional[pd.DataFrame],
         allow_scalar_numeric_noise_parameters: bool = False,
         allow_scalar_numeric_observable_parameters: bool = False,
 ) -> bool:
@@ -569,6 +569,9 @@ def measurement_table_has_timepoint_specific_mappings(
         True if there are time-point or replicate specific (non-numeric)
         parameter assignments in the measurement table, False otherwise.
     """
+    if measurement_df is None:
+        return False
+
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
 
@@ -609,7 +612,7 @@ def measurement_table_has_timepoint_specific_mappings(
 
 
 def observable_table_has_nontrivial_noise_formula(
-        observable_df: pd.DataFrame) -> bool:
+        observable_df: Optional[pd.DataFrame]) -> bool:
     """
     Does any observable have a noise formula that is not just a single
     parameter?
@@ -621,6 +624,8 @@ def observable_table_has_nontrivial_noise_formula(
         True if any noise formula does not consist of a single identifier,
         False otherwise.
     """
+    if observable_df is None:
+        return False
 
     return not observable_df[NOISE_FORMULA].apply(
         lambda x: is_scalar_float(x) or
