@@ -569,6 +569,9 @@ def measurement_table_has_timepoint_specific_mappings(
         True if there are time-point or replicate specific (non-numeric)
         parameter assignments in the measurement table, False otherwise.
     """
+    if measurement_df is None:
+        return False
+
     # since we edit it, copy it first
     measurement_df = copy.deepcopy(measurement_df)
 
