@@ -1,6 +1,7 @@
 """Code regarding the PEtab YAML config files"""
 
 import os
+from pathlib import Path
 from typing import Any, Dict, Union, Optional, List
 
 import jsonschema
@@ -172,14 +173,16 @@ def write_yaml(yaml_config: Dict[str, Any], filename: str) -> None:
                   sort_keys=False)
 
 
-def create_problem_yaml(sbml_files: Union[str, List[str]],
-                        condition_files: Union[str, List[str]],
-                        measurement_files: Union[str, List[str]],
-                        parameter_file: str,
-                        observable_files: Union[str, List[str]],
-                        yaml_file: str,
-                        visualization_files: Optional[Union[str, List[str]]]
-                        = None) -> None:
+def create_problem_yaml(
+        sbml_files: Union[str, List[str]],
+        condition_files: Union[str, List[str]],
+        measurement_files: Union[str, List[str]],
+        parameter_file: str,
+        observable_files: Union[str, List[str]],
+        yaml_file: str,
+        visualization_files: Optional[Union[str, List[str]]] = None,
+        yaml_centric: bool = False,
+) -> None:
     """
     Create and write default YAML file for a single PEtab problem
 
@@ -203,6 +206,20 @@ def create_problem_yaml(sbml_files: Union[str, List[str]],
         observable_files = [observable_files]
     if isinstance(visualization_files, str):
         visualization_files = [visualization_files]
+
+    if yaml_centric:
+        yaml_file_dir = Path(yaml_file).parent
+
+        def get_relative_paths(paths, start=yaml_file_dir):
+            return [os.path.relpath(path, start=start) for path in paths]
+
+        sbml_files = get_relative_paths(sbml_files)
+        condition_files = get_relative_paths(condition_files)
+        measurement_files = get_relative_paths(measurement_files)
+        observable_files = get_relative_paths(observable_files)
+        visualization_files = get_relative_paths(visualization_files)
+
+        parameter_file = get_relative_paths([parameter_file])[0]
 
     problem_dic = {CONDITION_FILES: condition_files,
                    MEASUREMENT_FILES: measurement_files,
