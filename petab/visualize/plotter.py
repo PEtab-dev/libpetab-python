@@ -52,8 +52,8 @@ class MPLPlotter(Plotter):
         """
 
         simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot,
-                                                           plotTypeData)
+        data_to_plot = self.data_provider.get_data_to_plot(
+            dataplot, plotTypeData == PROVIDED)
         noise_col = None
         # set type of noise
         if plotTypeData == MEAN_AND_SD:
@@ -140,8 +140,8 @@ class MPLPlotter(Plotter):
             noise_col = 'noise_model'
 
         simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot,
-                                                           plotTypeData)
+        data_to_plot = self.data_provider.get_data_to_plot(
+            dataplot, plotTypeData == PROVIDED)
 
         x_name = dataplot.legendEntry
 
@@ -171,8 +171,8 @@ class MPLPlotter(Plotter):
 
     def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
 
-        data_to_plot = self.data_provider.get_data_to_plot(dataplot,
-                                                           plotTypeData)
+        data_to_plot = self.data_provider.get_data_to_plot(
+            dataplot, plotTypeData == PROVIDED)
 
         if data_to_plot.simulations_to_plot is None:
             raise NotImplementedError('Scatter plots do not work without'

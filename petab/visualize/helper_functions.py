@@ -885,45 +885,6 @@ def matches_plot_spec(df: pd.DataFrame,
     return subset
 
 
-def matches_plot_spec_new(df: pd.DataFrame,
-                          # col_id: str,
-                          # x_value: Union[float, str],
-                          plot_spec: 'VisualizationSpec',
-                          dataset_id) -> pd.Series:
-    """
-    constructs an index for subsetting of the dataframe according to what is
-    specified in plot_spec.
-
-    Parameters:
-        df:
-            pandas data frame to subset, can be from measurement file or
-            simulation file
-        col_id:
-            name of the column that will be used for indexing in x variable
-        x_value:
-            subsetted x value
-        plot_spec:
-            visualization spec from the visualization file
-
-    Returns:
-        index:
-            Boolean series that can be used for subsetting of the passed
-            dataframe
-    """
-    subset = (
-        (df[DATASET_ID] == dataset_id)
-    )
-    if getattr(plot_spec, Y_VALUES) == '':
-        if len(df.loc[subset, OBSERVABLE_ID].unique()) > 1:
-            ValueError(
-                f'{Y_VALUES} must be specified in visualization table if '
-                f'multiple different observables are available.'
-            )
-    else:
-        subset &= (df[OBSERVABLE_ID] == getattr(plot_spec, Y_VALUES))
-    return subset
-
-
 def get_data_to_plot(plot_spec: pd.Series,
                      m_data: pd.DataFrame,
                      simulation_data: pd.DataFrame,

@@ -465,7 +465,7 @@ def plot_by_observable(conditions_df: Union[str, pd.DataFrame],
                        ) -> Optional[Dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. Measurements will be grouped by
-    observables. All measurements for a particular observable will be
+    observables. All measurements for each observable will be
     visualized on one plot.
 
     Parameters
@@ -490,6 +490,10 @@ def plot_by_observable(conditions_df: Union[str, pd.DataFrame],
     -------
 
     """
+
+    if measurements_df is None and simulations_df is None:
+        raise TypeError('Not enough arguments. Either measurements_data '
+                        'or simulations_data should be provided.')
 
     vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
                                     simulations_df)

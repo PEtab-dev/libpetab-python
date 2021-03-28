@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Tuple, Union, TypedDict
 
 from .helper_functions import (generate_dataset_id_col,
                                create_dataset_id_list_new,
-                               matches_plot_spec_new,
                                expand_vis_spec_settings)
 from .. import measurements, core, conditions
 from ..problem import Problem
@@ -168,7 +167,7 @@ class DataPlot:
                  plot_settings: VisDict):
         """
         Visualization specification of a plot of one data series, e.g. for
-        an individual line on the subplot
+        an individual line on a subplot
 
         Parameters
         ----------
@@ -226,7 +225,7 @@ class Subplot:
         if PLOT_TYPE_DATA not in vars(self):
             setattr(self, PLOT_TYPE_DATA, MEAN_AND_SD)
         if X_LABEL not in vars(self):
-            setattr(self, X_LABEL, TIME)  # getattr(self, X_VALUES)
+            setattr(self, X_LABEL, TIME)  # TODO: getattr(self, X_VALUES)
         if X_SCALE not in vars(self):
             setattr(self, X_SCALE, LIN)
         if Y_LABEL not in vars(self):
@@ -272,7 +271,10 @@ class Subplot:
                 # append new entry to dict
                 vis_spec_dict[col] = entry
             else:
-                raise
+                warnings.warn(f'Column {col} cannot be used to specify subplot'
+                              f', only settings from the following columns can'
+                              f' be used:'
+                              + ', '.join(VISUALIZATION_DF_SUBPLOT_LEVEL_COLS))
         return cls(plot_id, vis_spec_dict, dataplots)
 
     def add_dataplot(self, dataplot: DataPlot):
@@ -281,7 +283,7 @@ class Subplot:
 
 class Figure:
     def __init__(self, subplots: Optional[List[Subplot]] = None,
-                 size: Tuple = (20, 10),
+                 size: Tuple = (20, 15),
                  title: Optional[Tuple] = None):
         """
         Visualization specification of a figure. Contains information
@@ -300,8 +302,7 @@ class Figure:
         self.subplots = subplots if subplots is not None else []
 
         # TODO: Should we put in the documentation which combination of fields
-        #  must be unique? is there such  check
-        # TODO: vis_spec_df without datasetId was provided
+        #  must be unique? is there such check
 
     @property
     def num_subplots(self) -> int:
@@ -316,9 +317,9 @@ class DataProvider:
     Handles data selection
     """
     def __init__(self,
-                 exp_conditions: Union[str, pd.DataFrame],
-                 measurements_data: Union[str, pd.DataFrame],
-                 simulations_data: Optional[Union[str, pd.DataFrame]] = None):
+                 exp_conditions: pd.DataFrame,
+                 measurements_data: Optional[pd.DataFrame] = None,
+                 simulations_data: Optional[pd.DataFrame] = None):
         self.conditions_data = exp_conditions
 
         if measurements_data is None and simulations_data is None:
@@ -327,18 +328,73 @@ class DataProvider:
         self.measurements_data = measurements_data
         self.simulations_data = simulations_data
 
-    def get_uni_condition_id(self, df: pd.DataFrame, dataplot: DataPlot):
+    @staticmethod
+    def _matches_plot_spec(df: pd.DataFrame,
+                           # col_id: str,
+                           # x_value: Union[float, str],
+                           plot_spec: 'DataPlot',
+                           dataset_id) -> pd.Series:
         """
+        constructs an index for subsetting of the dataframe according to what is
+        specified in plot_spec.
+
+        Parameters:
+            df:
+                pandas data frame to subset, can be from measurement file or
+                simulation file
+            col_id:
+                name of the column that will be used for indexing in x variable
+            x_value:
+                subsetted x value
+            plot_spec:
+                visualization spec from the visualization file
+
+        Returns:
+            index:
+                Boolean series that can be used for subsetting of the passed
+                dataframe
+        """
+        subset = (
+            (df[DATASET_ID] == dataset_id)
+        )
+        if getattr(plot_spec, Y_VALUES) == '':
+            if len(df.loc[subset, OBSERVABLE_ID].unique()) > 1:
+                ValueError(
+                    f'{Y_VALUES} must be specified in visualization table if '
+                    f'multiple different observables are available.'
+                )
+        else:
+            subset &= (df[OBSERVABLE_ID] == getattr(plot_spec, Y_VALUES))
+        return subset
+
+    def _get_uni_condition_id(self, data_df: pd.DataFrame, dataplot: DataPlot
+                              ) -> Tuple[np.ndarray, str, pd.Series]:
+        """
+        get independant variable values
 
         Parameters
         ----------
-        df:
+        data_df:
             pandas data frame to subset, can be from measurement file or
             simulation file
         dataplot:
 
         Returns
         -------
+        col_name_unique:
+            the name of the column from Measurement table, whose entries
+            should be unique (depends on entry in column xValues of
+            visualization specification)
+            possible values: TIME or SIMULATION_CONDITION_ID
+        uni_condition_id:
+            time points
+            or
+            contains all unique condition IDs which should be
+            plotted in one figure (can be found in measurementData file,
+            column simulationConditionId)
+        conditions_:
+            possible values: time points, None, vales of independent variable
+            for each condition_id in uni_condition_id
 
         """
 
@@ -346,9 +402,8 @@ class DataProvider:
 
         dataset_id = getattr(dataplot, DATASET_ID)
 
-        # TODO: move matches_plot_spec to this class?
-        single_m_data = df[matches_plot_spec_new(
-            df, dataplot, dataset_id)]
+        single_m_data = data_df[self._matches_plot_spec(
+            data_df, dataplot, dataset_id)]
 
         # gather simulationConditionIds belonging to datasetId
         uni_condition_id, uind = np.unique(
@@ -368,21 +423,24 @@ class DataProvider:
             # TODO: not described in docs?
             conditions_ = None
         else:
-            # parameterOrStateId case ?
+            # indep_var = parameterOrStateId case ?
             # extract conditions (plot input) from condition file
             ind_cond = self.conditions_data.index.isin(uni_condition_id)
             conditions_ = self.conditions_data[ind_cond][indep_var]
 
         return uni_condition_id, col_name_unique, conditions_
 
-    def get_data_to_plot(self, dataplot: DataPlot, plotTypeData: str
+    def get_data_to_plot(self, dataplot: DataPlot, provided_noise: bool
                          ) -> DataSeries:
         """
+        get data to plot
 
         Parameters
         ----------
         dataplot:
-        plotTypeData:
+        provided_noise:
+            True if if numeric values for the noise level are provided in the
+            measurement table
         """
 
         measurements_to_plot = None
@@ -393,16 +451,18 @@ class DataProvider:
         dataset_id = getattr(dataplot, DATASET_ID)
 
         if self.measurements_data is not None:
-            uni_condition_id, col_name_unique, conditions = \
-                self.get_uni_condition_id(self.measurements_data, dataplot)
+            uni_condition_id, col_name_unique, conditions_ = \
+                self._get_uni_condition_id(self.measurements_data, dataplot)
         else:
-            uni_condition_id, col_name_unique, conditions = \
-                self.get_uni_condition_id(self.simulations_data, dataplot)
+            uni_condition_id, col_name_unique, conditions_ = \
+                self._get_uni_condition_id(self.simulations_data, dataplot)
 
         if self.measurements_data is not None:
             # define index to reduce exp_data to data linked to datasetId
 
-            single_m_data = self.measurements_data[matches_plot_spec_new(
+            # get measurements_df subset selected based on provided dataset_id
+            # and observable_ids
+            single_m_data = self.measurements_data[self._matches_plot_spec(
                 self.measurements_data, dataplot, dataset_id)]
 
             # create empty dataframe for means and SDs
@@ -412,7 +472,6 @@ class DataProvider:
             )
 
             for var_cond_id in uni_condition_id:
-                # TODO: should be self.measurements ?
 
                 subset = (single_m_data[col_name_unique] == var_cond_id)
 
@@ -429,8 +488,7 @@ class DataProvider:
                 measurements_to_plot.at[var_cond_id, 'sd'] = np.std(
                     data_measurements)
 
-                # TODO: one level above?
-                if (plotTypeData == PROVIDED) & sum(subset):
+                if provided_noise & sum(subset):
                     if len(single_m_data.loc[
                                subset, NOISE_PARAMETERS].unique()) > 1:
                         raise NotImplementedError(
@@ -442,8 +500,8 @@ class DataProvider:
                         raise NotImplementedError(
                             "No numerical noise values provided in the "
                             "measurement table. Stopping.")
-                    if isinstance(tmp_noise,
-                                  Number) or tmp_noise.dtype == 'float64':
+                    if isinstance(tmp_noise, Number) or \
+                            tmp_noise.dtype == 'float64':
                         measurements_to_plot.at[
                             var_cond_id, 'noise_model'] = tmp_noise
 
@@ -458,12 +516,13 @@ class DataProvider:
 
         if self.simulations_data is not None:
             simulations_to_plot = []
+
+            single_s_data = self.simulations_data[self._matches_plot_spec(
+                self.simulations_data, dataplot, dataset_id)]
+
             for var_cond_id in uni_condition_id:
-                # TODO: put == var_cond_id back in matches_plot_spec_new?
-                simulation_measurements = self.simulations_data.loc[
-                    matches_plot_spec_new(self.simulations_data,
-                                          dataplot, dataset_id) &
-                    (self.simulations_data[col_name_unique] == var_cond_id),
+                simulation_measurements = single_s_data.loc[
+                    single_s_data[col_name_unique] == var_cond_id,
                     SIMULATION
                 ]
 
@@ -471,7 +530,7 @@ class DataProvider:
                     simulation_measurements
                 ))
 
-        data_series = DataSeries(conditions, measurements_to_plot,
+        data_series = DataSeries(conditions_, measurements_to_plot,
                                  simulations_to_plot)
         data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
 
@@ -481,11 +540,11 @@ class DataProvider:
 class VisSpecParser:
     """
     Parser of visualization specification provided by user either in the form
-    of Visualization table or a list of lists with datasets ids or observable
-    ids or condition ids. Figure instance is created containing information
-    regarding how data should be visualized. In addition to the Figure
-    instance, a DataProvider instance is created that will be responsible for
-    the data selection and manipulation.
+    of Visualization table or as a list of lists with datasets ids or
+    observable ids or condition ids. Figure instance is created containing
+    information regarding how data should be visualized. In addition to the
+    Figure instance, a DataProvider instance is created that will be
+    responsible for the data selection and manipulation.
 
     """
     def __init__(self,
@@ -518,7 +577,7 @@ class VisSpecParser:
                    sim_data)
 
     @property
-    def data_df(self):
+    def _data_df(self):
         return self.measurements_data if self.measurements_data is not \
             None else self.simulations_data
 
@@ -576,7 +635,7 @@ class VisSpecParser:
                 # but potentially some settings.
                 # TODO: multiple plotids with diff settings
 
-                unique_obs_list = self.data_df[OBSERVABLE_ID].unique()
+                unique_obs_list = self._data_df[OBSERVABLE_ID].unique()
                 observable_id_list = [[obs_id] for obs_id in unique_obs_list]
 
                 columns_dict = self.get_vis_spec_dependent_columns_dict(
@@ -584,7 +643,7 @@ class VisSpecParser:
 
             vis_spec = expand_vis_spec_settings(vis_spec, columns_dict)
         else:
-            if DATASET_ID not in self.data_df:
+            if DATASET_ID not in self._data_df:
                 raise ValueError(f"grouping by datasetId was requested, but "
                                  f"{DATASET_ID} column is missing from data "
                                  f"table")
@@ -609,7 +668,8 @@ class VisSpecParser:
     def parse_from_dataset_ids(self,
                                dataset_ids_per_plot: Union[List[IdsList],
                                                            List[NumList]],
-                               plotted_noise: Optional[str] = MEAN_AND_SD
+                               plotted_noise: Optional[str] = MEAN_AND_SD,
+                               output_file_path: str = 'visuSpec.tsv'
                                ) -> Tuple[Figure, DataProvider]:
         """
 
@@ -628,7 +688,7 @@ class VisSpecParser:
         -------
         """
 
-        if DATASET_ID not in self.data_df:
+        if DATASET_ID not in self._data_df:
             raise ValueError(f"grouping by datasetId was requested, but "
                              f"{DATASET_ID} column is missing from data table")
 
@@ -676,7 +736,7 @@ class VisSpecParser:
                for x in sublist):
             # TODO: should unique_simcond_list be taken from conditons_df or
             #       measurements_df?
-            unique_simcond_list = self.data_df[
+            unique_simcond_list = self._data_df[
                 SIMULATION_CONDITION_ID].unique()
             conditions_id_list = [[unique_simcond_list[i_cond] for i_cond in
                                    i_cond_list] for i_cond_list in
@@ -713,7 +773,7 @@ class VisSpecParser:
 
         if all(isinstance(x, int) for sublist in observables_per_plot
                for x in sublist):
-            unique_obs_list = self.data_df[OBSERVABLE_ID].unique()
+            unique_obs_list = self._data_df[OBSERVABLE_ID].unique()
             observable_id_list = [[unique_obs_list[i_obs] for i_obs in
                                    i_obs_list] for i_obs_list in
                                   observables_per_plot]
@@ -744,7 +804,8 @@ class VisSpecParser:
     def parse_from_id_list(self,
                            ids_per_plot: Optional[List[IdsList]] = None,
                            group_by: str = 'observable',
-                           plotted_noise: Optional[str] = MEAN_AND_SD):
+                           plotted_noise: Optional[str] = MEAN_AND_SD,
+                           output_file_path: str = 'visuSpec.tsv'):
         """
         TODO
         if only dataset_id_list, sim_cond_id_list and observable_id_list
@@ -767,10 +828,10 @@ class VisSpecParser:
         if ids_per_plot is None:
             # this is the default case. If no grouping is specified,
             # all observables are plotted. One observable per plot.
-            unique_obs_list = self.data_df[OBSERVABLE_ID].unique()
+            unique_obs_list = self._data_df[OBSERVABLE_ID].unique()
             ids_per_plot = [[obs_id] for obs_id in unique_obs_list]
 
-        if group_by == 'dataset' and DATASET_ID not in self.data_df:
+        if group_by == 'dataset' and DATASET_ID not in self._data_df:
             raise ValueError(f"grouping by datasetId was requested, but "
                              f"{DATASET_ID} column is missing from data table")
 
@@ -831,12 +892,12 @@ class VisSpecParser:
             visualization specification file.
         """
 
-        legend_dict = self.create_legend_dict(self.data_df)
+        legend_dict = self.create_legend_dict(self._data_df)
         # yvalues_dict = {}
         # TODO: generate legends and yvalues
 
         if group_by != 'dataset':
-            dataset_id_list = create_dataset_id_list_new(self.data_df,
+            dataset_id_list = create_dataset_id_list_new(self._data_df,
                                                          group_by, id_list)
         else:
             dataset_id_list = id_list
@@ -855,7 +916,7 @@ class VisSpecParser:
 
         # such datasetids were generated that each dataset_id always
         # corresponds to one observable
-        yvalues_column = [self.data_df.loc[self.data_df[DATASET_ID] ==
+        yvalues_column = [self._data_df.loc[self._data_df[DATASET_ID] ==
                                            dataset_id, OBSERVABLE_ID].iloc[0]
                           for sublist in dataset_id_list for dataset_id in
                           sublist]
