@@ -196,7 +196,8 @@ def create_problem_yaml(
         visualization_files: Optional Path to visualization file or list of
         such
         yaml_centric: whether all paths in the YAML file should be relative to
-        the location of the YAML file
+        the location of the YAML file. If `False`, then paths are left
+        unchanged.
     """
     if isinstance(sbml_files, str):
         sbml_files = [sbml_files]
@@ -215,13 +216,13 @@ def create_problem_yaml(
         def get_rel_to_yaml(paths: List[str]):
             return [os.path.relpath(path, start=yaml_file_dir) for path in paths]
 
-        sbml_files = get_relative_paths(sbml_files)
-        condition_files = get_relative_paths(condition_files)
-        measurement_files = get_relative_paths(measurement_files)
-        observable_files = get_relative_paths(observable_files)
-        visualization_files = get_relative_paths(visualization_files)
+        sbml_files = get_rel_to_yaml(sbml_files)
+        condition_files = get_rel_to_yaml(condition_files)
+        measurement_files = get_rel_to_yaml(measurement_files)
+        observable_files = get_rel_to_yaml(observable_files)
+        visualization_files = get_rel_to_yaml(visualization_files)
 
-        parameter_file = get_relative_paths([parameter_file])[0]
+        parameter_file = get_rel_to_yaml([parameter_file])[0]
 
     problem_dic = {CONDITION_FILES: condition_files,
                    MEASUREMENT_FILES: measurement_files,

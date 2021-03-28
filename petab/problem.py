@@ -291,7 +291,8 @@ class Problem:
             observable_file: Observables table destination
             yaml_file: YAML file destination
             yaml_centric: whether all paths in the YAML file should be relative
-            to the location of the YAML file
+            to the location of the YAML file. If `False`, then paths are left
+            unchanged.
 
         Raises:
             ValueError:
