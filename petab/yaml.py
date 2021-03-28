@@ -214,7 +214,10 @@ def create_problem_yaml(
         yaml_file_dir = Path(yaml_file).parent
 
         def get_rel_to_yaml(paths: List[str]):
-            return [os.path.relpath(path, start=yaml_file_dir) for path in paths]
+            return [
+                os.path.relpath(path, start=yaml_file_dir)
+                for path in paths
+            ]
 
         sbml_files = get_rel_to_yaml(sbml_files)
         condition_files = get_rel_to_yaml(condition_files)
