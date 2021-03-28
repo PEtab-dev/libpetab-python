@@ -212,8 +212,8 @@ def create_problem_yaml(
     if yaml_centric:
         yaml_file_dir = Path(yaml_file).parent
 
-        def get_relative_paths(paths, start=yaml_file_dir):
-            return [os.path.relpath(path, start=start) for path in paths]
+        def get_rel_to_yaml(paths: List[str]):
+            return [os.path.relpath(path, start=yaml_file_dir) for path in paths]
 
         sbml_files = get_relative_paths(sbml_files)
         condition_files = get_relative_paths(condition_files)
