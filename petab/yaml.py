@@ -195,6 +195,8 @@ def create_problem_yaml(
         yaml_file: Path to which YAML file should be written
         visualization_files: Optional Path to visualization file or list of
         such
+        yaml_centric: whether all paths in the YAML file should be relative to
+        the location of the YAML file
     """
     if isinstance(sbml_files, str):
         sbml_files = [sbml_files]
