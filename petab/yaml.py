@@ -213,7 +213,9 @@ def create_problem_yaml(
     if relative_paths:
         yaml_file_dir = Path(yaml_file).parent
 
-        def get_rel_to_yaml(paths: List[str]):
+        def get_rel_to_yaml(paths: Union[List[str], None]):
+            if paths is None:
+                return paths
             return [
                 os.path.relpath(path, start=yaml_file_dir)
                 for path in paths
