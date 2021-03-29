@@ -181,7 +181,7 @@ def create_problem_yaml(
         observable_files: Union[str, List[str]],
         yaml_file: str,
         visualization_files: Optional[Union[str, List[str]]] = None,
-        yaml_centric: bool = False,
+        relative_paths: bool = True,
 ) -> None:
     """
     Create and write default YAML file for a single PEtab problem
@@ -195,8 +195,8 @@ def create_problem_yaml(
         yaml_file: Path to which YAML file should be written
         visualization_files: Optional Path to visualization file or list of
         such
-        yaml_centric: whether all paths in the YAML file should be relative to
-        the location of the YAML file. If `False`, then paths are left
+        relative_paths: whether all paths in the YAML file should be relative
+        to the location of the YAML file. If `False`, then paths are left
         unchanged.
     """
     if isinstance(sbml_files, str):
@@ -210,7 +210,7 @@ def create_problem_yaml(
     if isinstance(visualization_files, str):
         visualization_files = [visualization_files]
 
-    if yaml_centric:
+    if relative_paths:
         yaml_file_dir = Path(yaml_file).parent
 
         def get_rel_to_yaml(paths: List[str]):

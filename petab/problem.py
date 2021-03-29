@@ -272,7 +272,7 @@ class Problem:
                  visualization_file: Optional[str] = None,
                  observable_file: Optional[str] = None,
                  yaml_file: Optional[str] = None,
-                 yaml_centric: bool = True,) -> None:
+                 relative_paths: bool = True,) -> None:
         """
         Write PEtab tables to files for this problem
 
@@ -290,9 +290,9 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
-            yaml_centric: whether all paths in the YAML file should be relative
-            to the location of the YAML file. If `False`, then paths are left
-            unchanged.
+            relative_paths: whether all paths in the YAML file should be
+            relative to the location of the YAML file. If `False`, then paths
+            are left unchanged.
 
         Raises:
             ValueError:
@@ -349,7 +349,7 @@ class Problem:
                                      measurement_file, parameter_file,
                                      observable_file, yaml_file,
                                      visualization_file,
-                                     yaml_centric=yaml_centric,)
+                                     relative_paths=relative_paths,)
 
     def get_optimization_parameters(self):
         """
