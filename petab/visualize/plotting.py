@@ -330,22 +330,16 @@ class DataProvider:
 
     @staticmethod
     def _matches_plot_spec(df: pd.DataFrame,
-                           # col_id: str,
-                           # x_value: Union[float, str],
                            plot_spec: 'DataPlot',
                            dataset_id) -> pd.Series:
         """
-        constructs an index for subsetting of the dataframe according to what is
-        specified in plot_spec.
+        constructs an index for subsetting of the dataframe according to what
+        is specified in plot_spec.
 
         Parameters:
             df:
                 pandas data frame to subset, can be from measurement file or
                 simulation file
-            col_id:
-                name of the column that will be used for indexing in x variable
-            x_value:
-                subsetted x value
             plot_spec:
                 visualization spec from the visualization file
 
@@ -581,18 +575,23 @@ class VisSpecParser:
         return self.measurements_data if self.measurements_data is not \
             None else self.simulations_data
 
-    def create_subplot(self,
-                       plot_id,
+    @staticmethod
+    def create_subplot(plot_id,
                        subplot_vis_spec: pd.DataFrame) -> Subplot:
         """
+        create subplot
 
         Parameters
         ----------
         plot_id:
         subplot_vis_spec:
+            visualization specification DataFrame that contains specification
+            for the subplot and corresponding dataplots
 
         Returns
         -------
+
+        subplot
         """
 
         subplot_columns = [col for col in subplot_vis_spec.columns if col in
@@ -665,161 +664,29 @@ class VisSpecParser:
                                     self.measurements_data,
                                     self.simulations_data)
 
-    def parse_from_dataset_ids(self,
-                               dataset_ids_per_plot: Union[List[IdsList],
-                                                           List[NumList]],
-                               plotted_noise: Optional[str] = MEAN_AND_SD,
-                               output_file_path: str = 'visuSpec.tsv'
-                               ) -> Tuple[Figure, DataProvider]:
-        """
-
-        group_by = 'dataset'
-        Parameters
-        ----------
-        dataset_ids_per_plot:
-            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
-                                         ['dataset_1', 'dataset_4',
-                                          'dataset_5']]
-        plotted_noise:
-            String indicating how noise should be visualized:
-            ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
-
-        Returns
-        -------
-        """
-
-        if DATASET_ID not in self._data_df:
-            raise ValueError(f"grouping by datasetId was requested, but "
-                             f"{DATASET_ID} column is missing from data table")
-
-        dataset_id_column = [i_dataset for sublist in dataset_ids_per_plot
-                             for i_dataset in sublist]
-        dataset_label_column = dataset_id_column
-        yvalues_column = [''] * len(dataset_id_column)
-
-        # get number of plots and create plotId-lists
-        plot_id_column = ['plot%s' % str(ind + 1) for ind, inner_list in
-                          enumerate(dataset_ids_per_plot) for _ in
-                          inner_list]
-
-        columns_dict = {PLOT_ID: plot_id_column,
-                        DATASET_ID: dataset_id_column,
-                        LEGEND_ENTRY: dataset_label_column,
-                        Y_VALUES: yvalues_column,
-                        PLOT_TYPE_DATA: [plotted_noise]*len(dataset_id_column)}
-        vis_spec_df = pd.DataFrame(columns_dict)
-
-        return self.parse_from_vis_spec(vis_spec_df)
-
-    def parse_from_conditions_list(self,
-                                   conditions_per_plot: Union[List[IdsList],
-                                                              List[NumList]],
-                                   plotted_noise: Optional[str] = MEAN_AND_SD
-                                   ) -> Tuple[Figure, DataProvider]:
-        """
-
-        Parameters
-        ----------
-        conditions_per_plot
-            e.g. cond_id_list = [['model1_data1'],
-                                 ['model1_data2', 'model1_data3'],
-                                 ['model1_data4', 'model1_data5'],
-                                 ['model1_data6']]
-        plotted_noise
-
-        Returns
-        -------
-
-        """
-
-        if all(isinstance(x, int) for sublist in conditions_per_plot
-               for x in sublist):
-            # TODO: should unique_simcond_list be taken from conditons_df or
-            #       measurements_df?
-            unique_simcond_list = self._data_df[
-                SIMULATION_CONDITION_ID].unique()
-            conditions_id_list = [[unique_simcond_list[i_cond] for i_cond in
-                                   i_cond_list] for i_cond_list in
-                                  conditions_per_plot]
-        elif all(isinstance(x, str) for sublist in conditions_per_plot
-                 for x in sublist):
-            conditions_id_list = conditions_per_plot
-        else:
-            raise TypeError("conditions_per_plot should be a list of lists. "
-                            "Each sublist corresponds to a plot. "
-                            "Elements of sublists should be either "
-                            "condition ids (str) or condition numbers (int) ")
-
-        group_by = 'simulation'  # TODO: why simulation btw?
-        # datasetId_list will be created (possibly overwriting previous list
-        #  - only in the local variable, not in the tsv-file)
-
-        self.add_dataset_id_col()
-        columns_dict = self.get_vis_spec_dependent_columns_dict(
-            group_by, conditions_id_list)
-
-        columns_dict[PLOT_TYPE_DATA] = [plotted_noise]*len(
-            columns_dict[DATASET_ID])
-
-        vis_spec_df = pd.DataFrame(columns_dict)
-
-        return self.parse_from_vis_spec(vis_spec_df)
-
-    def parse_from_observables_list(self,
-                                    observables_per_plot: Union[List[IdsList],
-                                                                List[NumList]],
-                                    plotted_noise: Optional[str] = MEAN_AND_SD
-                                    ) -> Tuple[Figure, DataProvider]:
-
-        if all(isinstance(x, int) for sublist in observables_per_plot
-               for x in sublist):
-            unique_obs_list = self._data_df[OBSERVABLE_ID].unique()
-            observable_id_list = [[unique_obs_list[i_obs] for i_obs in
-                                   i_obs_list] for i_obs_list in
-                                  observables_per_plot]
-        elif all(isinstance(x, str) for sublist in observables_per_plot
-                 for x in sublist):
-            observable_id_list = observables_per_plot
-        else:
-            raise TypeError("observables_per_plot should be a list of lists. "
-                            "Each sublist corresponds to a plot. "
-                            "Elements of sublists should be either observable "
-                            "ids (str) or observable numbers (int) ")
-
-        group_by = 'observable'
-        # datasetId_list will be created (possibly overwriting previous list
-        #  - only in the local variable, not in the tsv-file)
-
-        self.add_dataset_id_col()
-        columns_dict = self.get_vis_spec_dependent_columns_dict(
-            group_by, observable_id_list)
-
-        columns_dict[PLOT_TYPE_DATA] = [plotted_noise]*len(
-            columns_dict[DATASET_ID])
-
-        vis_spec_df = pd.DataFrame(columns_dict)
-
-        return self.parse_from_vis_spec(vis_spec_df)
-
     def parse_from_id_list(self,
                            ids_per_plot: Optional[List[IdsList]] = None,
                            group_by: str = 'observable',
-                           plotted_noise: Optional[str] = MEAN_AND_SD,
-                           output_file_path: str = 'visuSpec.tsv'):
+                           plotted_noise: Optional[str] = MEAN_AND_SD):
         """
-        TODO
-        if only dataset_id_list, sim_cond_id_list and observable_id_list
-        options would be kept then this method will be kept and
-        parse_from_dataset_ids, parse_from_conditions,
-        parse_from_observable_list
-        will be deleted
 
         Parameters
         ----------
-        ids_per_plot
-        group_by
-        plotted_noise
+        ids_per_plot:
+            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
+                                         ['dataset_1', 'dataset_4',
+                                          'dataset_5']]
 
+            or cond_id_list = [['model1_data1'],
+                               ['model1_data2', 'model1_data3'],
+                               ['model1_data4', 'model1_data5'],
+                               ['model1_data6']]
+        group_by
+            ['dataset', 'observable', 'simulation']
+            # TODO: why simulation btw?
+        plotted_noise
+            String indicating how noise should be visualized:
+            ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
         Returns
         -------
 
@@ -917,7 +784,7 @@ class VisSpecParser:
         # such datasetids were generated that each dataset_id always
         # corresponds to one observable
         yvalues_column = [self._data_df.loc[self._data_df[DATASET_ID] ==
-                                           dataset_id, OBSERVABLE_ID].iloc[0]
+                                            dataset_id, OBSERVABLE_ID].iloc[0]
                           for sublist in dataset_id_list for dataset_id in
                           sublist]
 
