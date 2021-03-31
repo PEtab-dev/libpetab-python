@@ -397,19 +397,27 @@ class DataProvider:
         Returns
         -------
         col_name_unique:
-            the name of the column from Measurement table, whose entries
-            should be unique (depends on entry in column xValues of
-            visualization specification)
-            possible values: TIME or SIMULATION_CONDITION_ID
+            name of the column from Measurement (Simulation) table, which
+            specifies independent variable values (depends on the xValues entry
+            of visualization specification).
+            possible values: TIME (independent variable values will be taken
+                                  from the TIME column of Measurement
+                                  (Simulation) table)
+                             SIMULATION_CONDITION_ID (independent variable
+                             values will be taken from one of the columns of
+                             Condition table)
         uni_condition_id:
             time points
             or
             contains all unique condition IDs which should be
-            plotted in one figure (can be found in measurementData file,
-            column simulationConditionId)
+            plotted together as one dataplot. Independent variable values will
+            be collected for these conditions
         conditions_:
+            independent variable values or None for the BarPlot case
             possible values: time points, None, vales of independent variable
-            for each condition_id in uni_condition_id
+            (Parameter or Species, specified in the xValues entry of
+            visualization specification) for each condition_id in
+            uni_condition_id
 
         """
 
@@ -435,7 +443,6 @@ class DataProvider:
             col_name_unique = TIME
             conditions_ = uni_condition_id
         elif indep_var == 'condition':
-            # TODO: not described in docs?
             conditions_ = None
         else:
             # indep_var = parameterOrStateId case ?
@@ -639,7 +646,7 @@ class VisSpecParser:
             vis_spec = core.get_visualization_df(vis_spec)
 
         if DATASET_ID not in vis_spec.columns:
-            self.add_dataset_id_col()
+            self._add_dataset_id_col()
             if Y_VALUES in vis_spec.columns:
                 plot_id_list = np.unique(vis_spec[PLOT_ID])
 
@@ -726,7 +733,7 @@ class VisSpecParser:
         if group_by != 'dataset':
             # datasetId_list will be created (possibly overwriting previous
             # list - only in the local variable, not in the tsv-file)
-            self.add_dataset_id_col()
+            self._add_dataset_id_col()
 
         columns_dict = self.get_vis_spec_dependent_columns_dict(
             group_by, ids_per_plot)
@@ -738,7 +745,7 @@ class VisSpecParser:
 
         return self.parse_from_vis_spec(vis_spec_df)
 
-    def add_dataset_id_col(self):
+    def _add_dataset_id_col(self):
         """
         add dataset_id column to the measurement table and simulations table
         (possibly overwrite)
@@ -775,9 +782,9 @@ class VisSpecParser:
         LEGEND_ENTRY, Y_VALUES for visualization specification file.
 
         Returns:
-            A tuple of experimental DataFrame and a dictionary with values for
+            A dictionary with values for
             columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for
-            visualization specification file.
+            visualization specification.
         """
 
         legend_dict = self.create_legend_dict(self._data_df)
