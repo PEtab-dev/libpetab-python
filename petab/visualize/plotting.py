@@ -296,13 +296,16 @@ class Figure:
         title
         """
 
-        # TODO: Isensee meas table doesn't correspond to documentation
+        # TODO: Isensee measurements table in doc/examples doesn't correspond
+        #       to documentation: observableTransformation and
+        #       noiseDistribution columns replicateId problem
+        # TODO: Should we put in the documentation which combination of fields
+        #  must be unique in the measurement table and add such check?
+        #  obs_id + sim_cond_id + preeq_cod_id (if exists) + time +
+        #  replicate_id (if exists)?
         self.size = size
         self.title = title
         self.subplots = subplots if subplots is not None else []
-
-        # TODO: Should we put in the documentation which combination of fields
-        #  must be unique? is there such check
 
     @property
     def num_subplots(self) -> int:
@@ -382,8 +385,9 @@ class DataProvider:
             subset &= (df[OBSERVABLE_ID] == getattr(plot_spec, Y_VALUES))
         return subset
 
-    def _get_uni_condition_id(self, data_df: pd.DataFrame, dataplot: DataPlot
-                              ) -> Tuple[np.ndarray, str, pd.Series]:
+    def _get_independent_var_values(self, data_df: pd.DataFrame,
+                                    dataplot: DataPlot
+                                    ) -> Tuple[np.ndarray, str, pd.Series]:
         """
         get independant variable values
 
@@ -474,10 +478,10 @@ class DataProvider:
 
         if self.measurements_data is not None:
             uni_condition_id, col_name_unique, conditions_ = \
-                self._get_uni_condition_id(self.measurements_data, dataplot)
+                self._get_independent_var_values(self.measurements_data, dataplot)
         else:
             uni_condition_id, col_name_unique, conditions_ = \
-                self._get_uni_condition_id(self.simulations_data, dataplot)
+                self._get_independent_var_values(self.simulations_data, dataplot)
 
         if self.measurements_data is not None:
             # define index to reduce exp_data to data linked to datasetId
@@ -654,7 +658,7 @@ class VisSpecParser:
                                                plot_id].loc[:, Y_VALUES].values
                                       for plot_id in plot_id_list]
 
-                columns_dict = self.get_vis_spec_dependent_columns_dict(
+                columns_dict = self._get_vis_spec_dependent_columns_dict(
                     'observable', observable_id_list)
 
             else:
@@ -665,7 +669,7 @@ class VisSpecParser:
                 unique_obs_list = self._data_df[OBSERVABLE_ID].unique()
                 observable_id_list = [[obs_id] for obs_id in unique_obs_list]
 
-                columns_dict = self.get_vis_spec_dependent_columns_dict(
+                columns_dict = self._get_vis_spec_dependent_columns_dict(
                     'observable', observable_id_list)
 
             vis_spec = expand_vis_spec_settings(vis_spec, columns_dict)
@@ -735,7 +739,7 @@ class VisSpecParser:
             # list - only in the local variable, not in the tsv-file)
             self._add_dataset_id_col()
 
-        columns_dict = self.get_vis_spec_dependent_columns_dict(
+        columns_dict = self._get_vis_spec_dependent_columns_dict(
             group_by, ids_per_plot)
 
         columns_dict[PLOT_TYPE_DATA] = [plotted_noise]*len(
@@ -772,7 +776,7 @@ class VisSpecParser:
                 column=DATASET_ID,
                 value=generate_dataset_id_col(self.simulations_data))
 
-    def get_vis_spec_dependent_columns_dict(
+    def _get_vis_spec_dependent_columns_dict(
         self,
         group_by: str,
         id_list: Optional[List[IdsList]] = None
@@ -787,9 +791,7 @@ class VisSpecParser:
             visualization specification.
         """
 
-        legend_dict = self.create_legend_dict(self._data_df)
-        # yvalues_dict = {}
-        # TODO: generate legends and yvalues
+        legend_dict = self._create_legend_dict(self._data_df)
 
         if group_by != 'dataset':
             dataset_id_list = create_dataset_id_list_new(self._data_df,
@@ -803,11 +805,8 @@ class VisSpecParser:
         if group_by != 'dataset':
             dataset_label_column = [legend_dict[i_dataset] for sublist in
                                     dataset_id_list for i_dataset in sublist]
-            # yvalues_column = [yvalues_dict[i_dataset] for sublist in
-            #                   dataset_id_list for i_dataset in sublist]
         else:
             dataset_label_column = dataset_id_column
-            # yvalues_column = ['']*len(dataset_id_column)
 
         # such datasetids were generated that each dataset_id always
         # corresponds to one observable
@@ -843,7 +842,7 @@ class VisSpecParser:
                         Y_VALUES: yvalues_column}
         return columns_dict
 
-    def create_legend_dict(self, data_df: pd.DataFrame):
+    def _create_legend_dict(self, data_df: pd.DataFrame):
         legend_dict = {}
 
         for _, row in data_df.iterrows():

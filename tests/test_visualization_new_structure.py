@@ -199,12 +199,13 @@ def test_visualization_without_datasets(data_file_Fujita,
 
     vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        sim_cond_id_list, group_by='simulation')
+        sim_cond_id_list, group_by='simulation', plotted_noise=PROVIDED)
     plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()
 
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        observable_id_list, group_by='observable')
+        observable_id_list, group_by='observable', plotted_noise=PROVIDED)
     plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()
 
@@ -212,16 +213,16 @@ def test_visualization_without_datasets(data_file_Fujita,
     vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita,
                                     simu_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        sim_cond_id_list, group_by='simulation')
+        sim_cond_id_list, group_by='simulation', plotted_noise=PROVIDED)
     plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()
 
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita,
+                                    simu_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        observable_id_list, group_by='observable')
+        observable_id_list, group_by='observable', plotted_noise=PROVIDED)
     plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()
-
-    # TODO: with provided noise
 
 
 def test_visualization_only_simulations(condition_file_Fujita,
@@ -235,16 +236,16 @@ def test_visualization_only_simulations(condition_file_Fujita,
     vis_spec_parcer = VisSpecParser(condition_file_Fujita,
                                     sim_data=simu_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        sim_cond_id_list, group_by='simulation')
+        sim_cond_id_list, group_by='simulation', plotted_noise=PROVIDED)
     plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()
 
+    vis_spec_parcer = VisSpecParser(condition_file_Fujita,
+                                    sim_data=simu_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
         observable_id_list, group_by='observable')
-    plotter = MPLPlotter(figure, dataprovider)
+    plotter = MPLPlotter(figure, dataprovider, plotted_noise=PROVIDED)
     plotter.generate_figure()
-
-    # TODO: with provided noise
 
 
 def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
