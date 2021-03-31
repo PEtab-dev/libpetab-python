@@ -243,8 +243,8 @@ def test_visualization_only_simulations(condition_file_Fujita,
     vis_spec_parcer = VisSpecParser(condition_file_Fujita,
                                     sim_data=simu_file_Fujita)
     figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        observable_id_list, group_by='observable')
-    plotter = MPLPlotter(figure, dataprovider, plotted_noise=PROVIDED)
+        observable_id_list, group_by='observable', plotted_noise=PROVIDED)
+    plotter = MPLPlotter(figure, dataprovider)
     plotter.generate_figure()
 
 
