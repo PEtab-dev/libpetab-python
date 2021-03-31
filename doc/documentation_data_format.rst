@@ -578,7 +578,7 @@ order:
 +--------+------------+-------------------------------------------+------------------------------------------------------+
 | plotId | [plotName] | [plotTypeSimulation]                      | [plotTypeData]                                       |
 +========+============+===========================================+======================================================+
-| STRING | [STRING]   | [LinePlot(default)\|BarPlot\|ScatterPlot] | [MeanAndSD(default)\|MeanAndSEM\|replicate;provided] |
+| STRING | [STRING]   | [LinePlot(default)\|BarPlot\|ScatterPlot] | [MeanAndSD(default)\|MeanAndSEM\|replicate\|provided] |
 +--------+------------+-------------------------------------------+------------------------------------------------------+
 | ...    | ...        | ...                                       | ...                                                  |
 +--------+------------+-------------------------------------------+------------------------------------------------------+
@@ -588,7 +588,7 @@ order:
 +-----+-------------+-------------------------------------+-----------+----------+--------------------------+
 | ... | [datasetId] | [xValues]                           | [xOffset] | [xLabel] | [xScale]                 |
 +=====+=============+=====================================+===========+==========+==========================+
-| ... | [datasetId] | [time(default)\|parameterOrStateId] | [NUMERIC] | [STRING] | [lin\|log\|log10\|order] |
+| ... | [datasetId] | [time(default)\|parameterOrSpeciesId\|condition] | [NUMERIC] | [STRING] | [lin\|log\|log10\|order] |
 +-----+-------------+-------------------------------------+-----------+----------+--------------------------+
 | ... | ...         | ...                                 | ...       | ...      | ...                      |
 +-----+-------------+-------------------------------------+-----------+----------+--------------------------+
@@ -634,9 +634,10 @@ Detailed field description
 - ``xValues`` [STRING, OPTIONAL]
 
   The independent variable, which will be plotted on the x-axis. Can be
-  ``time`` (default, for time resolved data), or it can be ``parameterOrStateId``
-  for dose-response plots. The corresponding numeric values will be shown on
-  the x-axis.
+  ``time`` (default, for time resolved data), or it can be ``parameterOrSpeciesId``
+  for dose-response plots, in which case it refers to a column in Condition table,
+  or 'condition' for the case plotTypeSimulation='BarPlot'. The corresponding
+  numeric values will be shown on the x-axis.
 
 - ``xOffset`` [NUMERIC, OPTIONAL]
 
