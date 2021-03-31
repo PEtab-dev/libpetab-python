@@ -307,6 +307,7 @@ class MPLPlotter(Plotter):
             num_col = int(np.ceil(self.figure.num_subplots / num_row))
 
             fig, axes = plt.subplots(num_row, num_col, squeeze=False)
+            fig.set_tight_layout(True)
 
             for ax in axes.flat[self.figure.num_subplots:]:
                 ax.remove()
@@ -317,19 +318,22 @@ class MPLPlotter(Plotter):
         for idx, subplot in enumerate(self.figure.subplots):
             if subplot_file_path is not None:
                 fig, ax = plt.subplots()
+                fig.set_tight_layout(True)
             else:
                 ax = axes[subplot.plotId]
 
             self.generate_subplot(ax, subplot)
 
             if subplot_file_path is not None:
+                # TODO: why this doesn't work?
                 plt.tight_layout()
                 plt.savefig(os.path.join(subplot_file_path,
                                          f'{subplot.plotId}.png'))
                 plt.close()
 
         if subplot_file_path is None:
-            fig.tight_layout()
+            # TODO: why this doesn't work?
+            plt.tight_layout()
             return axes
 
     @staticmethod
