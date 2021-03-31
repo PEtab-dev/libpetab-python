@@ -259,6 +259,30 @@ def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
         plotter.generate_figure(temp_dir)  # assemble actual plot
 
 
+def test_save_visu_file(data_file_Isensee,
+                        condition_file_Isensee):
+
+    with TemporaryDirectory() as temp_dir:
+
+        vis_spec_parcer = VisSpecParser(condition_file_Isensee,
+                                        data_file_Isensee)
+        figure, _ = vis_spec_parcer.parse_from_id_list()
+
+        figure.save_to_tsv(path.join(temp_dir, "visuSpec.tsv"))
+
+        datasets = [['JI09_150302_Drg345_343_CycNuc__4_ABnOH_and_ctrl',
+                     'JI09_150302_Drg345_343_CycNuc__4_ABnOH_and_Fsk'],
+                    ['JI09_160201_Drg453-452_CycNuc__ctrl',
+                     'JI09_160201_Drg453-452_CycNuc__Fsk',
+                     'JI09_160201_Drg453-452_CycNuc__Sp8_Br_cAMPS_AM']]
+
+        vis_spec_parcer = VisSpecParser(condition_file_Isensee,
+                                        data_file_Isensee)
+        figure, _ = vis_spec_parcer.parse_from_id_list(datasets,
+                                                       group_by='dataset')
+        figure.save_to_tsv(path.join(temp_dir, "visuSpec1.tsv"))
+
+
 def test_VisualizationSpec():
     test_spec = {PLOT_NAME: 'test_plot',
                  PLOT_TYPE_SIMULATION: LINE_PLOT,

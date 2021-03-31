@@ -311,6 +311,27 @@ class Figure:
     def add_subplot(self, subplot: Subplot):
         self.subplots.append(subplot)
 
+    def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv'):
+        # what if datasetIds were generated?
+        visu_dict = {}
+        for subplot in self.subplots:
+            subplot_level = {key: subplot.__dict__[key] for key in
+                             subplot.__dict__ if key in
+                             VISUALIZATION_DF_SUBPLOT_LEVEL_COLS}
+
+            for dataplot in subplot.data_plots:
+                dataset_level = {key: dataplot.__dict__[key] for key in
+                                 dataplot.__dict__ if key in
+                                 VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS}
+                row = {**subplot_level, **dataset_level}
+                for key in row:
+                    if key in visu_dict:
+                        visu_dict[key].append(row[key])
+                    else:
+                        visu_dict[key] = [row[key]]
+        visu_df = pd.DataFrame.from_dict(visu_dict)
+        visu_df.to_csv(output_file_path, sep='\t', index=False)
+
 
 class DataProvider:
     """
