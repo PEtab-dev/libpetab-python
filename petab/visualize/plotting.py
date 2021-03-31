@@ -478,10 +478,12 @@ class DataProvider:
 
         if self.measurements_data is not None:
             uni_condition_id, col_name_unique, conditions_ = \
-                self._get_independent_var_values(self.measurements_data, dataplot)
+                self._get_independent_var_values(self.measurements_data,
+                                                 dataplot)
         else:
             uni_condition_id, col_name_unique, conditions_ = \
-                self._get_independent_var_values(self.simulations_data, dataplot)
+                self._get_independent_var_values(self.simulations_data,
+                                                 dataplot)
 
         if self.measurements_data is not None:
             # define index to reduce exp_data to data linked to datasetId
