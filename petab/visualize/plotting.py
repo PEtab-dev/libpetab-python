@@ -314,8 +314,25 @@ class Figure:
     def add_subplot(self, subplot: Subplot):
         self.subplots.append(subplot)
 
-    def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv'):
+    def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv') -> None:
+        """
+        save full Visualization specification table
+
+        Note that datasetId column in the resulting table might have been
+        generated even though datasetId column in Measurement table is missing
+        or is different. Please, correct it manually.
+
+        Parameters
+        ----------
+        output_file_path: File path to which the generated visualization
+                          specification is saved.
+        """
         # what if datasetIds were generated?
+
+        warnings.warn(f'Note: please check that {DATASET_ID} column '
+                      f'corresponds to {DATASET_ID} column in Measurement '
+                      f'(Simulation) table.')
+
         visu_dict = {}
         for subplot in self.subplots:
             subplot_level = {key: subplot.__dict__[key] for key in

@@ -395,9 +395,9 @@ def plot_with_vis_spec(
 
 
 def plot_without_vis_spec(
-        grouping_list: List[IdsList],
-        group_by: str,
         conditions_df: Union[str, pd.DataFrame],
+        grouping_list: Optional[List[IdsList]] = None,
+        group_by: str = 'observable',
         measurements_df: Optional[Union[str, pd.DataFrame]] = None,
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,
         plotted_noise: str = MEAN_AND_SD,
@@ -407,6 +407,9 @@ def plot_without_vis_spec(
     """
     Plot measurements and/or simulations. What exactly should be plotted is
     specified in a grouping_list.
+    If grouping list is not provided, measurements (simulations) will be
+    grouped by observable, i.e. all measurements for each observable will be
+    visualized on one plot.
 
     Parameters
     ----------
@@ -506,4 +509,67 @@ def plot_by_observable(conditions_df: Union[str, pd.DataFrame],
         raise NotImplementedError('Currently, only visualization with '
                                   'matplotlib is possible.')
     ax = plotter.generate_figure(subplot_file_path)
+    return ax
+
+
+def plot_problem(petab_problem: problem.Problem,
+                 simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+                 grouping_list: Optional[List[IdsList]] = None,
+                 group_by: str = 'observable',
+                 plotted_noise: str = MEAN_AND_SD,
+                 subplot_file_path: Optional[str] = None,
+                 plotter_type: str = 'mpl'
+                 ) -> Optional[Dict[str, plt.Subplot]]:
+    """
+    Visualization using petab problem.
+    If Visualization table is part of the petab_problem, it will be used for
+    visualization. Otherwise, grouping_list will be used.
+    If neither Visualization table nor grouping_list are available,
+    measurements (simulations) will be grouped by observable, i.e. all
+    measurements for each observable will be visualized on one plot.
+
+    Parameters
+    ----------
+    petab_problem
+        a PEtab problem
+    simulations_df:
+        simulation DataFrame in the PEtab format or path to the simulation
+        output data file.
+    grouping_list:
+        A list of lists. Each sublist corresponds to a plot, each subplot
+        contains the Ids of datasets or observables or simulation conditions
+        for this plot.
+    group_by:
+        Possible values: 'dataset', 'observable', 'simulation'
+    plotted_noise:
+        string indicating how noise should be visualized:
+        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+    subplot_file_path:
+        string which is taken as path to the folder where single subplots
+        should be saved. PlotIDs will be taken as file names.
+    plotter_type:
+        specifies which library should be used for plot generation. Currently,
+        only matplotlib is supported
+
+    Returns
+    -------
+
+    """
+
+    if petab_problem.visualization_df is not None:
+        ax = plot_with_vis_spec(petab_problem.visualization_df,
+                                petab_problem.condition_df,
+                                petab_problem.measurement_df,
+                                simulations_df,
+                                subplot_file_path,
+                                plotter_type)
+    else:
+        ax = plot_without_vis_spec(petab_problem.condition_df,
+                                   grouping_list,
+                                   group_by,
+                                   petab_problem.measurement_df,
+                                   simulations_df,
+                                   plotted_noise,
+                                   subplot_file_path,
+                                   plotter_type)
     return ax
