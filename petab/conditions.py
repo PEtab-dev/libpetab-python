@@ -61,8 +61,8 @@ def create_condition_df(parameter_ids: Iterable[str],
         parameter_ids: the columns
         condition_ids: the rows
     Returns:
-        A ``pandas.DataFrame`` with empty given rows and columns and all nan
-        values
+        A :py:class:`pandas.DataFrame` with empty given rows and columns and
+        all nan values
     """
 
     condition_ids = [] if condition_ids is None else list(condition_ids)

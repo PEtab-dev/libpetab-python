@@ -299,14 +299,27 @@ def test_flatten_timepoint_specific_output_overrides():
     observable_df.set_index(OBSERVABLE_ID, inplace=True)
 
     observable_df_expected = pd.DataFrame(data={
-        OBSERVABLE_ID: ['obs1_1', 'obs1_2', 'obs1_3'],
+        OBSERVABLE_ID: [
+             'obs1__obsParOverride1_1_0__noiseParOverride1__condition1',
+             'obs1__obsParOverride2_1_0__noiseParOverride1__condition1',
+             'obs1__obsParOverride2_1_0__noiseParOverride2__condition1',
+        ],
         OBSERVABLE_FORMULA: [
-            'observableParameter1_obs1_1 + observableParameter2_obs1_1',
-            'observableParameter1_obs1_2 + observableParameter2_obs1_2',
-            'observableParameter1_obs1_3 + observableParameter2_obs1_3'],
-        NOISE_FORMULA: ['noiseParameter1_obs1_1',
-                        'noiseParameter1_obs1_2',
-                        'noiseParameter1_obs1_3']
+            'observableParameter1_obs1__obsParOverride1_1_0__'
+            'noiseParOverride1__condition1 + observableParameter2_obs1'
+            '__obsParOverride1_1_0__noiseParOverride1__condition1',
+            'observableParameter1_obs1__obsParOverride2_1_0__noiseParOverride1'
+            '__condition1 + observableParameter2_obs1__obsParOverride2_1_0'
+            '__noiseParOverride1__condition1',
+            'observableParameter1_obs1__obsParOverride2_1_0'
+            '__noiseParOverride2__condition1 + observableParameter2_obs1__'
+            'obsParOverride2_1_0__noiseParOverride2__condition1'],
+        NOISE_FORMULA: ['noiseParameter1_obs1__obsParOverride1_1_0__'
+                        'noiseParOverride1__condition1',
+                        'noiseParameter1_obs1__obsParOverride2_1_0__'
+                        'noiseParOverride1__condition1',
+                        'noiseParameter1_obs1__obsParOverride2_1_0__'
+                        'noiseParOverride2__condition1']
     })
     observable_df_expected.set_index(OBSERVABLE_ID, inplace=True)
 
@@ -332,7 +345,10 @@ def test_flatten_timepoint_specific_output_overrides():
 
     measurement_df_expected = pd.DataFrame(data={
         OBSERVABLE_ID:
-            ['obs1_1', 'obs1_2', 'obs1_3', 'obs1_3'],
+            ['obs1__obsParOverride1_1_0__noiseParOverride1__condition1',
+             'obs1__obsParOverride2_1_0__noiseParOverride1__condition1',
+             'obs1__obsParOverride2_1_0__noiseParOverride2__condition1',
+             'obs1__obsParOverride2_1_0__noiseParOverride2__condition1'],
         SIMULATION_CONDITION_ID:
             ['condition1', 'condition1', 'condition1', 'condition1'],
         PREEQUILIBRATION_CONDITION_ID:
@@ -384,12 +400,13 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
     observable_df.set_index(OBSERVABLE_ID, inplace=True)
 
     observable_df_expected = pd.DataFrame(data={
-        OBSERVABLE_ID: ['obs1_1', 'obs1_2'],
+        OBSERVABLE_ID: ['obs1__noiseParOverride1__condition1',
+                        'obs1__noiseParOverride2__condition1'],
         OBSERVABLE_FORMULA: [
             'species1',
             'species1'],
-        NOISE_FORMULA: ['noiseParameter1_obs1_1',
-                        'noiseParameter1_obs1_2']
+        NOISE_FORMULA: ['noiseParameter1_obs1__noiseParOverride1__condition1',
+                        'noiseParameter1_obs1__noiseParOverride2__condition1']
     })
     observable_df_expected.set_index(OBSERVABLE_ID, inplace=True)
 
@@ -410,7 +427,10 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
 
     measurement_df_expected = pd.DataFrame(data={
         OBSERVABLE_ID:
-            ['obs1_1', 'obs1_1', 'obs1_2', 'obs1_2'],
+            ['obs1__noiseParOverride1__condition1',
+             'obs1__noiseParOverride1__condition1',
+             'obs1__noiseParOverride2__condition1',
+             'obs1__noiseParOverride2__condition1'],
         SIMULATION_CONDITION_ID:
             ['condition1', 'condition1', 'condition1', 'condition1'],
         TIME:

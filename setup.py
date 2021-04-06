@@ -11,8 +11,11 @@ def read(fname):
 
 def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
-    raw_base = "(https://raw.githubusercontent.com/petab-dev/petab/master/"
-    embedded_base = "(https://github.com/petab-dev/petab/tree/master/"
+
+    raw_base = "(https://raw.githubusercontent.com/"\
+               "petab-dev/libpetab-python/master/"
+    embedded_base = "(https://github.com/petab-dev/libpetab-python/"\
+                    "tree/master/"
     # iterate over links
     for var in re.findall(r'\[.*?\]\((?!http).*?\)', txt):
         if re.match(r'.*?.(png|svg)\)', var):
@@ -50,7 +53,7 @@ setup(name='petab',
       long_description_content_type="text/markdown",
       author='The PEtab developers',
       author_email='daniel.weindl@helmholtz-muenchen.de',
-      url='https://github.com/PEtab-dev/PEtab',
+      url='https://github.com/PEtab-dev/libpetab-python',
       packages=find_packages(exclude=['doc*', 'test*']),
       install_requires=['numpy>=1.15.1',
                         'pandas>=1.2.0',
@@ -66,6 +69,18 @@ setup(name='petab',
       tests_require=['flake8', 'pytest', 'python-libcombine'],
       python_requires='>=3.7.1',
       entry_points=ENTRY_POINTS,
-      extras_require={'reports': ['Jinja2'],
-                      'combine': ['python-libcombine>=0.2.6']},
+      extras_require={
+          'reports': ['Jinja2'],
+          'combine': ['python-libcombine>=0.2.6'],
+          'doc': [
+              'sphinx>=3.5.3',
+              'sphinxcontrib-napoleon>=0.7',
+              'sphinx-markdown-tables>=0.0.15',
+              'sphinx-rtd-theme>=0.5.1',
+              'recommonmark>=0.7.1',
+              'nbsphinx>=0.8.2',
+              'm2r>=0.2.1',
+              'ipython>=7.21.0',
+          ]
+      }
       )

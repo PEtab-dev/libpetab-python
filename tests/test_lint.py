@@ -57,16 +57,52 @@ def test_measurement_table_has_timepoint_specific_mappings():
         PREEQUILIBRATION_CONDITION_ID: [nan, nan],
         TIME: [1.0, 2.0],
         OBSERVABLE_PARAMETERS: ['obsParOverride', ''],
-        NOISE_PARAMETERS: ['', '']
+        NOISE_PARAMETERS: ['1.0', 1.0]
     })
 
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is True
 
+    # both measurements different anyways
     measurement_df.loc[1, OBSERVABLE_ID] = 'obs2'
-
     assert lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df) is False
+
+    # mixed numeric string
+    measurement_df.loc[1, OBSERVABLE_ID] = 'obs1'
+    measurement_df.loc[1, OBSERVABLE_PARAMETERS] = 'obsParOverride'
+    assert lint.measurement_table_has_timepoint_specific_mappings(
+        measurement_df) is False
+
+    # different numeric values
+    measurement_df.loc[1, NOISE_PARAMETERS] = 2.0
+    assert lint.measurement_table_has_timepoint_specific_mappings(
+        measurement_df) is True
+    assert lint.measurement_table_has_timepoint_specific_mappings(
+        measurement_df, allow_scalar_numeric_noise_parameters=True) is False
+
+
+def test_observable_table_has_nontrivial_noise_formula():
+    # Ensure we fail if we have nontrivial noise formulas
+
+    observable_df = pd.DataFrame(data={
+        OBSERVABLE_ID: ['0obsPar1noisePar', '2obsPar0noisePar',
+                        '3obsPar0noisePar'],
+        OBSERVABLE_FORMULA: ['1.0',
+                             '1.0',
+                             '1.0'],
+        NOISE_FORMULA: ['noiseParameter1_0obsPar1noisePar + 3.0',
+                        1e18,
+                        '1e18']
+    })
+
+    assert lint.observable_table_has_nontrivial_noise_formula(observable_df)\
+        is True
+
+    observable_df.loc[0, NOISE_FORMULA] = 'sigma1'
+
+    assert lint.observable_table_has_nontrivial_noise_formula(observable_df) \
+        is False
 
 
 def test_assert_overrides_match_parameter_count():

@@ -233,13 +233,13 @@ class Problem:
     def from_combine(filename: str) -> 'Problem':
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
-        See also ``create_combine_archive``.
+        See also :py:func:`petab.create_combine_archive`.
 
         Arguments:
             filename: Path to the PEtab-COMBINE archive
 
         Returns:
-            A ``petab.Problem`` instance.
+            A :py:class:`petab.Problem` instance.
         """
         # function-level import, because module-level import interfered with
         # other SWIG interfaces
@@ -271,7 +271,8 @@ class Problem:
                  parameter_file: Optional[str] = None,
                  visualization_file: Optional[str] = None,
                  observable_file: Optional[str] = None,
-                 yaml_file: Optional[str] = None) -> None:
+                 yaml_file: Optional[str] = None,
+                 relative_paths: bool = True,) -> None:
         """
         Write PEtab tables to files for this problem
 
@@ -289,10 +290,13 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
+            relative_paths: whether all paths in the YAML file should be
+            relative to the location of the YAML file. If `False`, then paths
+            are left unchanged.
 
         Raises:
-            ValueError: If a destination was provided for a non-existing
-            entity.
+            ValueError:
+                If a destination was provided for a non-existing entity.
         """
 
         if sbml_file:
@@ -344,13 +348,14 @@ class Problem:
             yaml.create_problem_yaml(sbml_file, condition_file,
                                      measurement_file, parameter_file,
                                      observable_file, yaml_file,
-                                     visualization_file)
+                                     visualization_file,
+                                     relative_paths=relative_paths,)
 
     def get_optimization_parameters(self):
         """
         Return list of optimization parameter IDs.
 
-        See ``petab.parameters.get_optimization_parameters``.
+        See :py:func:`petab.parameters.get_optimization_parameters`.
         """
         return parameters.get_optimization_parameters(self.parameter_df)
 
@@ -358,18 +363,19 @@ class Problem:
         """
         Return list of optimization parameter scaling strings.
 
-        See ``petab.parameters.get_optimization_parameters``.
+        See :py:func:`petab.parameters.get_optimization_parameters`.
         """
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
 
     def get_model_parameters(self):
-        """See `petab.sbml.get_model_parameters`"""
+        """See :py:func:`petab.sbml.get_model_parameters`"""
         return sbml.get_model_parameters(self.sbml_model)
 
     def get_observables(self, remove: bool = False):
         """
         Returns dictionary of observables definitions.
-        See `assignment_rules_to_dict` for details.
+
+        See :py:func:`petab.assignment_rules_to_dict` for details.
         """
         warn("This function will be removed in future releases.",
              DeprecationWarning)
@@ -386,6 +392,7 @@ class Problem:
         """
         Return dictionary of observableId => sigma as defined in the SBML
         model.
+
         This does not include parameter mappings defined in the measurement
         table.
         """
@@ -396,7 +403,7 @@ class Problem:
 
     def get_noise_distributions(self):
         """
-        See `get_noise_distributions`.
+        See :py:func:`petab.get_noise_distributions`.
         """
         return measurements.get_noise_distributions(
             measurement_df=self.measurement_df)
@@ -608,7 +615,12 @@ class Problem:
         return measurements.get_simulation_conditions(self.measurement_df)
 
     def get_optimization_to_simulation_parameter_mapping(
-            self, warn_unmapped: bool = True, scaled_parameters: bool = False):
+            self,
+            warn_unmapped: bool = True,
+            scaled_parameters: bool = False,
+            allow_timepoint_specific_numeric_noise_parameters:
+            bool = False,
+    ):
         """
         See get_simulation_to_optimization_parameter_mapping.
         """
@@ -620,12 +632,15 @@ class Problem:
                 self.observable_df,
                 self.sbml_model,
                 warn_unmapped=warn_unmapped,
-                scaled_parameters=scaled_parameters)
+                scaled_parameters=scaled_parameters,
+                allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+                allow_timepoint_specific_numeric_noise_parameters
+            )
 
     def create_parameter_df(self, *args, **kwargs):
         """Create a new PEtab parameter table
 
-        See create_parameter_df
+        See :py:func:`create_parameter_df`.
         """
         return parameters.create_parameter_df(
             self.sbml_model,
@@ -637,7 +652,7 @@ class Problem:
     def sample_parameter_startpoints(self, n_starts: int = 100):
         """Create starting points for optimization
 
-        See sample_parameter_startpoints
+        See :py:func:`petab.sample_parameter_startpoints`.
         """
         return sampling.sample_parameter_startpoints(
             self.parameter_df, n_starts=n_starts)

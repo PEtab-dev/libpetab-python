@@ -15,7 +15,7 @@ class CompositeProblem:
 
     Attributes:
         problems:
-            List ``petab.Problems``
+            List of :py:class:`petab.Problem` s
         parameter_df:
             PEtab parameter DataFrame
     """
