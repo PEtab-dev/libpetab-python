@@ -19,112 +19,21 @@ NumList = List[int]
 
 # also for type hints
 # TODO: split into dataplot and subplot level dicts?
-class VisDict(TypedDict):
-    PLOT_NAME: str
-    PLOT_TYPE_SIMULATION: str
-    PLOT_TYPE_DATA: str
-    X_VALUES: str
-    X_OFFSET: List[Number]
-    X_LABEL: str
-    X_SCALE: str
-    Y_VALUES: List[str]
-    Y_OFFSET: List[Number]
-    Y_LABEL: str
-    Y_SCALE: str
-    LEGEND_ENTRY: List[Number]
-    DATASET_ID: List[str]
-
-
-class VisualizationSpec:
-    def __init__(self,
-                 plot_id: str,
-                 plot_settings: VisDict,
-                 fig_id: str = 'fig0'
-                 ):
-        """
-        visualization specification for one plot
-
-        Parameters
-        ----------
-        plot_id:
-        plot_settings:
-        fig_id:
-        """
-        # vis spec file + additioal styles/settings ?
-        self.figureId = fig_id
-        setattr(self, PLOT_ID, plot_id)
-        for key, val in plot_settings.items():
-            setattr(self, key, val)
-        if PLOT_NAME not in vars(self):
-            setattr(self, PLOT_NAME, getattr(self, PLOT_ID))
-        if PLOT_TYPE_SIMULATION not in vars(self):
-            setattr(self, PLOT_TYPE_SIMULATION, LINE_PLOT)
-        if PLOT_TYPE_DATA not in vars(self):
-            setattr(self, PLOT_TYPE_DATA, MEAN_AND_SD)
-        # TODO datasetId optional so default should be created
-        if X_VALUES not in vars(self):
-            setattr(self, X_VALUES, TIME)
-        if X_OFFSET not in vars(self):
-            setattr(self, X_OFFSET, 0)
-        if X_LABEL not in vars(self):
-            setattr(self, X_LABEL, getattr(self, X_VALUES))
-
-        if X_SCALE not in vars(self):
-            setattr(self, X_SCALE, LIN)
-        # TODO yValues optional but should be created one level above
-        # TODO in docs: yValues list of observables, how default label?
-        if Y_LABEL not in vars(self):
-            setattr(self, Y_LABEL, 'values')
-        if Y_OFFSET not in vars(self):
-            setattr(self, Y_OFFSET, 0.)
-        if LEGEND_ENTRY not in vars(self):
-            setattr(self, LEGEND_ENTRY, getattr(self, DATASET_ID))
-
-    @staticmethod
-    def from_df(vis_spec_df: Union[pd.DataFrame, str]) -> \
-            List['VisualizationSpec']:
-        # check if file path or pd.DataFrame is passed
-        if isinstance(vis_spec_df, str):
-            vis_spec_df = pd.read_csv(vis_spec_df, sep='\t', index_col=PLOT_ID)
-        elif vis_spec_df.index.name != PLOT_ID:
-            vis_spec_df.set_index(PLOT_ID, inplace=True)
-        uni_plot_ids = vis_spec_df.index.unique().to_list()
-        vis_spec_list = []
-        # create a VisualizationSpec object for each PlotId
-        for plot_id in uni_plot_ids:
-            vis_spec_dict = {}
-            for col in vis_spec_df:
-                print(plot_id, col)
-                entry = vis_spec_df.loc[plot_id, col]
-                if col in VISUALIZATION_DF_SUBPLOT_LEVEL_COLS:
-                    entry = np.unique(entry)
-                    if entry.size > 1:
-                        warnings.warn(f'For {PLOT_ID} {plot_id} in column '
-                                      f'{col} contradictory settings ({entry})'
-                                      f'. Proceeding with first entry '
-                                      f'({entry[0]}).')
-                    entry = entry[0]
-
-                # check if values are allowed
-                if col in [Y_SCALE, X_SCALE] and entry not in \
-                        OBSERVABLE_TRANSFORMATIONS:
-                    raise ValueError(f'{X_SCALE} and {Y_SCALE} have to be '
-                                     f'one of the following: '
-                                     + ', '.join(OBSERVABLE_TRANSFORMATIONS))
-                elif col == PLOT_TYPE_DATA and entry not in \
-                        PLOT_TYPES_DATA:
-                    raise ValueError(f'{PLOT_TYPE_DATA} has to be one of the '
-                                     f'following: '
-                                     + ', '.join(PLOT_TYPES_DATA))
-                elif col == PLOT_TYPE_SIMULATION and entry not in \
-                        PLOT_TYPES_SIMULATION:
-                    raise ValueError(f'{PLOT_TYPE_SIMULATION} has to be one of'
-                                     f' the following: '
-                                     + ', '.join(PLOT_TYPES_DATA))
-                # append new entry to dict
-                vis_spec_dict[col] = entry
-            vis_spec_list.append(VisualizationSpec(plot_id, vis_spec_dict))
-        return vis_spec_list
+# TODO: add when only python>=3.8 is supported
+# class VisDict(TypedDict):
+#     PLOT_NAME: str
+#     PLOT_TYPE_SIMULATION: str
+#     PLOT_TYPE_DATA: str
+#     X_VALUES: str
+#     X_OFFSET: List[Number]
+#     X_LABEL: str
+#     X_SCALE: str
+#     Y_VALUES: List[str]
+#     Y_OFFSET: List[Number]
+#     Y_LABEL: str
+#     Y_SCALE: str
+#     LEGEND_ENTRY: List[Number]
+#     DATASET_ID: List[str]
 
 
 class DataSeries:
@@ -164,7 +73,7 @@ class DataSeries:
 
 class DataPlot:
     def __init__(self,
-                 plot_settings: VisDict):
+                 plot_settings: dict):
         """
         Visualization specification of a plot of one data series, e.g. for
         an individual line on a subplot
@@ -202,7 +111,7 @@ class DataPlot:
 class Subplot:
     def __init__(self,
                  plot_id: str,
-                 plot_settings: VisDict,
+                 plot_settings: dict,
                  dataplots: Optional[List[DataPlot]] = None):
         """
         Visualization specification of a subplot
