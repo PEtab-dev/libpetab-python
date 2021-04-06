@@ -605,10 +605,16 @@ class VisSpecParser:
 
             vis_spec = expand_vis_spec_settings(vis_spec, columns_dict)
         else:
-            if DATASET_ID not in self._data_df:
+            if self.measurements_data is not None \
+                    and DATASET_ID not in self.measurements_data:
                 raise ValueError(f"grouping by datasetId was requested, but "
-                                 f"{DATASET_ID} column is missing from data "
-                                 f"table")
+                                 f"{DATASET_ID} column is missing from "
+                                 f"measurement table")
+            if self.simulations_data is not None \
+                    and DATASET_ID not in self.simulations_data:
+                raise ValueError(f"grouping by datasetId was requested, but "
+                                 f"{DATASET_ID} column is missing from "
+                                 f"simulation table")
 
         figure = Figure()
 
