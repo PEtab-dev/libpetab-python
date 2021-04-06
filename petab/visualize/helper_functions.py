@@ -50,6 +50,8 @@ def import_from_files(
         A tuple of experimental data, experimental conditions,
         visualization specification and simulation data DataFrames.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # import measurement data and experimental condition
     exp_data = petab.get_measurement_df(data_file_path)
@@ -95,6 +97,8 @@ def check_vis_spec_consistency(
         group_by:
             Specifies the grouping of data to plot.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # We have no vis_spec file. Check how data should be grouped
     group_by = ''
@@ -187,6 +191,9 @@ def create_dataset_id_list(
 
     For additional documentation, see main function plot_data_and_simulation()
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     # create a column of dummy datasetIDs and legend entries: preallocate
     dataset_id_column = []
     legend_dict = {}
@@ -363,6 +370,8 @@ def create_figure(
     fig: Figure object of the created plot.
     ax: Axis object of the created plot.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # Set Options for plots
     # possible options: see: plt.rcParams.keys()
@@ -486,6 +495,8 @@ def get_vis_spec_dependent_columns_dict(
         columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for visualization
         specification file.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # check consistency of settings
     group_by = check_vis_spec_consistency(
@@ -604,6 +615,9 @@ def create_or_update_vis_spec(
         A tuple of visualization specification DataFrame and experimental
         DataFrame.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     if vis_spec is None:
         # create dataframe
         exp_data, columns_dict = \
@@ -662,6 +676,9 @@ def check_ex_visu_columns(vis_spec: pd.DataFrame,
     Returns:
         Updated visualization specification DataFrame
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     if PLOT_NAME not in vis_spec.columns:
         vis_spec[PLOT_NAME] = ''
     if PLOT_TYPE_SIMULATION not in vis_spec.columns:
@@ -731,6 +748,9 @@ def check_ex_exp_columns(
         A tuple of experimental DataFrame, list of datasetIds and
         dictionary of plot legends, corresponding to the datasetIds
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     data_type = MEASUREMENT
     if sim:
         data_type = SIMULATION
@@ -798,6 +818,9 @@ def handle_dataset_plot(plot_spec: pd.Series,
     """
     Handle dataset plot
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     # get datasetID and independent variable of first entry of plot1
     dataset_id = plot_spec[DATASET_ID]
     indep_var = plot_spec[X_VALUES]
@@ -870,6 +893,9 @@ def matches_plot_spec(df: pd.DataFrame,
             Boolean series that can be used for subsetting of the passed
             dataframe
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     subset = (
         (df[col_id] == x_value) &
         (df[DATASET_ID] == plot_spec[DATASET_ID])
@@ -918,6 +944,8 @@ def get_data_to_plot(plot_spec: pd.Series,
             Contains the data which should be plotted
             (Mean and Std)
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # create empty dataframe for means and SDs
     data_to_plot = pd.DataFrame(

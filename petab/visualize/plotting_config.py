@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.ticker as mtick
+import warnings
 
 from ..C import *
 
@@ -36,6 +37,8 @@ def plot_lowlevel(plot_spec: pd.Series,
     Returns:
         Updated axis object.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # set yScale
     if plot_spec[Y_SCALE] == LIN:
@@ -187,6 +190,8 @@ def square_plot_equal_ranges(
     Returns:
         Updated axis object.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     ax.axis('square')
 

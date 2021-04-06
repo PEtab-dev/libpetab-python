@@ -6,6 +6,7 @@ from typing import Dict, Union, Optional, List
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import warnings
 
 from .helper_functions import (create_figure,
                                handle_dataset_plot,
@@ -92,6 +93,8 @@ def plot_data_and_simulation(
     ax: Axis object of the created plot.
     None: In case subplots are save to file
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     if isinstance(exp_conditions, str):
         exp_conditions = conditions.get_condition_df(exp_conditions)
@@ -212,6 +215,8 @@ def plot_petab_problem(
     Visualization using petab problem.
     For documentation, see function plot_data_and_simulation()
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     return plot_data_and_simulation(petab_problem.measurement_df,
                                     petab_problem.condition_df,
@@ -250,6 +255,8 @@ def plot_measurements_by_observable(
 
     ax: axis of figures
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # import measurement data
     measurement_data = measurements.get_measurement_df(data_file_path)
