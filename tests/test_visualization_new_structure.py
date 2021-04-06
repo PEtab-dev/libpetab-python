@@ -3,6 +3,7 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 import pytest
 from petab.C import *
+from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
 from petab.visualize.plotter import MPLPlotter
 from petab.visualize.plotting import VisualizationSpec, VisSpecParser
 
@@ -81,13 +82,8 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
                                         condition_file_Isensee,
                                         vis_spec_file_Isensee,
                                         simulation_file_Isensee):
-
-    vis_spec_parcer = VisSpecParser(condition_file_Isensee, data_file_Isensee,
-                                    simulation_file_Isensee)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-        vis_spec_file_Isensee)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()  # assemble actual plot
+    plot_with_vis_spec(vis_spec_file_Isensee, condition_file_Isensee,
+                       data_file_Isensee, simulation_file_Isensee)
 
 
 def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
@@ -98,11 +94,8 @@ def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
     particular datasetId
     (optional columns are optional)
     """
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-        visu_file_Fujita_small)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_with_vis_spec(visu_file_Fujita_small, condition_file_Fujita,
+                       data_file_Fujita)
 
 
 def test_visualization_small_visu_file_wo_datasetid(data_file_Fujita,
@@ -113,11 +106,8 @@ def test_visualization_small_visu_file_wo_datasetid(data_file_Fujita,
     particular no datasetId column
     (optional columns are optional)
     """
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-        visu_file_Fujita_wo_dsid)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_with_vis_spec(visu_file_Fujita_wo_dsid, condition_file_Fujita,
+                       data_file_Fujita)
 
 
 def test_visualization_minimal_visu_file(data_file_Fujita,
@@ -127,11 +117,8 @@ def test_visualization_minimal_visu_file(data_file_Fujita,
     Test: visualization spezification file only with mandatory column plotId
     (optional columns are optional)
     """
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-        visu_file_Fujita_minimal)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_with_vis_spec(visu_file_Fujita_minimal, condition_file_Fujita,
+                       data_file_Fujita)
 
 
 def test_visualization_empty_visu_file(data_file_Fujita,
@@ -141,11 +128,8 @@ def test_visualization_empty_visu_file(data_file_Fujita,
     Test: Empty visualization spezification file should default to routine
     for no file at all
     """
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-        visu_file_Fujita_empty)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_with_vis_spec(visu_file_Fujita_empty, condition_file_Fujita,
+                       data_file_Fujita)
 
 
 def test_visualization_minimal_data_file(data_file_Fujita_minimal,
@@ -155,13 +139,8 @@ def test_visualization_minimal_data_file(data_file_Fujita_minimal,
     Test visualization, with the case: data file only with mandatory columns
     (optional columns are optional)
     """
-
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita,
-                                    data_file_Fujita_minimal)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-        visu_file_Fujita_wo_dsid)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_with_vis_spec(visu_file_Fujita_wo_dsid, condition_file_Fujita,
+                       data_file_Fujita_minimal)
 
 
 def test_visualization_with_dataset_list(data_file_Isensee,
@@ -174,18 +153,11 @@ def test_visualization_with_dataset_list(data_file_Isensee,
                  'JI09_160201_Drg453-452_CycNuc__Sp8_Br_cAMPS_AM']]
 
     # TODO: is condition_file needed here
-    vis_spec_parcer = VisSpecParser(condition_file_Isensee, data_file_Isensee)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        datasets, group_by='dataset')
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()  # assemble actual plot
+    plot_without_vis_spec(condition_file_Isensee, datasets, 'dataset',
+                          data_file_Isensee)
 
-    vis_spec_parcer = VisSpecParser(condition_file_Isensee, data_file_Isensee,
-                                    simulation_file_Isensee)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        datasets, group_by='dataset')
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_without_vis_spec(condition_file_Isensee, datasets, 'dataset',
+                          data_file_Isensee, simulation_file_Isensee)
 
 
 def test_visualization_without_datasets(data_file_Fujita,
@@ -197,32 +169,23 @@ def test_visualization_without_datasets(data_file_Fujita,
 
     observable_id_list = [['pS6_tot'], ['pEGFR_tot'], ['pAkt_tot']]
 
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        sim_cond_id_list, group_by='simulation', plotted_noise=PROVIDED)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_without_vis_spec(condition_file_Fujita, sim_cond_id_list,
+                          'simulation', data_file_Fujita,
+                          plotted_noise=PROVIDED)
 
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        observable_id_list, group_by='observable', plotted_noise=PROVIDED)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_without_vis_spec(condition_file_Fujita, observable_id_list,
+                          'observable', data_file_Fujita,
+                          plotted_noise=PROVIDED)
 
     # with simulations
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita,
-                                    simu_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        sim_cond_id_list, group_by='simulation', plotted_noise=PROVIDED)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
 
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita, data_file_Fujita,
-                                    simu_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        observable_id_list, group_by='observable', plotted_noise=PROVIDED)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_without_vis_spec(condition_file_Fujita, sim_cond_id_list,
+                          'simulation', data_file_Fujita, simu_file_Fujita,
+                          plotted_noise=PROVIDED)
+
+    plot_without_vis_spec(condition_file_Fujita, observable_id_list,
+                          'observable', data_file_Fujita, simu_file_Fujita,
+                          plotted_noise=PROVIDED)
 
 
 def test_visualization_only_simulations(condition_file_Fujita,
@@ -233,31 +196,21 @@ def test_visualization_only_simulations(condition_file_Fujita,
 
     observable_id_list = [['pS6_tot'], ['pEGFR_tot'], ['pAkt_tot']]
 
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita,
-                                    sim_data=simu_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        sim_cond_id_list, group_by='simulation', plotted_noise=PROVIDED)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_without_vis_spec(condition_file_Fujita, sim_cond_id_list,
+                          'simulation', simulations_df=simu_file_Fujita,
+                          plotted_noise=PROVIDED)
 
-    vis_spec_parcer = VisSpecParser(condition_file_Fujita,
-                                    sim_data=simu_file_Fujita)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        observable_id_list, group_by='observable', plotted_noise=PROVIDED)
-    plotter = MPLPlotter(figure, dataprovider)
-    plotter.generate_figure()
+    plot_without_vis_spec(condition_file_Fujita, observable_id_list,
+                          'observable', simulations_df=simu_file_Fujita,
+                          plotted_noise=PROVIDED)
 
 
 def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
                             vis_spec_file_Isensee, simulation_file_Isensee):
     with TemporaryDirectory() as temp_dir:
-        vis_spec_parcer = VisSpecParser(condition_file_Isensee,
-                                        data_file_Isensee,
-                                        simulation_file_Isensee)
-        figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
-            vis_spec_file_Isensee)
-        plotter = MPLPlotter(figure, dataprovider)
-        plotter.generate_figure(temp_dir)  # assemble actual plot
+        plot_with_vis_spec(vis_spec_file_Isensee, condition_file_Isensee,
+                           data_file_Isensee, simulation_file_Isensee,
+                           subplot_file_path=temp_dir)
 
 
 def test_save_visu_file(data_file_Isensee,
