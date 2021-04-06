@@ -327,6 +327,9 @@ def save_vis_spec(
     output_file_path:
         File path to which  the generated visualization specification is saved.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     # import from file in case experimental data is provided in file
     if isinstance(exp_data, str):
         exp_data = measurements.get_measurement_df(exp_data)

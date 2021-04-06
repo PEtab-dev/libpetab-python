@@ -1,11 +1,9 @@
 from os import path
 from tempfile import TemporaryDirectory
-import pandas as pd
 import pytest
 from petab.C import *
 from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
-from petab.visualize.plotter import MPLPlotter
-from petab.visualize.plotting import VisualizationSpec, VisSpecParser
+from petab.visualize.plotting import VisSpecParser
 
 
 @pytest.fixture
@@ -205,6 +203,14 @@ def test_visualization_only_simulations(condition_file_Fujita,
                           plotted_noise=PROVIDED)
 
 
+def test_simple_visualization(data_file_Fujita, condition_file_Fujita):
+    plot_without_vis_spec(condition_file_Fujita,
+                          measurements_df=data_file_Fujita)
+    plot_without_vis_spec(condition_file_Fujita,
+                          measurements_df=data_file_Fujita,
+                          plotted_noise=PROVIDED)
+
+
 def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
                             vis_spec_file_Isensee, simulation_file_Isensee):
     with TemporaryDirectory() as temp_dir:
@@ -235,33 +241,3 @@ def test_save_visu_file(data_file_Isensee,
         figure, _ = vis_spec_parcer.parse_from_id_list(datasets,
                                                        group_by='dataset')
         figure.save_to_tsv(path.join(temp_dir, "visuSpec1.tsv"))
-
-
-def test_VisualizationSpec():
-    test_spec = {PLOT_NAME: 'test_plot',
-                 PLOT_TYPE_SIMULATION: LINE_PLOT,
-                 PLOT_TYPE_DATA: MEAN_AND_SD,
-                 X_VALUES: 'test_xValues',
-                 X_SCALE: LOG,
-                 Y_SCALE: LIN,
-                 LEGEND_ENTRY: ['test_legend'],
-                 DATASET_ID: ['test_dataset_id'],
-                 Y_VALUES: ['test_yValue'],
-                 Y_OFFSET: [0.],
-                 X_OFFSET: [0.],
-                 X_LABEL: 'test_xLabel',
-                 Y_LABEL: 'test_yLabel'
-                 }
-    assert {**{'figureId': 'fig0', PLOT_ID: 'plot0'}, **test_spec} == \
-        VisualizationSpec(plot_id='plot0', plot_settings=test_spec).__dict__
-
-
-def test_VisualizationSpec_from_df():
-    dir_path = path.dirname(path.realpath(__file__))
-    example_path = f'{dir_path}/../doc/example/example_Isensee/' \
-                   f'Isensee_visualizationSpecification.tsv'
-    VisualizationSpec.from_df(example_path)
-    VisualizationSpec.from_df(pd.read_csv(example_path, sep='\t'))
-    # TODO some assertion
-    # TODO check warning and error
-    pass
