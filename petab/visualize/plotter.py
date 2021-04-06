@@ -22,12 +22,13 @@ class Plotter(ABC):
         figure: Figure instance that serves are a markup for the figure that
             should be generated
         data_provider:
+                data provider
         """
         self.figure = figure
         self.data_provider = data_provider
 
     @abstractmethod
-    def generate_figure(self, subplot_file_path: Optional[str] = None
+    def generate_figure(self, subplot_dir: Optional[str] = None
                         ) -> Optional[Dict[str, plt.Subplot]]:
         pass
 
@@ -273,14 +274,14 @@ class MPLPlotter(Plotter):
         ax.set_ylabel(
             subplot.yLabel)
 
-    def generate_figure(self, subplot_file_path: Optional[str] = None
+    def generate_figure(self, subplot_dir: Optional[str] = None
                         ) -> Optional[Dict[str, plt.Subplot]]:
         """
-        Generate the full figure based on markup in figure attribute
+        Generate the full figure based on the markup in the figure attribute
 
         Parameters
         ----------
-        subplot_file_path:
+        subplot_dir:
             path to the folder where single subplots should be saved.
             PlotIDs will be taken as file names.
 
@@ -301,7 +302,7 @@ class MPLPlotter(Plotter):
         plt.rcParams['figure.figsize'] = self.figure.size
         plt.rcParams['errorbar.capsize'] = 2
 
-        if subplot_file_path is None:
+        if subplot_dir is None:
             # compute, how many rows and columns we need for the subplots
             num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
             num_col = int(np.ceil(self.figure.num_subplots / num_row))
@@ -316,7 +317,7 @@ class MPLPlotter(Plotter):
                             axes.flat))
 
         for idx, subplot in enumerate(self.figure.subplots):
-            if subplot_file_path is not None:
+            if subplot_dir is not None:
                 fig, ax = plt.subplots()
                 fig.set_tight_layout(True)
             else:
@@ -324,14 +325,14 @@ class MPLPlotter(Plotter):
 
             self.generate_subplot(ax, subplot)
 
-            if subplot_file_path is not None:
+            if subplot_dir is not None:
                 # TODO: why this doesn't work?
                 plt.tight_layout()
-                plt.savefig(os.path.join(subplot_file_path,
+                plt.savefig(os.path.join(subplot_dir,
                                          f'{subplot.plotId}.png'))
                 plt.close()
 
-        if subplot_file_path is None:
+        if subplot_dir is None:
             # TODO: why this doesn't work?
             plt.tight_layout()
             return axes
@@ -372,6 +373,6 @@ class SeabornPlotter(Plotter):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_figure(self, subplot_file_path: Optional[str] = None
+    def generate_figure(self, subplot_dir: Optional[str] = None
                         ) -> Optional[Dict[str, plt.Subplot]]:
         pass

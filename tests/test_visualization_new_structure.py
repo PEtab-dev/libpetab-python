@@ -216,7 +216,7 @@ def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
     with TemporaryDirectory() as temp_dir:
         plot_with_vis_spec(vis_spec_file_Isensee, condition_file_Isensee,
                            data_file_Isensee, simulation_file_Isensee,
-                           subplot_file_path=temp_dir)
+                           subplot_dir=temp_dir)
 
 
 def test_save_visu_file(data_file_Isensee,

@@ -118,8 +118,11 @@ class Subplot:
 
         Parameters
         ----------
+        plot_id: plot id
         plot_settings: plot spec for a subplot
                        (only VISUALIZATION_DF_SUBPLOT_LEVEL_COLS)
+        dataplots:
+            list of data plots that should be plotted on one subplot
         """
         # parameters of a specific subplot
 
@@ -283,7 +286,7 @@ class DataProvider:
                            plot_spec: 'DataPlot',
                            dataset_id) -> pd.Series:
         """
-        constructs an index for subsetting of the dataframe according to what
+        Construct an index for subsetting of the dataframe according to what
         is specified in plot_spec.
 
         Parameters:
@@ -315,7 +318,7 @@ class DataProvider:
                                     dataplot: DataPlot
                                     ) -> Tuple[np.ndarray, str, pd.Series]:
         """
-        get independant variable values
+        Get independant variable values
 
         Parameters
         ----------
@@ -385,7 +388,7 @@ class DataProvider:
     def get_data_to_plot(self, dataplot: DataPlot, provided_noise: bool
                          ) -> DataSeries:
         """
-        get data to plot
+        Get data to plot
 
         Parameters
         ----------
@@ -627,7 +630,8 @@ class VisSpecParser:
     def parse_from_id_list(self,
                            ids_per_plot: Optional[List[IdsList]] = None,
                            group_by: str = 'observable',
-                           plotted_noise: Optional[str] = MEAN_AND_SD):
+                           plotted_noise: Optional[str] = MEAN_AND_SD
+                           ) -> Tuple[Figure, DataProvider]:
         """
 
         Parameters
@@ -677,13 +681,10 @@ class VisSpecParser:
 
         return self.parse_from_vis_spec(vis_spec_df)
 
-    def _add_dataset_id_col(self):
+    def _add_dataset_id_col(self) -> None:
         """
         add dataset_id column to the measurement table and simulations table
         (possibly overwrite)
-        Returns
-        -------
-
         """
 
         if self.measurements_data is not None:
@@ -710,7 +711,7 @@ class VisSpecParser:
         id_list: Optional[List[IdsList]] = None
     ) -> Dict:
         """
-        Helper function for creating values for columns PLOT_ID, DATASET_ID,
+        Helper method for creating values for columns PLOT_ID, DATASET_ID,
         LEGEND_ENTRY, Y_VALUES for visualization specification file.
 
         Returns:

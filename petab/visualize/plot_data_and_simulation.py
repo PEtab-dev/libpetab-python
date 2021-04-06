@@ -359,7 +359,7 @@ def plot_with_vis_spec(
         conditions_df: Union[str, pd.DataFrame],
         measurements_df: Optional[Union[str, pd.DataFrame]] = None,
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-        subplot_file_path: Optional[str] = None,
+        subplot_dir: Optional[str] = None,
         plotter_type: str = 'mpl') -> Optional[Dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. Specification of the visualization
@@ -375,7 +375,7 @@ def plot_with_vis_spec(
     simulations_df:
         simulation DataFrame in the PEtab format or path to the simulation
         output data file.
-    subplot_file_path:
+    subplot_dir:
         path to the folder where single subplots should be saved.
         PlotIDs will be taken as file names.
     plotter_type:
@@ -383,7 +383,8 @@ def plot_with_vis_spec(
         only matplotlib is supported
     Returns
     -------
-
+    ax: Axis object of the created plot.
+    None: In case subplots are save to file
     """
 
     if measurements_df is None and simulations_df is None:
@@ -400,7 +401,7 @@ def plot_with_vis_spec(
     else:
         raise NotImplementedError('Currently, only visualization with '
                                   'matplotlib is possible.')
-    ax = plotter.generate_figure(subplot_file_path)
+    ax = plotter.generate_figure(subplot_dir)
     return ax
 
 
@@ -411,7 +412,7 @@ def plot_without_vis_spec(
         measurements_df: Optional[Union[str, pd.DataFrame]] = None,
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,
         plotted_noise: str = MEAN_AND_SD,
-        subplot_file_path: Optional[str] = None,
+        subplot_dir: Optional[str] = None,
         plotter_type: str = 'mpl'
 ) -> Optional[Dict[str, plt.Subplot]]:
     """
@@ -439,7 +440,7 @@ def plot_without_vis_spec(
     plotted_noise:
         string indicating how noise should be visualized:
         ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
-    subplot_file_path:
+    subplot_dir:
         path to the folder where single subplots should be saved.
         PlotIDs will be taken as file names.
     plotter_type:
@@ -447,7 +448,8 @@ def plot_without_vis_spec(
         only matplotlib is supported
     Returns
     -------
-
+    ax: Axis object of the created plot.
+    None: In case subplots are save to file
     """
 
     if measurements_df is None and simulations_df is None:
@@ -465,60 +467,7 @@ def plot_without_vis_spec(
     else:
         raise NotImplementedError('Currently, only visualization with '
                                   'matplotlib is possible.')
-    ax = plotter.generate_figure(subplot_file_path)
-    return ax
-
-
-def plot_by_observable(conditions_df: Union[str, pd.DataFrame],
-                       measurements_df: Union[str, pd.DataFrame] = None,
-                       simulations_df: Union[str, pd.DataFrame] = None,
-                       plotted_noise: str = MEAN_AND_SD,
-                       subplot_file_path: Optional[str] = None,
-                       plotter_type: str = 'mpl'
-                       ) -> Optional[Dict[str, plt.Subplot]]:
-    """
-    Plot measurements and/or simulations. Measurements will be grouped by
-    observables. All measurements for each observable will be
-    visualized on one plot.
-
-    Parameters
-    ----------
-    conditions_df:
-        condition DataFrame in the PEtab format or path to the condition file.
-    measurements_df:
-        measurement DataFrame in the PEtab format or path to the data file.
-    simulations_df:
-        simulation DataFrame in the PEtab format or path to the simulation
-        output data file.
-    plotted_noise:
-        string indicating how noise should be visualized:
-        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
-    subplot_file_path:
-        string which is taken as path to the folder where single subplots
-        should be saved. PlotIDs will be taken as file names.
-    plotter_type:
-        specifies which library should be used for plot generation. Currently,
-        only matplotlib is supported
-    Returns
-    -------
-
-    """
-
-    if measurements_df is None and simulations_df is None:
-        raise TypeError('Not enough arguments. Either measurements_data '
-                        'or simulations_data should be provided.')
-
-    vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
-                                    simulations_df)
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
-        plotted_noise=plotted_noise)
-
-    if plotter_type == 'mpl':
-        plotter = MPLPlotter(figure, dataprovider)
-    else:
-        raise NotImplementedError('Currently, only visualization with '
-                                  'matplotlib is possible.')
-    ax = plotter.generate_figure(subplot_file_path)
+    ax = plotter.generate_figure(subplot_dir)
     return ax
 
 
@@ -527,7 +476,7 @@ def plot_problem(petab_problem: problem.Problem,
                  grouping_list: Optional[List[IdsList]] = None,
                  group_by: str = 'observable',
                  plotted_noise: str = MEAN_AND_SD,
-                 subplot_file_path: Optional[str] = None,
+                 subplot_dir: Optional[str] = None,
                  plotter_type: str = 'mpl'
                  ) -> Optional[Dict[str, plt.Subplot]]:
     """
@@ -554,7 +503,7 @@ def plot_problem(petab_problem: problem.Problem,
     plotted_noise:
         string indicating how noise should be visualized:
         ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
-    subplot_file_path:
+    subplot_dir:
         string which is taken as path to the folder where single subplots
         should be saved. PlotIDs will be taken as file names.
     plotter_type:
@@ -571,7 +520,7 @@ def plot_problem(petab_problem: problem.Problem,
                                 petab_problem.condition_df,
                                 petab_problem.measurement_df,
                                 simulations_df,
-                                subplot_file_path,
+                                subplot_dir,
                                 plotter_type)
     else:
         ax = plot_without_vis_spec(petab_problem.condition_df,
@@ -580,6 +529,6 @@ def plot_problem(petab_problem: problem.Problem,
                                    petab_problem.measurement_df,
                                    simulations_df,
                                    plotted_noise,
-                                   subplot_file_path,
+                                   subplot_dir,
                                    plotter_type)
     return ax
