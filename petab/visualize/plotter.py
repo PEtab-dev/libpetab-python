@@ -109,18 +109,20 @@ class MPLPlotter(Plotter):
 
         # construct simulation plot
         if simulations_to_plot is not None:
+            # markers will be displayed only for points that have measurement
+            # counterpart
             if measurements_to_plot is not None:
-                meas_conditions = measurements_to_plot.conditions.values if \
-                    isinstance(measurements_to_plot.conditions, pd.Series) \
+                meas_conditions = measurements_to_plot.conditions.to_numpy() \
+                    if isinstance(measurements_to_plot.conditions, pd.Series) \
                     else measurements_to_plot.conditions
-                # display markers
                 every = [condition in meas_conditions
                          for condition in simulations_to_plot.conditions]
             else:
                 every = None
             # sorts according to ascending order of conditions
             xs, ys = zip(*sorted(zip(simulations_to_plot.conditions,
-                                     simulations_to_plot.data_to_plot['mean'])))
+                                     simulations_to_plot.data_to_plot['mean'])
+                                 ))
             ax.plot(
                 xs, ys, linestyle='-', marker='o', markevery=every,
                 label=label_base + " simulation", color=simu_color
