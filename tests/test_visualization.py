@@ -89,6 +89,8 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
                              simulation_file_Isensee)
 
 
+@pytest.mark.skip(reason="vis_spec_file_Isensee can't be used without "
+                         "simulation_df anymore")
 def test_visualization_with_vis(data_file_Isensee,
                                 condition_file_Isensee,
                                 vis_spec_file_Isensee):
