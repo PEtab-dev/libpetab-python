@@ -4,8 +4,7 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple, Union
 
 from .helper_functions import (generate_dataset_id_col,
-                               create_dataset_id_list_new,
-                               expand_vis_spec_settings)
+                               create_dataset_id_list_new)
 from .. import measurements, core, conditions
 from ..problem import Problem
 from ..C import *
