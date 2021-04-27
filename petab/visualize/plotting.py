@@ -539,14 +539,14 @@ class VisSpecParser:
             None else self.simulations_data
 
     @staticmethod
-    def create_subplot(plot_id,
+    def create_subplot(plot_id: str,
                        subplot_vis_spec: pd.DataFrame) -> Subplot:
         """
-        create subplot
+        Create subplot
 
         Parameters
         ----------
-        plot_id:
+        plot_id: plot id
         subplot_vis_spec:
             visualization specification DataFrame that contains specification
             for the subplot and corresponding dataplots
@@ -582,28 +582,7 @@ class VisSpecParser:
 
         if DATASET_ID not in vis_spec.columns:
             self._add_dataset_id_col()
-            if Y_VALUES in vis_spec.columns:
-                plot_id_list = np.unique(vis_spec[PLOT_ID])
-
-                observable_id_list = [vis_spec[vis_spec[PLOT_ID] ==
-                                               plot_id].loc[:, Y_VALUES].values
-                                      for plot_id in plot_id_list]
-
-                columns_dict = self._get_vis_spec_dependent_columns_dict(
-                    'observable', observable_id_list)
-
-            else:
-                # PLOT_ID is there, but NOT DATASET_ID and not Y_VALUES,
-                # but potentially some settings.
-                # TODO: multiple plotids with diff settings
-
-                unique_obs_list = self._data_df[OBSERVABLE_ID].unique()
-                observable_id_list = [[obs_id] for obs_id in unique_obs_list]
-
-                columns_dict = self._get_vis_spec_dependent_columns_dict(
-                    'observable', observable_id_list)
-
-            vis_spec = expand_vis_spec_settings(vis_spec, columns_dict)
+            vis_spec = self._expand_vis_spec_settings(vis_spec)
         else:
             if self.measurements_data is not None \
                     and DATASET_ID not in self.measurements_data:
@@ -618,8 +597,9 @@ class VisSpecParser:
 
         figure = Figure()
 
-        # get unique plotIDs
-        plot_ids = np.unique(vis_spec[PLOT_ID])
+        # get unique plotIDs preserving the order from the original vis spec
+        _, idx = np.unique(vis_spec[PLOT_ID], return_index=True)
+        plot_ids = vis_spec[PLOT_ID].iloc[np.sort(idx)]
 
         # loop over unique plotIds
         for plot_id in plot_ids:
@@ -726,8 +706,6 @@ class VisSpecParser:
             visualization specification.
         """
 
-        legend_dict = self._create_legend_dict(self._data_df)
-
         if group_by != 'dataset':
             dataset_id_list = create_dataset_id_list_new(self._data_df,
                                                          group_by, id_list)
@@ -737,13 +715,10 @@ class VisSpecParser:
         dataset_id_column = [i_dataset for sublist in dataset_id_list
                              for i_dataset in sublist]
 
-        if group_by != 'dataset':
-            dataset_label_column = [legend_dict[i_dataset] for sublist in
-                                    dataset_id_list for i_dataset in sublist]
-        else:
-            dataset_label_column = dataset_id_column
+        dataset_label_column = [self._create_legend(i_dataset) for sublist in
+                                dataset_id_list for i_dataset in sublist]
 
-        # such datasetids were generated that each dataset_id always
+        # such dataset ids were generated that each dataset_id always
         # corresponds to one observable
         yvalues_column = [self._data_df.loc[self._data_df[DATASET_ID] ==
                                             dataset_id, OBSERVABLE_ID].iloc[0]
@@ -777,23 +752,111 @@ class VisSpecParser:
                         Y_VALUES: yvalues_column}
         return columns_dict
 
-    def _create_legend_dict(self, data_df: pd.DataFrame):
-        legend_dict = {}
+    def _create_legend(self, dataset_id: str) -> str:
+        """
+        Create a legend for a dataset ids.
 
-        for _, row in data_df.iterrows():
-            cond_id = row[SIMULATION_CONDITION_ID]
-            obs_id = row[OBSERVABLE_ID]
-            dataset_id = row[DATASET_ID]
+        Parameters
+        ----------
+        dataset_id: dataset id
 
-            # create nicer legend entries from condition names instead of IDs
-            if dataset_id not in legend_dict.keys():
-                tmp = self.conditions_data.loc[cond_id]
-                if CONDITION_NAME not in tmp.index or \
-                        pd.isna(tmp[CONDITION_NAME]):
-                    cond_name = cond_id
-                else:
-                    cond_name = tmp[CONDITION_NAME]
-                legend_dict[dataset_id] = cond_name + ' - ' + \
-                    obs_id
+        Returns
+        -------
 
-        return legend_dict
+        legend
+        """
+        # relies on the fact that dataset ids were created based on cond_ids
+        # and obs_ids. Therefore, in the following query all pairs will be
+        # the same
+        cond_id, obs_id = self._data_df[self._data_df[DATASET_ID] ==
+                                        dataset_id][[SIMULATION_CONDITION_ID,
+                                                     OBSERVABLE_ID]].iloc[0, :]
+        tmp = self.conditions_data.loc[cond_id]
+        if CONDITION_NAME not in tmp.index or \
+                pd.isna(tmp[CONDITION_NAME]):
+            cond_name = cond_id
+        else:
+            cond_name = tmp[CONDITION_NAME]
+        return cond_name + ' - ' + obs_id
+
+    def _expand_vis_spec_settings(self, vis_spec: pd.DataFrame):
+        """
+        Expand visualization specification for the case when DATASET_ID is not
+        in vis_spec.columns
+
+        Returns
+        -------
+            A visualization specification DataFrame
+        """
+        if DATASET_ID in vis_spec.columns:
+            raise ValueError(f"visualization specification expansion is "
+                             f"unnecessary if column {DATASET_ID} is present")
+        else:
+            vis_spec_exp = pd.DataFrame()
+            if vis_spec.empty:
+                # in case of empty spec all measurements corresponding to each
+                # observable will be plotted on a separate subplot
+                observable_ids = self._data_df[OBSERVABLE_ID].unique()
+
+                for idx, obs_id in enumerate(observable_ids):
+                    obs_vis_spec = self._vis_spec_rows_for_obs(
+                        obs_id, {PLOT_ID: f'plot{idx}'})
+                    vis_spec_exp = vis_spec_exp.append(obs_vis_spec,
+                                                       ignore_index=True)
+            else:
+                for _, row in vis_spec.iterrows():
+                    if Y_VALUES in row:
+                        obs_vis_spec = self._vis_spec_rows_for_obs(
+                            row[Y_VALUES], row.to_dict())
+                        vis_spec_exp = vis_spec_exp.append(obs_vis_spec,
+                                                           ignore_index=True)
+                    else:
+                        observable_ids = self._data_df[OBSERVABLE_ID].unique()
+
+                        for obs_id in observable_ids:
+                            obs_vis_spec = self._vis_spec_rows_for_obs(
+                                obs_id, row.to_dict())
+                            vis_spec_exp = vis_spec_exp.append(
+                                obs_vis_spec, ignore_index=True)
+        return vis_spec_exp
+
+    def _vis_spec_rows_for_obs(self, obs_id: str, settings: dict
+                               ) -> pd.DataFrame:
+        """
+        Create vis_spec for one observable.
+
+        For each dataset_id corresponding to the observable with the specified
+        id create a vis_spec entry with provided settings
+
+        Parameters
+        ----------
+        obs_id: observable id
+        settings: additional visualization settings. For each key that is a
+                  valid visualization specification column name, the setting
+                  will be added to the resulting visualization specification
+
+        Returns
+        -------
+
+        """
+        columns_to_expand = [PLOT_ID, PLOT_NAME, PLOT_TYPE_SIMULATION,
+                             PLOT_TYPE_DATA, X_VALUES, X_OFFSET, X_LABEL,
+                             X_SCALE, Y_OFFSET, Y_LABEL, Y_SCALE,
+                             LEGEND_ENTRY]
+
+        dataset_ids = self._data_df[
+            self._data_df[OBSERVABLE_ID] ==
+            obs_id][DATASET_ID].unique()
+        n_rows = len(dataset_ids)
+        columns_dict = {DATASET_ID: dataset_ids,
+                        Y_VALUES: [obs_id] * n_rows}
+
+        for column in settings:
+            if column in columns_to_expand:
+                columns_dict[column] = [settings[column]] * n_rows
+
+        if LEGEND_ENTRY not in columns_dict:
+            columns_dict[LEGEND_ENTRY] = \
+                [self._create_legend(dataset_id) for dataset_id
+                 in columns_dict[DATASET_ID]]
+        return pd.DataFrame(columns_dict)

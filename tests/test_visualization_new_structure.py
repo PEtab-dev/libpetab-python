@@ -42,8 +42,13 @@ def visu_file_Fujita_small():
 
 
 @pytest.fixture
-def visu_file_Fujita_wo_dsid():
+def visu_file_Fujita_wo_dsid_wo_yvalues():
     return "doc/example/example_Fujita/visuSpecs/Fujita_visuSpec_1.tsv"
+
+
+@pytest.fixture
+def visu_file_Fujita_all_obs_with_diff_settings():
+    return "doc/example/example_Fujita/visuSpecs/Fujita_visuSpec_3.tsv"
 
 
 @pytest.fixture
@@ -88,7 +93,7 @@ def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
                                                    condition_file_Fujita,
                                                    visu_file_Fujita_small):
     """
-    Test: visualization spezification file only with few columns in
+    Test: visualization specification file only with few columns in
     particular datasetId
     (optional columns are optional)
     """
@@ -96,23 +101,38 @@ def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
                        data_file_Fujita)
 
 
-def test_visualization_small_visu_file_wo_datasetid(data_file_Fujita,
-                                                    condition_file_Fujita,
-                                                    visu_file_Fujita_wo_dsid):
+def test_visualization_small_visu_file_wo_datasetid(
+        data_file_Fujita,
+        condition_file_Fujita,
+        visu_file_Fujita_wo_dsid_wo_yvalues):
     """
-    Test: visualization spezification file only with few columns in
+    Test: visualization specification file only with few columns in
     particular no datasetId column
     (optional columns are optional)
     """
-    plot_with_vis_spec(visu_file_Fujita_wo_dsid, condition_file_Fujita,
-                       data_file_Fujita)
+    plot_with_vis_spec(visu_file_Fujita_wo_dsid_wo_yvalues,
+                       condition_file_Fujita, data_file_Fujita)
+
+
+def test_visualization_all_obs_with_diff_settings(
+        data_file_Fujita,
+        condition_file_Fujita,
+        visu_file_Fujita_all_obs_with_diff_settings):
+    """
+    Test: visualization specification file only with few columns. In
+    particular, no datasetId column and no yValues column, but more than one
+    plot id. Additionally, having plot id different from 'plot\\d+' for the
+    case of vis_spec expansion is tested.
+    """
+    plot_with_vis_spec(visu_file_Fujita_all_obs_with_diff_settings,
+                       condition_file_Fujita, data_file_Fujita)
 
 
 def test_visualization_minimal_visu_file(data_file_Fujita,
                                          condition_file_Fujita,
                                          visu_file_Fujita_minimal):
     """
-    Test: visualization spezification file only with mandatory column plotId
+    Test: visualization specification file only with mandatory column plotId
     (optional columns are optional)
     """
     plot_with_vis_spec(visu_file_Fujita_minimal, condition_file_Fujita,
@@ -123,7 +143,7 @@ def test_visualization_empty_visu_file(data_file_Fujita,
                                        condition_file_Fujita,
                                        visu_file_Fujita_empty):
     """
-    Test: Empty visualization spezification file should default to routine
+    Test: Empty visualization specification file should default to routine
     for no file at all
     """
     plot_with_vis_spec(visu_file_Fujita_empty, condition_file_Fujita,
@@ -132,13 +152,13 @@ def test_visualization_empty_visu_file(data_file_Fujita,
 
 def test_visualization_minimal_data_file(data_file_Fujita_minimal,
                                          condition_file_Fujita,
-                                         visu_file_Fujita_wo_dsid):
+                                         visu_file_Fujita_wo_dsid_wo_yvalues):
     """
     Test visualization, with the case: data file only with mandatory columns
     (optional columns are optional)
     """
-    plot_with_vis_spec(visu_file_Fujita_wo_dsid, condition_file_Fujita,
-                       data_file_Fujita_minimal)
+    plot_with_vis_spec(visu_file_Fujita_wo_dsid_wo_yvalues,
+                       condition_file_Fujita, data_file_Fujita_minimal)
 
 
 def test_visualization_with_dataset_list(data_file_Isensee,
