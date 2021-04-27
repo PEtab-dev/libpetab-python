@@ -8,7 +8,7 @@ from .helper_functions import (generate_dataset_id_col,
 from .. import measurements, core, conditions
 from ..problem import Problem
 from ..C import *
-from numbers import Number
+from numbers import Number, Real
 import warnings
 
 # for typehints
@@ -145,6 +145,8 @@ class Subplot:
             setattr(self, Y_SCALE, LIN)
 
         self.data_plots = dataplots if dataplots is not None else []
+        self.xlim = None
+        self.ylim = None
 
     @classmethod
     def from_df(cls, plot_id: str, vis_spec: pd.DataFrame,
@@ -191,6 +193,23 @@ class Subplot:
     def add_dataplot(self, dataplot: DataPlot):
         self.data_plots.append(dataplot)
 
+    def set_axes_limits(self,
+                        xlim: Optional[Tuple[Optional[Real],
+                                             Optional[Real]]] = None,
+                        ylim: Optional[Tuple[Optional[Real],
+                                             Optional[Real]]] = None):
+        """
+        Set axes limits for all subplots. If xlim or ylim or any of the tuple
+        items is None, corresponding limit is left unchanged.
+
+        Parameters
+        ----------
+        xlim: x axis limits
+        ylim: y axis limits
+        """
+        self.xlim = xlim
+        self.ylim = ylim
+
 
 class Figure:
     def __init__(self, subplots: Optional[List[Subplot]] = None,
@@ -224,6 +243,24 @@ class Figure:
 
     def add_subplot(self, subplot: Subplot):
         self.subplots.append(subplot)
+
+    def set_axes_limits(self,
+                        xlim: Optional[Tuple[Optional[Real],
+                                             Optional[Real]]] = None,
+                        ylim: Optional[Tuple[Optional[Real],
+                                             Optional[Real]]] = None):
+        """
+        Set axes limits for all subplots. If xlim or ylim or any of the tuple
+        items is None, corresponding limit is left unchanged.
+
+        Parameters
+        ----------
+        xlim: x axis limits
+        ylim: y axis limits
+        """
+
+        for subplot in self.subplots:
+            subplot.set_axes_limits(xlim, ylim)
 
     def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv') -> None:
         """

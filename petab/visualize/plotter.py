@@ -266,6 +266,10 @@ class MPLPlotter(Plotter):
             ax.legend()
         ax.set_title(subplot.plotName)
         ax.relim()
+        if subplot.xlim:
+            ax.set_xlim(subplot.xlim)
+        if subplot.ylim:
+            ax.set_ylim(subplot.ylim)
         ax.autoscale_view()
 
         # Beautify plots
