@@ -862,7 +862,7 @@ class VisSpecParser:
         Create vis_spec for one observable.
 
         For each dataset_id corresponding to the observable with the specified
-        id create a vis_spec entry with provided settings
+        id create a vis_spec entry with provided settings.
 
         Parameters
         ----------
