@@ -790,7 +790,7 @@ class VisSpecParser:
 
     def _create_legend(self, dataset_id: str) -> str:
         """
-        Create a legend for a dataset ids.
+        Create a legend for the dataset ids.
 
         Parameters
         ----------
