@@ -706,7 +706,7 @@ class VisSpecParser:
     def _add_dataset_id_col(self) -> None:
         """
         add dataset_id column to the measurement table and simulations table
-        (possibly overwrite)
+        (possibly overwrite).
         """
 
         if self.measurements_data is not None:
