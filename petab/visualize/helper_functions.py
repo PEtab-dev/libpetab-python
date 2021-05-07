@@ -320,7 +320,7 @@ def create_dataset_id_list_new(df: pd.DataFrame,
         id_list:
 
     Returns:
-        A list of datasetIds and
+        A list of datasetIds
 
     """
     if DATASET_ID not in df.columns:
