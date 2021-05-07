@@ -281,7 +281,7 @@ def create_dataset_id_list(
 
 def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
     """
-    generate DATASET_ID column from condition_ids and observable ids
+    generate DATASET_ID column from condition_ids and observable_ids
 
     Parameters
     ----------
