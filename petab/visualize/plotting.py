@@ -37,7 +37,7 @@ NumList = List[int]
 
 class DataSeries:
     """
-    data for one individual line
+    Data for one individual line
     """
     def __init__(self, conditions_: Optional[Union[np.ndarray, pd.Series]],
                  measurements_to_plot: Optional[pd.DataFrame] = None,
@@ -79,7 +79,7 @@ class DataPlot:
 
         Parameters
         ----------
-        plot_settings: plot spec for one dataplot
+        plot_settings: A plot spec for one dataplot
                        (only VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS)
         """
 
@@ -117,11 +117,11 @@ class Subplot:
 
         Parameters
         ----------
-        plot_id: plot id
-        plot_settings: plot spec for a subplot
+        plot_id: Plot id
+        plot_settings: Plot spec for a subplot
                        (only VISUALIZATION_DF_SUBPLOT_LEVEL_COLS)
         dataplots:
-            list of data plots that should be plotted on one subplot
+            A list of data plots that should be plotted on one subplot
         """
         # parameters of a specific subplot
 
@@ -221,9 +221,9 @@ class Figure:
 
         Parameters
         ----------
-        subplots
-        size
-        title
+        subplots: A list of visualization specifications for each subplot
+        size: Figure size
+        title: Figure title
         """
 
         # TODO: Isensee measurements table in doc/examples doesn't correspond
@@ -264,7 +264,7 @@ class Figure:
 
     def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv') -> None:
         """
-        save full Visualization specification table
+        Save full Visualization specification table
 
         Note that datasetId column in the resulting table might have been
         generated even though datasetId column in Measurement table is missing
@@ -325,14 +325,16 @@ class DataProvider:
         Construct an index for subsetting of the dataframe according to what
         is specified in plot_spec.
 
-        Parameters:
+        Parameters
+        ----------
             df:
-                pandas data frame to subset, can be from measurement file or
+                A pandas data frame to subset, can be from measurement file or
                 simulation file
             plot_spec:
-                visualization spec from the visualization file
+                A visualization spec from the visualization file
 
-        Returns:
+        Returns
+        -------
             index:
                 Boolean series that can be used for subsetting of the passed
                 dataframe
@@ -359,14 +361,14 @@ class DataProvider:
         Parameters
         ----------
         data_df:
-            pandas data frame to subset, can be from measurement file or
+            A pandas data frame to subset, can be from measurement file or
             simulation file
         dataplot:
 
         Returns
         -------
         col_name_unique:
-            name of the column from Measurement (Simulation) table, which
+            A name of the column from Measurement (Simulation) table, which
             specifies independent variable values (depends on the xValues entry
             of visualization specification).
             possible values: TIME (independent variable values will be taken
@@ -376,13 +378,13 @@ class DataProvider:
                              values will be taken from one of the columns of
                              Condition table)
         uni_condition_id:
-            time points
+            Time points
             or
             contains all unique condition IDs which should be
             plotted together as one dataplot. Independent variable values will
             be collected for these conditions
         conditions_:
-            independent variable values or None for the BarPlot case
+            An independent variable values or None for the BarPlot case
             possible values: time points, None, vales of independent variable
             (Parameter or Species, specified in the xValues entry of
             visualization specification) for each condition_id in
@@ -429,8 +431,9 @@ class DataProvider:
         Parameters
         ----------
         dataplot:
+            A DataPlot template with corresponding visualization settings
         provided_noise:
-            True if if numeric values for the noise level are provided in the
+            True if numeric values for the noise level are provided in the
             measurement table
         """
 
@@ -582,15 +585,14 @@ class VisSpecParser:
 
         Parameters
         ----------
-        plot_id: plot id
+        plot_id: Plot id
         subplot_vis_spec:
-            visualization specification DataFrame that contains specification
+            A visualization specification DataFrame that contains specification
             for the subplot and corresponding dataplots
 
         Returns
         -------
-
-        subplot
+        Subplot
         """
 
         subplot_columns = [col for col in subplot_vis_spec.columns if col in
@@ -611,6 +613,20 @@ class VisSpecParser:
     def parse_from_vis_spec(self,
                             vis_spec: Optional[Union[str, pd.DataFrame]],
                             ) -> Tuple[Figure, DataProvider]:
+        """
+        Get visualization settings from a visualization specification.
+
+        Parameters
+        ----------
+        vis_spec:
+            Visualization specification DataFrame in the PEtab format
+            or a path to a visualization file.
+
+        Returns
+        -------
+
+        A figure template with visualization settings and a data provider
+        """
 
         # import visualization specification, if file was specified
         if isinstance(vis_spec, str):
@@ -655,10 +671,14 @@ class VisSpecParser:
                            plotted_noise: Optional[str] = MEAN_AND_SD
                            ) -> Tuple[Figure, DataProvider]:
         """
+        Get visualization settings from a list of ids and a grouping parameter.
 
         Parameters
         ----------
         ids_per_plot:
+            A list of lists. Each sublist corresponds to a plot, each subplot
+            contains the Ids of datasets or observables or simulation
+            conditions for this plot.
             e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
                                          ['dataset_1', 'dataset_4',
                                           'dataset_5']]
@@ -667,15 +687,17 @@ class VisSpecParser:
                                ['model1_data2', 'model1_data3'],
                                ['model1_data4', 'model1_data5'],
                                ['model1_data6']]
-        group_by
-            ['dataset', 'observable', 'simulation']
+        group_by:
+            Grouping type. Possible values: 'dataset', 'observable',
+            'simulation'
             # TODO: why simulation btw?
-        plotted_noise
+        plotted_noise:
             String indicating how noise should be visualized:
             ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+
         Returns
         -------
-
+        A figure template with visualization settings and a data provider
         """
 
         if ids_per_plot is None:
@@ -705,7 +727,7 @@ class VisSpecParser:
 
     def _add_dataset_id_col(self) -> None:
         """
-        add dataset_id column to the measurement table and simulations table
+        Add dataset_id column to the measurement table and simulations table
         (possibly overwrite).
         """
 
@@ -736,10 +758,21 @@ class VisSpecParser:
         Helper method for creating values for columns PLOT_ID, DATASET_ID,
         LEGEND_ENTRY, Y_VALUES for visualization specification file.
 
-        Returns:
-            A dictionary with values for
-            columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for
-            visualization specification.
+        Parameters
+        ----------
+        group_by:
+            Grouping type.
+            Possible values: 'dataset', 'observable', 'simulation'
+        id_list:
+            Grouping list. Each sublist corresponds to a plot, each subplot
+            contains the Ids of datasets or observables or simulation
+            conditions for this plot.
+
+        Returns
+        -------
+        A dictionary with values for
+        columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for
+        visualization specification.
         """
 
         if group_by != 'dataset':
@@ -761,23 +794,6 @@ class VisSpecParser:
                           for sublist in dataset_id_list for dataset_id in
                           sublist]
 
-        # TODO: is it really needed?
-        # get number of plots and create plotId-lists
-        # if group_by == 'observable':
-        #     obs_uni = list(np.unique(exp_data[OBSERVABLE_ID]))
-        #     # copy of dataset ids, for later replacing with plot ids
-        #     plot_id_column = dataset_id_column.copy()
-        #     for i_obs in range(0, len(obs_uni)):
-        #         # get dataset_ids which include observable name
-        #         matching = [s for s in dataset_id_column if
-        #                     obs_uni[i_obs] in s]
-        #         # replace the dataset ids with plot id with grouping of
-        #         # observables
-        #         for m_i in matching:
-        #             plot_id_column = [sub.replace(m_i, 'plot%s' %
-        #                                           str(i_obs + 1))
-        #                               for sub in plot_id_column]
-        # else:
         # get number of plots and create plotId-lists
         plot_id_column = ['plot%s' % str(ind + 1) for ind, inner_list in
                           enumerate(dataset_id_list) for _ in inner_list]
@@ -798,8 +814,7 @@ class VisSpecParser:
 
         Returns
         -------
-
-        legend
+        A legend
         """
         # relies on the fact that dataset ids were created based on cond_ids
         # and obs_ids. Therefore, in the following query all pairs will be
@@ -819,6 +834,12 @@ class VisSpecParser:
         """
         Expand visualization specification for the case when DATASET_ID is not
         in vis_spec.columns
+
+        Parameters
+        -------
+        vis_spec:
+            Visualization specification DataFrame in the PEtab format
+            or a path to a visualization file.
 
         Returns
         -------
@@ -866,14 +887,14 @@ class VisSpecParser:
 
         Parameters
         ----------
-        obs_id: observable id
-        settings: additional visualization settings. For each key that is a
+        obs_id: Observable id
+        settings: Additional visualization settings. For each key that is a
                   valid visualization specification column name, the setting
                   will be added to the resulting visualization specification
 
         Returns
         -------
-
+        A visualization specification DataFrame
         """
         columns_to_expand = [PLOT_ID, PLOT_NAME, PLOT_TYPE_SIMULATION,
                              PLOT_TYPE_DATA, X_VALUES, X_OFFSET, X_LABEL,

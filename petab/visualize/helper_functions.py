@@ -42,7 +42,7 @@ def import_from_files(
     """
     Helper function for plotting data and simulations, which imports data
     from PEtab files. If `visualization_file_path` is not provided, the
-    visualisation specification DataFrame will be generated automatically.
+    visualization specification DataFrame will be generated automatically.
 
     For documentation, see main function plot_data_and_simulation()
 

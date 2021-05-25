@@ -93,7 +93,9 @@ def plot_data_and_simulation(
     ax: Axis object of the created plot.
     None: In case subplots are save to file
     """
-    warnings.warn("This function will be removed in future releases. ",
+    warnings.warn("This function will be removed in future releases. "
+                  "Please use plot_with_vis_spec or plot_without_vis_spec "
+                  "instead.",
                   DeprecationWarning)
 
     if isinstance(exp_conditions, str):
@@ -215,7 +217,8 @@ def plot_petab_problem(
     Visualization using petab problem.
     For documentation, see function plot_data_and_simulation()
     """
-    warnings.warn("This function will be removed in future releases. ",
+    warnings.warn("This function will be removed in future releases. "
+                  "Pleas use plot_problem instead",
                   DeprecationWarning)
 
     return plot_data_and_simulation(petab_problem.measurement_df,
@@ -369,22 +372,23 @@ def plot_with_vis_spec(
     ----------
     vis_spec_df: visualization table
     conditions_df:
-        condition DataFrame in the PEtab format or path to the condition file.
+        A condition DataFrame in the PEtab format or path to the condition file.
     measurements_df:
-        measurement DataFrame in the PEtab format or path to the data file.
+        A measurement DataFrame in the PEtab format or path to the data file.
     simulations_df:
-        simulation DataFrame in the PEtab format or path to the simulation
+        A simulation DataFrame in the PEtab format or path to the simulation
         output data file.
     subplot_dir:
-        path to the folder where single subplots should be saved.
+        A path to the folder where single subplots should be saved.
         PlotIDs will be taken as file names.
     plotter_type:
-        specifies which library should be used for plot generation. Currently,
+        Specifies which library should be used for plot generation. Currently,
         only matplotlib is supported
+
     Returns
     -------
     ax: Axis object of the created plot.
-    None: In case subplots are save to file
+    None: In case subplots are saved to a file.
     """
 
     if measurements_df is None and simulations_df is None:
@@ -429,27 +433,30 @@ def plot_without_vis_spec(
         contains the Ids of datasets or observables or simulation conditions
         for this plot.
     group_by:
+        Grouping type.
         Possible values: 'dataset', 'observable', 'simulation'
     conditions_df:
-        condition DataFrame in the PEtab format or path to the condition file.
+        A condition DataFrame in the PEtab format or path to the condition
+        file.
     measurements_df:
-        measurement DataFrame in the PEtab format or path to the data file.
+        A measurement DataFrame in the PEtab format or path to the data file.
     simulations_df:
-        simulation DataFrame in the PEtab format or path to the simulation
+        A simulation DataFrame in the PEtab format or path to the simulation
         output data file.
     plotted_noise:
-        string indicating how noise should be visualized:
+        A string indicating how noise should be visualized:
         ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
     subplot_dir:
-        path to the folder where single subplots should be saved.
+        A path to the folder where single subplots should be saved.
         PlotIDs will be taken as file names.
     plotter_type:
-        specifies which library should be used for plot generation. Currently,
+        Specifies which library should be used for plot generation. Currently,
         only matplotlib is supported
+
     Returns
     -------
     ax: Axis object of the created plot.
-    None: In case subplots are save to file
+    None: In case subplots are saved to a file.
     """
 
     if measurements_df is None and simulations_df is None:
@@ -489,10 +496,10 @@ def plot_problem(petab_problem: problem.Problem,
 
     Parameters
     ----------
-    petab_problem
-        a PEtab problem
+    petab_problem:
+        A PEtab problem
     simulations_df:
-        simulation DataFrame in the PEtab format or path to the simulation
+        A simulation DataFrame in the PEtab format or path to the simulation
         output data file.
     grouping_list:
         A list of lists. Each sublist corresponds to a plot, each subplot
@@ -501,18 +508,19 @@ def plot_problem(petab_problem: problem.Problem,
     group_by:
         Possible values: 'dataset', 'observable', 'simulation'
     plotted_noise:
-        string indicating how noise should be visualized:
+        A string indicating how noise should be visualized:
         ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
     subplot_dir:
-        string which is taken as path to the folder where single subplots
+        A string which is taken as path to the folder where single subplots
         should be saved. PlotIDs will be taken as file names.
     plotter_type:
-        specifies which library should be used for plot generation. Currently,
+        Specifies which library should be used for plot generation. Currently,
         only matplotlib is supported
 
     Returns
     -------
-
+    ax: Axis object of the created plot.
+    None: In case subplots are saved to a file.
     """
 
     if petab_problem.visualization_df is not None:
