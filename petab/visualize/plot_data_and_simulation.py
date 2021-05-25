@@ -385,7 +385,7 @@ def plot_with_vis_spec(
         PlotIDs will be taken as file names.
     plotter_type:
         Specifies which library should be used for plot generation. Currently,
-        only matplotlib is supported
+        only matplotlib is supported.
 
     Returns
     -------

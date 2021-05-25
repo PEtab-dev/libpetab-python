@@ -19,7 +19,7 @@ class Plotter(ABC):
 
         Parameters
         ----------
-        figure: Figure instance that serves are a markup for the figure that
+        figure: Figure instance that serves as a markup for the figure that
             should be generated
         data_provider:
                 data provider
@@ -43,7 +43,7 @@ class MPLPlotter(Plotter):
     def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
         """
         Generate lineplot.
-        It is possible to plot only data or only simulation or both
+        It is possible to plot only data or only simulation or both.
 
         Parameters
         ----------
@@ -129,7 +129,15 @@ class MPLPlotter(Plotter):
             )
 
     def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData: str):
-
+        """
+        Generate barplot.
+        
+        Parameters
+        ----------
+        ax
+        dataplot
+        plotTypeData
+        """
         # TODO: plotTypeData == REPLICATE?
         # set type of noise
         noise_col = None
@@ -171,6 +179,15 @@ class MPLPlotter(Plotter):
                    edgecolor=simu_colors, **bar_kwargs, label='simulation')
 
     def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
+        """
+        Generate scatterplot.
+        
+        Parameters
+        ----------
+        ax
+        dataplot
+        plotTypeData
+        """
 
         data_to_plot = self.data_provider.get_data_to_plot(
             dataplot, plotTypeData == PROVIDED)
@@ -187,7 +204,7 @@ class MPLPlotter(Plotter):
                          ax,
                          subplot: Subplot):
         """
-        Generate subplot based on markup provided by subplot
+        Generate subplot based on markup provided by subplot.
 
         Parameters
         ----------
@@ -281,7 +298,7 @@ class MPLPlotter(Plotter):
     def generate_figure(self, subplot_dir: Optional[str] = None
                         ) -> Optional[Dict[str, plt.Subplot]]:
         """
-        Generate the full figure based on the markup in the figure attribute
+        Generate the full figure based on the markup in the figure attribute.
 
         Parameters
         ----------
@@ -292,7 +309,7 @@ class MPLPlotter(Plotter):
         Returns
         -------
         ax: Axis object of the created plot.
-        None: In case subplots are save to file
+        None: In case subplots are saved to file.
         """
 
         # Set Options for plots
@@ -347,7 +364,7 @@ class MPLPlotter(Plotter):
             lim: Optional[Union[List, Tuple]] = None
     ) -> 'matplotlib.pyplot.Axes':
         """
-        Square plot with equal range for scatter plots
+        Square plot with equal range for scatter plots.
 
         Returns:
             Updated axis object.
