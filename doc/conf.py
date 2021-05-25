@@ -28,7 +28,7 @@ release = 'latest'
 
 # -- Custom pre-build --------------------------------------------------------
 
-
+os.environ["SPHINX_APIDOC_OPTIONS"] = "members,show-inheritance"
 subprocess.run(['python', 'md2rst.py'])
 
 # -- General configuration ---------------------------------------------------
