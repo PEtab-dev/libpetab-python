@@ -258,7 +258,9 @@ def plot_measurements_by_observable(
 
     ax: axis of figures
     """
-    warnings.warn("This function will be removed in future releases. ",
+    warnings.warn("This function will be removed in future releases. "
+                  "Please use plot_without_vis_spec without providing "
+                  "grouping_list",
                   DeprecationWarning)
 
     # import measurement data
