@@ -1,7 +1,7 @@
 """Code regarding the PEtab YAML config files"""
 
 import os
-from pathlib import Path
+from pathlib import Path as _Path
 from typing import Any, Dict, Union, Optional, List
 
 import jsonschema
@@ -211,7 +211,7 @@ def create_problem_yaml(
         visualization_files = [visualization_files]
 
     if relative_paths:
-        yaml_file_dir = Path(yaml_file).parent
+        yaml_file_dir = _Path(yaml_file).parent
 
         def get_rel_to_yaml(paths: Union[List[str], None]):
             if paths is None:

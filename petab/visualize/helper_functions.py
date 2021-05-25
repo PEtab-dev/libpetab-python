@@ -20,7 +20,7 @@ from ..C import *
 
 from typing import Dict, List, Optional, Tuple, Union
 
-sns.set()
+# sns.set() This messes up plotting settings if one just imports this file
 
 # for typehints
 IdsList = List[str]
@@ -42,7 +42,7 @@ def import_from_files(
     """
     Helper function for plotting data and simulations, which imports data
     from PEtab files. If `visualization_file_path` is not provided, the
-    visualisation specification DataFrame will be generated automatically.
+    visualization specification DataFrame will be generated automatically.
 
     For documentation, see main function plot_data_and_simulation()
 
@@ -50,6 +50,8 @@ def import_from_files(
         A tuple of experimental data, experimental conditions,
         visualization specification and simulation data DataFrames.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # import measurement data and experimental condition
     exp_data = petab.get_measurement_df(data_file_path)
@@ -95,6 +97,8 @@ def check_vis_spec_consistency(
         group_by:
             Specifies the grouping of data to plot.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # We have no vis_spec file. Check how data should be grouped
     group_by = ''
@@ -187,6 +191,9 @@ def create_dataset_id_list(
 
     For additional documentation, see main function plot_data_and_simulation()
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     # create a column of dummy datasetIDs and legend entries: preallocate
     dataset_id_column = []
     legend_dict = {}
@@ -197,7 +204,7 @@ def create_dataset_id_list(
     tmp_obs = list(exp_data[OBSERVABLE_ID])
     for ind, cond_id in enumerate(tmp_simcond):
         # create and add dummy datasetID
-        dataset_id = tmp_simcond[ind] + '_' + tmp_obs[ind]
+        dataset_id = cond_id + '_' + tmp_obs[ind]
         dataset_id_column.append(dataset_id)
 
         # create nicer legend entries from condition names instead of IDs
@@ -272,6 +279,77 @@ def create_dataset_id_list(
     return exp_data, dataset_id_list, legend_dict, yvalues_dict
 
 
+def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
+    """
+    generate DATASET_ID column from condition_ids and observable_ids
+
+    Parameters
+    ----------
+    exp_data
+
+    Returns
+    -------
+
+    """
+
+    # create a column of dummy datasetIDs and legend entries: preallocate
+    dataset_id_column = []
+
+    # loop over experimental data table, create datasetId for each entry
+    tmp_simcond = list(exp_data[SIMULATION_CONDITION_ID])
+    tmp_obs = list(exp_data[OBSERVABLE_ID])
+
+    for ind, cond_id in enumerate(tmp_simcond):
+        # create and add dummy datasetID
+        dataset_id = cond_id + '_' + tmp_obs[ind]
+        dataset_id_column.append(dataset_id)
+
+    return dataset_id_column
+
+
+def create_dataset_id_list_new(df: pd.DataFrame,
+                               group_by: str,
+                               id_list: List[IdsList]
+                               ) -> List[IdsList]:
+    """
+    Create dataset id list.
+
+    Parameters:
+        df: measurements or simulations df
+        group_by: defines  grouping of data to plot
+        id_list:
+
+    Returns:
+        A list of datasetIds
+
+    """
+    if DATASET_ID not in df.columns:
+        raise ValueError(f'{DATASET_ID} column must be in exp_data DataFrame')
+
+    dataset_id_list = []
+
+    if group_by == 'simulation':
+        groupping_col = SIMULATION_CONDITION_ID
+    elif group_by == 'observable':
+        groupping_col = OBSERVABLE_ID
+        if id_list is None:
+            # this is the default case. If no grouping is specified,
+            # all observables are plotted. One observable per plot.
+            unique_obs_list = df[OBSERVABLE_ID].unique()
+            id_list = [[obs_id] for obs_id in unique_obs_list]
+    else:
+        raise ValueError
+
+    for sublist in id_list:
+        plot_id_list = []
+        for cond_id in sublist:
+            plot_id_list.extend(list(
+                df[df[groupping_col] == cond_id][
+                    DATASET_ID].unique()))
+        dataset_id_list.append(plot_id_list)
+    return dataset_id_list
+
+
 def create_figure(
         uni_plot_ids: np.ndarray,
         plots_to_file: bool) -> Tuple[plt.Figure,
@@ -292,6 +370,8 @@ def create_figure(
     fig: Figure object of the created plot.
     ax: Axis object of the created plot.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # Set Options for plots
     # possible options: see: plt.rcParams.keys()
@@ -415,6 +495,8 @@ def get_vis_spec_dependent_columns_dict(
         columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for visualization
         specification file.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # check consistency of settings
     group_by = check_vis_spec_consistency(
@@ -533,6 +615,9 @@ def create_or_update_vis_spec(
         A tuple of visualization specification DataFrame and experimental
         DataFrame.
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     if vis_spec is None:
         # create dataframe
         exp_data, columns_dict = \
@@ -572,7 +657,9 @@ def create_or_update_vis_spec(
             vis_spec = expand_vis_spec_settings(vis_spec, columns_dict)
 
         # if dataset_id is there, then nothing to expand?
-    vis_spec[PLOT_TYPE_DATA] = plotted_noise
+
+    if PLOT_TYPE_DATA not in vis_spec.columns:
+        vis_spec[PLOT_TYPE_DATA] = plotted_noise
 
     # check columns, and add non-mandatory default columns
     vis_spec = check_ex_visu_columns(vis_spec, exp_data, exp_conditions)
@@ -589,6 +676,9 @@ def check_ex_visu_columns(vis_spec: pd.DataFrame,
     Returns:
         Updated visualization specification DataFrame
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     if PLOT_NAME not in vis_spec.columns:
         vis_spec[PLOT_NAME] = ''
     if PLOT_TYPE_SIMULATION not in vis_spec.columns:
@@ -658,6 +748,9 @@ def check_ex_exp_columns(
         A tuple of experimental DataFrame, list of datasetIds and
         dictionary of plot legends, corresponding to the datasetIds
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     data_type = MEASUREMENT
     if sim:
         data_type = SIMULATION
@@ -692,6 +785,7 @@ def check_ex_exp_columns(
                         value='')
     legend_dict = {}
     if DATASET_ID not in exp_data.columns:
+        # TODO: ?
         if dataset_id_list is not None:
             exp_data.insert(loc=4, column=DATASET_ID,
                             value=dataset_id_list)
@@ -712,6 +806,7 @@ def check_ex_exp_columns(
                 sim_cond_id_list, sim_cond_num_list, observable_id_list,
                 observable_num_list, exp_data, exp_conditions, group_by)
 
+    # if DATASET_ID is in exp_data.columns, legend dict will be empty
     return exp_data, dataset_id_list, legend_dict
 
 
@@ -723,6 +818,9 @@ def handle_dataset_plot(plot_spec: pd.Series,
     """
     Handle dataset plot
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     # get datasetID and independent variable of first entry of plot1
     dataset_id = plot_spec[DATASET_ID]
     indep_var = plot_spec[X_VALUES]
@@ -795,6 +893,9 @@ def matches_plot_spec(df: pd.DataFrame,
             Boolean series that can be used for subsetting of the passed
             dataframe
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
+
     subset = (
         (df[col_id] == x_value) &
         (df[DATASET_ID] == plot_spec[DATASET_ID])
@@ -843,6 +944,8 @@ def get_data_to_plot(plot_spec: pd.Series,
             Contains the data which should be plotted
             (Mean and Std)
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
 
     # create empty dataframe for means and SDs
     data_to_plot = pd.DataFrame(

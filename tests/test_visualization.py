@@ -337,10 +337,12 @@ def test_visualization_warnings(data_file_Isensee, condition_file_Isensee):
                                  sim_cond_num_list=sim_cond_num_list)
 
         # test correct number of warnings
-        assert len(warnMsg) == 4
+        warnings_list = [msg for msg in warnMsg if
+                         not issubclass(msg.category, DeprecationWarning)]
+        assert len(warnings_list) == 4
 
         # test that all warnings were indeed UserWarnings
-        for i_warn in warnMsg:
+        for i_warn in warnings_list:
             assert issubclass(i_warn.category, UserWarning)
 
 
