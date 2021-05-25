@@ -242,7 +242,7 @@ def plot_measurements_by_observable(
     plot measurement data grouped by observable ID.
     A simple wrapper around the more complex function plot_data_and_simulation.
 
-    Parameters:
+    Parameters
     ----------
 
     data_file_path:
@@ -253,8 +253,8 @@ def plot_measurements_by_observable(
         String indicating how noise should be visualized:
         ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
 
-    Return:
-    ----------
+    Returns
+    -------
 
     ax: axis of figures
     """

@@ -366,7 +366,8 @@ class MPLPlotter(Plotter):
         """
         Square plot with equal range for scatter plots.
 
-        Returns:
+        Returns
+        -------
             Updated axis object.
         """
 
