@@ -275,7 +275,7 @@ class Figure:
         output_file_path: File path to which the generated visualization
                           specification is saved.
         """
-        # what if datasetIds were generated?
+        # TODO: what if datasetIds were generated?
 
         warnings.warn(f'Note: please check that {DATASET_ID} column '
                       f'corresponds to {DATASET_ID} column in Measurement '

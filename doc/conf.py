@@ -28,6 +28,7 @@ release = 'latest'
 
 # -- Custom pre-build --------------------------------------------------------
 
+
 subprocess.run(['python', 'md2rst.py'])
 
 # -- General configuration ---------------------------------------------------
