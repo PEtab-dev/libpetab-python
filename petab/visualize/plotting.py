@@ -75,7 +75,7 @@ class DataPlot:
                  plot_settings: dict):
         """
         Visualization specification of a plot of one data series, e.g. for
-        an individual line on a subplot
+        an individual line on a subplot.
 
         Parameters
         ----------
@@ -113,7 +113,7 @@ class Subplot:
                  plot_settings: dict,
                  dataplots: Optional[List[DataPlot]] = None):
         """
-        Visualization specification of a subplot
+        Visualization specification of a subplot.
 
         Parameters
         ----------
@@ -303,7 +303,7 @@ class Figure:
 
 class DataProvider:
     """
-    Handles data selection
+    Handles data selection.
     """
     def __init__(self,
                  exp_conditions: pd.DataFrame,
@@ -356,7 +356,7 @@ class DataProvider:
                                     dataplot: DataPlot
                                     ) -> Tuple[np.ndarray, str, pd.Series]:
         """
-        Get independant variable values
+        Get independent variable values.
 
         Parameters
         ----------
@@ -426,7 +426,7 @@ class DataProvider:
     def get_data_to_plot(self, dataplot: DataPlot, provided_noise: bool
                          ) -> DataSeries:
         """
-        Get data to plot
+        Get data to plot.
 
         Parameters
         ----------
@@ -581,7 +581,7 @@ class VisSpecParser:
     def create_subplot(plot_id: str,
                        subplot_vis_spec: pd.DataFrame) -> Subplot:
         """
-        Create subplot
+        Create subplot.
 
         Parameters
         ----------
