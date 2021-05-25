@@ -374,7 +374,8 @@ def plot_with_vis_spec(
     ----------
     vis_spec_df: visualization table
     conditions_df:
-        A condition DataFrame in the PEtab format or path to the condition file.
+        A condition DataFrame in the PEtab format or path to the condition
+        file.
     measurements_df:
         A measurement DataFrame in the PEtab format or path to the data file.
     simulations_df:

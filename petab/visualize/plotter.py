@@ -131,7 +131,7 @@ class MPLPlotter(Plotter):
     def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData: str):
         """
         Generate barplot.
-        
+
         Parameters
         ----------
         ax
@@ -181,7 +181,7 @@ class MPLPlotter(Plotter):
     def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
         """
         Generate scatterplot.
-        
+
         Parameters
         ----------
         ax
@@ -303,7 +303,7 @@ class MPLPlotter(Plotter):
         Parameters
         ----------
         subplot_dir:
-            path to the folder where single subplots should be saved.
+            A path to the folder where single subplots should be saved.
             PlotIDs will be taken as file names.
 
         Returns
@@ -389,7 +389,7 @@ class MPLPlotter(Plotter):
 
 class SeabornPlotter(Plotter):
     """
-    seaborn wrapper
+    Seaborn wrapper.
     """
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
