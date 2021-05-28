@@ -2,6 +2,13 @@
 
 ## 0.1 series
 
+### 0.1.19
+
+* Visualization: refactoring (#58) including various bug fixes
+* Validation: Fixed detection of missing observable/noise parameter overrides
+  (#64)
+* Optional relative paths in generated YAML (#57)
+
 ### 0.1.18
 
 * Fixed various documentation issues
