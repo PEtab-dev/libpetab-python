@@ -289,13 +289,13 @@ def assert_overrides_match_parameter_count(
         actual = len(split_parameter_replacement_list(
             row.get(OBSERVABLE_PARAMETERS, None)))
         # No overrides are also allowed
-        if actual not in [0, expected]:
+        if actual != expected:
             formula = observable_df.loc[row[OBSERVABLE_ID], OBSERVABLE_FORMULA]
             raise AssertionError(
                 f'Mismatch of observable parameter overrides for '
                 f'{row[OBSERVABLE_ID]} ({formula})'
                 f'in:\n{row}\n'
-                f'Expected 0 or {expected} but got {actual}')
+                f'Expected {expected} but got {actual}')
 
         # check noise parameters
         replacements = split_parameter_replacement_list(
@@ -304,10 +304,10 @@ def assert_overrides_match_parameter_count(
             expected = noise_parameters_count[row[OBSERVABLE_ID]]
 
             # No overrides are also allowed
-            if not (len(replacements) == 0 or len(replacements) == expected):
+            if len(replacements) != expected:
                 raise AssertionError(
                     f'Mismatch of noise parameter overrides in:\n{row}\n'
-                    f'Expected 0 or {expected} but got {actual}')
+                    f'Expected {expected} but got {actual}')
         except KeyError:
             # no overrides defined, but a numerical sigma can be provided
             # anyways
