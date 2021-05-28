@@ -50,11 +50,29 @@ class DataSeries:
         self.measurements_to_plot = measurements_to_plot
         self.simulations_to_plot = simulations_to_plot
 
-    def add_x_offset(self, offset):
+    def add_x_offset(self, offset) -> None:
+        """
+        Offset for the independent variable.
+
+        Parameters
+        ----------
+        offset:
+            Offset value.
+
+        """
         if self.conditions is not None:
             self.conditions += offset
 
-    def add_y_offset(self, offset):
+    def add_y_offset(self, offset) -> None:
+        """
+        Offsets for the observable.
+
+        Parameters
+        ----------
+        offset:
+            Offset value.
+
+        """
         if self.measurements_to_plot is not None:
             self.measurements_to_plot['mean'] = \
                 self.measurements_to_plot['mean'] + offset
@@ -65,22 +83,34 @@ class DataSeries:
             self.simulations_to_plot = [x + offset for x in
                                         self.simulations_to_plot]
 
-    def add_offsets(self, x_offset=0, y_offset=0):
+    def add_offsets(self, x_offset=0, y_offset=0) -> None:
+        """
+        Data offsets.
+        Parameters
+        ----------
+        x_offset:
+            Offset for the independent variable.
+        y_offset:
+            Offsets for the observable.
+        """
         self.add_x_offset(x_offset)
         self.add_y_offset(y_offset)
 
 
 class DataPlot:
+    """
+    Visualization specification of a plot of one data series, e.g. for
+    an individual line on a subplot.
+    """
     def __init__(self,
                  plot_settings: dict):
         """
-        Visualization specification of a plot of one data series, e.g. for
-        an individual line on a subplot.
+        Constructor.
 
         Parameters
         ----------
         plot_settings: A plot spec for one dataplot
-                       (only VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS)
+            (only VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS)
         """
 
         for key, val in plot_settings.items():
@@ -108,20 +138,24 @@ class DataPlot:
 
 
 class Subplot:
+    """
+    Visualization specification of a subplot.
+    """
     def __init__(self,
                  plot_id: str,
                  plot_settings: dict,
                  dataplots: Optional[List[DataPlot]] = None):
         """
-        Visualization specification of a subplot.
+        Constructor.
 
         Parameters
         ----------
-        plot_id: Plot id
-        plot_settings: Plot spec for a subplot
-                       (only VISUALIZATION_DF_SUBPLOT_LEVEL_COLS)
+        plot_id:
+            Plot id.
+        plot_settings:
+            Plot spec for a subplot (only VISUALIZATION_DF_SUBPLOT_LEVEL_COLS).
         dataplots:
-            A list of data plots that should be plotted on one subplot
+            A list of data plots that should be plotted on one subplot.
         """
         # parameters of a specific subplot
 
@@ -190,7 +224,16 @@ class Subplot:
                               + ', '.join(VISUALIZATION_DF_SUBPLOT_LEVEL_COLS))
         return cls(plot_id, vis_spec_dict, dataplots)
 
-    def add_dataplot(self, dataplot: DataPlot):
+    def add_dataplot(self, dataplot: DataPlot) -> None:
+        """
+        Add data plot.
+
+        Parameters
+        ----------
+        dataplot:
+            Data plot visualization settings
+
+        """
         self.data_plots.append(dataplot)
 
     def set_axes_limits(self,
@@ -204,20 +247,25 @@ class Subplot:
 
         Parameters
         ----------
-        xlim: x axis limits
-        ylim: y axis limits
+        xlim:
+            X axis limits.
+        ylim:
+            Y axis limits.
         """
         self.xlim = xlim
         self.ylim = ylim
 
 
 class Figure:
+    """
+    Visualization specification of a figure. Contains information regarding
+    how data should be visualized.
+    """
     def __init__(self, subplots: Optional[List[Subplot]] = None,
                  size: Tuple = (20, 15),
                  title: Optional[Tuple] = None):
         """
-        Visualization specification of a figure. Contains information
-        regarding how data should be visualized.
+        Constructor.
 
         Parameters
         ----------
@@ -241,22 +289,33 @@ class Figure:
     def num_subplots(self) -> int:
         return len(self.subplots)
 
-    def add_subplot(self, subplot: Subplot):
+    def add_subplot(self, subplot: Subplot) -> None:
+        """
+        Add subplot.
+
+        Parameters
+        ----------
+        subplot:
+            Subplot visualization settings.
+
+        """
         self.subplots.append(subplot)
 
     def set_axes_limits(self,
                         xlim: Optional[Tuple[Optional[Real],
                                              Optional[Real]]] = None,
                         ylim: Optional[Tuple[Optional[Real],
-                                             Optional[Real]]] = None):
+                                             Optional[Real]]] = None) -> None:
         """
         Set axes limits for all subplots. If xlim or ylim or any of the tuple
         items is None, corresponding limit is left unchanged.
 
         Parameters
         ----------
-        xlim: x axis limits
-        ylim: y axis limits
+        xlim:
+            X axis limits.
+        ylim:
+            Y axis limits.
         """
 
         for subplot in self.subplots:
@@ -264,7 +323,7 @@ class Figure:
 
     def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv') -> None:
         """
-        Save full Visualization specification table
+        Save full Visualization specification table.
 
         Note that datasetId column in the resulting table might have been
         generated even though datasetId column in Measurement table is missing
@@ -272,8 +331,9 @@ class Figure:
 
         Parameters
         ----------
-        output_file_path: File path to which the generated visualization
-                          specification is saved.
+        output_file_path:
+            File path to which the generated visualization specification is
+            saved.
         """
         # TODO: what if datasetIds were generated?
 
@@ -329,13 +389,13 @@ class DataProvider:
         ----------
             df:
                 A pandas data frame to subset, can be from measurement file or
-                simulation file
+                simulation file.
             plot_spec:
-                A visualization spec from the visualization file
+                A visualization spec from the visualization file.
 
         Returns
         -------
-            index:
+            subset:
                 Boolean series that can be used for subsetting of the passed
                 dataframe
         """
@@ -362,8 +422,9 @@ class DataProvider:
         ----------
         data_df:
             A pandas data frame to subset, can be from measurement file or
-            simulation file
+            simulation file.
         dataplot:
+            Data plot visualization settings.
 
         Returns
         -------
@@ -431,10 +492,10 @@ class DataProvider:
         Parameters
         ----------
         dataplot:
-            A DataPlot template with corresponding visualization settings
+            A DataPlot template with corresponding visualization settings.
         provided_noise:
             True if numeric values for the noise level are provided in the
-            measurement table
+            measurement table.
         """
 
         measurements_to_plot = None
@@ -541,7 +602,6 @@ class VisSpecParser:
     information regarding how data should be visualized. In addition to the
     Figure instance, a DataProvider instance is created that will be
     responsible for the data selection and manipulation.
-
     """
     def __init__(self,
                  conditions_data: Union[str, pd.DataFrame],
@@ -585,10 +645,11 @@ class VisSpecParser:
 
         Parameters
         ----------
-        plot_id: Plot id
+        plot_id:
+            Plot id.
         subplot_vis_spec:
             A visualization specification DataFrame that contains specification
-            for the subplot and corresponding dataplots
+            for the subplot and corresponding dataplots.
 
         Returns
         -------
@@ -698,6 +759,7 @@ class VisSpecParser:
         Returns
         -------
         A figure template with visualization settings and a data provider
+
         """
 
         if ids_per_plot is None:
@@ -810,11 +872,12 @@ class VisSpecParser:
 
         Parameters
         ----------
-        dataset_id: dataset id
+        dataset_id:
+            Dataset id
 
         Returns
         -------
-        A legend
+        A legend.
         """
         # relies on the fact that dataset ids were created based on cond_ids
         # and obs_ids. Therefore, in the following query all pairs will be
@@ -833,7 +896,7 @@ class VisSpecParser:
     def _expand_vis_spec_settings(self, vis_spec: pd.DataFrame):
         """
         Expand visualization specification for the case when DATASET_ID is not
-        in vis_spec.columns
+        in vis_spec.columns.
 
         Parameters
         -------
@@ -843,7 +906,7 @@ class VisSpecParser:
 
         Returns
         -------
-            A visualization specification DataFrame
+        A visualization specification DataFrame.
         """
         if DATASET_ID in vis_spec.columns:
             raise ValueError(f"visualization specification expansion is "
@@ -887,14 +950,16 @@ class VisSpecParser:
 
         Parameters
         ----------
-        obs_id: Observable id
-        settings: Additional visualization settings. For each key that is a
-                  valid visualization specification column name, the setting
-                  will be added to the resulting visualization specification
+        obs_id:
+            Observable id.
+        settings:
+            Additional visualization settings. For each key that is a
+            valid visualization specification column name, the setting
+            will be added to the resulting visualization specification.
 
         Returns
         -------
-        A visualization specification DataFrame
+        A visualization specification DataFrame.
         """
         columns_to_expand = [PLOT_ID, PLOT_NAME, PLOT_TYPE_SIMULATION,
                              PLOT_TYPE_DATA, X_VALUES, X_OFFSET, X_LABEL,

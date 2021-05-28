@@ -19,7 +19,8 @@ class Plotter(ABC):
     Attributes
     ----------
 
-    figure: Figure instance that serves as a markup for the figure that
+    figure:
+        Figure instance that serves as a markup for the figure that
         should be generated
     data_provider:
             data provider
@@ -41,16 +42,21 @@ class MPLPlotter(Plotter):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData:str):
+    def generate_lineplot(self, ax: 'matplotlib.pyplot.Axes',
+                          dataplot: DataPlot,
+                          plotTypeData:str) -> None:
         """
         Generate lineplot.
         It is possible to plot only data or only simulation or both.
 
         Parameters
         ----------
-        ax: 
+        ax:
+            Axis object.
         dataplot:
+            Visualization settings for the plot.
         plotTypeData:
+            Specifies how replicates should be handled.
         """
 
         simu_colors = None
@@ -129,15 +135,20 @@ class MPLPlotter(Plotter):
                 label=label_base + " simulation", color=simu_colors
             )
 
-    def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData: str):
+    def generate_barplot(self, ax: 'matplotlib.pyplot.Axes',
+                         dataplot: DataPlot,
+                         plotTypeData: str) -> None:
         """
         Generate barplot.
 
         Parameters
         ----------
-        ax
-        dataplot
-        plotTypeData
+        ax:
+            Axis object.
+        dataplot:
+            Visualization settings for the plot.
+        plotTypeData:
+            Specifies how replicates should be handled.
         """
         # TODO: plotTypeData == REPLICATE?
         # set type of noise
@@ -179,15 +190,20 @@ class MPLPlotter(Plotter):
             ax.bar(x_name, data_to_plot.simulations_to_plot, color='white',
                    edgecolor=simu_colors, **bar_kwargs, label='simulation')
 
-    def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
+    def generate_scatterplot(self, ax: 'matplotlib.pyplot.Axes',
+                             dataplot: DataPlot,
+                             plotTypeData: str) -> None:
         """
         Generate scatterplot.
 
         Parameters
         ----------
-        ax
-        dataplot
-        plotTypeData
+        ax:
+            Axis object.
+        dataplot:
+            Visualization settings for the plot.
+        plotTypeData:
+            Specifies how replicates should be handled.
         """
 
         data_to_plot = self.data_provider.get_data_to_plot(
@@ -203,14 +219,16 @@ class MPLPlotter(Plotter):
 
     def generate_subplot(self,
                          ax,
-                         subplot: Subplot):
+                         subplot: Subplot) -> None:
         """
         Generate subplot based on markup provided by subplot.
 
         Parameters
         ----------
-        ax
-        subplot
+        ax:
+            Axis object.
+        subplot:
+            Subplot visualization settings.
         """
 
         # set yScale
@@ -309,8 +327,10 @@ class MPLPlotter(Plotter):
 
         Returns
         -------
-        ax: Axis object of the created plot.
-        None: In case subplots are saved to file.
+        ax:
+            Axis object of the created plot.
+        None:
+            In case subplots are saved to file.
         """
 
         # Set Options for plots
