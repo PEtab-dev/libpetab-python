@@ -764,9 +764,9 @@ class VisSpecParser:
             Grouping type.
             Possible values: 'dataset', 'observable', 'simulation'
         id_list:
-            Grouping list. Each sublist corresponds to a plot, each subplot
+            Grouping list. Each sublist corresponds to a subplot and
             contains the Ids of datasets or observables or simulation
-            conditions for this plot.
+            conditions for this subplot.
 
         Returns
         -------

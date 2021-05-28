@@ -20,4 +20,6 @@ API Reference
    petab.visualize.data_overview
    petab.visualize.helper_functions
    petab.visualize.plot_data_and_simulation
+   petab.visualize.plotter
+   petab.visualize.plotting
    petab.visualize.plotting_config

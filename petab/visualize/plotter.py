@@ -13,17 +13,18 @@ from ..C import *
 
 
 class Plotter(ABC):
-    def __init__(self, figure: Figure, data_provider: DataProvider):
-        """
-        Plotter base class, not functional on its own.
+    """
+    Plotter base class, not functional on its own.
 
-        Parameters
-        ----------
-        figure: Figure instance that serves as a markup for the figure that
-            should be generated
-        data_provider:
-                data provider
-        """
+    Attributes
+    ----------
+
+    figure: Figure instance that serves as a markup for the figure that
+        should be generated
+    data_provider:
+            data provider
+    """
+    def __init__(self, figure: Figure, data_provider: DataProvider):
         self.figure = figure
         self.data_provider = data_provider
 
@@ -35,21 +36,21 @@ class Plotter(ABC):
 
 class MPLPlotter(Plotter):
     """
-    matplotlib wrapper
+    Matplotlib wrapper
     """
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
+    def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData:str):
         """
         Generate lineplot.
         It is possible to plot only data or only simulation or both.
 
         Parameters
         ----------
-        ax
-        dataplot
-        plotTypeData
+        ax: 
+        dataplot:
+        plotTypeData:
         """
 
         simu_colors = None

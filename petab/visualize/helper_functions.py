@@ -20,7 +20,7 @@ from ..C import *
 
 from typing import Dict, List, Optional, Tuple, Union
 
-# sns.set() This messes up plotting settings if one just imports this file
+# sns.set() This messes up plotting settings even if one just imports this file
 
 # for typehints
 IdsList = List[str]
@@ -281,15 +281,17 @@ def create_dataset_id_list(
 
 def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
     """
-    generate DATASET_ID column from condition_ids and observable_ids
+    Generate DATASET_ID column from condition_ids and observable_ids.
 
     Parameters
     ----------
-    exp_data
+    exp_data:
+        A measurement (simulation) DataFrame in the PEtab format.
 
     Returns
     -------
-
+        A list with generated datasetIds for each entry in the measurement
+        (simulation) DataFrame
     """
 
     # create a column of dummy datasetIDs and legend entries: preallocate
@@ -312,12 +314,16 @@ def create_dataset_id_list_new(df: pd.DataFrame,
                                id_list: List[IdsList]
                                ) -> List[IdsList]:
     """
-    Create dataset id list.
+    Create dataset id list from a list of simulation condition ids or
+    observable ids.
 
     Parameters:
-        df: measurements or simulations df
-        group_by: defines  grouping of data to plot
+        df: Measurements or simulations df.
+        group_by: Defines  grouping of data to plot.
         id_list:
+            Grouping list. Each sublist corresponds to a subplot in a figure,
+            and contains the Ids of observables or simulation conditions for
+            the subplot.
 
     Returns:
         A list of datasetIds
@@ -547,13 +553,22 @@ def get_vis_spec_dependent_columns_dict(
     return exp_data, columns_dict
 
 
-def expand_vis_spec_settings(vis_spec, columns_dict):
+def expand_vis_spec_settings(vis_spec: pd.DataFrame, columns_dict):
     """
+    Expand visualization specification.
     only makes sense if DATASET_ID is not in vis_spec.columns?
 
-    Returns:
-        A visualization specification DataFrame
+    Parameters
+    ----------
+    vis_spec: A visualization specification DataFrame.
+    columns_dict:
+
+    Returns
+    -------
+        Expanded visualization specification DataFrame
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
     columns_to_expand = [PLOT_NAME, PLOT_TYPE_SIMULATION, PLOT_TYPE_DATA,
                          X_VALUES, X_OFFSET, X_LABEL, X_SCALE, Y_OFFSET,
                          Y_LABEL, Y_SCALE, LEGEND_ENTRY]
