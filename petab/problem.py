@@ -271,7 +271,8 @@ class Problem:
                  parameter_file: Optional[str] = None,
                  visualization_file: Optional[str] = None,
                  observable_file: Optional[str] = None,
-                 yaml_file: Optional[str] = None) -> None:
+                 yaml_file: Optional[str] = None,
+                 relative_paths: bool = True,) -> None:
         """
         Write PEtab tables to files for this problem
 
@@ -289,6 +290,9 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
+            relative_paths: whether all paths in the YAML file should be
+            relative to the location of the YAML file. If `False`, then paths
+            are left unchanged.
 
         Raises:
             ValueError:
@@ -344,7 +348,8 @@ class Problem:
             yaml.create_problem_yaml(sbml_file, condition_file,
                                      measurement_file, parameter_file,
                                      observable_file, yaml_file,
-                                     visualization_file)
+                                     visualization_file,
+                                     relative_paths=relative_paths,)
 
     def get_optimization_parameters(self):
         """

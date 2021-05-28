@@ -1,6 +1,7 @@
 """Code regarding the PEtab YAML config files"""
 
 import os
+from pathlib import Path as _Path
 from typing import Any, Dict, Union, Optional, List
 
 import jsonschema
@@ -172,14 +173,16 @@ def write_yaml(yaml_config: Dict[str, Any], filename: str) -> None:
                   sort_keys=False)
 
 
-def create_problem_yaml(sbml_files: Union[str, List[str]],
-                        condition_files: Union[str, List[str]],
-                        measurement_files: Union[str, List[str]],
-                        parameter_file: str,
-                        observable_files: Union[str, List[str]],
-                        yaml_file: str,
-                        visualization_files: Optional[Union[str, List[str]]]
-                        = None) -> None:
+def create_problem_yaml(
+        sbml_files: Union[str, List[str]],
+        condition_files: Union[str, List[str]],
+        measurement_files: Union[str, List[str]],
+        parameter_file: str,
+        observable_files: Union[str, List[str]],
+        yaml_file: str,
+        visualization_files: Optional[Union[str, List[str]]] = None,
+        relative_paths: bool = True,
+) -> None:
     """
     Create and write default YAML file for a single PEtab problem
 
@@ -192,6 +195,9 @@ def create_problem_yaml(sbml_files: Union[str, List[str]],
         yaml_file: Path to which YAML file should be written
         visualization_files: Optional Path to visualization file or list of
         such
+        relative_paths: whether all paths in the YAML file should be relative
+        to the location of the YAML file. If `False`, then paths are left
+        unchanged.
     """
     if isinstance(sbml_files, str):
         sbml_files = [sbml_files]
@@ -203,6 +209,25 @@ def create_problem_yaml(sbml_files: Union[str, List[str]],
         observable_files = [observable_files]
     if isinstance(visualization_files, str):
         visualization_files = [visualization_files]
+
+    if relative_paths:
+        yaml_file_dir = _Path(yaml_file).parent
+
+        def get_rel_to_yaml(paths: Union[List[str], None]):
+            if paths is None:
+                return paths
+            return [
+                os.path.relpath(path, start=yaml_file_dir)
+                for path in paths
+            ]
+
+        sbml_files = get_rel_to_yaml(sbml_files)
+        condition_files = get_rel_to_yaml(condition_files)
+        measurement_files = get_rel_to_yaml(measurement_files)
+        observable_files = get_rel_to_yaml(observable_files)
+        visualization_files = get_rel_to_yaml(visualization_files)
+
+        parameter_file = get_rel_to_yaml([parameter_file])[0]
 
     problem_dic = {CONDITION_FILES: condition_files,
                    MEASUREMENT_FILES: measurement_files,

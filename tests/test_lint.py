@@ -122,38 +122,61 @@ def test_assert_overrides_match_parameter_count():
         SIMULATION_CONDITION_ID: ['condition1', 'condition1'],
         PREEQUILIBRATION_CONDITION_ID: ['', ''],
         TIME: [1.0, 2.0],
-        OBSERVABLE_PARAMETERS: ['', ''],
-        NOISE_PARAMETERS: ['', '']
+        OBSERVABLE_PARAMETERS: ['', 'override1;override2'],
+        NOISE_PARAMETERS: ['noiseParOverride', '']
     })
 
-    # No overrides
+    # valid
     petab.assert_overrides_match_parameter_count(
         measurement_df_orig, observable_df)
 
-    # Sigma override
+    # 0 noise parameters given, 1 expected
     measurement_df = measurement_df_orig.copy()
-    measurement_df.loc[0, NOISE_PARAMETERS] = 'noiseParOverride'
-    petab.assert_overrides_match_parameter_count(
-        measurement_df, observable_df)
+    measurement_df.loc[0, NOISE_PARAMETERS] = ''
+    with pytest.raises(AssertionError):
+        petab.assert_overrides_match_parameter_count(
+            measurement_df, observable_df)
 
+    # 2 noise parameters given, 1 expected
+    measurement_df = measurement_df_orig.copy()
     measurement_df.loc[0, NOISE_PARAMETERS] = 'noiseParOverride;oneTooMuch'
     with pytest.raises(AssertionError):
         petab.assert_overrides_match_parameter_count(
             measurement_df, observable_df)
 
-    measurement_df.loc[0, NOISE_PARAMETERS] = 'noiseParOverride'
+    # 1 noise parameter given, 0 allowed
+    measurement_df = measurement_df_orig.copy()
     measurement_df.loc[1, NOISE_PARAMETERS] = 'oneTooMuch'
     with pytest.raises(AssertionError):
         petab.assert_overrides_match_parameter_count(
             measurement_df, observable_df)
 
-    # Observable override
+    # 0 observable parameters given, 2 expected
     measurement_df = measurement_df_orig.copy()
-    measurement_df.loc[1, OBSERVABLE_PARAMETERS] = 'override1;override2'
-    petab.assert_overrides_match_parameter_count(
-        measurement_df, observable_df)
+    measurement_df.loc[1, OBSERVABLE_PARAMETERS] = ''
+    with pytest.raises(AssertionError):
+        petab.assert_overrides_match_parameter_count(
+            measurement_df, observable_df)
 
+    # 1 observable parameters given, 2 expected
+    measurement_df = measurement_df_orig.copy()
     measurement_df.loc[1, OBSERVABLE_PARAMETERS] = 'oneMissing'
+    with pytest.raises(AssertionError):
+        petab.assert_overrides_match_parameter_count(
+            measurement_df, observable_df)
+
+    # 3 observable parameters given, 2 expected
+    measurement_df = measurement_df_orig.copy()
+    measurement_df.loc[1, OBSERVABLE_PARAMETERS] = \
+        'override1;override2;oneTooMuch'
+    with pytest.raises(AssertionError):
+        petab.assert_overrides_match_parameter_count(
+            measurement_df, observable_df)
+
+    # 1 observable parameters given, 0 expected
+    measurement_df = measurement_df_orig.copy()
+    measurement_df.loc[0, OBSERVABLE_PARAMETERS] = \
+        'oneTooMuch'
     with pytest.raises(AssertionError):
         petab.assert_overrides_match_parameter_count(
             measurement_df, observable_df)
