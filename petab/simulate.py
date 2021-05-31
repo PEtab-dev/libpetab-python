@@ -10,6 +10,8 @@ import sympy as sp
 import tempfile
 from typing import Dict, Optional, Union
 
+__all__ = ['Simulator', 'sample_noise']
+
 
 class Simulator(abc.ABC):
     """Base class that specific simulators should inherit.

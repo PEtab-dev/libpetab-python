@@ -11,6 +11,9 @@ from ..C import *
 from numbers import Number, Real
 import warnings
 
+__all__ = ['DataSeries', 'DataPlot', 'Subplot', 'Figure', 'DataProvider',
+           'VisSpecParser']
+
 # for typehints
 IdsList = List[str]
 NumList = List[int]
@@ -432,12 +435,12 @@ class DataProvider:
             A name of the column from Measurement (Simulation) table, which
             specifies independent variable values (depends on the xValues entry
             of visualization specification).
-            possible values: TIME (independent variable values will be taken
-                                  from the TIME column of Measurement
-                                  (Simulation) table)
-                             SIMULATION_CONDITION_ID (independent variable
-                             values will be taken from one of the columns of
-                             Condition table)
+            Possible values:
+                TIME (independent variable values will be taken from the TIME \
+                column of Measurement (Simulation) table)
+                SIMULATION_CONDITION_ID (independent variable values will be \
+                taken from one of the columns of Condition table)
+
         uni_condition_id:
             Time points
             or
@@ -740,14 +743,13 @@ class VisSpecParser:
             A list of lists. Each sublist corresponds to a plot, each subplot
             contains the Ids of datasets or observables or simulation
             conditions for this plot.
-            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
-                                         ['dataset_1', 'dataset_4',
-                                          'dataset_5']]
+                | e.g. dataset_ids_per_plot =
+                |     [['dataset_1', 'dataset_2'], ['dataset_1', 'dataset_4', \
+                'dataset_5']]
 
-            or cond_id_list = [['model1_data1'],
-                               ['model1_data2', 'model1_data3'],
-                               ['model1_data4', 'model1_data5'],
-                               ['model1_data6']]
+                | or cond_id_list =
+                |    [['model1_data1'], ['model1_data2', 'model1_data3'],\
+                 ['model1_data4', 'model1_data5'], ['model1_data6']]
         group_by:
             Grouping type. Possible values: 'dataset', 'observable',
             'simulation'
@@ -832,9 +834,8 @@ class VisSpecParser:
 
         Returns
         -------
-        A dictionary with values for
-        columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for
-        visualization specification.
+        A dictionary with values for columns PLOT_ID, DATASET_ID, \
+        LEGEND_ENTRY, Y_VALUES for visualization specification.
         """
 
         if group_by != 'dataset':

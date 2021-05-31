@@ -9,6 +9,8 @@ from . import problem
 from . import yaml
 from .C import *  # noqa: F403
 
+__all__ = ['CompositeProblem']
+
 
 class CompositeProblem:
     """Representation of a PEtab problem consisting of multiple models

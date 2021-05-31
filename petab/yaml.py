@@ -13,6 +13,10 @@ from .C import *  # noqa: F403
 
 SCHEMA = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                       "petab_schema.yaml")
+__all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
+           'load_yaml', 'is_composite_problem',
+           'assert_single_condition_and_sbml_file', 'write_yaml',
+           'create_problem_yaml']
 
 
 def validate(yaml_config: Union[Dict, str], path_prefix: Optional[str] = None):

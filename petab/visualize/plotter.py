@@ -11,6 +11,8 @@ import matplotlib.ticker as mtick
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
 from ..C import *
 
+__all__ = ['Plotter', 'MPLPlotter', 'SeabornPlotter']
+
 
 class Plotter(ABC):
     """

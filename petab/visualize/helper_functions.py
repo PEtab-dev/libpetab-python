@@ -25,6 +25,21 @@ from typing import Dict, List, Optional, Tuple, Union
 # for typehints
 IdsList = List[str]
 NumList = List[int]
+__all__ = ['check_ex_exp_columns',
+           'check_ex_visu_columns',
+           'check_vis_spec_consistency',
+           'create_dataset_id_list',
+           'create_dataset_id_list_new',
+           'create_figure',
+           'create_or_update_vis_spec',
+           'expand_vis_spec_settings',
+           'generate_dataset_id_col',
+           'get_data_to_plot',
+           'get_default_vis_specs',
+           'get_vis_spec_dependent_columns_dict',
+           'handle_dataset_plot',
+           'import_from_files',
+           'matches_plot_spec']
 
 
 def import_from_files(

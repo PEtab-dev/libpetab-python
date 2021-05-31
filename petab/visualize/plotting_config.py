@@ -10,6 +10,7 @@ import warnings
 from ..C import *
 
 # TODO: delete this file
+__all__ = ["plot_lowlevel", "square_plot_equal_ranges"]
 
 
 def plot_lowlevel(plot_spec: pd.Series,

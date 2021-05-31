@@ -23,6 +23,11 @@ IdsList = List[str]
 NumList = List[int]
 
 
+__all__ = ["plot_data_and_simulation", "plot_petab_problem",
+           "plot_measurements_by_observable", "save_vis_spec",
+           "plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
+
+
 def plot_data_and_simulation(
         exp_data: Union[str, pd.DataFrame],
         exp_conditions: Union[str, pd.DataFrame],

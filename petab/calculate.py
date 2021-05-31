@@ -10,6 +10,11 @@ import numbers
 from .C import *
 import petab
 
+__all__ = ['calculate_residuals', 'calculate_residuals_for_table',
+           'get_symbolic_noise_formulas', 'evaluate_noise_formula',
+           'calculate_chi2', 'calculate_chi2_for_table_from_residuals',
+           'calculate_llh', 'calculate_llh_for_table', 'calculate_single_llh']
+
 
 def calculate_residuals(
         measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
