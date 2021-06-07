@@ -89,6 +89,7 @@ class DataSeries:
     def add_offsets(self, x_offset=0, y_offset=0) -> None:
         """
         Data offsets.
+
         Parameters
         ----------
         x_offset:
@@ -234,7 +235,7 @@ class Subplot:
         Parameters
         ----------
         dataplot:
-            Data plot visualization settings
+            Data plot visualization settings.
 
         """
         self.data_plots.append(dataplot)
@@ -436,10 +437,11 @@ class DataProvider:
             specifies independent variable values (depends on the xValues entry
             of visualization specification).
             Possible values:
-                TIME (independent variable values will be taken from the TIME \
-                column of Measurement (Simulation) table)
-                SIMULATION_CONDITION_ID (independent variable values will be \
-                taken from one of the columns of Condition table)
+                * TIME (independent variable values will be taken from the TIME
+                  column of Measurement (Simulation) table)
+
+                * SIMULATION_CONDITION_ID (independent variable values will be
+                  taken from one of the columns of Condition table)
 
         uni_condition_id:
             Time points
@@ -656,7 +658,8 @@ class VisSpecParser:
 
         Returns
         -------
-        Subplot
+
+                Subplot
         """
 
         subplot_columns = [col for col in subplot_vis_spec.columns if col in
@@ -743,20 +746,29 @@ class VisSpecParser:
             A list of lists. Each sublist corresponds to a plot, each subplot
             contains the Ids of datasets or observables or simulation
             conditions for this plot.
-                | e.g. dataset_ids_per_plot =
-                |     [['dataset_1', 'dataset_2'], ['dataset_1', 'dataset_4', \
-                'dataset_5']]
+            e.g.
 
-                | or cond_id_list =
-                |    [['model1_data1'], ['model1_data2', 'model1_data3'],\
-                 ['model1_data4', 'model1_data5'], ['model1_data6']]
+            ::
+
+                dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
+                                        ['dataset_1', 'dataset_4',
+                                         'dataset_5']]
+
+            or
+
+            ::
+
+                cond_id_list = [['model1_data1'],
+                                ['model1_data2', 'model1_data3'],
+                                ['model1_data4', 'model1_data5'],
+                                ['model1_data6']].
+
         group_by:
             Grouping type. Possible values: 'dataset', 'observable',
-            'simulation'
-            # TODO: why simulation btw?
+            'simulation'.
         plotted_noise:
             String indicating how noise should be visualized:
-            ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+            ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided'].
 
         Returns
         -------
@@ -826,7 +838,7 @@ class VisSpecParser:
         ----------
         group_by:
             Grouping type.
-            Possible values: 'dataset', 'observable', 'simulation'
+            Possible values: 'dataset', 'observable', 'simulation'.
         id_list:
             Grouping list. Each sublist corresponds to a subplot and
             contains the Ids of datasets or observables or simulation
@@ -874,7 +886,7 @@ class VisSpecParser:
         Parameters
         ----------
         dataset_id:
-            Dataset id
+            Dataset id.
 
         Returns
         -------
