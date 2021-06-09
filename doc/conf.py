@@ -123,6 +123,8 @@ def skip_some_objects(app, what, name, obj, skip, options):
     """Exclude some objects from the documentation"""
     if getattr(obj, '__module__', None) == 'collections':
         return True
+    if name == "plot_data_and_simulation" and what == 'function':
+        return True
 
 
 def setup(app):
