@@ -47,7 +47,7 @@ class MPLPlotter(Plotter):
 
     def generate_lineplot(self, ax: 'matplotlib.pyplot.Axes',
                           dataplot: DataPlot,
-                          plotTypeData:str) -> None:
+                          plotTypeData: str) -> None:
         """
         Generate lineplot.
         It is possible to plot only data or only simulation or both.
