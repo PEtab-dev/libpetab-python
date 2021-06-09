@@ -1,3 +1,4 @@
+"""PEtab visualization data selection and visualization settings classes"""
 import numpy as np
 import pandas as pd
 

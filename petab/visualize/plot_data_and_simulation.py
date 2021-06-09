@@ -26,6 +26,8 @@ NumList = List[int]
 __all__ = ["plot_data_and_simulation", "plot_petab_problem",
            "plot_measurements_by_observable", "save_vis_spec",
            "plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
+# autodoc mixes up plot_pata_and_simulation model and function and documents
+# the latter, but this function will be removed in future releases
 
 
 def plot_data_and_simulation(

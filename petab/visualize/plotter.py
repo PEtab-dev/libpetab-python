@@ -1,3 +1,4 @@
+"""PEtab visualization plotter classes"""
 import os
 
 import numpy as np
