@@ -71,11 +71,11 @@ class TestGetSimulationToOptimizationParameterMapping(object):
 
         # Test with parameter table
         parameter_df = pd.DataFrame(data={
-            petab.PARAMETER_ID: ['dynamicParameter1', 'dynamicParameter2',
-                                 'dynamicParameter3'],
-            petab.ESTIMATE: [0, 1, 1],
-            petab.NOMINAL_VALUE: [11.0, 12.0, None],
-            petab.PARAMETER_SCALE: [petab.LOG, petab.LOG10, petab.LIN],
+            PARAMETER_ID: ['dynamicParameter1', 'dynamicParameter2',
+                           'dynamicParameter3'],
+            ESTIMATE: [0, 1, 1],
+            NOMINAL_VALUE: [11.0, 12.0, None],
+            PARAMETER_SCALE: [LOG, LOG10, LIN],
         })
         parameter_df.set_index(PARAMETER_ID, inplace=True)
 
