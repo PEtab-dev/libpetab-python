@@ -77,6 +77,12 @@ def vis_spec_file_Isensee():
 
 
 @pytest.fixture
+def vis_spec_file_Isensee_replicates():
+    return "doc/example/example_Isensee/Isensee_visualizationSpecification_" \
+           "replicates.tsv"
+
+
+@pytest.fixture
 def simulation_file_Isensee():
     return "doc/example/example_Isensee/Isensee_simulationData.tsv"
 
@@ -86,6 +92,15 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
                                         vis_spec_file_Isensee,
                                         simulation_file_Isensee):
     plot_with_vis_spec(vis_spec_file_Isensee, condition_file_Isensee,
+                       data_file_Isensee, simulation_file_Isensee)
+
+
+def test_visualization_replicates(data_file_Isensee,
+                                  condition_file_Isensee,
+                                  vis_spec_file_Isensee_replicates,
+                                  simulation_file_Isensee):
+    plot_with_vis_spec(vis_spec_file_Isensee_replicates,
+                       condition_file_Isensee,
                        data_file_Isensee, simulation_file_Isensee)
 
 

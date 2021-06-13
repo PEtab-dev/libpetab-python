@@ -40,30 +40,29 @@ class DataSeries:
     Data for one individual line
     """
     def __init__(self, conditions_: Optional[Union[np.ndarray, pd.Series]],
-                 measurements_to_plot: Optional[pd.DataFrame] = None,
-                 simulations_to_plot: Optional[pd.DataFrame] = None):
+                 data_to_plot: Optional[pd.DataFrame] = None):
+
+        self.data_to_plot = data_to_plot
+        self.data_to_plot.sort_index(inplace=True)
 
         self.conditions = conditions_
-        if measurements_to_plot is None and simulations_to_plot is None:
-            raise TypeError('Not enough arguments. Either measurements_to_plot'
-                            ' or simulations_to_plot should be provided.')
-        self.measurements_to_plot = measurements_to_plot
-        self.simulations_to_plot = simulations_to_plot
+        # sort index for the case that indices of conditions and
+        # measurements differ if indep_var='time', conditions is a
+        # numpy array, for indep_var=observable its a Series
+        if isinstance(self.conditions, np.ndarray):
+            self.conditions.sort()
+        elif isinstance(self.conditions, pd.Series):
+            self.conditions.sort_index(inplace=True)
 
     def add_x_offset(self, offset):
         if self.conditions is not None:
             self.conditions += offset
 
     def add_y_offset(self, offset):
-        if self.measurements_to_plot is not None:
-            self.measurements_to_plot['mean'] = \
-                self.measurements_to_plot['mean'] + offset
-            self.measurements_to_plot['repl'] = \
-                self.measurements_to_plot['repl'] + offset
-
-        if self.simulations_to_plot is not None:
-            self.simulations_to_plot = [x + offset for x in
-                                        self.simulations_to_plot]
+        self.data_to_plot['mean'] = \
+            self.data_to_plot['mean'] + offset
+        self.data_to_plot['repl'] = \
+            self.data_to_plot['repl'] + offset
 
     def add_offsets(self, x_offset=0, y_offset=0):
         self.add_x_offset(x_offset)
@@ -363,7 +362,7 @@ class DataProvider:
         data_df:
             A pandas data frame to subset, can be from measurement file or
             simulation file
-        dataplot:
+        dataplot: visualization specification
 
         Returns
         -------
@@ -423,114 +422,123 @@ class DataProvider:
 
         return uni_condition_id, col_name_unique, conditions_
 
+    def get_data_series(self, data_df: pd.DataFrame, data_col: str,
+                        dataplot: DataPlot,
+                        provided_noise: bool) -> DataSeries:
+        """
+        Get data to plot from measurement or simulation DataFrame.
+
+        Parameters
+        ----------
+        data_df: measurement or simulation DataFrame
+        data_col: data column, i.e. 'measurement' or 'simulation'
+        dataplot: visualization specification
+        provided_noise:
+            True if numeric values for the noise level are provided in the
+            data table
+        Returns
+        -------
+        data_series:
+            Data to plot
+        """
+
+        uni_condition_id, col_name_unique, conditions_ = \
+            self._get_independent_var_values(data_df,
+                                             dataplot)
+
+        dataset_id = getattr(dataplot, DATASET_ID)
+
+        # get data subset selected based on provided dataset_id
+        # and observable_ids
+        single_m_data = data_df[self._matches_plot_spec(
+            data_df, dataplot, dataset_id)]
+
+        # create empty dataframe for means and SDs
+        measurements_to_plot = pd.DataFrame(
+            columns=['mean', 'noise_model', 'sd', 'sem', 'repl'],
+            index=uni_condition_id
+        )
+
+        for var_cond_id in uni_condition_id:
+
+            subset = (single_m_data[col_name_unique] == var_cond_id)
+
+            # what has to be plotted is selected
+            data_measurements = single_m_data.loc[
+                subset,
+                data_col
+            ]
+
+            # TODO: all this rather inside DataSeries?
+            # process the data
+            measurements_to_plot.at[var_cond_id, 'mean'] = np.mean(
+                data_measurements)
+            measurements_to_plot.at[var_cond_id, 'sd'] = np.std(
+                data_measurements)
+
+            if provided_noise & sum(subset):
+                if len(single_m_data.loc[
+                           subset, NOISE_PARAMETERS].unique()) > 1:
+                    raise NotImplementedError(
+                        f"Datapoints with inconsistent {NOISE_PARAMETERS} "
+                        f"is currently not implemented. Stopping.")
+                tmp_noise = \
+                    single_m_data.loc[subset, NOISE_PARAMETERS].values[0]
+                if isinstance(tmp_noise, str):
+                    raise NotImplementedError(
+                        "No numerical noise values provided in the "
+                        "measurement table. Stopping.")
+                if isinstance(tmp_noise, Number) or \
+                        tmp_noise.dtype == 'float64':
+                    measurements_to_plot.at[
+                        var_cond_id, 'noise_model'] = tmp_noise
+
+            # standard error of mean
+            measurements_to_plot.at[var_cond_id, 'sem'] = \
+                np.std(data_measurements) / np.sqrt(
+                    len(data_measurements))
+
+            # single replicates
+            measurements_to_plot.at[var_cond_id, 'repl'] = \
+                data_measurements.values
+
+        data_series = DataSeries(conditions_, measurements_to_plot)
+        data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
+        return data_series
+
     def get_data_to_plot(self, dataplot: DataPlot, provided_noise: bool
-                         ) -> DataSeries:
+                         ) -> Tuple[DataSeries, DataSeries]:
         """
         Get data to plot.
 
         Parameters
         ----------
-        dataplot:
-            A DataPlot template with corresponding visualization settings
+        dataplot: visualization specification
         provided_noise:
             True if numeric values for the noise level are provided in the
             measurement table
-        """
 
+        Returns
+        -----------
+        measurements_to_plot,
+        simulations_to_plot
+        """
         measurements_to_plot = None
         simulations_to_plot = None
 
-        # handle one "line" of plot
-
-        dataset_id = getattr(dataplot, DATASET_ID)
-
         if self.measurements_data is not None:
-            uni_condition_id, col_name_unique, conditions_ = \
-                self._get_independent_var_values(self.measurements_data,
-                                                 dataplot)
-        else:
-            uni_condition_id, col_name_unique, conditions_ = \
-                self._get_independent_var_values(self.simulations_data,
-                                                 dataplot)
-
-        if self.measurements_data is not None:
-            # define index to reduce exp_data to data linked to datasetId
-
-            # get measurements_df subset selected based on provided dataset_id
-            # and observable_ids
-            single_m_data = self.measurements_data[self._matches_plot_spec(
-                self.measurements_data, dataplot, dataset_id)]
-
-            # create empty dataframe for means and SDs
-            measurements_to_plot = pd.DataFrame(
-                columns=['mean', 'noise_model', 'sd', 'sem', 'repl'],
-                index=uni_condition_id
-            )
-
-            for var_cond_id in uni_condition_id:
-
-                subset = (single_m_data[col_name_unique] == var_cond_id)
-
-                # what has to be plotted is selected
-                data_measurements = single_m_data.loc[
-                    subset,
-                    MEASUREMENT
-                ]
-
-                # TODO: all this rather inside DataSeries?
-                # process the data
-                measurements_to_plot.at[var_cond_id, 'mean'] = np.mean(
-                    data_measurements)
-                measurements_to_plot.at[var_cond_id, 'sd'] = np.std(
-                    data_measurements)
-
-                if provided_noise & sum(subset):
-                    if len(single_m_data.loc[
-                               subset, NOISE_PARAMETERS].unique()) > 1:
-                        raise NotImplementedError(
-                            f"Datapoints with inconsistent {NOISE_PARAMETERS} "
-                            f"is currently not implemented. Stopping.")
-                    tmp_noise = \
-                        single_m_data.loc[subset, NOISE_PARAMETERS].values[0]
-                    if isinstance(tmp_noise, str):
-                        raise NotImplementedError(
-                            "No numerical noise values provided in the "
-                            "measurement table. Stopping.")
-                    if isinstance(tmp_noise, Number) or \
-                            tmp_noise.dtype == 'float64':
-                        measurements_to_plot.at[
-                            var_cond_id, 'noise_model'] = tmp_noise
-
-                # standard error of mean
-                measurements_to_plot.at[var_cond_id, 'sem'] = \
-                    np.std(data_measurements) / np.sqrt(
-                        len(data_measurements))
-
-                # single replicates
-                measurements_to_plot.at[var_cond_id, 'repl'] = \
-                    data_measurements.values
+            measurements_to_plot = self.get_data_series(self.measurements_data,
+                                                        MEASUREMENT,
+                                                        dataplot,
+                                                        provided_noise)
 
         if self.simulations_data is not None:
-            simulations_to_plot = []
+            simulations_to_plot = self.get_data_series(self.simulations_data,
+                                                       SIMULATION,
+                                                       dataplot,
+                                                       provided_noise)
 
-            single_s_data = self.simulations_data[self._matches_plot_spec(
-                self.simulations_data, dataplot, dataset_id)]
-
-            for var_cond_id in uni_condition_id:
-                simulation_measurements = single_s_data.loc[
-                    single_s_data[col_name_unique] == var_cond_id,
-                    SIMULATION
-                ]
-
-                simulations_to_plot.append(np.mean(
-                    simulation_measurements
-                ))
-
-        data_series = DataSeries(conditions_, measurements_to_plot,
-                                 simulations_to_plot)
-        data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
-
-        return data_series
+        return measurements_to_plot, simulations_to_plot
 
 
 class VisSpecParser:
