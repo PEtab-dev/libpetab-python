@@ -438,7 +438,8 @@ class DataProvider:
             data table
         Returns
         -------
-
+        data_series:
+            Data to plot
         """
 
         uni_condition_id, col_name_unique, conditions_ = \
@@ -516,6 +517,11 @@ class DataProvider:
         provided_noise:
             True if numeric values for the noise level are provided in the
             measurement table
+
+        Returns
+        -----------
+        measurements_to_plot,
+        simulations_to_plot
         """
         measurements_to_plot = None
         simulations_to_plot = None
