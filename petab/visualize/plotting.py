@@ -426,7 +426,7 @@ class DataProvider:
                         dataplot: DataPlot,
                         provided_noise: bool) -> DataSeries:
         """
-        Get data to plot from measurement or simulation DataFrame
+        Get data to plot from measurement or simulation DataFrame.
 
         Parameters
         ----------
@@ -508,13 +508,13 @@ class DataProvider:
     def get_data_to_plot(self, dataplot: DataPlot, provided_noise: bool
                          ) -> Tuple[DataSeries, DataSeries]:
         """
-        Get data to plot
+        Get data to plot.
 
         Parameters
         ----------
         dataplot: visualization specification
         provided_noise:
-            True if if numeric values for the noise level are provided in the
+            True if numeric values for the noise level are provided in the
             measurement table
         """
         measurements_to_plot = None
