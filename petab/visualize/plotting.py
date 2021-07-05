@@ -254,7 +254,7 @@ class Subplot:
 class Figure:
     """
     Visualization specification of a figure.
-    
+
     Contains information regarding how data should be visualized.
     """
     def __init__(self, subplots: Optional[List[Subplot]] = None,

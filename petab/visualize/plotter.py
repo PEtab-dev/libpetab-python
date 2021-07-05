@@ -50,7 +50,7 @@ class MPLPlotter(Plotter):
                           plotTypeData: str) -> None:
         """
         Generate lineplot.
-        
+
         It is possible to plot only data or only simulation or both.
 
         Parameters
