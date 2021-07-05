@@ -476,7 +476,7 @@ class DataProvider:
             measurements_to_plot.at[var_cond_id, 'sd'] = np.std(
                 data_measurements)
 
-            if provided_noise & sum(subset):
+            if provided_noise and np.any(subset):
                 if len(single_m_data.loc[
                            subset, NOISE_PARAMETERS].unique()) > 1:
                     raise NotImplementedError(
