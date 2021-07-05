@@ -3,24 +3,6 @@ API Reference
 
 .. automodule:: petab
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .. rubric:: Modules
 
 .. autosummary::

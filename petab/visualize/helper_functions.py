@@ -328,15 +328,15 @@ def create_dataset_id_list_new(df: pd.DataFrame,
                                id_list: List[IdsList]
                                ) -> List[IdsList]:
     """
-    Create dataset id list from a list of simulation condition ids or
-    observable ids.
+    Create dataset ID list from a list of simulation condition IDs or
+    observable IDs.
 
     Parameters:
-        df: Measurements or simulations df.
+        df: Measurements or simulations DataFrame.
         group_by: Defines  grouping of data to plot.
         id_list:
             Grouping list. Each sublist corresponds to a subplot in a figure,
-            and contains the Ids of observables or simulation conditions for
+            and contains the IDs of observables or simulation conditions for
             the subplot.
 
     Returns:

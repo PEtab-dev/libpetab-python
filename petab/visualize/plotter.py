@@ -17,7 +17,7 @@ __all__ = ['Plotter', 'MPLPlotter', 'SeabornPlotter']
 
 class Plotter(ABC):
     """
-    Plotter base class, not functional on its own.
+    Plotter abstract base class.
 
     Attributes
     ----------
@@ -50,6 +50,7 @@ class MPLPlotter(Plotter):
                           plotTypeData: str) -> None:
         """
         Generate lineplot.
+        
         It is possible to plot only data or only simulation or both.
 
         Parameters
