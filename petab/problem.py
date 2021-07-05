@@ -295,9 +295,10 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
-            relative_paths: whether all paths in the YAML file should be
-            relative to the location of the YAML file. If `False`, then paths
-            are left unchanged.
+            relative_paths:
+                whether all paths in the YAML file should be relative to the
+                location of the YAML file. If `False`, then paths
+                are left unchanged.
 
         Raises:
             ValueError:
@@ -451,7 +452,7 @@ class Problem:
 
         Returns
         -------
-        The parameter ids.
+        The parameter IDs.
         """
         v = list(self.parameter_df.index.values)
         return self._apply_mask(v, free=free, fixed=fixed)

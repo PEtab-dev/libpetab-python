@@ -390,9 +390,8 @@ class DataProvider:
 
         Returns
         -------
-            subset:
-                Boolean series that can be used for subsetting of the passed
-                dataframe
+        Boolean series that can be used for subsetting of the passed
+        dataframe
         """
         subset = (
             (df[DATASET_ID] == dataset_id)
@@ -495,10 +494,10 @@ class DataProvider:
         provided_noise:
             True if numeric values for the noise level are provided in the
             data table
+
         Returns
         -------
-        data_series:
-            Data to plot
+        Data to plot
         """
 
         uni_condition_id, col_name_unique, conditions_ = \

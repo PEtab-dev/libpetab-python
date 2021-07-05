@@ -139,6 +139,7 @@ def create_parameter_df(sbml_model: libsbml.Model,
     Arguments:
         sbml_model: SBML Model
         condition_df: PEtab condition DataFrame
+        observable_df: PEtab observable DataFrame
         measurement_df: PEtab measurement DataFrame
         include_optional: By default this only returns parameters that are
             required to be present in the parameter table. If set to True,
@@ -446,8 +447,7 @@ def map_unscale(
             Broadcast if a single string.
 
     Returns:
-        parameters:
-            The unscaled parameters.
+        The unscaled parameters.
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)

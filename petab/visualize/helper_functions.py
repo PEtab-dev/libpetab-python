@@ -109,8 +109,7 @@ def check_vis_spec_consistency(
     For documentation, see main function plot_data_and_simulation()
 
     Returns:
-        group_by:
-            Specifies the grouping of data to plot.
+        Specifies the grouping of data to plot.
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)
@@ -580,7 +579,7 @@ def expand_vis_spec_settings(vis_spec: pd.DataFrame, columns_dict):
 
     Returns
     -------
-        Expanded visualization specification DataFrame
+    Expanded visualization specification DataFrame
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)
@@ -904,7 +903,7 @@ def matches_plot_spec(df: pd.DataFrame,
                       x_value: Union[float, str],
                       plot_spec: pd.Series) -> pd.Series:
     """
-    constructs an index for subsetting of the dataframe according to what is
+    Constructs an index for subsetting of the dataframe according to what is
     specified in plot_spec.
 
     Parameters:
@@ -919,9 +918,8 @@ def matches_plot_spec(df: pd.DataFrame,
             visualization spec from the visualization file
 
     Returns:
-        index:
-            Boolean series that can be used for subsetting of the passed
-            dataframe
+        Boolean series that can be used for subsetting of the passed
+        dataframe
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)
@@ -970,9 +968,7 @@ def get_data_to_plot(plot_spec: pd.Series,
             simulation result.
 
     Returns:
-        data_to_plot:
-            Contains the data which should be plotted
-            (Mean and Std)
+        Contains the data which should be plotted (Mean and Std)
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)

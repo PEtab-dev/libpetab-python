@@ -158,7 +158,7 @@ def get_rows_for_condition(measurement_df: pd.DataFrame,
 
     Returns:
         The subselection of rows in ``measurement_df`` for the condition
-    ``condition``.
+        ``condition``.
     """
     # filter rows for condition
     row_filter = 1

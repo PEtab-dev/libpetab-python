@@ -649,8 +649,8 @@ def observable_table_has_nontrivial_noise_formula(
         observable_df: PEtab observable table
 
     Returns:
-        True if any noise formula does not consist of a single identifier,
-        False otherwise.
+        ``True`` if any noise formula does not consist of a single identifier,
+        ``False`` otherwise.
     """
     if observable_df is None:
         return False
@@ -669,8 +669,8 @@ def measurement_table_has_observable_parameter_numeric_overrides(
         measurement_df: PEtab measurement table
 
     Returns:
-        True if there are any numbers to override observable/noise parameters,
-        False otherwise.
+        ``True`` if there are any numbers to override observable/noise
+        parameters, ``False`` otherwise.
     """
     if OBSERVABLE_PARAMETERS not in measurement_df:
         return False
@@ -744,7 +744,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
         problem: PEtab problem to check
 
     Returns:
-        True is errors occurred, False otherwise
+        ``True`` if errors occurred, ``False`` otherwise
     """
     # pylint: disable=too-many-statements
     errors_occurred = False
@@ -933,7 +933,7 @@ def check_ids(ids: Iterable[str], kind: str = '') -> None:
         kind: Kind of IDs, for more informative error message
 
     Raises:
-        ValueError - in case of invalid IDs
+        ValueError: in case of invalid IDs
     """
     invalids = [(index, _id)
                 for index, _id in enumerate(ids)
