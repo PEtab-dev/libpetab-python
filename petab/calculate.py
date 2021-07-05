@@ -42,9 +42,8 @@ def calculate_residuals(
             Whether to calculate residuals of scaled values.
 
     Returns:
-        residual_dfs:
-            Data frames in the same structure as `measurement_dfs`
-            with a field `residual` instead of measurement.
+        List of DataFrames in the same structure as `measurement_dfs`
+        with a field `residual` instead of measurement.
     """
     # convenience
     if isinstance(measurement_dfs, pd.DataFrame):
@@ -260,7 +259,7 @@ def calculate_llh(
             The problem parameter tables.
 
     Returns:
-        llh: The log-likelihood.
+        The log-likelihood.
     """
     # convenience
     if isinstance(measurement_dfs, pd.DataFrame):
@@ -348,7 +347,7 @@ def calculate_single_llh(
             parameter, e.g. the normal standard deviation.
 
     Returns:
-        llh: The computed likelihood for the given values.
+        The computed likelihood for the given values.
     """
     # short-hand
     m, s, sigma = measurement, simulation, noise_value

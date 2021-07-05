@@ -91,7 +91,7 @@ def is_sbml_consistent(sbml_document: libsbml.SBMLDocument,
         check_units: Also check for unit-related issues
 
     Returns:
-        False if problems were detected, otherwise True
+        ``False`` if problems were detected, otherwise ``True``
     """
 
     if not check_units:
