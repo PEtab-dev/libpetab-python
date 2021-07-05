@@ -237,7 +237,7 @@ def is_empty(val) -> bool:
         val: The value to check.
 
     Returns:
-        empty: Whether the field is to be considered empty.
+        Whether the field is to be considered empty.
     """
     return val == '' or pd.isnull(val)
 

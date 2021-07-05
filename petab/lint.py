@@ -364,8 +364,8 @@ def condition_table_is_parameter_free(condition_df: pd.DataFrame) -> bool:
         condition_df: PEtab condition table
 
     Returns:
-        True if there are no parameter overrides in the condition table,
-        False otherwise.
+        ``True`` if there are no parameter overrides in the condition table,
+        ``False`` otherwise.
     """
 
     return len(petab.get_parametric_overrides(condition_df)) == 0

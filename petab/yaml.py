@@ -195,13 +195,14 @@ def create_problem_yaml(
         condition_files: Path of condition file or list of such
         measurement_files: Path of measurement file or list of such
         parameter_file: Path of parameter file
-        observable_files: Path of observable file or lsit of such
+        observable_files: Path of observable file or list of such
         yaml_file: Path to which YAML file should be written
-        visualization_files: Optional Path to visualization file or list of
-        such
-        relative_paths: whether all paths in the YAML file should be relative
-        to the location of the YAML file. If `False`, then paths are left
-        unchanged.
+        visualization_files:
+            Optional Path to visualization file or list of such
+        relative_paths:
+            whether all paths in the YAML file should be relative to the
+            location of the YAML file. If ``False``, then paths are left
+            unchanged.
     """
     if isinstance(sbml_files, str):
         sbml_files = [sbml_files]

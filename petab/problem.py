@@ -428,8 +428,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The reduced vector with applied mask.
+        The reduced vector with applied mask.
         """
         if not free and not fixed:
             return []
@@ -452,8 +451,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The parameter ids.
+        The parameter ids.
         """
         v = list(self.parameter_df.index.values)
         return self._apply_mask(v, free=free, fixed=fixed)
@@ -490,8 +488,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The parameter nominal values.
+        The parameter nominal values.
         """
         v = list(self.parameter_df[NOMINAL_VALUE])
         if scaled:
@@ -548,8 +545,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The lower parameter bounds.
+        The lower parameter bounds.
         """
         v = list(self.parameter_df[LOWER_BOUND])
         if scaled:
@@ -584,8 +580,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The upper parameter bounds.
+        The upper parameter bounds.
         """
         v = list(self.parameter_df[UPPER_BOUND])
         if scaled:

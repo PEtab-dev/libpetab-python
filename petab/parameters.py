@@ -425,8 +425,7 @@ def map_scale(
             Scales to apply. Broadcast if a single string.
 
     Returns:
-        parameters:
-            The scaled parameters.
+        The scaled parameters.
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)
