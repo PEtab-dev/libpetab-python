@@ -428,11 +428,12 @@ class DataProvider:
             specifies independent variable values (depends on the xValues entry
             of visualization specification).
             Possible values:
-                * TIME (independent variable values will be taken from the TIME
-                  column of Measurement (Simulation) table)
 
-                * SIMULATION_CONDITION_ID (independent variable values will be
-                  taken from one of the columns of Condition table)
+            * TIME (independent variable values will be taken from the TIME
+              column of Measurement (Simulation) table)
+
+            * SIMULATION_CONDITION_ID (independent variable values will be
+              taken from one of the columns of Condition table)
 
         uni_condition_id:
             Time points
