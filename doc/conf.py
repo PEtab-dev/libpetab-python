@@ -9,6 +9,14 @@ import subprocess
 import sys
 import warnings
 
+# Sphinx autosummary does not handle well submodules and functions with
+#  identical names if the function is part of __all__ of the parent module.
+#  This is way, we get autosummary to create the submodule documentation:
+import petab
+from petab.visualize.plot_data_and_simulation import plot_data_and_simulation
+petab.visualize.plot_data_and_simulation = \
+    sys.modules['petab.visualize.plot_data_and_simulation']
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -122,8 +130,6 @@ html_logo = 'logo/PEtab.png'
 def skip_some_objects(app, what, name, obj, skip, options):
     """Exclude some objects from the documentation"""
     if getattr(obj, '__module__', None) == 'collections':
-        return True
-    if name == "plot_data_and_simulation" and what == 'function':
         return True
 
 
