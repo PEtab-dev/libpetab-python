@@ -21,7 +21,10 @@ __all__ = ['get_optimization_to_simulation_parameter_mapping',
            'get_parameter_mapping_for_condition',
            'handle_missing_overrides',
            'merge_preeq_and_sim_pars',
-           'merge_preeq_and_sim_pars_condition']
+           'merge_preeq_and_sim_pars_condition',
+           'ParMappingDict', 'ParMappingDictTuple',
+           'ScaleMappingDict', 'ScaleMappingDictTuple',
+           'ParMappingDictQuadruple']
 
 
 # Parameter mapping for condition
