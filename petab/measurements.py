@@ -221,9 +221,11 @@ def split_parameter_replacement_list(
             return x
         if lint.is_valid_identifier(x):
             return x
-        raise ValueError(f"'{x}' in parameter replacement list "
-                         f"'{list_string}' is neither a number, nor a "
-                         "valid parameter ID.")
+        raise ValueError(
+            f"The value '{x}' (whitespace removed) in the parameter "
+            f"replacement list '{list_string}' is neither a number, nor a "
+            "valid parameter ID."
+        )
 
     return list(map(convert_and_check, result))
 
