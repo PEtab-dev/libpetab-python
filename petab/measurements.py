@@ -200,8 +200,8 @@ def split_parameter_replacement_list(
         delim: delimiter
 
     Returns:
-         List of split values. Numeric values converted to numeric type,
-         parameter IDs as strings.
+         List of split values. Numeric values may be converted to `float`,
+         and parameter IDs are kept as strings.
     """
     if list_string is None or list_string == '':
         return []
