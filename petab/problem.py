@@ -284,6 +284,10 @@ class Problem:
         Returns:
             The path to the PEtab problem YAML file.
         """
+        prefix_path = Path(prefix_path)
+
+        # Generate generic filenames for data tables in the PEtab problem that
+        # contain data.
         filenames = {}
         for table_name in [
             'condition',
