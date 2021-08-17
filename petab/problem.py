@@ -267,7 +267,7 @@ class Problem:
 
     def to_files_generic(
         self,
-        prefix_path: Optional[Union[str, Path]] = None,
+        prefix_path: Union[str, Path],
     ) -> None:
         """Save a PEtab problem to generic file names.
 
