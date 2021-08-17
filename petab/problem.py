@@ -1,7 +1,7 @@
 """PEtab Problem class"""
 
 import os
-from pathlib import Path
+from pathlib import Path as Path_
 import tempfile
 from typing import Dict, Iterable, List, Optional, Union
 from warnings import warn
@@ -267,7 +267,7 @@ class Problem:
 
     def to_files_generic(
         self,
-        prefix_path: Union[str, Path],
+        prefix_path: Union[str, Path_],
     ) -> None:
         """Save a PEtab problem to generic file names.
 
@@ -285,7 +285,7 @@ class Problem:
         Returns:
             The path to the PEtab problem YAML file.
         """
-        prefix_path = Path(prefix_path)
+        prefix_path = Path_(prefix_path)
 
         # Generate generic filenames for data tables in the PEtab problem that
         # contain data.
@@ -319,7 +319,7 @@ class Problem:
                  visualization_file: Optional[str] = None,
                  observable_file: Optional[str] = None,
                  yaml_file: Optional[str] = None,
-                 prefix_path: Optional[Union[str, Path]] = None,
+                 prefix_path: Optional[Union[str, Path_]] = None,
                  relative_paths: bool = True,) -> None:
         """
         Write PEtab tables to files for this problem
@@ -350,9 +350,9 @@ class Problem:
                 If a destination was provided for a non-existing entity.
         """
         if prefix_path is not None:
-            prefix_path = Path(prefix_path)
+            prefix_path = Path_(prefix_path)
 
-            def add_prefix(path0: Union[None, str, Path]) -> str:
+            def add_prefix(path0: Union[None, str, Path_]) -> str:
                 if path0 is None:
                     return path0
                 return str(prefix_path / path0)
