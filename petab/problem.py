@@ -1,6 +1,7 @@
 """PEtab Problem class"""
 
 import os
+# Renamed to `Path_` to avoid unknown error during Sphinx doc build
 from pathlib import Path as Path_
 import tempfile
 from typing import Dict, Iterable, List, Optional, Union
