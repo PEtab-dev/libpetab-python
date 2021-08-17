@@ -279,7 +279,8 @@ class Problem:
         Arguments:
             prefix_path: Specify a prefix to all paths, to avoid specifying the
             prefix for all paths individually. NB: the prefix is added to paths
-            before `relative_paths` is handled.
+            before `relative_paths` is handled downstream in
+            `petab.yaml.create_problem_yaml`.
 
         Returns:
             The path to the PEtab problem YAML file.
