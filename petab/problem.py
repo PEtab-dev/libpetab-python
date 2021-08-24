@@ -283,10 +283,11 @@ class Problem:
         one).
 
         Arguments:
-            prefix_path: Specify a prefix to all paths, to avoid specifying the
-            prefix for all paths individually. NB: the prefix is added to paths
-            before `relative_paths` is handled downstream in
-            `petab.yaml.create_problem_yaml`.
+            prefix_path:
+                Specify a prefix to all paths, to avoid specifying the
+                prefix for all paths individually. NB: the prefix is added to
+                paths before `relative_paths` is handled downstream in
+                `petab.yaml.create_problem_yaml`.
 
         Returns:
             The path to the PEtab problem YAML file.
@@ -344,12 +345,14 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
-            prefix_path: Specify a prefix to all paths, to avoid specifying the
-            prefix for all paths individually. NB: the prefix is added to paths
-            before `relative_paths` is handled.
-            relative_paths: whether all paths in the YAML file should be
-            relative to the location of the YAML file. If `False`, then paths
-            are left unchanged.
+            prefix_path:
+                Specify a prefix to all paths, to avoid specifying the
+                prefix for all paths individually. NB: the prefix is added to
+                paths before `relative_paths` is handled.
+            relative_paths:
+                whether all paths in the YAML file should be
+                relative to the location of the YAML file. If `False`, then
+                paths are left unchanged.
 
         Raises:
             ValueError:
