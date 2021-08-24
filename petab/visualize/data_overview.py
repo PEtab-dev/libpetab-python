@@ -9,6 +9,8 @@ import pandas as pd
 import petab
 from petab.C import *
 
+__all__ = ['create_report']
+
 
 def create_report(problem: petab.Problem, model_name: str) -> None:
     """Create an HTML overview data / model overview report

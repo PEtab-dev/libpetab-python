@@ -13,6 +13,11 @@ from . import (parameter_mapping, measurements, conditions, parameters,
                sampling, sbml, yaml, core, observables, format_version)
 from .C import *  # noqa: F403
 
+__all__ = ['Problem', 'get_default_condition_file_name',
+           'get_default_measurement_file_name',
+           'get_default_parameter_file_name',
+           'get_default_sbml_file_name']
+
 
 class Problem:
     """
@@ -278,10 +283,11 @@ class Problem:
         one).
 
         Arguments:
-            prefix_path: Specify a prefix to all paths, to avoid specifying the
-            prefix for all paths individually. NB: the prefix is added to paths
-            before `relative_paths` is handled downstream in
-            `petab.yaml.create_problem_yaml`.
+            prefix_path:
+                Specify a prefix to all paths, to avoid specifying the
+                prefix for all paths individually. NB: the prefix is added to
+                paths before `relative_paths` is handled downstream in
+                `petab.yaml.create_problem_yaml`.
 
         Returns:
             The path to the PEtab problem YAML file.
@@ -339,12 +345,14 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
-            prefix_path: Specify a prefix to all paths, to avoid specifying the
-            prefix for all paths individually. NB: the prefix is added to paths
-            before `relative_paths` is handled.
-            relative_paths: whether all paths in the YAML file should be
-            relative to the location of the YAML file. If `False`, then paths
-            are left unchanged.
+            prefix_path:
+                Specify a prefix to all paths, to avoid specifying the
+                prefix for all paths individually. NB: the prefix is added to
+                paths before `relative_paths` is handled.
+            relative_paths:
+                whether all paths in the YAML file should be
+                relative to the location of the YAML file. If `False`, then
+                paths are left unchanged.
 
         Raises:
             ValueError:
@@ -490,8 +498,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The reduced vector with applied mask.
+        The reduced vector with applied mask.
         """
         if not free and not fixed:
             return []
@@ -514,8 +521,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The parameter ids.
+        The parameter IDs.
         """
         v = list(self.parameter_df.index.values)
         return self._apply_mask(v, free=free, fixed=fixed)
@@ -552,8 +558,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The parameter nominal values.
+        The parameter nominal values.
         """
         v = list(self.parameter_df[NOMINAL_VALUE])
         if scaled:
@@ -610,8 +615,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The lower parameter bounds.
+        The lower parameter bounds.
         """
         v = list(self.parameter_df[LOWER_BOUND])
         if scaled:
@@ -646,8 +650,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The upper parameter bounds.
+        The upper parameter bounds.
         """
         v = list(self.parameter_df[UPPER_BOUND])
         if scaled:
