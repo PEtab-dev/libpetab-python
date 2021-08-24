@@ -26,7 +26,7 @@ class Plotter(ABC):
         Figure instance that serves as a markup for the figure that
         should be generated
     data_provider:
-            data provider
+        Data provider
     """
     def __init__(self, figure: Figure, data_provider: DataProvider):
         self.figure = figure
