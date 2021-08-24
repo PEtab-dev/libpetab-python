@@ -129,6 +129,12 @@ def test_split_parameter_replacement_list():
     assert petab.split_parameter_replacement_list(1.5) == [1.5]
     assert petab.split_parameter_replacement_list(None) == []
 
+    with pytest.raises(ValueError):
+        assert petab.split_parameter_replacement_list('1.0;')
+
+    with pytest.raises(ValueError):
+        assert petab.split_parameter_replacement_list(';1.0')
+
 
 def test_get_measurement_parameter_ids():
     measurement_df = pd.DataFrame(

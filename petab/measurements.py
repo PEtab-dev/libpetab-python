@@ -201,7 +201,7 @@ def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
 
 def split_parameter_replacement_list(
         list_string: Union[str, numbers.Number],
-        delim: str = ';') -> List[Union[str, float]]:
+        delim: str = ';') -> List[Union[str, numbers.Number]]:
     """
     Split values in observableParameters and noiseParameters in measurement
     table.
@@ -211,9 +211,10 @@ def split_parameter_replacement_list(
         delim: delimiter
 
     Returns:
-         List of split values. Numeric values converted to float.
+         List of split values. Numeric values may be converted to `float`,
+         and parameter IDs are kept as strings.
     """
-    if list_string is None:
+    if list_string is None or list_string == '':
         return []
 
     if isinstance(list_string, numbers.Number):
@@ -223,8 +224,21 @@ def split_parameter_replacement_list(
             return []
         return [list_string]
 
-    result = [x.strip() for x in list_string.split(delim) if len(x.strip())]
-    return [core.to_float_if_float(x) for x in result]
+    result = [x.strip() for x in list_string.split(delim)]
+
+    def convert_and_check(x):
+        x = core.to_float_if_float(x)
+        if isinstance(x, float):
+            return x
+        if lint.is_valid_identifier(x):
+            return x
+
+        raise ValueError(
+            f"The value '{x}' in the parameter replacement list "
+            f"'{list_string}' is neither a number, nor a valid parameter ID."
+        )
+
+    return list(map(convert_and_check, result))
 
 
 def create_measurement_df() -> pd.DataFrame:
