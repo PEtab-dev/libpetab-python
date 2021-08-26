@@ -3,7 +3,7 @@
 import os
 import tempfile
 from warnings import warn
-
+import numbers
 import pandas as pd
 import libsbml
 from typing import Optional, List, Union, Dict, Iterable
@@ -51,10 +51,6 @@ class Problem:
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
         self.observable_df: Optional[pd.DataFrame] = observable_df
 
-        self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
-        self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
-        self.sbml_model: Optional[libsbml.Model] = sbml_model
-
     def __getstate__(self):
         """Return state for pickling"""
         state = self.__dict__.copy()
@@ -82,28 +78,21 @@ class Problem:
         self.__dict__.update(state)
 
     @staticmethod
-    def from_files(sbml_file: str = None,
-                   condition_file: str = None,
+    def from_files(condition_file: str = None,
                    measurement_file: Union[str, Iterable[str]] = None,
                    parameter_file: Union[str, List[str]] = None,
-                   visualization_files: Union[str, Iterable[str]] = None,
                    observable_files: Union[str, Iterable[str]] = None
                    ) -> 'Problem':
         """
         Factory method to load model and tables from files.
-
         Arguments:
-            sbml_file: PEtab SBML model
             condition_file: PEtab condition table
             measurement_file: PEtab measurement table
             parameter_file: PEtab parameter table
-            visualization_files: PEtab visualization tables
             observable_files: PEtab observables tables
         """
 
-        sbml_model = sbml_document = sbml_reader = None
-        condition_df = measurement_df = parameter_df = visualization_df = None
-        observable_df = None
+        condition_df = measurement_df = parameter_df = None
 
         if condition_file:
             condition_df = conditions.get_condition_df(condition_file)
@@ -116,15 +105,6 @@ class Problem:
         if parameter_file:
             parameter_df = parameters.get_parameter_df(parameter_file)
 
-        if sbml_file:
-            sbml_reader, sbml_document, sbml_model = \
-                sbml.get_sbml_model(sbml_file)
-
-        if visualization_files:
-            # If there are multiple tables, we will merge them
-            visualization_df = core.concat_tables(
-                visualization_files, core.get_visualization_df)
-
         if observable_files:
             # If there are multiple tables, we will merge them
             observable_df = core.concat_tables(
@@ -133,11 +113,7 @@ class Problem:
         return Problem(condition_df=condition_df,
                        measurement_df=measurement_df,
                        parameter_df=parameter_df,
-                       observable_df=observable_df,
-                       sbml_model=sbml_model,
-                       sbml_document=sbml_document,
-                       sbml_reader=sbml_reader,
-                       visualization_df=visualization_df)
+                       observable_df=observable_df)
 
     @staticmethod
     def from_yaml(yaml_config: Union[Dict, str]) -> 'Problem':
@@ -166,7 +142,7 @@ class Problem:
 
         problem0 = yaml_config['problems'][0]
 
-        yaml.assert_single_condition_and_sbml_file(problem0)
+        yaml.assert_single_condition_file(problem0)
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_file = [
@@ -178,15 +154,11 @@ class Problem:
                 path_prefix, yaml_config[PARAMETER_FILE])
 
         return Problem.from_files(
-            sbml_file=os.path.join(path_prefix, problem0[SBML_FILES][0]),
             measurement_file=[os.path.join(path_prefix, f)
                               for f in problem0[MEASUREMENT_FILES]],
             condition_file=os.path.join(
                 path_prefix, problem0[CONDITION_FILES][0]),
             parameter_file=parameter_file,
-            visualization_files=[
-                os.path.join(path_prefix, f)
-                for f in problem0.get(VISUALIZATION_FILES, [])],
             observable_files=[
                 os.path.join(path_prefix, f)
                 for f in problem0.get(OBSERVABLE_FILES, [])]
@@ -408,6 +380,18 @@ class Problem:
         return measurements.get_noise_distributions(
             measurement_df=self.measurement_df)
 
+    def get_measurement_dict(self):
+        """
+        Return dictionary of measurement as dictionary
+        """
+        if isinstance(self.measurement_df, dict):
+            return self.measurement_df
+        keys = set(self.measurement_df.observableId)
+        n = int(len(self.measurement_df.measurement)/len(keys))
+        values = [self.measurement_df.measurement.values[i:i + n]
+                  for i in range(0, len(self.measurement_df.measurement), n)]
+        return dict(zip(keys, [val for val in values]))
+
     def _apply_mask(self, v: List, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.
 
@@ -493,6 +477,33 @@ class Problem:
             v = list(parameters.map_scale(
                 v, self.parameter_df[PARAMETER_SCALE]))
         return self._apply_mask(v, free=free, fixed=fixed)
+
+    def get_x_nominal_dict(self, free: bool = True, fixed: bool = True,
+                           scaled: bool = False):
+        """Generic function to get parameter nominal values as dict
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+        scaled:
+            Whether to scale the values according to the parameter scale,
+            or return them on linear scale.
+
+        Returns
+        -------
+        v:
+            The parameter nominal values as dict
+        """
+        v = list(self.parameter_df[NOMINAL_VALUE])
+        if scaled:
+            v = list(parameters.map_scale(
+                v, self.parameter_df[PARAMETER_SCALE]))
+        return dict(zip(self.x_ids,
+                        self._apply_mask(v, free=free, fixed=fixed)))
 
     @property
     def x_nominal(self) -> List:
@@ -688,3 +699,23 @@ def get_default_sbml_file_name(model_name: str, folder: str = ''):
          DeprecationWarning)
 
     return os.path.join(folder, f"model_{model_name}.xml")
+
+
+def check_value_type(value):
+    """check the type of measurement column
+            Parameters
+        ----------
+        value:
+            the first value of the measurement column.
+
+        Returns
+        -------
+        result:
+            "regular" if the value is of a type int, "external_file"
+             if it is of a type string (external file).
+
+    """
+    if isinstance(value,numbers.Number):
+        return "regular"
+    elif isinstance(value, str):
+        return "external_file"

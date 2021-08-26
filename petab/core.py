@@ -202,10 +202,11 @@ def concat_tables(
         # load from file, if necessary
         if isinstance(tmp_df, str):
             tmp_df = file_parser(tmp_df)
-
-        df = df.append(tmp_df, sort=False,
-                       ignore_index=isinstance(tmp_df.index, pd.RangeIndex))
-
+        if not isinstance(tmp_df, dict):
+            df = df.append(tmp_df, sort=False, ignore_index=isinstance(
+                tmp_df.index, pd.RangeIndex))
+        else:
+            df = tmp_df
     return df
 
 
