@@ -13,6 +13,10 @@ from .C import *  # noqa: F403
 
 SCHEMA = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                       "petab_schema.yaml")
+__all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
+           'load_yaml', 'is_composite_problem',
+           'assert_single_condition_and_sbml_file', 'write_yaml',
+           'create_problem_yaml']
 
 
 def validate(yaml_config: Union[Dict, str], path_prefix: Optional[str] = None):
@@ -191,13 +195,14 @@ def create_problem_yaml(
         condition_files: Path of condition file or list of such
         measurement_files: Path of measurement file or list of such
         parameter_file: Path of parameter file
-        observable_files: Path of observable file or lsit of such
+        observable_files: Path of observable file or list of such
         yaml_file: Path to which YAML file should be written
-        visualization_files: Optional Path to visualization file or list of
-        such
-        relative_paths: whether all paths in the YAML file should be relative
-        to the location of the YAML file. If `False`, then paths are left
-        unchanged.
+        visualization_files:
+            Optional Path to visualization file or list of such
+        relative_paths:
+            whether all paths in the YAML file should be relative to the
+            location of the YAML file. If ``False``, then paths are left
+            unchanged.
     """
     if isinstance(sbml_files, str):
         sbml_files = [sbml_files]

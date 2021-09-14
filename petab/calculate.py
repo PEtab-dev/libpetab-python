@@ -10,6 +10,11 @@ import numbers
 from .C import *
 import petab
 
+__all__ = ['calculate_residuals', 'calculate_residuals_for_table',
+           'get_symbolic_noise_formulas', 'evaluate_noise_formula',
+           'calculate_chi2', 'calculate_chi2_for_table_from_residuals',
+           'calculate_llh', 'calculate_llh_for_table', 'calculate_single_llh']
+
 
 def calculate_residuals(
         measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
@@ -37,9 +42,8 @@ def calculate_residuals(
             Whether to calculate residuals of scaled values.
 
     Returns:
-        residual_dfs:
-            Data frames in the same structure as `measurement_dfs`
-            with a field `residual` instead of measurement.
+        List of DataFrames in the same structure as `measurement_dfs`
+        with a field `residual` instead of measurement.
     """
     # convenience
     if isinstance(measurement_dfs, pd.DataFrame):
@@ -72,7 +76,7 @@ def calculate_residuals_for_table(
 ) -> pd.DataFrame:
     """
     Calculate residuals for a single measurement table.
-    For the argumenets, see `calculate_residuals`.
+    For the arguments, see `calculate_residuals`.
     """
     # create residual df as copy of measurement df, change column
     residual_df = measurement_df.copy(deep=True).rename(
@@ -121,10 +125,10 @@ def get_symbolic_noise_formulas(observable_df) -> dict:
     """Sympify noise formulas.
 
     Arguments:
-        obervable_df: The observable table.
+        observable_df: The observable table.
 
     Returns:
-        noise_formulas: Dictionary of {observable_id}: {noise_formula}.
+        Dictionary of {observable_id}: {noise_formula}.
     """
     noise_formulas = {}
     # iterate over observables
@@ -142,7 +146,7 @@ def evaluate_noise_formula(
         measurement: pd.Series,
         noise_formulas: dict,
         parameter_df: pd.DataFrame,
-        simulation: float) -> float:
+        simulation: numbers.Number) -> float:
     """Fill in parameters for `measurement` and evaluate noise_formula.
 
     Arguments:
@@ -153,7 +157,7 @@ def evaluate_noise_formula(
         simulation: The simulation corresponding to the measurement, scaled.
 
     Returns:
-        noise_value: The noise value.
+        The noise value.
     """
     # the observable id
     observable_id = measurement[OBSERVABLE_ID]
@@ -219,7 +223,7 @@ def calculate_chi2(
             Whether to calculate residuals of scaled values.
 
     Returns:
-        chi2: The aggregated chi2 value.
+        The aggregated chi2 value.
     """
     residual_dfs = calculate_residuals(
         measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs,
@@ -255,7 +259,7 @@ def calculate_llh(
             The problem parameter tables.
 
     Returns:
-        llh: The log-likelihood.
+        The log-likelihood.
     """
     # convenience
     if isinstance(measurement_dfs, pd.DataFrame):
@@ -343,7 +347,7 @@ def calculate_single_llh(
             parameter, e.g. the normal standard deviation.
 
     Returns:
-        llh: The computed likelihood for the given values.
+        The computed likelihood for the given values.
     """
     # short-hand
     m, s, sigma = measurement, simulation, noise_value

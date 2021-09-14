@@ -1,3 +1,4 @@
+"""PEtab visualization plotter classes"""
 import os
 
 import numpy as np
@@ -11,19 +12,23 @@ import matplotlib.ticker as mtick
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
 from ..C import *
 
+__all__ = ['Plotter', 'MPLPlotter', 'SeabornPlotter']
+
 
 class Plotter(ABC):
-    def __init__(self, figure: Figure, data_provider: DataProvider):
-        """
-        Plotter base class, not functional on its own.
+    """
+    Plotter abstract base class.
 
-        Parameters
-        ----------
-        figure: Figure instance that serves as a markup for the figure that
-            should be generated
-        data_provider:
-                data provider
-        """
+    Attributes
+    ----------
+
+    figure:
+        Figure instance that serves as a markup for the figure that
+        should be generated
+    data_provider:
+        Data provider
+    """
+    def __init__(self, figure: Figure, data_provider: DataProvider):
         self.figure = figure
         self.data_provider = data_provider
 
@@ -35,26 +40,33 @@ class Plotter(ABC):
 
 class MPLPlotter(Plotter):
     """
-    matplotlib wrapper
+    Matplotlib wrapper
     """
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_lineplot(self, ax, dataplot: DataPlot, plotTypeData):
+    def generate_lineplot(self, ax: 'matplotlib.pyplot.Axes',
+                          dataplot: DataPlot,
+                          plotTypeData: str) -> None:
         """
         Generate lineplot.
+
         It is possible to plot only data or only simulation or both.
 
         Parameters
         ----------
-        ax
-        dataplot
-        plotTypeData
+        ax:
+            Axis object.
+        dataplot:
+            Visualization settings for the plot.
+        plotTypeData:
+            Specifies how replicates should be handled.
         """
 
-        simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(
-            dataplot, plotTypeData == PROVIDED)
+        simu_color = None
+        measurements_to_plot, simulations_to_plot = \
+            self.data_provider.get_data_to_plot(dataplot,
+                                                plotTypeData == PROVIDED)
         noise_col = None
         # set type of noise
         if plotTypeData == MEAN_AND_SD:
@@ -66,16 +78,16 @@ class MPLPlotter(Plotter):
 
         label_base = dataplot.legendEntry
 
-        if data_to_plot.measurements_to_plot is not None:
+        if measurements_to_plot is not None:
             # plotting all measurement data
 
             if plotTypeData == REPLICATE:
                 replicates = np.stack(
-                    data_to_plot.measurements_to_plot.repl.values)
+                    measurements_to_plot.data_to_plot.repl.values)
 
                 # plot first replicate
                 p = ax.plot(
-                    data_to_plot.conditions.values,
+                    measurements_to_plot.conditions,
                     replicates[:, 0],
                     linestyle='-.',
                     marker='x', markersize=10, label=label_base
@@ -83,7 +95,7 @@ class MPLPlotter(Plotter):
 
                 # plot other replicates with the same color
                 ax.plot(
-                    data_to_plot.conditions.values,
+                    measurements_to_plot.conditions,
                     replicates[:, 1:],
                     linestyle='-.',
                     marker='x', markersize=10, color=p[0].get_color()
@@ -91,24 +103,12 @@ class MPLPlotter(Plotter):
 
             # construct errorbar-plots: noise specified above
             else:
-                # sort index for the case that indices of conditions and
-                # measurements differ if indep_var='time', conditions is a
-                # numpy array, for indep_var=observable its a Series
-                if isinstance(data_to_plot.conditions, np.ndarray):
-                    data_to_plot.conditions.sort()
-                elif isinstance(data_to_plot.conditions,
-                                pd.core.series.Series):
-                    data_to_plot.conditions.sort_index(inplace=True)
-                else:
-                    raise ValueError('Strange: conditions object is '
-                                     'neither numpy nor series...')
-                data_to_plot.measurements_to_plot.sort_index(inplace=True)
                 # sorts according to ascending order of conditions
                 scond, smean, snoise = \
                     zip(*sorted(zip(
-                        data_to_plot.conditions,
-                        data_to_plot.measurements_to_plot['mean'],
-                        data_to_plot.measurements_to_plot[noise_col])))
+                        measurements_to_plot.conditions,
+                        measurements_to_plot.data_to_plot['mean'],
+                        measurements_to_plot.data_to_plot[noise_col])))
                 p = ax.errorbar(
                     scond, smean, snoise,
                     linestyle='-.', marker='.', label=label_base
@@ -116,27 +116,43 @@ class MPLPlotter(Plotter):
 
             # simulations should have the same colors if both measurements
             # and simulations are plotted
-            simu_colors = p[0].get_color()
+            simu_color = p[0].get_color()
 
         # construct simulation plot
-        if data_to_plot.simulations_to_plot is not None:
-
-            xs, ys = zip(*sorted(zip(data_to_plot.conditions,
-                                     data_to_plot.simulations_to_plot)))
+        if simulations_to_plot is not None:
+            # markers will be displayed only for points that have measurement
+            # counterpart
+            if measurements_to_plot is not None:
+                meas_conditions = measurements_to_plot.conditions.to_numpy() \
+                    if isinstance(measurements_to_plot.conditions, pd.Series) \
+                    else measurements_to_plot.conditions
+                every = [condition in meas_conditions
+                         for condition in simulations_to_plot.conditions]
+            else:
+                every = None
+            # sorts according to ascending order of conditions
+            xs, ys = zip(*sorted(zip(simulations_to_plot.conditions,
+                                     simulations_to_plot.data_to_plot['mean'])
+                                 ))
             ax.plot(
-                xs, ys, linestyle='-', marker='o',
-                label=label_base + " simulation", color=simu_colors
+                xs, ys, linestyle='-', marker='o', markevery=every,
+                label=label_base + " simulation", color=simu_color
             )
 
-    def generate_barplot(self, ax, dataplot: DataPlot, plotTypeData: str):
+    def generate_barplot(self, ax: 'matplotlib.pyplot.Axes',
+                         dataplot: DataPlot,
+                         plotTypeData: str) -> None:
         """
         Generate barplot.
 
         Parameters
         ----------
-        ax
-        dataplot
-        plotTypeData
+        ax:
+            Axis object.
+        dataplot:
+            Visualization settings for the plot.
+        plotTypeData:
+            Specifies how replicates should be handled.
         """
         # TODO: plotTypeData == REPLICATE?
         # set type of noise
@@ -149,12 +165,13 @@ class MPLPlotter(Plotter):
             noise_col = 'noise_model'
 
         simu_colors = None
-        data_to_plot = self.data_provider.get_data_to_plot(
-            dataplot, plotTypeData == PROVIDED)
+        measurements_to_plot, simulations_to_plot = \
+            self.data_provider.get_data_to_plot(dataplot,
+                                                plotTypeData == PROVIDED)
 
         x_name = dataplot.legendEntry
 
-        if data_to_plot.simulations_to_plot:
+        if simulations_to_plot:
             bar_kwargs = {
                 'align': 'edge',
                 'width': -1/3,
@@ -167,49 +184,58 @@ class MPLPlotter(Plotter):
 
         color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
 
-        if data_to_plot.measurements_to_plot is not None:
-            p = ax.bar(x_name, data_to_plot.measurements_to_plot['mean'],
-                       yerr=data_to_plot.measurements_to_plot[noise_col],
+        if measurements_to_plot is not None:
+            p = ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
+                       yerr=measurements_to_plot.data_to_plot[noise_col],
                        color=color, **bar_kwargs, label='measurement')
             simu_colors = p[0].get_facecolor()
 
-        if data_to_plot.simulations_to_plot is not None:
+        if simulations_to_plot is not None:
             bar_kwargs['width'] = -bar_kwargs['width']
-            ax.bar(x_name, data_to_plot.simulations_to_plot, color='white',
-                   edgecolor=simu_colors, **bar_kwargs, label='simulation')
+            ax.bar(x_name, simulations_to_plot.data_to_plot['mean'],
+                   color='white', edgecolor=simu_colors, **bar_kwargs,
+                   label='simulation')
 
-    def generate_scatterplot(self, ax, dataplot: DataPlot, plotTypeData: str):
+    def generate_scatterplot(self, ax: 'matplotlib.pyplot.Axes',
+                             dataplot: DataPlot,
+                             plotTypeData: str) -> None:
         """
         Generate scatterplot.
 
         Parameters
         ----------
-        ax
-        dataplot
-        plotTypeData
+        ax:
+            Axis object.
+        dataplot:
+            Visualization settings for the plot.
+        plotTypeData:
+            Specifies how replicates should be handled.
         """
 
-        data_to_plot = self.data_provider.get_data_to_plot(
-            dataplot, plotTypeData == PROVIDED)
+        measurements_to_plot, simulations_to_plot = \
+            self.data_provider.get_data_to_plot(dataplot,
+                                                plotTypeData == PROVIDED)
 
-        if data_to_plot.simulations_to_plot is None:
+        if simulations_to_plot is None:
             raise NotImplementedError('Scatter plots do not work without'
                                       ' simulation data')
-        ax.scatter(data_to_plot.measurements_to_plot['mean'],
-                   data_to_plot.simulations_to_plot,
+        ax.scatter(measurements_to_plot.data_to_plot['mean'],
+                   simulations_to_plot.data_to_plot['mean'],
                    label=getattr(dataplot, LEGEND_ENTRY))
         ax = self._square_plot_equal_ranges(ax)
 
     def generate_subplot(self,
                          ax,
-                         subplot: Subplot):
+                         subplot: Subplot) -> None:
         """
         Generate subplot based on markup provided by subplot.
 
         Parameters
         ----------
-        ax
-        subplot
+        ax:
+            Axis object.
+        subplot:
+            Subplot visualization settings.
         """
 
         # set yScale
@@ -308,8 +334,10 @@ class MPLPlotter(Plotter):
 
         Returns
         -------
-        ax: Axis object of the created plot.
-        None: In case subplots are saved to file.
+        ax:
+            Axis object of the created plot.
+        None:
+            In case subplots are saved to file.
         """
 
         # Set Options for plots

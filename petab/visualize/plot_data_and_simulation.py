@@ -23,6 +23,13 @@ IdsList = List[str]
 NumList = List[int]
 
 
+__all__ = ["plot_data_and_simulation", "plot_petab_problem",
+           "plot_measurements_by_observable", "save_vis_spec",
+           "plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
+# autodoc mixes up plot_data_and_simulation model and function and documents
+# the latter, but this function will be removed in future releases
+
+
 def plot_data_and_simulation(
         exp_data: Union[str, pd.DataFrame],
         exp_conditions: Union[str, pd.DataFrame],
@@ -398,9 +405,9 @@ def plot_with_vis_spec(
         raise TypeError('Not enough arguments. Either measurements_data '
                         'or simulations_data should be provided.')
 
-    vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
+    vis_spec_parser = VisSpecParser(conditions_df, measurements_df,
                                     simulations_df)
-    figure, dataprovider = vis_spec_parcer.parse_from_vis_spec(
+    figure, dataprovider = vis_spec_parser.parse_from_vis_spec(
         vis_spec_df)
 
     if plotter_type == 'mpl':
@@ -466,10 +473,10 @@ def plot_without_vis_spec(
         raise TypeError('Not enough arguments. Either measurements_data '
                         'or simulations_data should be provided.')
 
-    vis_spec_parcer = VisSpecParser(conditions_df, measurements_df,
+    vis_spec_parser = VisSpecParser(conditions_df, measurements_df,
                                     simulations_df)
 
-    figure, dataprovider = vis_spec_parcer.parse_from_id_list(
+    figure, dataprovider = vis_spec_parser.parse_from_id_list(
         grouping_list, group_by, plotted_noise)
 
     if plotter_type == 'mpl':

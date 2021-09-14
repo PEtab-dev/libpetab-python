@@ -17,6 +17,34 @@ from . import (core, parameters, sbml, measurements)
 from .C import *  # noqa: F403
 
 logger = logging.getLogger(__name__)
+__all__ = ['assert_all_parameters_present_in_parameter_df',
+           'assert_measured_observables_defined',
+           'assert_measurement_conditions_present_in_condition_table',
+           'assert_model_parameters_in_condition_or_parameter_table',
+           'assert_no_leading_trailing_whitespace',
+           'assert_noise_distributions_valid',
+           'assert_parameter_bounds_are_numeric',
+           'assert_parameter_estimate_is_boolean',
+           'assert_parameter_id_is_string',
+           'assert_parameter_prior_parameters_are_valid',
+           'assert_parameter_prior_type_is_valid',
+           'assert_parameter_scale_is_valid',
+           'assert_unique_observable_ids',
+           'assert_unique_parameter_ids',
+           'check_condition_df',
+           'check_ids',
+           'check_measurement_df',
+           'check_observable_df',
+           'check_parameter_bounds',
+           'check_parameter_df',
+           'condition_table_is_parameter_free',
+           'get_non_unique',
+           'is_scalar_float',
+           'is_valid_identifier',
+           'lint_problem',
+           'measurement_table_has_observable_parameter_numeric_overrides',
+           'measurement_table_has_timepoint_specific_mappings',
+           'observable_table_has_nontrivial_noise_formula']
 
 
 def _check_df(df: pd.DataFrame, req_cols: Iterable, name: str) -> None:
@@ -336,8 +364,8 @@ def condition_table_is_parameter_free(condition_df: pd.DataFrame) -> bool:
         condition_df: PEtab condition table
 
     Returns:
-        True if there are no parameter overrides in the condition table,
-        False otherwise.
+        ``True`` if there are no parameter overrides in the condition table,
+        ``False`` otherwise.
     """
 
     return len(petab.get_parametric_overrides(condition_df)) == 0
@@ -621,8 +649,8 @@ def observable_table_has_nontrivial_noise_formula(
         observable_df: PEtab observable table
 
     Returns:
-        True if any noise formula does not consist of a single identifier,
-        False otherwise.
+        ``True`` if any noise formula does not consist of a single identifier,
+        ``False`` otherwise.
     """
     if observable_df is None:
         return False
@@ -641,8 +669,8 @@ def measurement_table_has_observable_parameter_numeric_overrides(
         measurement_df: PEtab measurement table
 
     Returns:
-        True if there are any numbers to override observable/noise parameters,
-        False otherwise.
+        ``True`` if there are any numbers to override observable/noise
+        parameters, ``False`` otherwise.
     """
     if OBSERVABLE_PARAMETERS not in measurement_df:
         return False
@@ -716,7 +744,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
         problem: PEtab problem to check
 
     Returns:
-        True is errors occurred, False otherwise
+        ``True`` if errors occurred, ``False`` otherwise
     """
     # pylint: disable=too-many-statements
     errors_occurred = False
@@ -905,7 +933,7 @@ def check_ids(ids: Iterable[str], kind: str = '') -> None:
         kind: Kind of IDs, for more informative error message
 
     Raises:
-        ValueError - in case of invalid IDs
+        ValueError: in case of invalid IDs
     """
     invalids = [(index, _id)
                 for index, _id in enumerate(ids)

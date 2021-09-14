@@ -1,3 +1,4 @@
+"""PEtab visualization data selection and visualization settings classes"""
 import numpy as np
 import pandas as pd
 
@@ -10,6 +11,9 @@ from ..problem import Problem
 from ..C import *
 from numbers import Number, Real
 import warnings
+
+__all__ = ['DataSeries', 'DataPlot', 'Subplot', 'Figure', 'DataProvider',
+           'VisSpecParser']
 
 # for typehints
 IdsList = List[str]
@@ -40,47 +44,68 @@ class DataSeries:
     Data for one individual line
     """
     def __init__(self, conditions_: Optional[Union[np.ndarray, pd.Series]],
-                 measurements_to_plot: Optional[pd.DataFrame] = None,
-                 simulations_to_plot: Optional[pd.DataFrame] = None):
+                 data_to_plot: Optional[pd.DataFrame] = None):
+
+        self.data_to_plot = data_to_plot
+        self.data_to_plot.sort_index(inplace=True)
 
         self.conditions = conditions_
-        if measurements_to_plot is None and simulations_to_plot is None:
-            raise TypeError('Not enough arguments. Either measurements_to_plot'
-                            ' or simulations_to_plot should be provided.')
-        self.measurements_to_plot = measurements_to_plot
-        self.simulations_to_plot = simulations_to_plot
+        # sort index for the case that indices of conditions and
+        # measurements differ if indep_var='time', conditions is a
+        # numpy array, for indep_var=observable its a Series
+        if isinstance(self.conditions, np.ndarray):
+            self.conditions.sort()
+        elif isinstance(self.conditions, pd.Series):
+            self.conditions.sort_index(inplace=True)
 
-    def add_x_offset(self, offset):
+    def add_x_offset(self, offset) -> None:
+        """
+        Offset for the independent variable.
+
+        Parameters
+        ----------
+        offset:
+            Offset value.
+
+        """
         if self.conditions is not None:
             self.conditions += offset
 
     def add_y_offset(self, offset):
-        if self.measurements_to_plot is not None:
-            self.measurements_to_plot['mean'] = \
-                self.measurements_to_plot['mean'] + offset
-            self.measurements_to_plot['repl'] = \
-                self.measurements_to_plot['repl'] + offset
+        self.data_to_plot['mean'] = \
+            self.data_to_plot['mean'] + offset
+        self.data_to_plot['repl'] = \
+            self.data_to_plot['repl'] + offset
 
-        if self.simulations_to_plot is not None:
-            self.simulations_to_plot = [x + offset for x in
-                                        self.simulations_to_plot]
+    def add_offsets(self, x_offset=0, y_offset=0) -> None:
+        """
+        Data offsets.
 
-    def add_offsets(self, x_offset=0, y_offset=0):
+        Parameters
+        ----------
+        x_offset:
+            Offset for the independent variable.
+        y_offset:
+            Offsets for the observable.
+        """
         self.add_x_offset(x_offset)
         self.add_y_offset(y_offset)
 
 
 class DataPlot:
+    """
+    Visualization specification of a plot of one data series, e.g. for
+    an individual line on a subplot.
+    """
     def __init__(self,
                  plot_settings: dict):
         """
-        Visualization specification of a plot of one data series, e.g. for
-        an individual line on a subplot.
+        Constructor.
 
         Parameters
         ----------
         plot_settings: A plot spec for one dataplot
-                       (only VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS)
+            (only VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS)
         """
 
         for key, val in plot_settings.items():
@@ -108,20 +133,24 @@ class DataPlot:
 
 
 class Subplot:
+    """
+    Visualization specification of a subplot.
+    """
     def __init__(self,
                  plot_id: str,
                  plot_settings: dict,
                  dataplots: Optional[List[DataPlot]] = None):
         """
-        Visualization specification of a subplot.
+        Constructor.
 
         Parameters
         ----------
-        plot_id: Plot id
-        plot_settings: Plot spec for a subplot
-                       (only VISUALIZATION_DF_SUBPLOT_LEVEL_COLS)
+        plot_id:
+            Plot ID.
+        plot_settings:
+            Plot spec for a subplot (only VISUALIZATION_DF_SUBPLOT_LEVEL_COLS).
         dataplots:
-            A list of data plots that should be plotted on one subplot
+            A list of data plots that should be plotted on one subplot.
         """
         # parameters of a specific subplot
 
@@ -190,7 +219,16 @@ class Subplot:
                               + ', '.join(VISUALIZATION_DF_SUBPLOT_LEVEL_COLS))
         return cls(plot_id, vis_spec_dict, dataplots)
 
-    def add_dataplot(self, dataplot: DataPlot):
+    def add_dataplot(self, dataplot: DataPlot) -> None:
+        """
+        Add data plot.
+
+        Parameters
+        ----------
+        dataplot:
+            Data plot visualization settings.
+
+        """
         self.data_plots.append(dataplot)
 
     def set_axes_limits(self,
@@ -204,20 +242,26 @@ class Subplot:
 
         Parameters
         ----------
-        xlim: x axis limits
-        ylim: y axis limits
+        xlim:
+            X axis limits.
+        ylim:
+            Y axis limits.
         """
         self.xlim = xlim
         self.ylim = ylim
 
 
 class Figure:
+    """
+    Visualization specification of a figure.
+
+    Contains information regarding how data should be visualized.
+    """
     def __init__(self, subplots: Optional[List[Subplot]] = None,
                  size: Tuple = (20, 15),
                  title: Optional[Tuple] = None):
         """
-        Visualization specification of a figure. Contains information
-        regarding how data should be visualized.
+        Constructor.
 
         Parameters
         ----------
@@ -241,22 +285,33 @@ class Figure:
     def num_subplots(self) -> int:
         return len(self.subplots)
 
-    def add_subplot(self, subplot: Subplot):
+    def add_subplot(self, subplot: Subplot) -> None:
+        """
+        Add subplot.
+
+        Parameters
+        ----------
+        subplot:
+            Subplot visualization settings.
+
+        """
         self.subplots.append(subplot)
 
     def set_axes_limits(self,
                         xlim: Optional[Tuple[Optional[Real],
                                              Optional[Real]]] = None,
                         ylim: Optional[Tuple[Optional[Real],
-                                             Optional[Real]]] = None):
+                                             Optional[Real]]] = None) -> None:
         """
         Set axes limits for all subplots. If xlim or ylim or any of the tuple
         items is None, corresponding limit is left unchanged.
 
         Parameters
         ----------
-        xlim: x axis limits
-        ylim: y axis limits
+        xlim:
+            X axis limits.
+        ylim:
+            Y axis limits.
         """
 
         for subplot in self.subplots:
@@ -264,7 +319,7 @@ class Figure:
 
     def save_to_tsv(self, output_file_path: str = 'visuSpec.tsv') -> None:
         """
-        Save full Visualization specification table
+        Save full Visualization specification table.
 
         Note that datasetId column in the resulting table might have been
         generated even though datasetId column in Measurement table is missing
@@ -272,8 +327,9 @@ class Figure:
 
         Parameters
         ----------
-        output_file_path: File path to which the generated visualization
-                          specification is saved.
+        output_file_path:
+            File path to which the generated visualization specification is
+            saved.
         """
         # TODO: what if datasetIds were generated?
 
@@ -329,15 +385,14 @@ class DataProvider:
         ----------
             df:
                 A pandas data frame to subset, can be from measurement file or
-                simulation file
+                simulation file.
             plot_spec:
-                A visualization spec from the visualization file
+                A visualization spec from the visualization file.
 
         Returns
         -------
-            index:
-                Boolean series that can be used for subsetting of the passed
-                dataframe
+        Boolean series that can be used for subsetting of the passed
+        dataframe
         """
         subset = (
             (df[DATASET_ID] == dataset_id)
@@ -362,8 +417,9 @@ class DataProvider:
         ----------
         data_df:
             A pandas data frame to subset, can be from measurement file or
-            simulation file
+            simulation file.
         dataplot:
+            Data plot visualization settings.
 
         Returns
         -------
@@ -371,12 +427,14 @@ class DataProvider:
             A name of the column from Measurement (Simulation) table, which
             specifies independent variable values (depends on the xValues entry
             of visualization specification).
-            possible values: TIME (independent variable values will be taken
-                                  from the TIME column of Measurement
-                                  (Simulation) table)
-                             SIMULATION_CONDITION_ID (independent variable
-                             values will be taken from one of the columns of
-                             Condition table)
+            Possible values:
+
+            * TIME (independent variable values will be taken from the TIME
+              column of Measurement (Simulation) table)
+
+            * SIMULATION_CONDITION_ID (independent variable values will be
+              taken from one of the columns of Condition table)
+
         uni_condition_id:
             Time points
             or
@@ -423,114 +481,123 @@ class DataProvider:
 
         return uni_condition_id, col_name_unique, conditions_
 
+    def get_data_series(self, data_df: pd.DataFrame, data_col: str,
+                        dataplot: DataPlot,
+                        provided_noise: bool) -> DataSeries:
+        """
+        Get data to plot from measurement or simulation DataFrame.
+
+        Parameters
+        ----------
+        data_df: measurement or simulation DataFrame
+        data_col: data column, i.e. 'measurement' or 'simulation'
+        dataplot: visualization specification
+        provided_noise:
+            True if numeric values for the noise level are provided in the
+            data table
+
+        Returns
+        -------
+        Data to plot
+        """
+
+        uni_condition_id, col_name_unique, conditions_ = \
+            self._get_independent_var_values(data_df,
+                                             dataplot)
+
+        dataset_id = getattr(dataplot, DATASET_ID)
+
+        # get data subset selected based on provided dataset_id
+        # and observable_ids
+        single_m_data = data_df[self._matches_plot_spec(
+            data_df, dataplot, dataset_id)]
+
+        # create empty dataframe for means and SDs
+        measurements_to_plot = pd.DataFrame(
+            columns=['mean', 'noise_model', 'sd', 'sem', 'repl'],
+            index=uni_condition_id
+        )
+
+        for var_cond_id in uni_condition_id:
+
+            subset = (single_m_data[col_name_unique] == var_cond_id)
+
+            # what has to be plotted is selected
+            data_measurements = single_m_data.loc[
+                subset,
+                data_col
+            ]
+
+            # TODO: all this rather inside DataSeries?
+            # process the data
+            measurements_to_plot.at[var_cond_id, 'mean'] = np.mean(
+                data_measurements)
+            measurements_to_plot.at[var_cond_id, 'sd'] = np.std(
+                data_measurements)
+
+            if provided_noise and np.any(subset):
+                if len(single_m_data.loc[
+                           subset, NOISE_PARAMETERS].unique()) > 1:
+                    raise NotImplementedError(
+                        f"Datapoints with inconsistent {NOISE_PARAMETERS} "
+                        f"is currently not implemented. Stopping.")
+                tmp_noise = \
+                    single_m_data.loc[subset, NOISE_PARAMETERS].values[0]
+                if isinstance(tmp_noise, str):
+                    raise NotImplementedError(
+                        "No numerical noise values provided in the "
+                        "measurement table. Stopping.")
+                if isinstance(tmp_noise, Number) or \
+                        tmp_noise.dtype == 'float64':
+                    measurements_to_plot.at[
+                        var_cond_id, 'noise_model'] = tmp_noise
+
+            # standard error of mean
+            measurements_to_plot.at[var_cond_id, 'sem'] = \
+                np.std(data_measurements) / np.sqrt(
+                    len(data_measurements))
+
+            # single replicates
+            measurements_to_plot.at[var_cond_id, 'repl'] = \
+                data_measurements.values
+
+        data_series = DataSeries(conditions_, measurements_to_plot)
+        data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
+        return data_series
+
     def get_data_to_plot(self, dataplot: DataPlot, provided_noise: bool
-                         ) -> DataSeries:
+                         ) -> Tuple[DataSeries, DataSeries]:
         """
         Get data to plot.
 
         Parameters
         ----------
-        dataplot:
-            A DataPlot template with corresponding visualization settings
+        dataplot: visualization specification
         provided_noise:
             True if numeric values for the noise level are provided in the
             measurement table
-        """
 
+        Returns
+        -----------
+        measurements_to_plot,
+        simulations_to_plot
+        """
         measurements_to_plot = None
         simulations_to_plot = None
 
-        # handle one "line" of plot
-
-        dataset_id = getattr(dataplot, DATASET_ID)
-
         if self.measurements_data is not None:
-            uni_condition_id, col_name_unique, conditions_ = \
-                self._get_independent_var_values(self.measurements_data,
-                                                 dataplot)
-        else:
-            uni_condition_id, col_name_unique, conditions_ = \
-                self._get_independent_var_values(self.simulations_data,
-                                                 dataplot)
-
-        if self.measurements_data is not None:
-            # define index to reduce exp_data to data linked to datasetId
-
-            # get measurements_df subset selected based on provided dataset_id
-            # and observable_ids
-            single_m_data = self.measurements_data[self._matches_plot_spec(
-                self.measurements_data, dataplot, dataset_id)]
-
-            # create empty dataframe for means and SDs
-            measurements_to_plot = pd.DataFrame(
-                columns=['mean', 'noise_model', 'sd', 'sem', 'repl'],
-                index=uni_condition_id
-            )
-
-            for var_cond_id in uni_condition_id:
-
-                subset = (single_m_data[col_name_unique] == var_cond_id)
-
-                # what has to be plotted is selected
-                data_measurements = single_m_data.loc[
-                    subset,
-                    MEASUREMENT
-                ]
-
-                # TODO: all this rather inside DataSeries?
-                # process the data
-                measurements_to_plot.at[var_cond_id, 'mean'] = np.mean(
-                    data_measurements)
-                measurements_to_plot.at[var_cond_id, 'sd'] = np.std(
-                    data_measurements)
-
-                if provided_noise & sum(subset):
-                    if len(single_m_data.loc[
-                               subset, NOISE_PARAMETERS].unique()) > 1:
-                        raise NotImplementedError(
-                            f"Datapoints with inconsistent {NOISE_PARAMETERS} "
-                            f"is currently not implemented. Stopping.")
-                    tmp_noise = \
-                        single_m_data.loc[subset, NOISE_PARAMETERS].values[0]
-                    if isinstance(tmp_noise, str):
-                        raise NotImplementedError(
-                            "No numerical noise values provided in the "
-                            "measurement table. Stopping.")
-                    if isinstance(tmp_noise, Number) or \
-                            tmp_noise.dtype == 'float64':
-                        measurements_to_plot.at[
-                            var_cond_id, 'noise_model'] = tmp_noise
-
-                # standard error of mean
-                measurements_to_plot.at[var_cond_id, 'sem'] = \
-                    np.std(data_measurements) / np.sqrt(
-                        len(data_measurements))
-
-                # single replicates
-                measurements_to_plot.at[var_cond_id, 'repl'] = \
-                    data_measurements.values
+            measurements_to_plot = self.get_data_series(self.measurements_data,
+                                                        MEASUREMENT,
+                                                        dataplot,
+                                                        provided_noise)
 
         if self.simulations_data is not None:
-            simulations_to_plot = []
+            simulations_to_plot = self.get_data_series(self.simulations_data,
+                                                       SIMULATION,
+                                                       dataplot,
+                                                       provided_noise)
 
-            single_s_data = self.simulations_data[self._matches_plot_spec(
-                self.simulations_data, dataplot, dataset_id)]
-
-            for var_cond_id in uni_condition_id:
-                simulation_measurements = single_s_data.loc[
-                    single_s_data[col_name_unique] == var_cond_id,
-                    SIMULATION
-                ]
-
-                simulations_to_plot.append(np.mean(
-                    simulation_measurements
-                ))
-
-        data_series = DataSeries(conditions_, measurements_to_plot,
-                                 simulations_to_plot)
-        data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
-
-        return data_series
+        return measurements_to_plot, simulations_to_plot
 
 
 class VisSpecParser:
@@ -541,7 +608,6 @@ class VisSpecParser:
     information regarding how data should be visualized. In addition to the
     Figure instance, a DataProvider instance is created that will be
     responsible for the data selection and manipulation.
-
     """
     def __init__(self,
                  conditions_data: Union[str, pd.DataFrame],
@@ -585,14 +651,16 @@ class VisSpecParser:
 
         Parameters
         ----------
-        plot_id: Plot id
+        plot_id:
+            Plot id.
         subplot_vis_spec:
             A visualization specification DataFrame that contains specification
-            for the subplot and corresponding dataplots
+            for the subplot and corresponding dataplots.
 
         Returns
         -------
-        Subplot
+
+                Subplot
         """
 
         subplot_columns = [col for col in subplot_vis_spec.columns if col in
@@ -679,25 +747,34 @@ class VisSpecParser:
             A list of lists. Each sublist corresponds to a plot, each subplot
             contains the Ids of datasets or observables or simulation
             conditions for this plot.
-            e.g. dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
-                                         ['dataset_1', 'dataset_4',
-                                          'dataset_5']]
+            e.g.
 
-            or cond_id_list = [['model1_data1'],
-                               ['model1_data2', 'model1_data3'],
-                               ['model1_data4', 'model1_data5'],
-                               ['model1_data6']]
+            ::
+
+                dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
+                                        ['dataset_1', 'dataset_4',
+                                         'dataset_5']]
+
+            or
+
+            ::
+
+                cond_id_list = [['model1_data1'],
+                                ['model1_data2', 'model1_data3'],
+                                ['model1_data4', 'model1_data5'],
+                                ['model1_data6']].
+
         group_by:
             Grouping type. Possible values: 'dataset', 'observable',
-            'simulation'
-            # TODO: why simulation btw?
+            'simulation'.
         plotted_noise:
             String indicating how noise should be visualized:
-            ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+            ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided'].
 
         Returns
         -------
         A figure template with visualization settings and a data provider
+
         """
 
         if ids_per_plot is None:
@@ -762,17 +839,16 @@ class VisSpecParser:
         ----------
         group_by:
             Grouping type.
-            Possible values: 'dataset', 'observable', 'simulation'
+            Possible values: 'dataset', 'observable', 'simulation'.
         id_list:
-            Grouping list. Each sublist corresponds to a plot, each subplot
+            Grouping list. Each sublist corresponds to a subplot and
             contains the Ids of datasets or observables or simulation
-            conditions for this plot.
+            conditions for this subplot.
 
         Returns
         -------
-        A dictionary with values for
-        columns PLOT_ID, DATASET_ID, LEGEND_ENTRY, Y_VALUES for
-        visualization specification.
+        A dictionary with values for columns PLOT_ID, DATASET_ID, \
+        LEGEND_ENTRY, Y_VALUES for visualization specification.
         """
 
         if group_by != 'dataset':
@@ -810,11 +886,12 @@ class VisSpecParser:
 
         Parameters
         ----------
-        dataset_id: dataset id
+        dataset_id:
+            Dataset id.
 
         Returns
         -------
-        A legend
+        A legend.
         """
         # relies on the fact that dataset ids were created based on cond_ids
         # and obs_ids. Therefore, in the following query all pairs will be
@@ -833,7 +910,7 @@ class VisSpecParser:
     def _expand_vis_spec_settings(self, vis_spec: pd.DataFrame):
         """
         Expand visualization specification for the case when DATASET_ID is not
-        in vis_spec.columns
+        in vis_spec.columns.
 
         Parameters
         -------
@@ -843,7 +920,7 @@ class VisSpecParser:
 
         Returns
         -------
-            A visualization specification DataFrame
+        A visualization specification DataFrame.
         """
         if DATASET_ID in vis_spec.columns:
             raise ValueError(f"visualization specification expansion is "
@@ -887,14 +964,16 @@ class VisSpecParser:
 
         Parameters
         ----------
-        obs_id: Observable id
-        settings: Additional visualization settings. For each key that is a
-                  valid visualization specification column name, the setting
-                  will be added to the resulting visualization specification
+        obs_id:
+            Observable ID.
+        settings:
+            Additional visualization settings. For each key that is a
+            valid visualization specification column name, the setting
+            will be added to the resulting visualization specification.
 
         Returns
         -------
-        A visualization specification DataFrame
+        A visualization specification DataFrame.
         """
         columns_to_expand = [PLOT_ID, PLOT_NAME, PLOT_TYPE_SIMULATION,
                              PLOT_TYPE_DATA, X_VALUES, X_OFFSET, X_LABEL,

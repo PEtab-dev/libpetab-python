@@ -1,15 +1,22 @@
 """PEtab Problem class"""
 
 import os
+# Renamed to `Path_` to avoid unknown error during Sphinx doc build
+from pathlib import Path as Path_
 import tempfile
+from typing import Dict, Iterable, List, Optional, Union
 from warnings import warn
 
 import pandas as pd
 import libsbml
-from typing import Optional, List, Union, Dict, Iterable
 from . import (parameter_mapping, measurements, conditions, parameters,
                sampling, sbml, yaml, core, observables, format_version)
 from .C import *  # noqa: F403
+
+__all__ = ['Problem', 'get_default_condition_file_name',
+           'get_default_measurement_file_name',
+           'get_default_parameter_file_name',
+           'get_default_sbml_file_name']
 
 
 class Problem:
@@ -264,6 +271,53 @@ class Problem:
 
         return problem
 
+    def to_files_generic(
+        self,
+        prefix_path: Union[str, Path_],
+    ) -> None:
+        """Save a PEtab problem to generic file names.
+
+        The PEtab problem YAML file is always created. PEtab data files are
+        only created if the PEtab problem contains corresponding data (e.g. a
+        PEtab visualization TSV file is only created if the PEtab problem has
+        one).
+
+        Arguments:
+            prefix_path:
+                Specify a prefix to all paths, to avoid specifying the
+                prefix for all paths individually. NB: the prefix is added to
+                paths before `relative_paths` is handled downstream in
+                `petab.yaml.create_problem_yaml`.
+
+        Returns:
+            The path to the PEtab problem YAML file.
+        """
+        prefix_path = Path_(prefix_path)
+
+        # Generate generic filenames for data tables in the PEtab problem that
+        # contain data.
+        filenames = {}
+        for table_name in [
+            'condition',
+            'measurement',
+            'parameter',
+            'observable',
+            'visualization',
+        ]:
+            if getattr(self, f'{table_name}_df') is not None:
+                filenames[f'{table_name}_file'] = f'{table_name}s.tsv'
+
+        if self.sbml_document is not None:
+            filenames['sbml_file'] = 'model.xml'
+
+        filenames['yaml_file'] = 'problem.yaml'
+
+        self.to_files(**filenames, prefix_path=prefix_path)
+
+        if prefix_path is None:
+            return filenames['yaml_file']
+        return str(prefix_path / filenames['yaml_file'])
+
     def to_files(self,
                  sbml_file: Optional[str] = None,
                  condition_file: Optional[str] = None,
@@ -272,6 +326,7 @@ class Problem:
                  visualization_file: Optional[str] = None,
                  observable_file: Optional[str] = None,
                  yaml_file: Optional[str] = None,
+                 prefix_path: Optional[Union[str, Path_]] = None,
                  relative_paths: bool = True,) -> None:
         """
         Write PEtab tables to files for this problem
@@ -290,14 +345,34 @@ class Problem:
             visualization_file: Visualization table destination
             observable_file: Observables table destination
             yaml_file: YAML file destination
-            relative_paths: whether all paths in the YAML file should be
-            relative to the location of the YAML file. If `False`, then paths
-            are left unchanged.
+            prefix_path:
+                Specify a prefix to all paths, to avoid specifying the
+                prefix for all paths individually. NB: the prefix is added to
+                paths before `relative_paths` is handled.
+            relative_paths:
+                whether all paths in the YAML file should be
+                relative to the location of the YAML file. If `False`, then
+                paths are left unchanged.
 
         Raises:
             ValueError:
                 If a destination was provided for a non-existing entity.
         """
+        if prefix_path is not None:
+            prefix_path = Path_(prefix_path)
+
+            def add_prefix(path0: Union[None, str, Path_]) -> str:
+                if path0 is None:
+                    return path0
+                return str(prefix_path / path0)
+
+            sbml_file = add_prefix(sbml_file)
+            condition_file = add_prefix(condition_file)
+            measurement_file = add_prefix(measurement_file)
+            parameter_file = add_prefix(parameter_file)
+            observable_file = add_prefix(observable_file)
+            visualization_file = add_prefix(visualization_file)
+            yaml_file = add_prefix(yaml_file)
 
         if sbml_file:
             if self.sbml_document is not None:
@@ -423,8 +498,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The reduced vector with applied mask.
+        The reduced vector with applied mask.
         """
         if not free and not fixed:
             return []
@@ -447,8 +521,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The parameter ids.
+        The parameter IDs.
         """
         v = list(self.parameter_df.index.values)
         return self._apply_mask(v, free=free, fixed=fixed)
@@ -485,8 +558,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The parameter nominal values.
+        The parameter nominal values.
         """
         v = list(self.parameter_df[NOMINAL_VALUE])
         if scaled:
@@ -543,8 +615,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The lower parameter bounds.
+        The lower parameter bounds.
         """
         v = list(self.parameter_df[LOWER_BOUND])
         if scaled:
@@ -579,8 +650,7 @@ class Problem:
 
         Returns
         -------
-        v:
-            The upper parameter bounds.
+        The upper parameter bounds.
         """
         v = list(self.parameter_df[UPPER_BOUND])
         if scaled:
