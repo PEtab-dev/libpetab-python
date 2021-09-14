@@ -2,6 +2,13 @@
 
 ## 0.1 series
 
+### 0.1.20
+
+* Visualization: plot additional simulation points (not only at measurements) (#62), bugfix (#68)
+* Documentation: visualization, observables, simulation, Sphinx fixes (#67)
+* Lint: ensure valid parameter IDs in observable and noise parameters (#69)
+* Convenience method for quick export of a PEtab problem to files (#71)
+
 ### 0.1.19
 
 * Visualization: refactoring (#58) including various bug fixes
