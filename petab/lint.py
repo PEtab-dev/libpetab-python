@@ -943,16 +943,16 @@ def assert_measurements_numeric(
         AssertionError:
             Some measurement are not numeric.
     """
+    not_null_measurement_values = measurement_df[MEASUREMENT].dropna()
     all_measurements_are_numeric = (
-        pd.to_numeric(measurement_df[MEASUREMENT].dropna(), errors='coerce')
+        pd.to_numeric(not_null_measurement_values, errors='coerce')
         .notnull()
         .all()
     )
     if not all_measurements_are_numeric:
         raise AssertionError(
-            'Some values in the `petab.C.MEASUREMENT` column of the '
-            'PEtab measurements table are not numeric. This may be due to '
-            'null (missing) values.'
+            'Some values in the `petab.C.MEASUREMENT` column of the PEtab '
+            'measurements table are not numeric.'
         )
 
 
