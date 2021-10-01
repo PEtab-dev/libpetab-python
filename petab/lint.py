@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 __all__ = ['assert_all_parameters_present_in_parameter_df',
            'assert_measured_observables_defined',
            'assert_measurement_conditions_present_in_condition_table',
+           'assert_measurements_not_null',
+           'assert_measurements_numeric',
            'assert_model_parameters_in_condition_or_parameter_table',
            'assert_no_leading_trailing_whitespace',
            'assert_noise_distributions_valid',
@@ -176,6 +178,9 @@ def check_measurement_df(df: pd.DataFrame,
         assert_measured_observables_defined(df, observable_df)
         measurements.assert_overrides_match_parameter_count(
             df, observable_df)
+
+    assert_measurements_not_null(df)
+    assert_measurements_numeric(df)
 
 
 def check_parameter_df(
@@ -904,6 +909,51 @@ def assert_measurement_conditions_present_in_condition_table(
         raise AssertionError("Measurement table references conditions that "
                              "are not specified in the condition table: "
                              + str(missing_conditions))
+
+
+def assert_measurements_not_null(
+    measurement_df: pd.DataFrame,
+) -> None:
+    """Check whether all measurements are not null.
+
+    Arguments:
+        measurement_df:
+            PEtab measurement table.
+
+    Raises:
+        AssertionError:
+            Some measurement(s) are null (missing).
+    """
+    if measurement_df[MEASUREMENT].isnull().any():
+        raise AssertionError('Some measurement(s) are null (missing).')
+
+
+def assert_measurements_numeric(
+    measurement_df: pd.DataFrame,
+) -> None:
+    """Check whether all measurements are numeric.
+
+    Note that null (missing) measurements are ignored.
+
+    Arguments:
+        measurement_df:
+            PEtab measurement table.
+
+    Raises:
+        AssertionError:
+            Some measurement are not numeric.
+    """
+    all_measurements_are_numeric = (
+        pd.to_numeric(measurement_df[MEASUREMENT].dropna(), errors='coerce')
+        .notnull()
+        .all()
+    )
+    if not all_measurements_are_numeric:
+        raise AssertionError(
+            'Some values in the `petab.C.MEASUREMENT` column of the '
+            'PEtab measurements table are not numeric. This may be due to '
+            'null (missing) values.'
+        )
 
 
 def is_valid_identifier(x: str) -> bool:
