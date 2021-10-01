@@ -922,7 +922,7 @@ def assert_measurements_not_null(
 
     Raises:
         AssertionError:
-            Some measurement(s) are null (missing).
+            Some measurement value(s) are null (missing).
     """
     if measurement_df[MEASUREMENT].isnull().any():
         raise AssertionError('Some measurement(s) are null (missing).')
@@ -941,7 +941,7 @@ def assert_measurements_numeric(
 
     Raises:
         AssertionError:
-            Some measurement are not numeric.
+            Some measurement value(s) are not numeric.
     """
     not_null_measurement_values = measurement_df[MEASUREMENT].dropna()
     all_measurements_are_numeric = (
