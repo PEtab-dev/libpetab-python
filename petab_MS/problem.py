@@ -36,9 +36,7 @@ class Problem:
     """
 
     def __init__(self,
-                 sbml_model: libsbml.Model = None,
-                 sbml_reader: libsbml.SBMLReader = None,
-                 sbml_document: libsbml.SBMLDocument = None,
+                 model_file: str = None,
                  condition_df: pd.DataFrame = None,
                  measurement_df: pd.DataFrame = None,
                  parameter_df: pd.DataFrame = None,
@@ -50,6 +48,8 @@ class Problem:
         self.parameter_df: Optional[pd.DataFrame] = parameter_df
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
         self.observable_df: Optional[pd.DataFrame] = observable_df
+        self.model_file = model_file
+
 
     def __getstate__(self):
         """Return state for pickling"""
@@ -78,7 +78,8 @@ class Problem:
         self.__dict__.update(state)
 
     @staticmethod
-    def from_files(condition_file: str = None,
+    def from_files(model_file: str = None,
+                   condition_file: str = None,
                    measurement_file: Union[str, Iterable[str]] = None,
                    parameter_file: Union[str, List[str]] = None,
                    observable_files: Union[str, Iterable[str]] = None
@@ -86,6 +87,7 @@ class Problem:
         """
         Factory method to load model and tables from files.
         Arguments:
+            model_file: PEtab MS model
             condition_file: PEtab condition table
             measurement_file: PEtab measurement table
             parameter_file: PEtab parameter table
@@ -110,10 +112,12 @@ class Problem:
             observable_df = core.concat_tables(
                 observable_files, observables.get_observable_df)
 
-        return Problem(condition_df=condition_df,
+        return Problem(model_file=model_file,
+                       condition_df=condition_df,
                        measurement_df=measurement_df,
                        parameter_df=parameter_df,
-                       observable_df=observable_df)
+                       observable_df=observable_df
+                       )
 
     @staticmethod
     def from_yaml(yaml_config: Union[Dict, str]) -> 'Problem':
@@ -154,6 +158,7 @@ class Problem:
                 path_prefix, yaml_config[PARAMETER_FILE])
 
         return Problem.from_files(
+            model_file=os.path.join(path_prefix, problem0[MODEL_FILES][0]),
             measurement_file=[os.path.join(path_prefix, f)
                               for f in problem0[MEASUREMENT_FILES]],
             condition_file=os.path.join(
