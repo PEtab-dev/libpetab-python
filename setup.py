@@ -13,8 +13,8 @@ def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
 
     raw_base = "(https://raw.githubusercontent.com/"\
-               "petab-dev/libpetab-python/master/"
-    embedded_base = "(https://github.com/petab-dev/libpetab-python/"\
+               "EmadAlamoudi/libpetab-python-MS/master/"
+    embedded_base = "(https://github.com/EmadAlamoudi/libpetab-python-MS/"\
                     "tree/master/"
     # iterate over links
     for var in re.findall(r'\[.*?\]\((?!http).*?\)', txt):
@@ -30,11 +30,11 @@ def absolute_links(txt):
 
 # Python version check. We need >= 3.6 due to e.g. f-strings
 if sys.version_info < (3, 7, 1):
-    sys.exit('PEtab requires at least Python version 3.7.1')
+    sys.exit('PEtab_MS requires at least Python version 3.7.1')
 
 # read version from file
 __version__ = ''
-version_file = os.path.join('petab', 'version.py')
+version_file = os.path.join('petab_MS', 'version.py')
 # sets __version__
 exec(read(version_file))  # pylint: disable=W0122 # nosec
 
@@ -46,9 +46,9 @@ ENTRY_POINTS = {
 
 # project metadata
 # noinspection PyUnresolvedReferences
-setup(name='petab',
+setup(name='petab_MS',
       version=__version__,
-      description='Parameter estimation tabular data',
+      description='Parameter estimation tabular data for MS',
       long_description=absolute_links(read('README.md')),
       long_description_content_type="text/markdown",
       author='The PEtab developers',

@@ -139,9 +139,8 @@ def is_composite_problem(yaml_config: Union[Dict, str]) -> bool:
     return len(yaml_config[PROBLEMS]) > 1
 
 
-def assert_single_condition_and_sbml_file(problem_config: Dict) -> None:
-    """Check that there is only a single condition file and a single SBML
-    file specified.
+def assert_single_condition_file(problem_config: Dict) -> None:
+    """Check that there is only a single condition file specified.
 
     Arguments:
         problem_config:
@@ -151,8 +150,7 @@ def assert_single_condition_and_sbml_file(problem_config: Dict) -> None:
         NotImplementedError:
             If multiple condition or SBML files specified.
     """
-    if (len(problem_config[SBML_FILES]) > 1
-            or len(problem_config[CONDITION_FILES]) > 1):
+    if len(problem_config[CONDITION_FILES]) > 1:
         # TODO https://github.com/ICB-DCM/PEtab/issues/188
         # TODO https://github.com/ICB-DCM/PEtab/issues/189
         raise NotImplementedError(
