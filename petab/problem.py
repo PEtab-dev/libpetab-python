@@ -736,8 +736,8 @@ class Problem:
         Parameters
         ----------
         x_dict:
-            Keys are parameter IDs in the PEtab problem, values are parameter
-            values.
+            Keys are parameter IDs in the PEtab problem, values are scaled
+            parameter values.
 
         Returns
         -------
@@ -760,8 +760,8 @@ class Problem:
         Parameters
         ----------
         x_dict:
-            Keys are parameter IDs in the PEtab problem, values are parameter
-            values.
+            Keys are parameter IDs in the PEtab problem, values are unscaled
+            parameter values.
 
         Returns
         -------
