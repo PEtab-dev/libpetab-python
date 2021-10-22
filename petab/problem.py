@@ -730,39 +730,50 @@ class Problem:
     def unscale_parameters(
         self,
         x_dict: Dict[str, float],
-        inverse: bool = False,
-    ):
+    ) -> Dict[str, float]:
         """Unscale parameter values.
-
-        Parameters can instead be scaled with the `inverse` flag.
 
         Parameters
         ----------
         x_dict:
             Keys are parameter IDs in the PEtab problem, values are parameter
             values.
-        inverse:
-            If `True`, scale the parameters, else unscale the parameters.
 
         Returns
         -------
         The unscaled parameter values.
         """
-        transformer = (
-            parameters.unscale
-            if not inverse
-            else parameters.scale
-        )
-
-        transformed_parameters = {
-            parameter_id: transformer(
+        return {
+            parameter_id: parameters.unscale(
                 parameter_value,
                 self.parameter_df[PARAMETER_SCALE][parameter_id],
             )
             for parameter_id, parameter_value in x_dict.items()
         }
 
-        return transformed_parameters
+    def scale_parameters(
+        self,
+        x_dict: Dict[str, float],
+    ) -> Dict[str, float]:
+        """Scale parameter values.
+
+        Parameters
+        ----------
+        x_dict:
+            Keys are parameter IDs in the PEtab problem, values are parameter
+            values.
+
+        Returns
+        -------
+        The scaled parameter values.
+        """
+        return {
+            parameter_id: parameters.scale(
+                parameter_value,
+                self.parameter_df[PARAMETER_SCALE][parameter_id],
+            )
+            for parameter_id, parameter_value in x_dict.items()
+        }
 
 
 def get_default_condition_file_name(model_name: str, folder: str = ''):
