@@ -35,8 +35,7 @@ def write_simulation_df(df: pd.DataFrame, filename: str) -> None:
         df: PEtab simulation table
         filename: Destination file name
     """
-    with open(filename, 'w') as fh:
-        df.to_csv(fh, sep='\t', index=False)
+    df.to_csv(filename, sep='\t', index=False)
 
 
 def get_visualization_df(visualization_file: str) -> pd.DataFrame:
@@ -65,8 +64,7 @@ def write_visualization_df(df: pd.DataFrame, filename: str) -> None:
         df: PEtab visualization table
         filename: Destination file name
     """
-    with open(filename, 'w') as fh:
-        df.to_csv(fh, sep='\t', index=False)
+    df.to_csv(filename, sep='\t', index=False)
 
 
 def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
