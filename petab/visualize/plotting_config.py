@@ -1,4 +1,4 @@
-"""Plotting config"""
+"""Plotting config. It will be removed in future releases."""
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -10,6 +10,7 @@ import warnings
 from ..C import *
 
 # TODO: delete this file
+__all__ = ["plot_lowlevel", "square_plot_equal_ranges"]
 
 
 def plot_lowlevel(plot_spec: pd.Series,

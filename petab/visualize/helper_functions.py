@@ -20,11 +20,26 @@ from ..C import *
 
 from typing import Dict, List, Optional, Tuple, Union
 
-# sns.set() This messes up plotting settings if one just imports this file
+# sns.set() This messes up plotting settings even if one just imports this file
 
 # for typehints
 IdsList = List[str]
 NumList = List[int]
+__all__ = ['check_ex_exp_columns',
+           'check_ex_visu_columns',
+           'check_vis_spec_consistency',
+           'create_dataset_id_list',
+           'create_dataset_id_list_new',
+           'create_figure',
+           'create_or_update_vis_spec',
+           'expand_vis_spec_settings',
+           'generate_dataset_id_col',
+           'get_data_to_plot',
+           'get_default_vis_specs',
+           'get_vis_spec_dependent_columns_dict',
+           'handle_dataset_plot',
+           'import_from_files',
+           'matches_plot_spec']
 
 
 def import_from_files(
@@ -94,8 +109,7 @@ def check_vis_spec_consistency(
     For documentation, see main function plot_data_and_simulation()
 
     Returns:
-        group_by:
-            Specifies the grouping of data to plot.
+        Specifies the grouping of data to plot.
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)
@@ -281,15 +295,17 @@ def create_dataset_id_list(
 
 def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
     """
-    generate DATASET_ID column from condition_ids and observable_ids
+    Generate DATASET_ID column from condition_ids and observable_ids.
 
     Parameters
     ----------
-    exp_data
+    exp_data:
+        A measurement (simulation) DataFrame in the PEtab format.
 
     Returns
     -------
-
+        A list with generated datasetIds for each entry in the measurement
+        (simulation) DataFrame
     """
 
     # create a column of dummy datasetIDs and legend entries: preallocate
@@ -312,12 +328,16 @@ def create_dataset_id_list_new(df: pd.DataFrame,
                                id_list: List[IdsList]
                                ) -> List[IdsList]:
     """
-    Create dataset id list.
+    Create dataset ID list from a list of simulation condition IDs or
+    observable IDs.
 
     Parameters:
-        df: measurements or simulations df
-        group_by: defines  grouping of data to plot
+        df: Measurements or simulations DataFrame.
+        group_by: Defines  grouping of data to plot.
         id_list:
+            Grouping list. Each sublist corresponds to a subplot in a figure,
+            and contains the IDs of observables or simulation conditions for
+            the subplot.
 
     Returns:
         A list of datasetIds
@@ -547,13 +567,22 @@ def get_vis_spec_dependent_columns_dict(
     return exp_data, columns_dict
 
 
-def expand_vis_spec_settings(vis_spec, columns_dict):
+def expand_vis_spec_settings(vis_spec: pd.DataFrame, columns_dict):
     """
+    Expand visualization specification.
     only makes sense if DATASET_ID is not in vis_spec.columns?
 
-    Returns:
-        A visualization specification DataFrame
+    Parameters
+    ----------
+    vis_spec: A visualization specification DataFrame.
+    columns_dict:
+
+    Returns
+    -------
+    Expanded visualization specification DataFrame
     """
+    warnings.warn("This function will be removed in future releases. ",
+                  DeprecationWarning)
     columns_to_expand = [PLOT_NAME, PLOT_TYPE_SIMULATION, PLOT_TYPE_DATA,
                          X_VALUES, X_OFFSET, X_LABEL, X_SCALE, Y_OFFSET,
                          Y_LABEL, Y_SCALE, LEGEND_ENTRY]
@@ -874,7 +903,7 @@ def matches_plot_spec(df: pd.DataFrame,
                       x_value: Union[float, str],
                       plot_spec: pd.Series) -> pd.Series:
     """
-    constructs an index for subsetting of the dataframe according to what is
+    Constructs an index for subsetting of the dataframe according to what is
     specified in plot_spec.
 
     Parameters:
@@ -889,9 +918,8 @@ def matches_plot_spec(df: pd.DataFrame,
             visualization spec from the visualization file
 
     Returns:
-        index:
-            Boolean series that can be used for subsetting of the passed
-            dataframe
+        Boolean series that can be used for subsetting of the passed
+        dataframe
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)
@@ -940,9 +968,7 @@ def get_data_to_plot(plot_spec: pd.Series,
             simulation result.
 
     Returns:
-        data_to_plot:
-            Contains the data which should be plotted
-            (Mean and Std)
+        Contains the data which should be plotted (Mean and Std)
     """
     warnings.warn("This function will be removed in future releases. ",
                   DeprecationWarning)

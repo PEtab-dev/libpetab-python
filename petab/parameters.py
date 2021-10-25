@@ -11,6 +11,20 @@ import libsbml
 from . import lint, core, measurements, conditions, observables
 from .C import *  # noqa: F403
 
+__all__ = ['create_parameter_df',
+           'get_optimization_parameter_scaling',
+           'get_optimization_parameters',
+           'get_parameter_df',
+           'get_priors_from_df',
+           'get_required_parameters_for_parameter_table',
+           'get_valid_parameters_for_parameter_table',
+           'map_scale',
+           'map_unscale',
+           'normalize_parameter_df',
+           'scale',
+           'unscale',
+           'write_parameter_df']
+
 
 def get_parameter_df(
         parameter_file: Union[str, List[str], pd.DataFrame, None]
@@ -124,6 +138,7 @@ def create_parameter_df(sbml_model: libsbml.Model,
     Arguments:
         sbml_model: SBML Model
         condition_df: PEtab condition DataFrame
+        observable_df: PEtab observable DataFrame
         measurement_df: PEtab measurement DataFrame
         include_optional: By default this only returns parameters that are
             required to be present in the parameter table. If set to True,
@@ -410,8 +425,7 @@ def map_scale(
             Scales to apply. Broadcast if a single string.
 
     Returns:
-        parameters:
-            The scaled parameters.
+        The scaled parameters.
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)
@@ -432,8 +446,7 @@ def map_unscale(
             Broadcast if a single string.
 
     Returns:
-        parameters:
-            The unscaled parameters.
+        The unscaled parameters.
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)

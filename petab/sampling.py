@@ -8,6 +8,8 @@ from typing import Tuple
 from . import parameters
 from .C import *  # noqa: F403
 
+__all__ = ['sample_from_prior', 'sample_parameter_startpoints']
+
 
 def sample_from_prior(prior: Tuple[str, list, str, list],
                       n_starts: int) -> np.array:

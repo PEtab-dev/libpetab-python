@@ -1,4 +1,6 @@
-"""PEtab global
+"""
+PEtab global
+============
 
 Attributes:
     ENV_NUM_THREADS:
@@ -9,6 +11,7 @@ Attributes:
 
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
 
+from .C import *  # noqa: F403, F401, E402
 from .calculate import *  # noqa: F403, F401, E402
 from .composite_problem import *  # noqa: F403, F401, E402
 from .conditions import *  # noqa: F403, F401, E402
