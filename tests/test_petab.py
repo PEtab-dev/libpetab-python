@@ -340,7 +340,7 @@ def test_flatten_timepoint_specific_output_overrides():
         TIME:
             [1.0, 1.0, 2.0, 2.0],
         MEASUREMENT:
-            [np.nan] * 4,
+            [.1] * 4,
         OBSERVABLE_PARAMETERS:
             ['obsParOverride1;1.0', 'obsParOverride2;1.0',
              'obsParOverride2;1.0', 'obsParOverride2;1.0'],
@@ -362,7 +362,7 @@ def test_flatten_timepoint_specific_output_overrides():
         TIME:
             [1.0, 1.0, 2.0, 2.0],
         MEASUREMENT:
-            [np.nan] * 4,
+            [.1] * 4,
         OBSERVABLE_PARAMETERS:
             ['obsParOverride1;1.0', 'obsParOverride2;1.0',
              'obsParOverride2;1.0', 'obsParOverride2;1.0'],
@@ -425,7 +425,7 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
         TIME:
             [1.0, 1.0, 2.0, 2.0],
         MEASUREMENT:
-            [np.nan] * 4,
+            [.1] * 4,
         NOISE_PARAMETERS:
             ['noiseParOverride1', 'noiseParOverride1',
              'noiseParOverride2', 'noiseParOverride2'],
@@ -442,7 +442,7 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
         TIME:
             [1.0, 1.0, 2.0, 2.0],
         MEASUREMENT:
-            [np.nan] * 4,
+            [.1] * 4,
         NOISE_PARAMETERS:
             ['noiseParOverride1', 'noiseParOverride1',
              'noiseParOverride2', 'noiseParOverride2'],
