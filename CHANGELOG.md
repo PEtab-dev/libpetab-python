@@ -2,6 +2,15 @@
 
 ## 0.1 series
 
+### 0.1.21
+
+* PEtab spec compliance: measurements must now be not null, and numeric (#76)
+  * Users who relied on null measurements for simulation/plotting are
+    recommended to store these dummy simulation-only measurements in an
+    additional file, separate to real measurements used for calibration
+* Improve Unicode support (#79, fixes #77)
+* Convenience methods to scale or unscale a parameter vector (#78)
+
 ### 0.1.20
 
 * Visualization: plot additional simulation points (not only at measurements) (#62), bugfix (#68)
