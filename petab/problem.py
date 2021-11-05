@@ -727,6 +727,54 @@ class Problem:
         return sampling.sample_parameter_startpoints(
             self.parameter_df, n_starts=n_starts)
 
+    def unscale_parameters(
+        self,
+        x_dict: Dict[str, float],
+    ) -> Dict[str, float]:
+        """Unscale parameter values.
+
+        Parameters
+        ----------
+        x_dict:
+            Keys are parameter IDs in the PEtab problem, values are scaled
+            parameter values.
+
+        Returns
+        -------
+        The unscaled parameter values.
+        """
+        return {
+            parameter_id: parameters.unscale(
+                parameter_value,
+                self.parameter_df[PARAMETER_SCALE][parameter_id],
+            )
+            for parameter_id, parameter_value in x_dict.items()
+        }
+
+    def scale_parameters(
+        self,
+        x_dict: Dict[str, float],
+    ) -> Dict[str, float]:
+        """Scale parameter values.
+
+        Parameters
+        ----------
+        x_dict:
+            Keys are parameter IDs in the PEtab problem, values are unscaled
+            parameter values.
+
+        Returns
+        -------
+        The scaled parameter values.
+        """
+        return {
+            parameter_id: parameters.scale(
+                parameter_value,
+                self.parameter_df[PARAMETER_SCALE][parameter_id],
+            )
+            for parameter_id, parameter_value in x_dict.items()
+        }
+
 
 def get_default_condition_file_name(model_name: str, folder: str = ''):
     """Get file name according to proposed convention"""

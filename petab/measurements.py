@@ -57,8 +57,7 @@ def write_measurement_df(df: pd.DataFrame, filename: str) -> None:
         df: PEtab measurement table
         filename: Destination file name
     """
-    with open(filename, 'w') as fh:
-        df.to_csv(fh, sep='\t', index=False)
+    df.to_csv(filename, sep='\t', index=False)
 
 
 def get_noise_distributions(measurement_df: pd.DataFrame) -> dict:

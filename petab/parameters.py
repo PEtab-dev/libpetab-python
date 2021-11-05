@@ -89,8 +89,7 @@ def write_parameter_df(df: pd.DataFrame, filename: str) -> None:
         df: PEtab parameter table
         filename: Destination file name
     """
-    with open(filename, 'w') as fh:
-        df.to_csv(fh, sep='\t', index=True)
+    df.to_csv(filename, sep='\t', index=True)
 
 
 def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:

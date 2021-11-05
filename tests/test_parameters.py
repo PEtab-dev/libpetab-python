@@ -112,7 +112,8 @@ def test_write_parameter_df():
     """Test parameters.write_parameter_df."""
     parameter_df = pd.DataFrame(data={
         PARAMETER_ID: ['par1', 'par2'],
-        PARAMETER_NAME: ['parname1', 'parname2'],
+        # Test utf8 characters
+        PARAMETER_NAME: ['ɑ', 'β'],
     }).set_index(PARAMETER_ID)
 
     with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
