@@ -466,7 +466,7 @@ def check_parameter_bounds(parameter_df: pd.DataFrame) -> None:
                 raise AssertionError(
                     f"{LOWER_BOUND} greater than {UPPER_BOUND} for "
                     f"{PARAMETER_ID} {row.name}.")
-            if (row[LOWER_BOUND] <= 0.0 or row[UPPER_BOUND] < 0.0) \
+            if (row[LOWER_BOUND] < 0.0 or row[UPPER_BOUND] < 0.0) \
                     and row[PARAMETER_SCALE] in [LOG, LOG10]:
                 raise AssertionError(
                     f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "
