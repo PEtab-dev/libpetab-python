@@ -29,7 +29,7 @@ Update python version for pypi deployment, no further changes
 ### 0.1.15
 
 **NOTE:** The original PEtab format + petab package repository has been split
-up (PEtab-dev/libpetab-python#41). This repository now only contains the petab
+up (EmadAlamoudi/libpetab-python-MS#41). This repository now only contains the petab
 Python package. The PEtab specifications and related information are available
 at https://github.com/PEtab-dev/PEtab.
 
