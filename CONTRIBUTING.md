@@ -20,7 +20,7 @@ To contribute to this repository:
 
   *By creating a pull request you agree with your contribution being made
   available under the license terms specified in
-  [https://github.com/PEtab-dev/libpetab-python/blob/master/LICENSE](https://github.com/PEtab-dev/libpetab-python/blob/master/LICENSE).*
+  [https://github.com/EmadAlamoudi/libpetab-python-MS/blob/master/LICENSE](https://github.com/EmadAlamoudi/libpetab-python-MS/blob/master/LICENSE).*
 
 * Assign a reviewer, or let us know otherwise, that your pull request is ready
   for review.

@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import sympy as sp
 
-import petab
+import petab_MS
 from . import (core, parameters, sbml, measurements)
 from .C import *  # noqa: F403
 
@@ -340,7 +340,7 @@ def condition_table_is_parameter_free(condition_df: pd.DataFrame) -> bool:
         False otherwise.
     """
 
-    return len(petab.get_parametric_overrides(condition_df)) == 0
+    return len(petab_MS.get_parametric_overrides(condition_df)) == 0
 
 
 def assert_parameter_id_is_string(parameter_df: pd.DataFrame) -> None:

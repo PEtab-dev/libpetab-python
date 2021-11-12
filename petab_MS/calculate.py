@@ -8,7 +8,7 @@ import sympy
 import numbers
 
 from .C import *
-import petab
+import petab_MS
 
 
 def calculate_residuals(
@@ -91,7 +91,7 @@ def calculate_residuals_for_table(
     for irow, row in measurement_df.iterrows():
         measurement = row[MEASUREMENT]
         # look up in simulation df
-        masks = [(simulation_df[col] == row[col]) | petab.is_empty(row[col])
+        masks = [(simulation_df[col] == row[col]) | petab_MS.is_empty(row[col])
                  for col in compared_cols]
         mask = reduce(lambda x, y: x & y, masks)
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
@@ -99,8 +99,8 @@ def calculate_residuals_for_table(
             # apply scaling
             observable = observable_df.loc[row[OBSERVABLE_ID]]
             trafo = observable.get(OBSERVABLE_TRANSFORMATION, LIN)
-            simulation = petab.scale(simulation, trafo)
-            measurement = petab.scale(measurement, trafo)
+            simulation = petab_MS.scale(simulation, trafo)
+            measurement = petab_MS.scale(measurement, trafo)
 
         # non-normalized residual is just the difference
         residual = simulation - measurement
@@ -159,7 +159,7 @@ def evaluate_noise_formula(
     observable_id = measurement[OBSERVABLE_ID]
 
     # extract measurement specific overrides
-    observable_parameter_overrides = petab.split_parameter_replacement_list(
+    observable_parameter_overrides = petab_MS.split_parameter_replacement_list(
         measurement.get(NOISE_PARAMETERS, None))
     overrides = {}
     # fill in measurement specific parameters
@@ -301,7 +301,7 @@ def calculate_llh_for_table(
         measurement = row[MEASUREMENT]
 
         # look up in simulation df
-        masks = [(simulation_df[col] == row[col]) | petab.is_empty(row[col])
+        masks = [(simulation_df[col] == row[col]) | petab_MS.is_empty(row[col])
                  for col in compared_cols]
         mask = reduce(lambda x, y: x & y, masks)
 
@@ -314,7 +314,7 @@ def calculate_llh_for_table(
 
         # get noise standard deviation
         noise_value = evaluate_noise_formula(
-            row, noise_formulas, parameter_df, petab.scale(simulation, scale))
+            row, noise_formulas, parameter_df, petab_MS.scale(simulation, scale))
 
         # get noise distribution
         noise_distribution = observable.get(NOISE_DISTRIBUTION, NORMAL)

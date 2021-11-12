@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 
-import petab
+import petab_MS
 from colorama import (init as init_colorama, Fore)
 
 logger = logging.getLogger(__name__)
@@ -68,23 +68,23 @@ def parse_cli_args():
 
     if args.model_name:
         if not args.sbml_file_name:
-            args.sbml_file_name = petab.get_default_sbml_file_name(
+            args.sbml_file_name = petab_MS.get_default_sbml_file_name(
                 args.model_name,
                 folder=args.directory,
             )
         if not args.measurement_file_name:
             args.measurement_file_name = \
-                petab.get_default_measurement_file_name(
+                petab_MS.get_default_measurement_file_name(
                     args.model_name,
                     folder=args.directory,
                 )
         if not args.condition_file_name:
-            args.condition_file_name = petab.get_default_condition_file_name(
+            args.condition_file_name = petab_MS.get_default_condition_file_name(
                 args.model_name,
                 folder=args.directory,
             )
         if not args.parameter_file_name:
-            args.parameter_file_name = petab.get_default_parameter_file_name(
+            args.parameter_file_name = petab_MS.get_default_parameter_file_name(
                 args.model_name,
                 folder=args.directory,
             )
@@ -128,13 +128,13 @@ def main():
                          f"schema: {e}")
             sys.exit(1)
 
-        if petab.is_composite_problem(args.yaml_file_name):
+        if petab_MS.is_composite_problem(args.yaml_file_name):
             # TODO: further checking:
             #  https://github.com/ICB-DCM/PEtab/issues/191
             #  problem = petab.CompositeProblem.from_yaml(args.yaml_file_name)
             return
 
-        problem = petab.Problem.from_yaml(args.yaml_file_name)
+        problem = petab_MS.Problem.from_yaml(args.yaml_file_name)
 
     else:
         logger.debug('Looking for...')
@@ -161,7 +161,7 @@ def main():
             logger.error(e)
             sys.exit(1)
 
-    ret = petab.lint.lint_problem(problem)
+    ret = petab_MS.lint.lint_problem(problem)
     sys.exit(ret)
 
 

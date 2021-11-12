@@ -12,7 +12,7 @@ from numbers import Number
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import petab
+import petab_MS
 import seaborn as sns
 
 from .plotting_config import plot_lowlevel
@@ -54,12 +54,12 @@ def import_from_files(
                   DeprecationWarning)
 
     # import measurement data and experimental condition
-    exp_data = petab.get_measurement_df(data_file_path)
-    exp_conditions = petab.get_condition_df(condition_file_path)
+    exp_data = petab_MS.get_measurement_df(data_file_path)
+    exp_conditions = petab_MS.get_condition_df(condition_file_path)
 
     # import visualization specification, if file was specified
     if visualization_file_path:
-        vis_spec = petab.get_visualization_df(visualization_file_path)
+        vis_spec = petab_MS.get_visualization_df(visualization_file_path)
     else:
         # create them based on simulation conditions
         vis_spec, exp_data = get_default_vis_specs(exp_data,
@@ -73,7 +73,7 @@ def import_from_files(
 
     # import simulation file, if file was specified
     if simulation_file_path != '':
-        sim_data = petab.get_simulation_df(simulation_file_path)
+        sim_data = petab_MS.get_simulation_df(simulation_file_path)
     else:
         sim_data = None
 

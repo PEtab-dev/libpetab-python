@@ -1,6 +1,6 @@
-[![CI](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml/badge.svg?branch=master)](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fd7dd5cee68e449983be5c43f230c7f3)](https://www.codacy.com/gh/PEtab-dev/libpetab-python)
-[![codecov](https://codecov.io/gh/PEtab-dev/libpetab-python/branch/master/graph/badge.svg)](https://codecov.io/gh/PEtab-dev/libpetab-python)
+[![CI](https://github.com/EmadAlamoudi/libpetab-python-MS/actions/workflows/ci_tests.yml/badge.svg?branch=master)](https://github.com/EmadAlamoudi/libpetab-python-MS/actions/workflows/ci_tests.yml)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fd7dd5cee68e449983be5c43f230c7f3)](https://www.codacy.com/gh/EmadAlamoudi/libpetab-python-MS)
+[![codecov](https://codecov.io/gh/EmadAlamoudi/libpetab-python-MS/branch/master/graph/badge.svg)](https://codecov.io/gh/EmadAlamoudi/libpetab-python-MS)
 [![PyPI version](https://badge.fury.io/py/petab.svg)](https://badge.fury.io/py/petab)
 
 # petab_MS - a Python package for handling PEtab files for multiscale systems
@@ -12,7 +12,7 @@ the `petab` Python package for reading, writing and validating PEtab files.
 
 ## Installation
 
-The PEtab library is available on [pypi](https://pypi.org/project/petab/)
+The PEtab library is available on [pypi](https://pypi.org/project/petab-MS/)
 and the easiest way to install it is running
 
     pip3 install petab_MS
