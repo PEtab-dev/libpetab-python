@@ -1,4 +1,4 @@
-"""PEtab global
+"""PEtab_MS global
 
 Attributes:
     ENV_NUM_THREADS:

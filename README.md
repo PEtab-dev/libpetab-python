@@ -12,7 +12,7 @@ the `petab` Python package for reading, writing and validating PEtab files.
 
 ## Installation
 
-The PEtab library is available on [pypi](https://pypi.org/project/petab/)
+The PEtab library is available on [pypi](https://pypi.org/project/petab-MS/)
 and the easiest way to install it is running
 
     pip3 install petab_MS

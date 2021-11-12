@@ -507,8 +507,9 @@ class Problem:
         if scaled:
             v = list(parameters.map_scale(
                 v, self.parameter_df[PARAMETER_SCALE]))
-        return dict(zip(self.x_ids,
+        par_dict = dict(zip(self.x_ids,
                         self._apply_mask(v, free=free, fixed=fixed)))
+        return par_dict
 
     @property
     def x_nominal(self) -> List:
