@@ -248,7 +248,7 @@ def create_combine_archive(
         email: Optional[str] = None,
         organization: Optional[str] = None,
 ) -> None:
-    """Create COMBINE archive (http://co.mbine.org/documents/archive) based
+    """Create COMBINE archive (https://co.mbine.org/documents/archive) based
     on PEtab YAML file.
 
     Arguments:
