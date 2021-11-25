@@ -244,7 +244,7 @@ class MPLPlotter(Plotter):
         elif subplot.yScale == LOG10:
             ax.set_yscale("log")
         elif subplot.yScale == LOG:
-            ax.set_yscale("log", basey=np.e)
+            ax.set_yscale("log", base=np.e)
 
         if subplot.plotTypeSimulation == BAR_PLOT:
             for data_plot in subplot.data_plots:
@@ -273,7 +273,7 @@ class MPLPlotter(Plotter):
             elif subplot.xScale == LOG10:
                 ax.set_xscale("log")
             elif subplot.xScale == LOG:
-                ax.set_xscale("log", basex=np.e)
+                ax.set_xscale("log", base=np.e)
             # equidistant
             elif subplot.xScale == 'order':
                 ax.set_xscale("linear")
