@@ -321,8 +321,11 @@ class MPLPlotter(Plotter):
         ax.set_ylabel(
             subplot.yLabel)
 
-    def generate_figure(self, subplot_dir: Optional[str] = None
-                        ) -> Optional[Dict[str, plt.Subplot]]:
+    def generate_figure(
+            self,
+            subplot_dir: Optional[str] = None,
+            format_: str = 'png',
+    ) -> Optional[Dict[str, plt.Subplot]]:
         """
         Generate the full figure based on the markup in the figure attribute.
 
@@ -331,6 +334,9 @@ class MPLPlotter(Plotter):
         subplot_dir:
             A path to the folder where single subplots should be saved.
             PlotIDs will be taken as file names.
+        format_:
+            File format for the generated figure.
+            (See :py:func:`matplotlib.pyplot.savefig` for supported options).
 
         Returns
         -------
@@ -368,7 +374,7 @@ class MPLPlotter(Plotter):
                 # TODO: why this doesn't work?
                 plt.tight_layout()
                 plt.savefig(os.path.join(subplot_dir,
-                                         f'{subplot.plotId}.png'))
+                                         f'{subplot.plotId}.{format_}'))
                 plt.close()
 
         if subplot_dir is None:
