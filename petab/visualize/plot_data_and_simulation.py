@@ -372,7 +372,9 @@ def plot_with_vis_spec(
         measurements_df: Optional[Union[str, pd.DataFrame]] = None,
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,
         subplot_dir: Optional[str] = None,
-        plotter_type: str = 'mpl') -> Optional[Dict[str, plt.Subplot]]:
+        plotter_type: str = 'mpl',
+        format_: str = 'png',
+) -> Optional[Dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. Specification of the visualization
     routines is provided in visualization table.
@@ -394,6 +396,9 @@ def plot_with_vis_spec(
     plotter_type:
         Specifies which library should be used for plot generation. Currently,
         only matplotlib is supported.
+    format_:
+        File format for the generated figure.
+        (See :py:func:`matplotlib.pyplot.savefig` for supported options).
 
     Returns
     -------
@@ -415,8 +420,8 @@ def plot_with_vis_spec(
     else:
         raise NotImplementedError('Currently, only visualization with '
                                   'matplotlib is possible.')
-    ax = plotter.generate_figure(subplot_dir)
-    return ax
+
+    return plotter.generate_figure(subplot_dir, format_=format_)
 
 
 def plot_without_vis_spec(
@@ -427,7 +432,8 @@ def plot_without_vis_spec(
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,
         plotted_noise: str = MEAN_AND_SD,
         subplot_dir: Optional[str] = None,
-        plotter_type: str = 'mpl'
+        plotter_type: str = 'mpl',
+        format_: str = 'png',
 ) -> Optional[Dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. What exactly should be plotted is
@@ -462,6 +468,9 @@ def plot_without_vis_spec(
     plotter_type:
         Specifies which library should be used for plot generation. Currently,
         only matplotlib is supported
+    format_:
+        File format for the generated figure.
+        (See :py:func:`matplotlib.pyplot.savefig` for supported options).
 
     Returns
     -------
@@ -484,8 +493,8 @@ def plot_without_vis_spec(
     else:
         raise NotImplementedError('Currently, only visualization with '
                                   'matplotlib is possible.')
-    ax = plotter.generate_figure(subplot_dir)
-    return ax
+
+    return plotter.generate_figure(subplot_dir, format_=format_)
 
 
 def plot_problem(petab_problem: problem.Problem,
