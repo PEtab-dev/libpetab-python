@@ -179,7 +179,8 @@ def flatten_timepoint_specific_output_overrides(
 
 
 def concat_tables(
-        tables: Union[str, pd.DataFrame, Iterable[Union[pd.DataFrame, str]]],
+        tables: Union[str, Path, pd.DataFrame,
+                      Iterable[Union[pd.DataFrame, str, Path]]],
         file_parser: Optional[Callable] = None
 ) -> pd.DataFrame:
     """Concatenate DataFrames provided as DataFrames or filenames, and a parser
@@ -198,14 +199,14 @@ def concat_tables(
     if isinstance(tables, pd.DataFrame):
         return tables
 
-    if isinstance(tables, str):
+    if isinstance(tables, (str, Path)):
         return file_parser(tables)
 
     df = pd.DataFrame()
 
     for tmp_df in tables:
         # load from file, if necessary
-        if isinstance(tmp_df, str):
+        if isinstance(tmp_df, (str, Path)):
             tmp_df = file_parser(tmp_df)
 
         df = df.append(tmp_df, sort=False,

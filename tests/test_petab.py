@@ -1,7 +1,8 @@
+import copy
 import pickle
 import tempfile
 from math import nan
-import copy
+from pathlib import Path
 
 import libsbml
 import numpy as np
@@ -473,12 +474,9 @@ def test_concat_measurements():
     a = pd.DataFrame({MEASUREMENT: [1.0]})
     b = pd.DataFrame({TIME: [1.0]})
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
-        filename_a = fh.name
-        a.to_csv(fh, sep='\t', index=False)
-
-        # finish writing
-        fh.flush()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        filename_a = Path(temp_dir) / "measurements.tsv"
+        petab.write_measurement_df(a, filename_a)
 
         expected = pd.DataFrame({
             MEASUREMENT: [1.0, nan],
