@@ -48,7 +48,7 @@ def create_report(
                                   num_conditions=num_conditions)
     with open(Path(outdir) / f'{model_name}.html', 'w') as html_file:
         html_file.write(output_text)
-    copyfile(os.path.join(template_dir, 'mystyle.css'), 'mystyle.css')
+    copyfile(Path(template_dir, 'mystyle.css'), Path(outdir, 'mystyle.css'))
 
 
 def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
