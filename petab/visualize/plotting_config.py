@@ -47,7 +47,7 @@ def plot_lowlevel(plot_spec: pd.Series,
     elif plot_spec[Y_SCALE] == LOG10:
         ax.set_yscale("log")
     elif plot_spec[Y_SCALE] == LOG:
-        ax.set_yscale("log", basey=np.e)
+        ax.set_yscale("log", base=np.e)
 
     # add yOffset
     ms.loc[:, 'mean'] = ms['mean'] + plot_spec[Y_OFFSET]
@@ -71,7 +71,7 @@ def plot_lowlevel(plot_spec: pd.Series,
         elif plot_spec[X_SCALE] == LOG10:
             ax.set_xscale("log")
         elif plot_spec[X_SCALE] == LOG:
-            ax.set_xscale("log", basex=np.e)
+            ax.set_xscale("log", base=np.e)
         # equidistant
         elif plot_spec[X_SCALE] == 'order':
             ax.set_xscale("linear")

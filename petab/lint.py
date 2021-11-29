@@ -108,6 +108,10 @@ def check_condition_df(
 
     check_ids(df.index.values, kind='condition')
 
+    if not df.index.is_unique:
+        raise AssertionError("Non-unique condition IDs: "
+                             f"{df.index.values[df.index.duplicated()]}")
+
     for column_name in req_cols:
         if not np.issubdtype(df[column_name].dtype, np.number):
             assert_no_leading_trailing_whitespace(
@@ -466,7 +470,7 @@ def check_parameter_bounds(parameter_df: pd.DataFrame) -> None:
                 raise AssertionError(
                     f"{LOWER_BOUND} greater than {UPPER_BOUND} for "
                     f"{PARAMETER_ID} {row.name}.")
-            if (row[LOWER_BOUND] <= 0.0 or row[UPPER_BOUND] < 0.0) \
+            if (row[LOWER_BOUND] < 0.0 or row[UPPER_BOUND] < 0.0) \
                     and row[PARAMETER_SCALE] in [LOG, LOG10]:
                 raise AssertionError(
                     f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "

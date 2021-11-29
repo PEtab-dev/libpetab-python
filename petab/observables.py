@@ -1,14 +1,15 @@
 """Functions for working with the PEtab observables table"""
 
+import re
 from collections import OrderedDict
-from typing import Union, List
+from pathlib import Path
+from typing import List, Union
 
 import libsbml
 import pandas as pd
-import re
 import sympy as sp
 
-from . import lint, core
+from . import core, lint
 from .C import *  # noqa: F403
 
 __all__ = ['create_observable_df',
@@ -20,7 +21,7 @@ __all__ = ['create_observable_df',
 
 
 def get_observable_df(
-        observable_file: Union[str, pd.DataFrame, None]
+        observable_file: Union[str, pd.DataFrame, Path, None]
 ) -> pd.DataFrame:
     """
     Read the provided observable file into a ``pandas.Dataframe``.
@@ -34,7 +35,7 @@ def get_observable_df(
     if observable_file is None:
         return observable_file
 
-    if isinstance(observable_file, str):
+    if isinstance(observable_file, (str, Path)):
         observable_file = pd.read_csv(observable_file, sep='\t',
                                       float_precision='round_trip')
 
@@ -53,7 +54,7 @@ def get_observable_df(
     return observable_file
 
 
-def write_observable_df(df: pd.DataFrame, filename: str) -> None:
+def write_observable_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     """Write PEtab observable table
 
     Arguments:

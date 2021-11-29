@@ -244,7 +244,7 @@ class MPLPlotter(Plotter):
         elif subplot.yScale == LOG10:
             ax.set_yscale("log")
         elif subplot.yScale == LOG:
-            ax.set_yscale("log", basey=np.e)
+            ax.set_yscale("log", base=np.e)
 
         if subplot.plotTypeSimulation == BAR_PLOT:
             for data_plot in subplot.data_plots:
@@ -273,7 +273,7 @@ class MPLPlotter(Plotter):
             elif subplot.xScale == LOG10:
                 ax.set_xscale("log")
             elif subplot.xScale == LOG:
-                ax.set_xscale("log", basex=np.e)
+                ax.set_xscale("log", base=np.e)
             # equidistant
             elif subplot.xScale == 'order':
                 ax.set_xscale("linear")
@@ -321,8 +321,11 @@ class MPLPlotter(Plotter):
         ax.set_ylabel(
             subplot.yLabel)
 
-    def generate_figure(self, subplot_dir: Optional[str] = None
-                        ) -> Optional[Dict[str, plt.Subplot]]:
+    def generate_figure(
+            self,
+            subplot_dir: Optional[str] = None,
+            format_: str = 'png',
+    ) -> Optional[Dict[str, plt.Subplot]]:
         """
         Generate the full figure based on the markup in the figure attribute.
 
@@ -331,6 +334,9 @@ class MPLPlotter(Plotter):
         subplot_dir:
             A path to the folder where single subplots should be saved.
             PlotIDs will be taken as file names.
+        format_:
+            File format for the generated figure.
+            (See :py:func:`matplotlib.pyplot.savefig` for supported options).
 
         Returns
         -------
@@ -340,23 +346,13 @@ class MPLPlotter(Plotter):
             In case subplots are saved to file.
         """
 
-        # Set Options for plots
-        # possible options: see: plt.rcParams.keys()
-
-        # TODO: or some other style
-        plt.style.use('tableau-colorblind10')
-
-        plt.rcParams['font.size'] = 12
-        plt.rcParams['axes.titlesize'] = 12
-        plt.rcParams['figure.figsize'] = self.figure.size
-        plt.rcParams['errorbar.capsize'] = 2
-
         if subplot_dir is None:
             # compute, how many rows and columns we need for the subplots
             num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
             num_col = int(np.ceil(self.figure.num_subplots / num_row))
 
-            fig, axes = plt.subplots(num_row, num_col, squeeze=False)
+            fig, axes = plt.subplots(num_row, num_col, squeeze=False,
+                                     figsize=self.figure.size)
             fig.set_tight_layout(True)
 
             for ax in axes.flat[self.figure.num_subplots:]:
@@ -367,7 +363,7 @@ class MPLPlotter(Plotter):
 
         for idx, subplot in enumerate(self.figure.subplots):
             if subplot_dir is not None:
-                fig, ax = plt.subplots()
+                fig, ax = plt.subplots(figsize=self.figure.size)
                 fig.set_tight_layout(True)
             else:
                 ax = axes[subplot.plotId]
@@ -378,7 +374,7 @@ class MPLPlotter(Plotter):
                 # TODO: why this doesn't work?
                 plt.tight_layout()
                 plt.savefig(os.path.join(subplot_dir,
-                                         f'{subplot.plotId}.png'))
+                                         f'{subplot.plotId}.{format_}'))
                 plt.close()
 
         if subplot_dir is None:

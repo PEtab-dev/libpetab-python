@@ -494,3 +494,36 @@ def test_check_observable_df():
     bad_observable_df.index = ['obs1', 'obs1']
     with pytest.raises(AssertionError):
         lint.check_observable_df(bad_observable_df)
+
+
+def test_condition_ids_are_unique():
+    condition_df = pd.DataFrame(data={
+        CONDITION_ID: ['condition1', 'condition1'],
+        'parameter1': [1.0, 2.0]
+    })
+    condition_df.set_index(CONDITION_ID, inplace=True)
+
+    with pytest.raises(AssertionError):
+        lint.check_condition_df(condition_df)
+
+    condition_df.index = ['condition0', 'condition1']
+    condition_df.index.name = 'conditionId'
+    lint.check_condition_df(condition_df)
+
+
+def test_parameter_ids_are_unique():
+    parameter_df = pd.DataFrame({
+        PARAMETER_ID: ['par0', 'par0'],
+        PARAMETER_SCALE: [LIN, LIN],
+        ESTIMATE: [1, 1],
+        LOWER_BOUND: [1e-5, 1e-6],
+        UPPER_BOUND: [1e5, 1e6]
+
+    }).set_index(PARAMETER_ID)
+
+    with pytest.raises(AssertionError):
+        lint.check_parameter_df(parameter_df)
+
+    parameter_df.index = ['par0', 'par1']
+    parameter_df.index.name = 'parameterId'
+    lint.check_parameter_df(parameter_df)

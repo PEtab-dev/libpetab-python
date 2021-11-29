@@ -1,14 +1,18 @@
 name: CI
 
-# trigger
-on: [push, workflow_dispatch]
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron:  '48 4 * * *'
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        platform: [windows-latest, macos-latest, ubuntu-latest]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
+    runs-on: ${{ matrix.platform }}
 
     steps:
     - name: Check out repository
@@ -33,13 +37,18 @@ jobs:
         pip install -r .ci_pip_reqs.txt
         pip install -e .[reports,combine]
 
+    - name: Run flake8
+      run: |
+        python -m flake8 --exclude=build,doc,example,tmp --extend-ignore=F403,F405
+      if: matrix.platform == 'ubuntu-latest'
+
     - name: Run tests
       run: |
         pytest --cov --cov-report=xml tests
-        python -m flake8 --exclude=build,doc,example,tmp --extend-ignore=F403,F405
 
     - name: Coverage
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
+      if: matrix.platform == 'ubuntu-latest'

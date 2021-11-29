@@ -1,16 +1,17 @@
 """PEtab Problem class"""
 
 import os
-# Renamed to `Path_` to avoid unknown error during Sphinx doc build
-from pathlib import Path as Path_
 import tempfile
+from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Union
+from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
-import pandas as pd
 import libsbml
-from . import (parameter_mapping, measurements, conditions, parameters,
-               sampling, sbml, yaml, core, observables, format_version)
+import pandas as pd
+
+from . import (conditions, core, format_version, measurements, observables,
+               parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
 
 __all__ = ['Problem', 'get_default_condition_file_name',
@@ -89,13 +90,18 @@ class Problem:
         self.__dict__.update(state)
 
     @staticmethod
-    def from_files(sbml_file: str = None,
-                   condition_file: str = None,
-                   measurement_file: Union[str, Iterable[str]] = None,
-                   parameter_file: Union[str, List[str]] = None,
-                   visualization_files: Union[str, Iterable[str]] = None,
-                   observable_files: Union[str, Iterable[str]] = None
-                   ) -> 'Problem':
+    def from_files(
+            sbml_file: Union[str, Path, None] = None,
+            condition_file: Union[str, Path, None] = None,
+            measurement_file: Union[str, Path,
+                                    Iterable[Union[str, Path]]] = None,
+            parameter_file: Union[str, Path,
+                                  Iterable[Union[str, Path]]] = None,
+            visualization_files: Union[str, Path,
+                                       Iterable[Union[str, Path]]] = None,
+            observable_files: Union[str, Path,
+                                    Iterable[Union[str, Path]]] = None
+    ) -> 'Problem':
         """
         Factory method to load model and tables from files.
 
@@ -147,18 +153,41 @@ class Problem:
                        visualization_df=visualization_df)
 
     @staticmethod
-    def from_yaml(yaml_config: Union[Dict, str]) -> 'Problem':
+    def from_yaml(yaml_config: Union[Dict, Path, str]) -> 'Problem':
         """
         Factory method to load model and tables as specified by YAML file.
 
         Arguments:
             yaml_config: PEtab configuration as dictionary or YAML file name
         """
+        if isinstance(yaml_config, Path):
+            yaml_config = str(yaml_config)
+
+        get_path = lambda filename: filename  # noqa: E731
         if isinstance(yaml_config, str):
-            path_prefix = os.path.dirname(yaml_config)
+            yaml_path = yaml_config
             yaml_config = yaml.load_yaml(yaml_config)
-        else:
-            path_prefix = ""
+
+            # yaml_config may be path or URL
+            path_url = urlparse(yaml_path)
+            if not path_url.scheme or \
+                    (path_url.scheme != 'file' and not path_url.netloc):
+                # a regular file path string
+                path_prefix = Path(yaml_path).parent
+                get_path = lambda filename: \
+                    path_prefix / filename  # noqa: E731
+            else:
+                # a URL
+                # extract parent path from
+                url_path = unquote(urlparse(yaml_path).path)
+                parent_path = str(PurePosixPath(url_path).parent)
+                path_prefix = urlunparse(
+                    (path_url.scheme, path_url.netloc, parent_path,
+                     path_url.params, path_url.query, path_url.fragment)
+                )
+                # need "/" on windows, not "\"
+                get_path = lambda filename: \
+                    f"{path_prefix}/{filename}"  # noqa: E731
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError('petab.Problem.from_yaml() can only be used for '
@@ -177,26 +206,21 @@ class Problem:
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_file = [
-                os.path.join(path_prefix, f)
-                for f in yaml_config[PARAMETER_FILE]
+                get_path(f) for f in yaml_config[PARAMETER_FILE]
             ]
         else:
-            parameter_file = os.path.join(
-                path_prefix, yaml_config[PARAMETER_FILE])
+            parameter_file = get_path(yaml_config[PARAMETER_FILE])
 
         return Problem.from_files(
-            sbml_file=os.path.join(path_prefix, problem0[SBML_FILES][0]),
-            measurement_file=[os.path.join(path_prefix, f)
+            sbml_file=get_path(problem0[SBML_FILES][0]),
+            measurement_file=[get_path(f)
                               for f in problem0[MEASUREMENT_FILES]],
-            condition_file=os.path.join(
-                path_prefix, problem0[CONDITION_FILES][0]),
+            condition_file=get_path(problem0[CONDITION_FILES][0]),
             parameter_file=parameter_file,
             visualization_files=[
-                os.path.join(path_prefix, f)
-                for f in problem0.get(VISUALIZATION_FILES, [])],
+                get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
             observable_files=[
-                os.path.join(path_prefix, f)
-                for f in problem0.get(OBSERVABLE_FILES, [])]
+                get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
         )
 
     @staticmethod
@@ -237,7 +261,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_combine(filename: str) -> 'Problem':
+    def from_combine(filename: Union[Path, str]) -> 'Problem':
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
         See also :py:func:`petab.create_combine_archive`.
@@ -258,7 +282,7 @@ class Problem:
                 "(python-libcombine) must be installed.")
 
         archive = libcombine.CombineArchive()
-        if archive.initializeFromArchive(filename) is None:
+        if archive.initializeFromArchive(str(filename)) is None:
             print(f"Invalid Combine Archive: {filename}")
             return None
 
@@ -273,8 +297,8 @@ class Problem:
 
     def to_files_generic(
         self,
-        prefix_path: Union[str, Path_],
-    ) -> None:
+        prefix_path: Union[str, Path],
+    ) -> str:
         """Save a PEtab problem to generic file names.
 
         The PEtab problem YAML file is always created. PEtab data files are
@@ -292,7 +316,7 @@ class Problem:
         Returns:
             The path to the PEtab problem YAML file.
         """
-        prefix_path = Path_(prefix_path)
+        prefix_path = Path(prefix_path)
 
         # Generate generic filenames for data tables in the PEtab problem that
         # contain data.
@@ -319,15 +343,16 @@ class Problem:
         return str(prefix_path / filenames['yaml_file'])
 
     def to_files(self,
-                 sbml_file: Optional[str] = None,
-                 condition_file: Optional[str] = None,
-                 measurement_file: Optional[str] = None,
-                 parameter_file: Optional[str] = None,
-                 visualization_file: Optional[str] = None,
-                 observable_file: Optional[str] = None,
-                 yaml_file: Optional[str] = None,
-                 prefix_path: Optional[Union[str, Path_]] = None,
-                 relative_paths: bool = True,) -> None:
+                 sbml_file: Union[None, str, Path] = None,
+                 condition_file: Union[None, str, Path] = None,
+                 measurement_file: Union[None, str, Path] = None,
+                 parameter_file: Union[None, str, Path] = None,
+                 visualization_file: Union[None, str, Path] = None,
+                 observable_file: Union[None, str, Path] = None,
+                 yaml_file: Union[None, str, Path] = None,
+                 prefix_path: Union[None, str, Path] = None,
+                 relative_paths: bool = True,
+                 ) -> None:
         """
         Write PEtab tables to files for this problem
 
@@ -359,9 +384,9 @@ class Problem:
                 If a destination was provided for a non-existing entity.
         """
         if prefix_path is not None:
-            prefix_path = Path_(prefix_path)
+            prefix_path = Path(prefix_path)
 
-            def add_prefix(path0: Union[None, str, Path_]) -> str:
+            def add_prefix(path0: Union[None, str, Path]) -> str:
                 if path0 is None:
                     return path0
                 return str(prefix_path / path0)
