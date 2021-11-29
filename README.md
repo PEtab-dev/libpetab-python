@@ -1,5 +1,4 @@
 [![CI](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml/badge.svg?branch=master)](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fd7dd5cee68e449983be5c43f230c7f3)](https://www.codacy.com/gh/PEtab-dev/libpetab-python)
 [![codecov](https://codecov.io/gh/PEtab-dev/libpetab-python/branch/master/graph/badge.svg)](https://codecov.io/gh/PEtab-dev/libpetab-python)
 [![PyPI version](https://badge.fury.io/py/petab.svg)](https://badge.fury.io/py/petab)
 
