@@ -540,13 +540,13 @@ def test_to_float_if_float():
 
 def test_to_files(petab_problem):  # pylint: disable=W0621
     """Test problem.to_files."""
-    with tempfile.TemporaryDirectory() as folder:
+    with tempfile.TemporaryDirectory() as outdir:
         # create target files
-        sbml_file = Path(folder, "model.xml")
-        condition_file = Path(folder, "conditions.tsv")
-        measurement_file = Path(folder, "measurements.tsv")
-        parameter_file = Path(folder, "parameters.tsv")
-        observable_file = Path(folder, "observables.tsv")
+        sbml_file = Path(outdir, "model.xml")
+        condition_file = Path(outdir, "conditions.tsv")
+        measurement_file = Path(outdir, "measurements.tsv")
+        parameter_file = Path(outdir, "parameters.tsv")
+        observable_file = Path(outdir, "observables.tsv")
 
         # write contents to files
         petab_problem.to_files(

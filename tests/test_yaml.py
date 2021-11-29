@@ -1,10 +1,10 @@
 """Test for petab.yaml"""
 import tempfile
+from pathlib import Path
 
 import pytest
-from petab.yaml import validate, create_problem_yaml
-
 from jsonschema.exceptions import ValidationError
+from petab.yaml import create_problem_yaml, validate
 
 
 def test_validate():
@@ -22,16 +22,19 @@ def test_validate():
 
 
 def test_create_problem_yaml():
-    with tempfile.TemporaryDirectory() as folder:
+    with tempfile.TemporaryDirectory() as outdir:
         # test with single problem files
         # create target files
-        sbml_file = tempfile.mkstemp(dir=folder)[1]
-        condition_file = tempfile.mkstemp(dir=folder)[1]
-        measurement_file = tempfile.mkstemp(dir=folder)[1]
-        parameter_file = tempfile.mkstemp(dir=folder)[1]
-        observable_file = tempfile.mkstemp(dir=folder)[1]
-        yaml_file = tempfile.mkstemp(dir=folder)[1]
-        visualization_file = tempfile.mkstemp(dir=folder)[1]
+        sbml_file = Path(outdir, "model.xml")
+        condition_file = Path(outdir, "conditions.tsv")
+        measurement_file = Path(outdir, "measurements.tsv")
+        parameter_file = Path(outdir, "parameters.tsv")
+        observable_file = Path(outdir, "observables.tsv")
+        yaml_file = Path(outdir, "problem.yaml")
+        visualization_file = Path(outdir, "visualization.tsv")
+        for file in (sbml_file, condition_file, measurement_file,
+                     parameter_file, observable_file, visualization_file):
+            file.touch()
         create_problem_yaml(sbml_file, condition_file, measurement_file,
                             parameter_file, observable_file, yaml_file,
                             visualization_file)
@@ -39,11 +42,14 @@ def test_create_problem_yaml():
 
         # test for list of files
         # create additional target files
-        sbml_file2 = tempfile.mkstemp(dir=folder)[1]
-        condition_file2 = tempfile.mkstemp(dir=folder)[1]
-        measurement_file2 = tempfile.mkstemp(dir=folder)[1]
-        observable_file2 = tempfile.mkstemp(dir=folder)[1]
-        yaml_file2 = tempfile.mkstemp(dir=folder)[1]
+        sbml_file2 = Path(outdir, "model2.xml")
+        condition_file2 = Path(outdir, "conditions2.tsv")
+        measurement_file2 = Path(outdir, "measurements2.tsv")
+        observable_file2 = Path(outdir, "observables2.tsv")
+        yaml_file2 = Path(outdir, "problem2.yaml")
+        for file in (sbml_file2, condition_file2, measurement_file2,
+                     observable_file2):
+            file.touch()
 
         sbml_files = [sbml_file, sbml_file2]
         condition_files = [condition_file, condition_file2]
