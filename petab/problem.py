@@ -162,6 +162,7 @@ class Problem:
                 # yaml_config may be path or URL
                 path_url = urlparse(yaml_config)
                 if path_url.scheme not in ['', 'file']:
+                    # extract parent path from URL
                     parent_path = str(PurePosixPath(
                         unquote(urlparse(yaml_config).path)).parent)
                     path_prefix = urlunparse(
