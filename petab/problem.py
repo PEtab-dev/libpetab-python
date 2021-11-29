@@ -172,6 +172,10 @@ class Problem:
                 print(path_url)
                 if not path_url.scheme or \
                         (path_url.scheme != 'file' and not path_url.netloc):
+                    path_prefix = os.path.dirname(yaml_config)
+                    get_path = lambda filename: \
+                        f"{path_prefix}{os.sep}{filename}"  # noqa: E731
+                else:
                     # extract parent path from URL
                     parent_path = str(PurePosixPath(
                         unquote(urlparse(yaml_config).path)).parent)
@@ -182,12 +186,6 @@ class Problem:
                     # need "/" on windows, not "\"
                     get_path = lambda filename: \
                         f"{path_prefix}/{filename}"  # noqa: E731
-
-                else:
-                    path_prefix = os.path.dirname(yaml_config)
-                    get_path = lambda filename: \
-                        f"{path_prefix}{os.sep}{filename}"  # noqa: E731
-
             yaml_config = yaml.load_yaml(yaml_config)
         else:
             get_path = lambda filename: filename  # noqa: E731
