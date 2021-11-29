@@ -1,7 +1,8 @@
+import copy
 import pickle
 import tempfile
 from math import nan
-import copy
+from pathlib import Path
 
 import libsbml
 import numpy as np
@@ -46,69 +47,62 @@ def petab_problem(minimal_sbml_model):  # pylint: disable=W0621
     p.setId('observable_1')
     p.setName('Observable 1')
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
-        sbml_file_name = fh.name
-        fh.write(libsbml.writeSBMLToString(document))
-
     measurement_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['obs1', 'obs2'],
         OBSERVABLE_PARAMETERS: ['', 'p1;p2'],
         NOISE_PARAMETERS: ['p3;p4', 'p5']
     })
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
-        measurement_file_name = fh.name
-        measurement_df.to_csv(fh, sep='\t', index=False)
-
     condition_df = pd.DataFrame(data={
         CONDITION_ID: ['condition1', 'condition2'],
         CONDITION_NAME: ['', 'Condition 2'],
         'fixedParameter1': [1.0, 2.0]
-    })
-    condition_df.set_index(CONDITION_ID, inplace=True)
-
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
-        condition_file_name = fh.name
-        condition_df.to_csv(fh, sep='\t', index=True)
+    }).set_index(CONDITION_ID)
 
     parameter_df = pd.DataFrame(data={
         PARAMETER_ID: ['dynamicParameter1', 'dynamicParameter2'],
         PARAMETER_NAME: ['', '...'],
-    })
-
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
-        parameter_file_name = fh.name
-        parameter_df.to_csv(fh, sep='\t', index=False)
+    }).set_index(PARAMETER_ID)
 
     observable_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['observable_1'],
         OBSERVABLE_NAME: ['julius'],
         OBSERVABLE_FORMULA: ['observable_1'],
         NOISE_FORMULA: [1],
-    })
+    }).set_index(OBSERVABLE_ID)
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
-        observable_file_name = fh.name
-        observable_df.to_csv(fh, sep='\t', index=False)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        sbml_file_name = Path(temp_dir, "model.xml")
+        libsbml.writeSBMLToFile(document, str(sbml_file_name))
 
-    problem = petab.Problem.from_files(
-        sbml_file=sbml_file_name,
-        measurement_file=measurement_file_name,
-        condition_file=condition_file_name,
-        parameter_file=parameter_file_name,
-        observable_files=observable_file_name)
+        measurement_file_name = Path(temp_dir, "measurements.tsv")
+        petab.write_measurement_df(measurement_df, measurement_file_name)
 
-    return problem
+        condition_file_name = Path(temp_dir, "conditions.tsv")
+        petab.write_condition_df(condition_df, condition_file_name)
+
+        parameter_file_name = Path(temp_dir, "parameters.tsv")
+        petab.write_parameter_df(parameter_df, parameter_file_name)
+
+        observable_file_name = Path(temp_dir, "observables.tsv")
+        petab.write_observable_df(observable_df, observable_file_name)
+
+        yield petab.Problem.from_files(
+            sbml_file=sbml_file_name,
+            measurement_file=measurement_file_name,
+            condition_file=condition_file_name,
+            parameter_file=parameter_file_name,
+            observable_files=observable_file_name)
 
 
 @pytest.fixture
 def fujita_model_scaling():
-    path = 'doc/example/example_Fujita/'
+    path = Path(__file__).parent.parent / 'doc' / 'example' / 'example_Fujita'
 
-    sbml_file = path + 'Fujita_model.xml'
-    condition_file = path + 'Fujita_experimentalCondition.tsv'
-    measurement_file = path + 'Fujita_measurementData.tsv'
-    parameter_file = path + 'Fujita_parameters_scaling.tsv'
+    sbml_file = path / 'Fujita_model.xml'
+    condition_file = path / 'Fujita_experimentalCondition.tsv'
+    measurement_file = path / 'Fujita_measurementData.tsv'
+    parameter_file = path / 'Fujita_parameters_scaling.tsv'
 
     return petab.Problem.from_files(sbml_file=sbml_file,
                                     condition_file=condition_file,
@@ -473,12 +467,9 @@ def test_concat_measurements():
     a = pd.DataFrame({MEASUREMENT: [1.0]})
     b = pd.DataFrame({TIME: [1.0]})
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
-        filename_a = fh.name
-        a.to_csv(fh, sep='\t', index=False)
-
-        # finish writing
-        fh.flush()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        filename_a = Path(temp_dir) / "measurements.tsv"
+        petab.write_measurement_df(a, filename_a)
 
         expected = pd.DataFrame({
             MEASUREMENT: [1.0, nan],
@@ -542,13 +533,13 @@ def test_to_float_if_float():
 
 def test_to_files(petab_problem):  # pylint: disable=W0621
     """Test problem.to_files."""
-    with tempfile.TemporaryDirectory() as folder:
+    with tempfile.TemporaryDirectory() as outdir:
         # create target files
-        sbml_file = tempfile.mkstemp(dir=folder)[1]
-        condition_file = tempfile.mkstemp(dir=folder)[1]
-        measurement_file = tempfile.mkstemp(dir=folder)[1]
-        parameter_file = tempfile.mkstemp(dir=folder)[1]
-        observable_file = tempfile.mkstemp(dir=folder)[1]
+        sbml_file = Path(outdir, "model.xml")
+        condition_file = Path(outdir, "conditions.tsv")
+        measurement_file = Path(outdir, "measurements.tsv")
+        parameter_file = Path(outdir, "parameters.tsv")
+        observable_file = Path(outdir, "observables.tsv")
 
         # write contents to files
         petab_problem.to_files(

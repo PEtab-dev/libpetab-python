@@ -19,7 +19,9 @@ __all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
            'create_problem_yaml']
 
 
-def validate(yaml_config: Union[Dict, str], path_prefix: Optional[str] = None):
+def validate(
+        yaml_config: Union[Dict, str, Path],
+        path_prefix: Union[None, str, Path] = None):
     """Validate syntax and semantics of PEtab config YAML
 
     Arguments:
@@ -37,7 +39,7 @@ def validate(yaml_config: Union[Dict, str], path_prefix: Optional[str] = None):
 
 
 def validate_yaml_syntax(
-        yaml_config: Union[Dict, str],
+        yaml_config: Union[Dict, str, Path],
         schema: Union[None, Dict, str] = None):
     """Validate PEtab YAML file syntax
 
@@ -61,8 +63,8 @@ def validate_yaml_syntax(
 
 
 def validate_yaml_semantics(
-        yaml_config: Union[Dict, str],
-        path_prefix: Optional[str] = None
+        yaml_config: Union[Dict, str, Path],
+        path_prefix: Union[None, str, Path] = None
 ):
     """Validate PEtab YAML file semantics
 
