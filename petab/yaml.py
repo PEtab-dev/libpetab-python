@@ -189,7 +189,8 @@ def create_problem_yaml(
         parameter_file: Union[str, Path],
         observable_files: Union[str, Path, List[Union[str, Path]]],
         yaml_file: Union[str, Path],
-        visualization_files: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
+        visualization_files:
+        Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         relative_paths: bool = True,
 ) -> None:
     """
