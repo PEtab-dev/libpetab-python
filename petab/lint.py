@@ -108,6 +108,10 @@ def check_condition_df(
 
     check_ids(df.index.values, kind='condition')
 
+    if not df.index.is_unique:
+        raise AssertionError("Non-unique condition IDs: "
+                             f"{df.index.values[df.index.duplicated()]}")
+
     for column_name in req_cols:
         if not np.issubdtype(df[column_name].dtype, np.number):
             assert_no_leading_trailing_whitespace(
