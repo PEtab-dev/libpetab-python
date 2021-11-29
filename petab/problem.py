@@ -1,8 +1,7 @@
 """PEtab Problem class"""
 
 import os
-# Renamed to `Path_` to avoid unknown error during Sphinx doc build
-from pathlib import Path as Path_
+from pathlib import Path
 import tempfile
 from typing import Dict, Iterable, List, Optional, Union
 from warnings import warn
@@ -237,7 +236,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_combine(filename: str) -> 'Problem':
+    def from_combine(filename: Union[Path, str]) -> 'Problem':
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
         See also :py:func:`petab.create_combine_archive`.
@@ -258,7 +257,7 @@ class Problem:
                 "(python-libcombine) must be installed.")
 
         archive = libcombine.CombineArchive()
-        if archive.initializeFromArchive(filename) is None:
+        if archive.initializeFromArchive(str(filename)) is None:
             print(f"Invalid Combine Archive: {filename}")
             return None
 
@@ -273,7 +272,7 @@ class Problem:
 
     def to_files_generic(
         self,
-        prefix_path: Union[str, Path_],
+        prefix_path: Union[str, Path],
     ) -> None:
         """Save a PEtab problem to generic file names.
 
@@ -292,7 +291,7 @@ class Problem:
         Returns:
             The path to the PEtab problem YAML file.
         """
-        prefix_path = Path_(prefix_path)
+        prefix_path = Path(prefix_path)
 
         # Generate generic filenames for data tables in the PEtab problem that
         # contain data.
@@ -326,7 +325,7 @@ class Problem:
                  visualization_file: Optional[str] = None,
                  observable_file: Optional[str] = None,
                  yaml_file: Optional[str] = None,
-                 prefix_path: Optional[Union[str, Path_]] = None,
+                 prefix_path: Optional[Union[str, Path]] = None,
                  relative_paths: bool = True,) -> None:
         """
         Write PEtab tables to files for this problem
@@ -359,9 +358,9 @@ class Problem:
                 If a destination was provided for a non-existing entity.
         """
         if prefix_path is not None:
-            prefix_path = Path_(prefix_path)
+            prefix_path = Path(prefix_path)
 
-            def add_prefix(path0: Union[None, str, Path_]) -> str:
+            def add_prefix(path0: Union[None, str, Path]) -> str:
                 if path0 is None:
                     return path0
                 return str(prefix_path / path0)

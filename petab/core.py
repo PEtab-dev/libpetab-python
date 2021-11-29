@@ -243,8 +243,8 @@ def is_empty(val) -> bool:
 
 
 def create_combine_archive(
-        yaml_file: str,
-        filename: str,
+        yaml_file: Union[str, Path],
+        filename: Union[str, Path],
         family_name: Optional[str] = None,
         given_name: Optional[str] = None,
         email: Optional[str] = None,
@@ -262,7 +262,7 @@ def create_combine_archive(
         organization: Organization of archive creator
     """
 
-    path_prefix = os.path.dirname(yaml_file)
+    path_prefix = os.path.dirname(str(yaml_file))
     yaml_config = yaml.load_yaml(yaml_file)
 
     # function-level import, because module-level import interfered with
@@ -287,7 +287,7 @@ def create_combine_archive(
 
     # Add PEtab files and metadata
     archive.addFile(
-        yaml_file,
+        str(yaml_file),
         os.path.basename(yaml_file),
         libcombine.KnownFormats.lookupFormat("yaml"),
         True
@@ -355,7 +355,7 @@ def create_combine_archive(
     description.addCreator(creator)
 
     archive.addMetadata(".", description)
-    archive.writeToFile(filename)
+    archive.writeToFile(str(filename))
 
 
 def unique_preserve_order(seq: Sequence) -> List:
