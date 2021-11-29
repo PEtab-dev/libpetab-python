@@ -346,23 +346,13 @@ class MPLPlotter(Plotter):
             In case subplots are saved to file.
         """
 
-        # Set Options for plots
-        # possible options: see: plt.rcParams.keys()
-
-        # TODO: or some other style
-        plt.style.use('tableau-colorblind10')
-
-        plt.rcParams['font.size'] = 12
-        plt.rcParams['axes.titlesize'] = 12
-        plt.rcParams['figure.figsize'] = self.figure.size
-        plt.rcParams['errorbar.capsize'] = 2
-
         if subplot_dir is None:
             # compute, how many rows and columns we need for the subplots
             num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
             num_col = int(np.ceil(self.figure.num_subplots / num_row))
 
-            fig, axes = plt.subplots(num_row, num_col, squeeze=False)
+            fig, axes = plt.subplots(num_row, num_col, squeeze=False,
+                                     figsize=self.figure.size)
             fig.set_tight_layout(True)
 
             for ax in axes.flat[self.figure.num_subplots:]:
@@ -373,7 +363,7 @@ class MPLPlotter(Plotter):
 
         for idx, subplot in enumerate(self.figure.subplots):
             if subplot_dir is not None:
-                fig, ax = plt.subplots()
+                fig, ax = plt.subplots(figsize=self.figure.size)
                 fig.set_tight_layout(True)
             else:
                 ax = axes[subplot.plotId]
