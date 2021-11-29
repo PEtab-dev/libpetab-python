@@ -90,13 +90,18 @@ class Problem:
         self.__dict__.update(state)
 
     @staticmethod
-    def from_files(sbml_file: str = None,
-                   condition_file: str = None,
-                   measurement_file: Union[str, Iterable[str]] = None,
-                   parameter_file: Union[str, List[str]] = None,
-                   visualization_files: Union[str, Iterable[str]] = None,
-                   observable_files: Union[str, Iterable[str]] = None
-                   ) -> 'Problem':
+    def from_files(
+            sbml_file: Union[str, Path, None] = None,
+            condition_file: Union[str, Path, None] = None,
+            measurement_file: Union[str, Path,
+                                    Iterable[Union[str, Path]]] = None,
+            parameter_file: Union[str, Path,
+                                  Iterable[Union[str, Path]]] = None,
+            visualization_files: Union[str, Path,
+                                       Iterable[Union[str, Path]]] = None,
+            observable_files: Union[str, Path,
+                                    Iterable[Union[str, Path]]] = None
+    ) -> 'Problem':
         """
         Factory method to load model and tables from files.
 
