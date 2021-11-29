@@ -214,17 +214,6 @@ class Problem:
         else:
             parameter_file = get_path(yaml_config[PARAMETER_FILE])
 
-        print(get_path(""))
-        print(dict(
-            sbml_file=get_path(problem0[SBML_FILES][0]),
-            measurement_file=[get_path(f)
-                              for f in problem0[MEASUREMENT_FILES]],
-            condition_file=get_path(problem0[CONDITION_FILES][0]),
-            parameter_file=parameter_file,
-            visualization_files=[
-                get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
-            observable_files=[
-                get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]))
         return Problem.from_files(
             sbml_file=get_path(problem0[SBML_FILES][0]),
             measurement_file=[get_path(f)
