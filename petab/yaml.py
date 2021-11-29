@@ -183,13 +183,13 @@ def write_yaml(
 
 
 def create_problem_yaml(
-        sbml_files: Union[str, Path, List[str]],
-        condition_files: Union[str, Path, List[str]],
-        measurement_files: Union[str, Path, List[str]],
+        sbml_files: Union[str, Path, List[Union[str, Path]]],
+        condition_files: Union[str, Path, List[Union[str, Path]]],
+        measurement_files: Union[str, Path, List[Union[str, Path]]],
         parameter_file: Union[str, Path],
-        observable_files: Union[str, Path, List[str]],
+        observable_files: Union[str, Path, List[Union[str, Path]]],
         yaml_file: Union[str, Path],
-        visualization_files: Optional[Union[str, Path, List[str]]] = None,
+        visualization_files: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         relative_paths: bool = True,
 ) -> None:
     """
