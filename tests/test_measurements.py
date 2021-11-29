@@ -1,8 +1,9 @@
 """Tests related to petab.measurements"""
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import tempfile
-
 import petab
 from petab.C import *
 
@@ -36,8 +37,8 @@ def test_write_measurement_df():
         NOISE_PARAMETERS: ['p3;p4', 'p5']
     })
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
-        file_name = fh.name
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_name = Path(temp_dir) / "parameters.tsv"
         petab.write_measurement_df(measurement_df, file_name)
         re_df = petab.get_measurement_df(file_name).replace(np.nan, '')
         assert (measurement_df == re_df).all().all()
