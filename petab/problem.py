@@ -160,6 +160,7 @@ class Problem:
         Arguments:
             yaml_config: PEtab configuration as dictionary or YAML file name
         """
+        print(yaml_config)
         if isinstance(yaml_config, (str, Path)):
             if isinstance(yaml_config, Path):
                 path_prefix = os.path.dirname(yaml_config)
@@ -168,6 +169,7 @@ class Problem:
             else:
                 # yaml_config may be path or URL
                 path_url = urlparse(yaml_config)
+                print(path_url)
                 if path_url.scheme not in ['', 'file']:
                     # extract parent path from URL
                     parent_path = str(PurePosixPath(
