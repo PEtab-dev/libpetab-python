@@ -1,5 +1,5 @@
 """PEtab core functions (or functions that don't fit anywhere else)"""
-
+from pathlib import Path
 import logging
 import os
 import re
@@ -43,7 +43,7 @@ def write_simulation_df(df: pd.DataFrame, filename: str) -> None:
     df.to_csv(filename, sep='\t', index=False)
 
 
-def get_visualization_df(visualization_file: str) -> pd.DataFrame:
+def get_visualization_df(visualization_file: Union[str, Path]) -> pd.DataFrame:
     """Read PEtab visualization table
 
     Arguments:
@@ -62,7 +62,9 @@ def get_visualization_df(visualization_file: str) -> pd.DataFrame:
     return vis_spec
 
 
-def write_visualization_df(df: pd.DataFrame, filename: str) -> None:
+def write_visualization_df(
+        df: pd.DataFrame, filename: Union[str, Path]
+) -> None:
     """Write PEtab visualization table
 
     Arguments:

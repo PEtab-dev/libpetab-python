@@ -1,14 +1,15 @@
 """Functions operating on the PEtab parameter table"""
 
 import numbers
-import pandas as pd
-import numpy as np
 from collections import OrderedDict
-from typing import Iterable, Set, List, Tuple, Dict, Union
+from pathlib import Path
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import libsbml
+import numpy as np
+import pandas as pd
 
-from . import lint, core, measurements, conditions, observables
+from . import conditions, core, lint, measurements, observables
 from .C import *  # noqa: F403
 
 __all__ = ['create_parameter_df',
@@ -27,7 +28,7 @@ __all__ = ['create_parameter_df',
 
 
 def get_parameter_df(
-        parameter_file: Union[str, List[str], pd.DataFrame, None]
+        parameter_file: Union[str, Path, List[str], pd.DataFrame, None]
 ) -> pd.DataFrame:
     """
     Read the provided parameter file into a ``pandas.Dataframe``.
@@ -46,7 +47,7 @@ def get_parameter_df(
     if isinstance(parameter_file, pd.DataFrame):
         parameter_df = parameter_file
 
-    if isinstance(parameter_file, str):
+    if isinstance(parameter_file, (str, Path)):
         parameter_df = pd.read_csv(parameter_file, sep='\t',
                                    float_precision='round_trip')
 
@@ -82,7 +83,7 @@ def get_parameter_df(
     return parameter_df
 
 
-def write_parameter_df(df: pd.DataFrame, filename: str) -> None:
+def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     """Write PEtab parameter table
 
     Arguments:

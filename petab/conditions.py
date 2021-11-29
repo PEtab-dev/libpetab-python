@@ -1,11 +1,12 @@
 """Functions operating on the PEtab condition table"""
 
-from typing import Iterable, Optional, List, Union
+from pathlib import Path
+from typing import Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from . import lint, core
+from . import core, lint
 from .C import *
 
 __all__ = ['get_condition_df', 'write_condition_df', 'create_condition_df',
@@ -13,7 +14,7 @@ __all__ = ['get_condition_df', 'write_condition_df', 'create_condition_df',
 
 
 def get_condition_df(
-        condition_file: Union[str, pd.DataFrame, None]
+        condition_file: Union[str, pd.DataFrame, Path, None]
 ) -> pd.DataFrame:
     """Read the provided condition file into a ``pandas.Dataframe``
 
@@ -25,7 +26,7 @@ def get_condition_df(
     if condition_file is None:
         return condition_file
 
-    if isinstance(condition_file, str):
+    if isinstance(condition_file, (str, Path)):
         condition_file = pd.read_csv(condition_file, sep='\t',
                                      float_precision='round_trip')
 
@@ -44,7 +45,7 @@ def get_condition_df(
     return condition_file
 
 
-def write_condition_df(df: pd.DataFrame, filename: str) -> None:
+def write_condition_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     """Write PEtab condition table
 
     Arguments:

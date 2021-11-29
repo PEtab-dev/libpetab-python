@@ -1,10 +1,11 @@
 """Tests for petab/parameters.py"""
 import tempfile
-import pytest
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-
 import petab
+import pytest
 from petab.C import *
 
 
@@ -116,8 +117,8 @@ def test_write_parameter_df():
         PARAMETER_NAME: ['ɑ', 'β'],
     }).set_index(PARAMETER_ID)
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
-        file_name = fh.name
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_name = Path(temp_dir) / "parameters.tsv"
         petab.write_parameter_df(parameter_df, file_name)
         re_df = petab.get_parameter_df(file_name)
         assert (parameter_df == re_df).all().all()
