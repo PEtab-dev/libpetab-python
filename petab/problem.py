@@ -158,6 +158,8 @@ class Problem:
         if isinstance(yaml_config, (str, Path)):
             if isinstance(yaml_config, Path):
                 path_prefix = os.path.dirname(yaml_config)
+                get_path = lambda filename:\
+                    f"{path_prefix}{os.sep}{filename}"  # noqa: E731
             else:
                 # yaml_config may be path or URL
                 path_url = urlparse(yaml_config)
@@ -169,11 +171,18 @@ class Problem:
                         (path_url.scheme, path_url.netloc, parent_path,
                          path_url.params, path_url.query, path_url.fragment)
                     )
+                    # need "/" on windows, not "\"
+                    get_path = lambda filename: \
+                        f"{path_prefix}/{filename}"  # noqa: E731
+
                 else:
                     path_prefix = os.path.dirname(yaml_config)
+                    get_path = lambda filename: \
+                        f"{path_prefix}{os.sep}{filename}"  # noqa: E731
+
             yaml_config = yaml.load_yaml(yaml_config)
         else:
-            path_prefix = ""
+            get_path = lambda filename: filename  # noqa: E731
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError('petab.Problem.from_yaml() can only be used for '
@@ -192,26 +201,21 @@ class Problem:
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_file = [
-                os.path.join(path_prefix, f)
-                for f in yaml_config[PARAMETER_FILE]
+                get_path(f) for f in yaml_config[PARAMETER_FILE]
             ]
         else:
-            parameter_file = os.path.join(
-                path_prefix, yaml_config[PARAMETER_FILE])
+            parameter_file = get_path(yaml_config[PARAMETER_FILE])
 
         return Problem.from_files(
-            sbml_file=os.path.join(path_prefix, problem0[SBML_FILES][0]),
-            measurement_file=[os.path.join(path_prefix, f)
+            sbml_file=get_path(problem0[SBML_FILES][0]),
+            measurement_file=[get_path(f)
                               for f in problem0[MEASUREMENT_FILES]],
-            condition_file=os.path.join(
-                path_prefix, problem0[CONDITION_FILES][0]),
+            condition_file=get_path(problem0[CONDITION_FILES][0]),
             parameter_file=parameter_file,
             visualization_files=[
-                os.path.join(path_prefix, f)
-                for f in problem0.get(VISUALIZATION_FILES, [])],
+                get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
             observable_files=[
-                os.path.join(path_prefix, f)
-                for f in problem0.get(OBSERVABLE_FILES, [])]
+                get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
         )
 
     @staticmethod
