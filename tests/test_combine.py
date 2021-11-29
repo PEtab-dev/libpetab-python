@@ -1,9 +1,8 @@
 """Test COMBINE archive"""
-import os
 import tempfile
+from pathlib import Path
 
 import pandas as pd
-
 import petab
 from petab.C import *
 
@@ -69,21 +68,22 @@ def test_combine_archive(minimal_sbml_model):
     with tempfile.TemporaryDirectory(prefix='petab_test_combine_archive') \
             as tempdir:
         # Write test data
-        petab.write_sbml(document, os.path.join(tempdir, sbml_file_name))
+        outdir = Path(tempdir)
+        petab.write_sbml(document, outdir / sbml_file_name)
         petab.write_measurement_df(
-            measurement_df, os.path.join(tempdir, measurement_file_name))
+            measurement_df, outdir / measurement_file_name)
         petab.write_parameter_df(
-            parameter_df, os.path.join(tempdir, parameter_file_name))
+            parameter_df, outdir / parameter_file_name)
         petab.write_observable_df(
-            observable_df, os.path.join(tempdir, observable_file_name))
+            observable_df, outdir / observable_file_name)
         petab.write_condition_df(
-            condition_df, os.path.join(tempdir, condition_file_name))
-        petab.write_yaml(yaml_config, os.path.join(tempdir, yaml_file_name))
+            condition_df, outdir / condition_file_name)
+        petab.write_yaml(yaml_config, outdir / yaml_file_name)
 
-        archive_file_name = os.path.join(tempdir, 'test.omex')
+        archive_file_name = outdir / 'test.omex'
 
         # Create COMBINE archive
-        petab.create_combine_archive(os.path.join(tempdir, yaml_file_name),
+        petab.create_combine_archive(outdir / yaml_file_name,
                                      archive_file_name, family_name="Tester")
 
         # Read COMBINE archive

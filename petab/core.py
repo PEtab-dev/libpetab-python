@@ -1,5 +1,5 @@
 """PEtab core functions (or functions that don't fit anywhere else)"""
-
+from pathlib import Path
 import logging
 import os
 import re
@@ -43,7 +43,7 @@ def write_simulation_df(df: pd.DataFrame, filename: str) -> None:
     df.to_csv(filename, sep='\t', index=False)
 
 
-def get_visualization_df(visualization_file: str) -> pd.DataFrame:
+def get_visualization_df(visualization_file: Union[str, Path]) -> pd.DataFrame:
     """Read PEtab visualization table
 
     Arguments:
@@ -62,7 +62,9 @@ def get_visualization_df(visualization_file: str) -> pd.DataFrame:
     return vis_spec
 
 
-def write_visualization_df(df: pd.DataFrame, filename: str) -> None:
+def write_visualization_df(
+        df: pd.DataFrame, filename: Union[str, Path]
+) -> None:
     """Write PEtab visualization table
 
     Arguments:
@@ -241,14 +243,14 @@ def is_empty(val) -> bool:
 
 
 def create_combine_archive(
-        yaml_file: str,
-        filename: str,
+        yaml_file: Union[str, Path],
+        filename: Union[str, Path],
         family_name: Optional[str] = None,
         given_name: Optional[str] = None,
         email: Optional[str] = None,
         organization: Optional[str] = None,
 ) -> None:
-    """Create COMBINE archive (http://co.mbine.org/documents/archive) based
+    """Create COMBINE archive (https://co.mbine.org/documents/archive) based
     on PEtab YAML file.
 
     Arguments:
@@ -260,7 +262,7 @@ def create_combine_archive(
         organization: Organization of archive creator
     """
 
-    path_prefix = os.path.dirname(yaml_file)
+    path_prefix = os.path.dirname(str(yaml_file))
     yaml_config = yaml.load_yaml(yaml_file)
 
     # function-level import, because module-level import interfered with
@@ -285,7 +287,7 @@ def create_combine_archive(
 
     # Add PEtab files and metadata
     archive.addFile(
-        yaml_file,
+        str(yaml_file),
         os.path.basename(yaml_file),
         libcombine.KnownFormats.lookupFormat("yaml"),
         True
@@ -353,7 +355,7 @@ def create_combine_archive(
     description.addCreator(creator)
 
     archive.addMetadata(".", description)
-    archive.writeToFile(filename)
+    archive.writeToFile(str(filename))
 
 
 def unique_preserve_order(seq: Sequence) -> List:

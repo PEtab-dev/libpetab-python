@@ -1,10 +1,12 @@
 """Functions for interacting with SBML models"""
-from warnings import warn
 import logging
-from pandas.io.common import get_handle, is_url, is_file_like
 import re
-from typing import Dict, Any, List, Union, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
+from warnings import warn
+
 import libsbml
+from pandas.io.common import get_handle, is_file_like, is_url
 
 logger = logging.getLogger(__name__)
 __all__ = ['add_global_parameter',
@@ -413,7 +415,10 @@ def get_model_parameters(sbml_model: libsbml.Model, with_values=False
             if sbml_model.getAssignmentRuleByVariable(p.getId()) is None}
 
 
-def write_sbml(sbml_doc: libsbml.SBMLDocument, filename: str) -> None:
+def write_sbml(
+        sbml_doc: libsbml.SBMLDocument,
+        filename: Union[Path, str]
+) -> None:
     """Write PEtab visualization table
 
     Arguments:
@@ -421,7 +426,7 @@ def write_sbml(sbml_doc: libsbml.SBMLDocument, filename: str) -> None:
         filename: Destination file name
     """
     sbml_writer = libsbml.SBMLWriter()
-    ret = sbml_writer.writeSBMLToFile(sbml_doc, filename)
+    ret = sbml_writer.writeSBMLToFile(sbml_doc, str(filename))
     if not ret:
         raise RuntimeError(f"libSBML reported error {ret} when trying to "
                            f"create SBML file {filename}.")
