@@ -1,15 +1,17 @@
 """PEtab Problem class"""
 
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Union
+from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
-import pandas as pd
 import libsbml
-from . import (parameter_mapping, measurements, conditions, parameters,
-               sampling, sbml, yaml, core, observables, format_version)
+import pandas as pd
+
+from . import (conditions, core, format_version, measurements, observables,
+               parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
 
 __all__ = ['Problem', 'get_default_condition_file_name',
@@ -146,15 +148,28 @@ class Problem:
                        visualization_df=visualization_df)
 
     @staticmethod
-    def from_yaml(yaml_config: Union[Dict, str]) -> 'Problem':
+    def from_yaml(yaml_config: Union[Dict, Path, str]) -> 'Problem':
         """
         Factory method to load model and tables as specified by YAML file.
 
         Arguments:
             yaml_config: PEtab configuration as dictionary or YAML file name
         """
-        if isinstance(yaml_config, str):
-            path_prefix = os.path.dirname(yaml_config)
+        if isinstance(yaml_config, (str, Path)):
+            if isinstance(yaml_config, Path):
+                path_prefix = os.path.dirname(yaml_config)
+            else:
+                # yaml_config may be path or URL
+                path_url = urlparse(yaml_config)
+                if path_url.scheme not in ['', 'file']:
+                    parent_path = str(PurePosixPath(
+                        unquote(urlparse(yaml_config).path)).parent)
+                    path_prefix = urlunparse(
+                        (path_url.scheme, path_url.netloc, parent_path,
+                         path_url.params, path_url.query, path_url.fragment)
+                    )
+                else:
+                    path_prefix = os.path.dirname(yaml_config)
             yaml_config = yaml.load_yaml(yaml_config)
         else:
             path_prefix = ""
