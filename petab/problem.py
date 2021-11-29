@@ -160,35 +160,34 @@ class Problem:
         Arguments:
             yaml_config: PEtab configuration as dictionary or YAML file name
         """
-        if isinstance(yaml_config, (str, Path)):
-            if isinstance(yaml_config, Path):
-                path_prefix = os.path.dirname(yaml_config)
-                get_path = lambda filename:\
-                    f"{path_prefix}{os.sep}{filename}"  # noqa: E731
-            else:
-                # yaml_config may be path or URL
-                path_url = urlparse(yaml_config)
-                if not path_url.scheme or \
-                        (path_url.scheme != 'file' and not path_url.netloc):
-                    # a regular file path string
-                    path_prefix = os.path.dirname(yaml_config)
-                    get_path = lambda filename: \
-                        f"{path_prefix}{os.sep}{filename}"  # noqa: E731
-                else:
-                    # a URL
-                    # extract parent path from
-                    url_path = unquote(urlparse(yaml_config).path)
-                    parent_path = str(PurePosixPath(url_path).parent)
-                    path_prefix = urlunparse(
-                        (path_url.scheme, path_url.netloc, parent_path,
-                         path_url.params, path_url.query, path_url.fragment)
-                    )
-                    # need "/" on windows, not "\"
-                    get_path = lambda filename: \
-                        f"{path_prefix}/{filename}"  # noqa: E731
+        if isinstance(yaml_config, Path):
+            yaml_config = str(yaml_config)
+
+        get_path = lambda filename: filename  # noqa: E731
+        if isinstance(yaml_config, str):
+            yaml_path = yaml_config
             yaml_config = yaml.load_yaml(yaml_config)
-        else:
-            get_path = lambda filename: filename  # noqa: E731
+
+            # yaml_config may be path or URL
+            path_url = urlparse(yaml_path)
+            if not path_url.scheme or \
+                    (path_url.scheme != 'file' and not path_url.netloc):
+                # a regular file path string
+                path_prefix = Path(yaml_path).parent
+                get_path = lambda filename: \
+                    path_prefix / filename  # noqa: E731
+            else:
+                # a URL
+                # extract parent path from
+                url_path = unquote(urlparse(yaml_path).path)
+                parent_path = str(PurePosixPath(url_path).parent)
+                path_prefix = urlunparse(
+                    (path_url.scheme, path_url.netloc, parent_path,
+                     path_url.params, path_url.query, path_url.fragment)
+                )
+                # need "/" on windows, not "\"
+                get_path = lambda filename: \
+                    f"{path_prefix}/{filename}"  # noqa: E731
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError('petab.Problem.from_yaml() can only be used for '
