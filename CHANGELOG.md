@@ -2,6 +2,31 @@
 
 ## 0.1 series
 
+### 0.1.22
+
+* Allow zero bounds for log parameters by @FFroehlich in
+  https://github.com/PEtab-dev/libpetab-python/pull/83
+* Adapt to Matplotlib 3.5 by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/86
+* Allow specifying file format for visualization by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/85
+* Visualization: Don't mess with rcParams by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/90
+* Linter: Check condition IDs are unique by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/92
+* Add support for `pathlib` for reading PEtab tables by @dweindl, @dilpath
+  in https://github.com/PEtab-dev/libpetab-python/pull/93,
+  https://github.com/PEtab-dev/libpetab-python/pull/91
+* Run tests also on Python 3.10 by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/88
+* Fix remote file retrieval on Windows @dweindl, @dilpath
+  in https://github.com/PEtab-dev/libpetab-python/pull/91
+* Fix test suite for Windows @dweindl, @dilpath
+  in https://github.com/PEtab-dev/libpetab-python/pull/91
+
+**Full Changelog**:
+https://github.com/PEtab-dev/libpetab-python/compare/v0.1.21...v0.1.22
+
 ### 0.1.21
 
 * PEtab spec compliance: measurements must now be not null, and numeric (#76)
