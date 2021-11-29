@@ -289,7 +289,7 @@ class Problem:
     def to_files_generic(
         self,
         prefix_path: Union[str, Path],
-    ) -> None:
+    ) -> str:
         """Save a PEtab problem to generic file names.
 
         The PEtab problem YAML file is always created. PEtab data files are
