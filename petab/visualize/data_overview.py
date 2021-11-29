@@ -3,7 +3,9 @@ Functions for creating an overview report of a PEtab problem
 """
 
 import os
+from pathlib import Path
 from shutil import copyfile
+from typing import Union
 
 import pandas as pd
 import petab
@@ -12,12 +14,17 @@ from petab.C import *
 __all__ = ['create_report']
 
 
-def create_report(problem: petab.Problem, model_name: str) -> None:
+def create_report(
+        problem: petab.Problem,
+        model_name: str,
+        outdir: Union[str, Path] = ''
+) -> None:
     """Create an HTML overview data / model overview report
 
     Arguments:
         problem: PEtab problem
         model_name: Name of the model, used for file name for report
+        outdir: Output directory
     """
 
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -39,7 +46,7 @@ def create_report(problem: petab.Problem, model_name: str) -> None:
     output_text = template.render(problem=problem, model_name=model_name,
                                   data_per_observable=data_per_observable,
                                   num_conditions=num_conditions)
-    with open(model_name + '.html', 'w') as html_file:
+    with open(Path(outdir) / f'{model_name}.html', 'w') as html_file:
         html_file.write(output_text)
     copyfile(os.path.join(template_dir, 'mystyle.css'), 'mystyle.css')
 
@@ -72,7 +79,7 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     return data_per_observable
 
 
-def main():
+def main(outdir: Union[Path, str] = None):
     """Data overview generation with example data from the repository for
     testing
     """
@@ -86,7 +93,7 @@ def main():
         measurement_file=os.path.join(root_path, 'Fujita_measurementData.tsv'),
         parameter_file=os.path.join(root_path, 'Fujita_parameters.tsv'),
     )
-    create_report(problem, 'Fujita')
+    create_report(problem, 'Fujita', outdir=outdir)
 
 
 if __name__ == '__main__':
