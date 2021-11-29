@@ -2,7 +2,6 @@
 Functions for creating an overview report of a PEtab problem
 """
 
-import os
 from pathlib import Path
 from shutil import copyfile
 from typing import Union
@@ -17,18 +16,18 @@ __all__ = ['create_report']
 def create_report(
         problem: petab.Problem,
         model_name: str,
-        outdir: Union[str, Path] = ''
+        output_path: Union[str, Path] = ''
 ) -> None:
     """Create an HTML overview data / model overview report
 
     Arguments:
         problem: PEtab problem
         model_name: Name of the model, used for file name for report
-        outdir: Output directory
+        output_path: Output directory
     """
 
-    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                'templates')
+    template_dir = Path(__file__).absolute().parent / 'templates'
+    output_path = Path(output_path)
     template_file = "report.html"
 
     data_per_observable = get_data_per_observable(problem.measurement_df)
@@ -37,8 +36,7 @@ def create_report(
 
     # Setup template engine
     import jinja2
-    template_loader = jinja2.FileSystemLoader(
-        searchpath=template_dir)
+    template_loader = jinja2.FileSystemLoader(searchpath=template_dir)
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template(template_file)
 
@@ -46,9 +44,9 @@ def create_report(
     output_text = template.render(problem=problem, model_name=model_name,
                                   data_per_observable=data_per_observable,
                                   num_conditions=num_conditions)
-    with open(Path(outdir) / f'{model_name}.html', 'w') as html_file:
+    with open(output_path / f'{model_name}.html', 'w') as html_file:
         html_file.write(output_text)
-    copyfile(Path(template_dir, 'mystyle.css'), Path(outdir, 'mystyle.css'))
+    copyfile(template_dir / 'mystyle.css', output_path / 'mystyle.css')
 
 
 def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
@@ -77,24 +75,3 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     data_per_observable = data_per_observable.astype(int)
 
     return data_per_observable
-
-
-def main(outdir: Union[Path, str] = None):
-    """Data overview generation with example data from the repository for
-    testing
-    """
-
-    root_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             '..', '..', 'doc/example/example_Fujita/')
-    problem = petab.Problem.from_files(
-        sbml_file=os.path.join(root_path, 'Fujita_model.xml'),
-        condition_file=os.path.join(root_path,
-                                    'Fujita_experimentalCondition.tsv'),
-        measurement_file=os.path.join(root_path, 'Fujita_measurementData.tsv'),
-        parameter_file=os.path.join(root_path, 'Fujita_parameters.tsv'),
-    )
-    create_report(problem, 'Fujita', outdir=outdir)
-
-
-if __name__ == '__main__':
-    main()
