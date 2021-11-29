@@ -1,11 +1,12 @@
 """Tests related to petab.conditions"""
+import os
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import tempfile
-import pytest
-import os
-
 import petab
+import pytest
 from petab import conditions
 from petab.C import *
 
@@ -76,8 +77,8 @@ def test_write_condition_df():
         'fixedParameter1': [1.0, 2.0]
     }).set_index(CONDITION_ID)
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
-        file_name = fh.name
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_name = Path(temp_dir) / "conditions.tsv"
         petab.write_condition_df(condition_df, file_name)
         re_df = petab.get_condition_df(file_name)
         assert (condition_df == re_df).all().all()

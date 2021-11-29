@@ -1,9 +1,10 @@
 """Tests for petab.observables"""
-import pandas as pd
-import pytest
 import tempfile
+from pathlib import Path
 
+import pandas as pd
 import petab
+import pytest
 from petab.C import *
 
 # import fixtures
@@ -53,8 +54,8 @@ def test_write_observable_df():
         NOISE_FORMULA: [1],
     }).set_index(OBSERVABLE_ID)
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=True) as fh:
-        file_name = fh.name
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_name = Path(temp_dir) / "observables.tsv"
         petab.write_observable_df(observable_df, file_name)
         re_df = petab.get_observable_df(file_name)
         assert (observable_df == re_df).all().all()

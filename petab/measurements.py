@@ -1,16 +1,16 @@
 """Functions operating on the PEtab measurement table"""
 # noqa: F405
 
-
 import itertools
 import numbers
-from typing import List, Union, Dict
+from pathlib import Path
+from typing import Dict, List, Union
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 
-from . import (lint, core, observables)
+from . import (core, lint, observables)
 from .C import *  # noqa: F403
 
 __all__ = ['assert_overrides_match_parameter_count',
@@ -26,7 +26,7 @@ __all__ = ['assert_overrides_match_parameter_count',
 
 
 def get_measurement_df(
-        measurement_file: Union[None, str, pd.DataFrame]
+        measurement_file: Union[None, str, Path, pd.DataFrame]
 ) -> pd.DataFrame:
     """
     Read the provided measurement file into a ``pandas.Dataframe``.
@@ -40,7 +40,7 @@ def get_measurement_df(
     if measurement_file is None:
         return measurement_file
 
-    if isinstance(measurement_file, str):
+    if isinstance(measurement_file, (str, Path)):
         measurement_file = pd.read_csv(measurement_file, sep='\t',
                                        float_precision='round_trip')
 
@@ -50,7 +50,7 @@ def get_measurement_df(
     return measurement_file
 
 
-def write_measurement_df(df: pd.DataFrame, filename: str) -> None:
+def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     """Write PEtab measurement table
 
     Arguments:
