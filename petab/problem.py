@@ -170,7 +170,8 @@ class Problem:
                 # yaml_config may be path or URL
                 path_url = urlparse(yaml_config)
                 print(path_url)
-                if path_url.scheme not in ['', 'file']:
+                if not path_url.scheme or \
+                        (path_url.scheme != 'file' and not path_url.netloc):
                     # extract parent path from URL
                     parent_path = str(PurePosixPath(
                         unquote(urlparse(yaml_config).path)).parent)
