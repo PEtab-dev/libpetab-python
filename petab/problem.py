@@ -172,13 +172,15 @@ class Problem:
                 print(path_url)
                 if not path_url.scheme or \
                         (path_url.scheme != 'file' and not path_url.netloc):
+                    # a regular file path string
                     path_prefix = os.path.dirname(yaml_config)
                     get_path = lambda filename: \
                         f"{path_prefix}{os.sep}{filename}"  # noqa: E731
                 else:
-                    # extract parent path from URL
-                    parent_path = str(PurePosixPath(
-                        unquote(urlparse(yaml_config).path)).parent)
+                    # a URL
+                    # extract parent path from
+                    url_path = unquote(urlparse(yaml_config).path)
+                    parent_path = str(PurePosixPath(url_path).parent)
                     path_prefix = urlunparse(
                         (path_url.scheme, path_url.netloc, parent_path,
                          path_url.params, path_url.query, path_url.fragment)
