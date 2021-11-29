@@ -1,13 +1,14 @@
 """Tests for petab/simulate.py."""
 import functools
-import numpy as np
-import pandas as pd
 import pathlib
-import pytest
-import scipy.stats
+from pathlib import Path
 from typing import Callable
 
+import numpy as np
+import pandas as pd
 import petab
+import pytest
+import scipy.stats
 from petab.C import MEASUREMENT
 
 
@@ -41,10 +42,10 @@ def test_remove_working_dir(petab_problem):
     assert not pathlib.Path(simulator.working_dir).is_dir()
 
     # Test creation and removal of a specified working directory
-    working_dir = 'tests/test_simulate_working_dir'
+    working_dir = Path('tests/test_simulate_working_dir')
     simulator = TestSimulator(petab_problem, working_dir=working_dir)
     # The working directory is as specified
-    assert working_dir == str(simulator.working_dir)
+    assert working_dir == Path(simulator.working_dir)
     # The working directory exists
     assert pathlib.Path(simulator.working_dir).is_dir()
     # A user-specified working directory should not be removed unless
