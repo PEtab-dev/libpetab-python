@@ -542,11 +542,11 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
     """Test problem.to_files."""
     with tempfile.TemporaryDirectory() as folder:
         # create target files
-        sbml_file = tempfile.mkstemp(dir=folder)[1]
-        condition_file = tempfile.mkstemp(dir=folder)[1]
-        measurement_file = tempfile.mkstemp(dir=folder)[1]
-        parameter_file = tempfile.mkstemp(dir=folder)[1]
-        observable_file = tempfile.mkstemp(dir=folder)[1]
+        sbml_file = Path(folder, "model.xml")
+        condition_file = Path(folder, "conditions.tsv")
+        measurement_file = Path(folder, "measurements.tsv")
+        parameter_file = Path(folder, "parameters.tsv")
+        observable_file = Path(folder, "observables.tsv")
 
         # write contents to files
         petab_problem.to_files(

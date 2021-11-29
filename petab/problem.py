@@ -318,15 +318,16 @@ class Problem:
         return str(prefix_path / filenames['yaml_file'])
 
     def to_files(self,
-                 sbml_file: Optional[str] = None,
-                 condition_file: Optional[str] = None,
-                 measurement_file: Optional[str] = None,
-                 parameter_file: Optional[str] = None,
-                 visualization_file: Optional[str] = None,
-                 observable_file: Optional[str] = None,
-                 yaml_file: Optional[str] = None,
-                 prefix_path: Optional[Union[str, Path]] = None,
-                 relative_paths: bool = True,) -> None:
+                 sbml_file: Union[None, str, Path] = None,
+                 condition_file: Union[None, str, Path] = None,
+                 measurement_file: Union[None, str, Path] = None,
+                 parameter_file: Union[None, str, Path] = None,
+                 visualization_file: Union[None, str, Path] = None,
+                 observable_file: Union[None, str, Path] = None,
+                 yaml_file: Union[None, str, Path] = None,
+                 prefix_path: Union[None, str, Path] = None,
+                 relative_paths: bool = True,
+                 ) -> None:
         """
         Write PEtab tables to files for this problem
 
