@@ -46,6 +46,9 @@ def _petab_visualize_main():
     if args.style_file_name:
         plt.style.use(args.style_file_name)
 
+    # Avoid errors when plotting without X server
+    plt.switch_backend('agg')
+
     Path(args.output_directory).mkdir(exist_ok=True, parents=True)
 
     plot_problem(
