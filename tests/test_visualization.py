@@ -1,12 +1,14 @@
+import subprocess
 import warnings
 from os import path
 from tempfile import TemporaryDirectory
+from pathlib import Path
+import matplotlib.pyplot as plt
 import pytest
 from petab.C import *
 from petab.visualize import (plot_data_and_simulation,
                              plot_measurements_by_observable,
                              save_vis_spec)
-import matplotlib.pyplot as plt
 
 
 @pytest.fixture
@@ -79,10 +81,12 @@ def simulation_file_Isensee():
     return "doc/example/example_Isensee/Isensee_simulationData.tsv"
 
 
-def test_visualization_with_vis_and_sim(data_file_Isensee,
-                                        condition_file_Isensee,
-                                        vis_spec_file_Isensee,
-                                        simulation_file_Isensee):
+def test_visualization_with_vis_and_sim(
+        data_file_Isensee,
+        condition_file_Isensee,
+        vis_spec_file_Isensee,
+        simulation_file_Isensee
+):
     plot_data_and_simulation(data_file_Isensee,
                              condition_file_Isensee,
                              vis_spec_file_Isensee,
@@ -91,17 +95,21 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
 
 @pytest.mark.skip(reason="vis_spec_file_Isensee can't be used without "
                          "simulation_df anymore")
-def test_visualization_with_vis(data_file_Isensee,
-                                condition_file_Isensee,
-                                vis_spec_file_Isensee):
+def test_visualization_with_vis(
+        data_file_Isensee,
+        condition_file_Isensee,
+        vis_spec_file_Isensee
+):
     plot_data_and_simulation(data_file_Isensee,
                              condition_file_Isensee,
                              vis_spec_file_Isensee)
 
 
-def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
-                                                   condition_file_Fujita,
-                                                   visu_file_Fujita_small):
+def test_visualization_small_visu_file_w_datasetid(
+        data_file_Fujita,
+        condition_file_Fujita,
+        visu_file_Fujita_small
+):
     """
     Test: visualization spezification file only with few columns in
     particular datasetId
@@ -112,9 +120,11 @@ def test_visualization_small_visu_file_w_datasetid(data_file_Fujita,
                              visu_file_Fujita_small)
 
 
-def test_visualization_small_visu_file_wo_datasetid(data_file_Fujita,
-                                                    condition_file_Fujita,
-                                                    visu_file_Fujita_wo_dsid):
+def test_visualization_small_visu_file_wo_datasetid(
+        data_file_Fujita,
+        condition_file_Fujita,
+        visu_file_Fujita_wo_dsid
+):
     """
     Test: visualization spezification file only with few columns in
     particular no datasetId column
@@ -125,9 +135,11 @@ def test_visualization_small_visu_file_wo_datasetid(data_file_Fujita,
                              visu_file_Fujita_wo_dsid)
 
 
-def test_visualization_minimal_visu_file(data_file_Fujita,
-                                         condition_file_Fujita,
-                                         visu_file_Fujita_minimal):
+def test_visualization_minimal_visu_file(
+        data_file_Fujita,
+        condition_file_Fujita,
+        visu_file_Fujita_minimal
+):
     """
     Test: visualization spezification file only with mandatory column plotId
     (optional columns are optional)
@@ -137,9 +149,11 @@ def test_visualization_minimal_visu_file(data_file_Fujita,
                              visu_file_Fujita_minimal)
 
 
-def test_visualization_empty_visu_file(data_file_Fujita,
-                                       condition_file_Fujita,
-                                       visu_file_Fujita_empty):
+def test_visualization_empty_visu_file(
+        data_file_Fujita,
+        condition_file_Fujita,
+        visu_file_Fujita_empty
+):
     """
     Test: Empty visualization spezification file should default to routine
     for no file at all
@@ -149,9 +163,11 @@ def test_visualization_empty_visu_file(data_file_Fujita,
                              visu_file_Fujita_empty)
 
 
-def test_visualization_minimal_data_file(data_file_Fujita_minimal,
-                                         condition_file_Fujita,
-                                         visu_file_Fujita_small):
+def test_visualization_minimal_data_file(
+        data_file_Fujita_minimal,
+        condition_file_Fujita,
+        visu_file_Fujita_small
+):
     """
     Test visualization, with the case: data file only with mandatory columns
     (optional columns are optional)
@@ -161,9 +177,11 @@ def test_visualization_minimal_data_file(data_file_Fujita_minimal,
                              visu_file_Fujita_small)
 
 
-def test_visualization_with_dataset_list(data_file_Isensee,
-                                         condition_file_Isensee,
-                                         simulation_file_Isensee):
+def test_visualization_with_dataset_list(
+        data_file_Isensee,
+        condition_file_Isensee,
+        simulation_file_Isensee
+):
     datasets = [['JI09_150302_Drg345_343_CycNuc__4_ABnOH_and_ctrl',
                  'JI09_150302_Drg345_343_CycNuc__4_ABnOH_and_Fsk'],
                 ['JI09_160201_Drg453-452_CycNuc__ctrl',
@@ -179,9 +197,11 @@ def test_visualization_with_dataset_list(data_file_Isensee,
                              dataset_id_list=datasets)
 
 
-def test_visualization_without_datasets(data_file_Fujita,
-                                        condition_file_Fujita,
-                                        simu_file_Fujita):
+def test_visualization_without_datasets(
+        data_file_Fujita,
+        condition_file_Fujita,
+        simu_file_Fujita
+):
     sim_cond_num_list = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]]
     sim_cond_id_list = [['model1_data1'], ['model1_data2', 'model1_data3'],
                         ['model1_data4', 'model1_data5'], ['model1_data6']]
@@ -217,16 +237,20 @@ def test_visualization_without_datasets(data_file_Fujita,
                              plotted_noise=PROVIDED)
 
 
-def test_visualization_omit_empty_datasets(data_file_Fujita_nanData,
-                                           condition_file_Fujita):
+def test_visualization_omit_empty_datasets(
+        data_file_Fujita_nanData,
+        condition_file_Fujita
+):
     observable_num_list = [[0, 1]]
     plot_data_and_simulation(data_file_Fujita_nanData, condition_file_Fujita,
                              observable_num_list=observable_num_list)
 
 
-def test_visualization_raises(data_file_Fujita,
-                              condition_file_Fujita,
-                              data_file_Fujita_wrongNoise):
+def test_visualization_raises(
+        data_file_Fujita,
+        condition_file_Fujita,
+        data_file_Fujita_wrongNoise
+):
     sim_cond_num_list = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]]
     sim_cond_id_list = [['model1_data1'], ['model1_data2', 'model1_data3'],
                         ['model1_data4', 'model1_data5'], ['model1_data6']]
@@ -240,10 +264,10 @@ def test_visualization_raises(data_file_Fujita,
                                  sim_cond_num_list=sim_cond_num_list,
                                  sim_cond_id_list=sim_cond_id_list)
     except NotImplementedError as ErrMsg:
-        assert(ErrMsg.args[0] == 'Either specify a list of simulation '
-                                 'condition IDs or a list of simulation '
-                                 'condition numbers, but not both. '
-                                 'Stopping.')
+        assert (ErrMsg.args[0] == 'Either specify a list of simulation '
+                                  'condition IDs or a list of simulation '
+                                  'condition numbers, but not both. '
+                                  'Stopping.')
         error_counter += 1
     assert (error_counter == 1)
 
@@ -253,9 +277,10 @@ def test_visualization_raises(data_file_Fujita,
                                  observable_num_list=observable_num_list,
                                  observable_id_list=observable_id_list)
     except NotImplementedError as ErrMsg:
-        assert(ErrMsg.args[0] == 'Either specify a list of observable IDs or '
-                                 'a list of observable numbers, but not both. '
-                                 'Stopping.')
+        assert (ErrMsg.args[0] ==
+                'Either specify a list of observable IDs or '
+                'a list of observable numbers, but not both. '
+                'Stopping.')
         error_counter += 1
     assert (error_counter == 2)
 
@@ -266,10 +291,11 @@ def test_visualization_raises(data_file_Fujita,
                                  sim_cond_num_list=observable_num_list,
                                  observable_num_list=observable_num_list)
     except NotImplementedError as ErrMsg:
-        assert(ErrMsg.args[0] == 'Plotting without visualization specification'
-                                 ' file and datasetId can be performed via '
-                                 'grouping by simulation conditions OR '
-                                 'observables, but not both. Stopping.')
+        assert (ErrMsg.args[
+                    0] == 'Plotting without visualization specification'
+                          ' file and datasetId can be performed via '
+                          'grouping by simulation conditions OR '
+                          'observables, but not both. Stopping.')
         error_counter += 1
     assert (error_counter == 3)
     try:
@@ -277,10 +303,11 @@ def test_visualization_raises(data_file_Fujita,
                                  sim_cond_id_list=observable_id_list,
                                  observable_id_list=observable_id_list)
     except NotImplementedError as ErrMsg:
-        assert(ErrMsg.args[0] == 'Plotting without visualization specification'
-                                 ' file and datasetId can be performed via '
-                                 'grouping by simulation conditions OR '
-                                 'observables, but not both. Stopping.')
+        assert (ErrMsg.args[
+                    0] == 'Plotting without visualization specification'
+                          ' file and datasetId can be performed via '
+                          'grouping by simulation conditions OR '
+                          'observables, but not both. Stopping.')
         error_counter += 1
     assert (error_counter == 4)
 
@@ -290,8 +317,8 @@ def test_visualization_raises(data_file_Fujita,
                                         condition_file_Fujita,
                                         plotted_noise='provided')
     except NotImplementedError as ErrMsg:
-        assert(ErrMsg.args[0] == "No numerical noise values provided in the "
-                                 "measurement table. Stopping.")
+        assert (ErrMsg.args[0] == "No numerical noise values provided in the "
+                                  "measurement table. Stopping.")
         error_counter += 1
 
     assert (error_counter == 5)
@@ -354,8 +381,10 @@ def test_simple_visualization(data_file_Fujita, condition_file_Fujita):
                                     plotted_noise=PROVIDED)
 
 
-def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
-                            vis_spec_file_Isensee, simulation_file_Isensee):
+def test_save_plots_to_file(
+        data_file_Isensee, condition_file_Isensee,
+        vis_spec_file_Isensee, simulation_file_Isensee
+):
     with TemporaryDirectory() as temp_dir:
         plot_data_and_simulation(
             data_file_Isensee,
@@ -365,9 +394,10 @@ def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
             subplot_file_path=temp_dir)
 
 
-def test_save_visu_file(data_file_Isensee,
-                        condition_file_Isensee):
-
+def test_save_visu_file(
+        data_file_Isensee,
+        condition_file_Isensee
+):
     with TemporaryDirectory() as temp_dir:
         save_vis_spec(data_file_Isensee,
                       condition_file_Isensee,
@@ -383,3 +413,17 @@ def test_save_visu_file(data_file_Isensee,
                       condition_file_Isensee,
                       dataset_id_list=datasets,
                       output_file_path=path.join(temp_dir, "visuSpec1.tsv"))
+
+
+def test_cli():
+    example_dir = Path(__file__).parent.parent / "doc" / "example"
+    fujita_dir = example_dir / "example_Fujita"
+
+    with TemporaryDirectory() as temp_dir:
+        args = [
+            "petab_visualize",
+            "-y", fujita_dir / "Fujita.yaml",
+            "-s", fujita_dir / "Fujita_simulatedData.tsv",
+            "-o", temp_dir
+        ]
+        subprocess.run(args, check=True)
