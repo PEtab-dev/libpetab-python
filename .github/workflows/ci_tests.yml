@@ -27,9 +27,9 @@ jobs:
       uses: actions/cache@v1
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
+        key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
         restore-keys: |
-          ${{ runner.os }}-
+          ${{ runner.os }}-${{ matrix.python-version }}-
 
     - name: Install dependencies
       run: |
