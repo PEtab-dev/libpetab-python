@@ -1,7 +1,9 @@
 """Command-line interface for visualization."""
 import argparse
 from pathlib import Path
+
 import matplotlib.pyplot as plt
+
 from .plot_data_and_simulation import plot_problem
 from .. import Problem, get_simulation_df, get_visualization_df
 
