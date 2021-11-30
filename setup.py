@@ -41,6 +41,7 @@ exec(read(version_file))  # pylint: disable=W0122 # nosec
 ENTRY_POINTS = {
     'console_scripts': [
         'petablint = petab.petablint:main',
+        'petab_visualize = petab.visualize.cli:_petab_visualize_main',
     ]
 }
 
