@@ -1,7 +1,7 @@
 """Command line interface for visualization"""
 import argparse
 from pathlib import Path
-
+import matplotlib.pyplot as plt
 from .plot_data_and_simulation import plot_problem
 from .. import Problem, get_simulation_df, get_visualization_df
 
@@ -22,6 +22,9 @@ def _parse_cli_args():
     parser.add_argument('-v', '--visualizations', required=False,
                         dest='visualization_file_name',
                         help='PEtab visualization specification filename')
+    parser.add_argument('--style', required=False,
+                        dest='style_file_name',
+                        help='Matplotlib style file')
     return parser.parse_args()
 
 
@@ -38,6 +41,9 @@ def _petab_visualize_main():
     if args.visualization_file_name:
         petab_problem.visualization_df = get_visualization_df(
             args.visualization_file_name)
+
+    if args.style_file_name:
+        plt.style.use(args.style_file_name)
 
     Path(args.output_directory).mkdir(exist_ok=True)
 
