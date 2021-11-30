@@ -422,8 +422,8 @@ def test_cli():
     with TemporaryDirectory() as temp_dir:
         args = [
             "petab_visualize",
-            "-y", fujita_dir / "Fujita.yaml",
-            "-s", fujita_dir / "Fujita_simulatedData.tsv",
+            "-y", str(fujita_dir / "Fujita.yaml"),
+            "-s", str(fujita_dir / "Fujita_simulatedData.tsv"),
             "-o", temp_dir
         ]
         subprocess.run(args, check=True)
