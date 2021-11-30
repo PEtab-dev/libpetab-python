@@ -31,8 +31,7 @@ def create_report(
     template_file = "report.html"
 
     data_per_observable = get_data_per_observable(problem.measurement_df)
-    num_conditions = (len(problem.condition_df.columns)
-                      - 1 * (CONDITION_NAME in problem.condition_df.columns))
+    num_conditions = len(problem.condition_df.index)
 
     # Setup template engine
     import jinja2
@@ -55,17 +54,18 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     Arguments:
         measurement_df: PEtab measurement data frame
     Returns:
-        data_per_observable:
-            Pivot table with number of data points per observable and condition
+        Pivot table with number of data points per observable and condition
     """
 
     my_measurements = measurement_df.copy()
-
-    my_measurements[PREEQUILIBRATION_CONDITION_ID].fillna('', inplace=True)
+    index = [SIMULATION_CONDITION_ID]
+    if PREEQUILIBRATION_CONDITION_ID in my_measurements:
+        my_measurements[PREEQUILIBRATION_CONDITION_ID].fillna('', inplace=True)
+        index.append(PREEQUILIBRATION_CONDITION_ID)
 
     data_per_observable = pd.pivot_table(
         my_measurements, values=MEASUREMENT, aggfunc='count',
-        index=[SIMULATION_CONDITION_ID, PREEQUILIBRATION_CONDITION_ID],
+        index=index,
         columns=[OBSERVABLE_ID], fill_value=0)
 
     # Add row and column sums
