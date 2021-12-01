@@ -308,7 +308,6 @@ class MPLPlotter(Plotter):
         if not subplot.plotTypeSimulation == BAR_PLOT:
             ax.legend()
         ax.set_title(subplot.plotName)
-        ax.relim()
         if subplot.xlim:
             ax.set_xlim(subplot.xlim)
         if subplot.ylim:
