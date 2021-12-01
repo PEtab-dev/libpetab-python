@@ -45,6 +45,26 @@ class MPLPlotter(Plotter):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
+    @staticmethod
+    def _error_column_for_plot_type_data(plot_type_data: str) -> Optional[str]:
+        """Translate PEtab plotTypeData value to column name of internal
+        data representation
+
+        Parameters
+        ----------
+            plot_type_data: PEtab plotTypeData value
+        Returns
+        -------
+            Name of corresponding column
+        """
+        if plot_type_data == MEAN_AND_SD:
+            return 'sd'
+        if plot_type_data == MEAN_AND_SEM:
+            return 'sem'
+        if plot_type_data == PROVIDED:
+            return 'noise_model'
+        return None
+
     def generate_lineplot(self, ax: 'matplotlib.pyplot.Axes',
                           dataplot: DataPlot,
                           plotTypeData: str) -> None:
@@ -67,14 +87,7 @@ class MPLPlotter(Plotter):
         measurements_to_plot, simulations_to_plot = \
             self.data_provider.get_data_to_plot(dataplot,
                                                 plotTypeData == PROVIDED)
-        noise_col = None
-        # set type of noise
-        if plotTypeData == MEAN_AND_SD:
-            noise_col = 'sd'
-        elif plotTypeData == MEAN_AND_SEM:
-            noise_col = 'sem'
-        elif plotTypeData == PROVIDED:
-            noise_col = 'noise_model'
+        noise_col = self._error_column_for_plot_type_data(plotTypeData)
 
         label_base = dataplot.legendEntry
 
@@ -155,14 +168,7 @@ class MPLPlotter(Plotter):
             Specifies how replicates should be handled.
         """
         # TODO: plotTypeData == REPLICATE?
-        # set type of noise
-        noise_col = None
-        if plotTypeData == MEAN_AND_SD:
-            noise_col = 'sd'
-        elif plotTypeData == MEAN_AND_SEM:
-            noise_col = 'sem'
-        elif plotTypeData == PROVIDED:
-            noise_col = 'noise_model'
+        noise_col = self._error_column_for_plot_type_data(plotTypeData)
 
         simu_colors = None
         measurements_to_plot, simulations_to_plot = \
@@ -222,7 +228,7 @@ class MPLPlotter(Plotter):
         ax.scatter(measurements_to_plot.data_to_plot['mean'],
                    simulations_to_plot.data_to_plot['mean'],
                    label=getattr(dataplot, LEGEND_ENTRY))
-        ax = self._square_plot_equal_ranges(ax)
+        self._square_plot_equal_ranges(ax)
 
     def generate_subplot(self,
                          ax,
@@ -278,11 +284,10 @@ class MPLPlotter(Plotter):
             elif subplot.xScale == 'order':
                 ax.set_xscale("linear")
                 # check if conditions are monotone decreasing or increasing
-                if np.all(
-                        np.diff(subplot.conditions) < 0):  # monot. decreasing
-                    xlabel = subplot.conditions[::-1]  # reversing
-                    conditions = range(len(subplot.conditions))[
-                                 ::-1]  # reversing
+                if np.all(np.diff(subplot.conditions) < 0):
+                    # monot. decreasing -> reverse
+                    xlabel = subplot.conditions[::-1]
+                    conditions = range(len(subplot.conditions))[::-1]
                     ax.set_xticks(range(len(conditions)), xlabel)
                 elif np.all(np.diff(subplot.conditions) > 0):
                     xlabel = subplot.conditions
@@ -305,7 +310,7 @@ class MPLPlotter(Plotter):
         if subplot.yScale == LOG:
             ax.yaxis.set_major_formatter(mtick.FuncFormatter(ticks))
 
-        if not subplot.plotTypeSimulation == BAR_PLOT:
+        if subplot.plotTypeSimulation != BAR_PLOT:
             ax.legend()
         ax.set_title(subplot.plotName)
         ax.relim()
@@ -316,10 +321,8 @@ class MPLPlotter(Plotter):
         ax.autoscale_view()
 
         # Beautify plots
-        ax.set_xlabel(
-            subplot.xLabel)
-        ax.set_ylabel(
-            subplot.yLabel)
+        ax.set_xlabel(subplot.xLabel)
+        ax.set_ylabel(subplot.yLabel)
 
     def generate_figure(
             self,

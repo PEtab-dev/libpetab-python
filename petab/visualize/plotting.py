@@ -72,10 +72,8 @@ class DataSeries:
             self.conditions += offset
 
     def add_y_offset(self, offset):
-        self.data_to_plot['mean'] = \
-            self.data_to_plot['mean'] + offset
-        self.data_to_plot['repl'] = \
-            self.data_to_plot['repl'] + offset
+        self.data_to_plot['mean'] += offset
+        self.data_to_plot['repl'] += offset
 
     def add_offsets(self, x_offset=0, y_offset=0) -> None:
         """
@@ -348,9 +346,9 @@ class Figure:
                                  dataplot.__dict__ if key in
                                  VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS}
                 row = {**subplot_level, **dataset_level}
-                for key in row:
+                for key, value in row.items():
                     if key in visu_dict:
-                        visu_dict[key].append(row[key])
+                        visu_dict[key].append(value)
                     else:
                         visu_dict[key] = [row[key]]
         visu_df = pd.DataFrame.from_dict(visu_dict)
@@ -596,7 +594,6 @@ class DataProvider:
                                                        SIMULATION,
                                                        dataplot,
                                                        provided_noise)
-
         return measurements_to_plot, simulations_to_plot
 
 
@@ -874,11 +871,12 @@ class VisSpecParser:
         plot_id_column = ['plot%s' % str(ind + 1) for ind, inner_list in
                           enumerate(dataset_id_list) for _ in inner_list]
 
-        columns_dict = {PLOT_ID: plot_id_column,
-                        DATASET_ID: dataset_id_column,
-                        LEGEND_ENTRY: dataset_label_column,
-                        Y_VALUES: yvalues_column}
-        return columns_dict
+        return {
+            PLOT_ID: plot_id_column,
+            DATASET_ID: dataset_id_column,
+            LEGEND_ENTRY: dataset_label_column,
+            Y_VALUES: yvalues_column
+        }
 
     def _create_legend(self, dataset_id: str) -> str:
         """
