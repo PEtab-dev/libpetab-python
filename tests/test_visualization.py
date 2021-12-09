@@ -1,14 +1,18 @@
 import subprocess
 import warnings
 from os import path
-from tempfile import TemporaryDirectory
 from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import matplotlib.pyplot as plt
 import pytest
 from petab.C import *
 from petab.visualize import (plot_data_and_simulation,
                              plot_measurements_by_observable,
                              save_vis_spec)
+
+# Avoid errors when plotting without X server
+plt.switch_backend('agg')
 
 
 @pytest.fixture
