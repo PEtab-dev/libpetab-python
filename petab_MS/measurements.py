@@ -13,8 +13,8 @@ import pandas as pd
 from . import (lint, core, observables)
 from . import problem
 from .C import *  # noqa: F403
-
-
+from pyabc.external.r import R
+import os
 def get_measurement_df(
         measurement_file: Union[None, str, pd.DataFrame]
 ) -> pd.DataFrame:
@@ -34,18 +34,44 @@ def get_measurement_df(
         measurement_df = pd.read_csv(measurement_file, sep='\t',
                                        float_precision='round_trip')
         type = problem.check_value_type(measurement_df.measurement[0])
-        if type is "external_file":
-            measurement_df_dict = {}
-            path, filename = measurement_file.rsplit("/", 1)
-            for file_name, condition in zip(measurement_df.measurement,
-                                 measurement_df.simulationConditionId):
-                tmp_measurement_df = pd.read_csv(path + "/" + file_name,
-                                                 sep='\t',
-                                                 float_precision='round_trip')
-                lint.assert_no_leading_trailing_whitespace(
-                    tmp_measurement_df.columns.values, MEASUREMENT)
-                for col in tmp_measurement_df.columns:
-                    measurement_df_dict[condition+ "__" + col] = tmp_measurement_df[col]
+        if type is "csv_file":
+            # if single file
+            if len(measurement_df.measurement) == 1:
+                measurement_df_dict = {}
+                path, filename = measurement_file.rsplit("/", 1)
+                for file_name, condition in zip(measurement_df.measurement,
+                                     measurement_df.simulationConditionId):
+                    tmp_measurement_df = pd.read_csv(path + "/" + file_name,
+                                                     sep='\t',
+                                                     float_precision='round_trip')
+                    lint.assert_no_leading_trailing_whitespace(
+                        tmp_measurement_df.columns.values, MEASUREMENT)
+                    for col in tmp_measurement_df.columns:
+                        measurement_df_dict[condition + "__" + col] = tmp_measurement_df[col]
+            else:
+                measurement_df_dict = {}
+                path, filename = measurement_file.rsplit("/", 1)
+                for file_name, condition, observables_id in zip(measurement_df.measurement,
+                                                measurement_df.simulationConditionId, measurement_df.observableId):
+                    tmp_measurement_df = pd.read_csv(path + "/" + file_name,
+                                                     sep='\t',
+                                                     float_precision='round_trip')
+                    lint.assert_no_leading_trailing_whitespace(
+                        tmp_measurement_df.columns.values, MEASUREMENT)
+                    for col in tmp_measurement_df.columns:
+                        measurement_df_dict[condition + "__" + observables_id + "__" + col] = \
+                        tmp_measurement_df[col]
+        if type is "r_file":
+            for name, condition, observables_id in zip(
+                    measurement_df.measurement,
+                    measurement_df.simulationConditionId,
+                    measurement_df.observableId):
+                measurement_df_dict = {}
+                filename, functionname = name.split(";")
+                path = os.path.abspath(os.path.join(measurement_file, os.pardir))
+                r = R(os.path.join(path, filename))
+                tmp_measurement_df = r.observation(functionname)
+                measurement_df_dict[condition] = tmp_measurement_df
             return measurement_df_dict
 
     lint.assert_no_leading_trailing_whitespace(

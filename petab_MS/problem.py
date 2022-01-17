@@ -6,10 +6,11 @@ from warnings import warn
 import numbers
 import pandas as pd
 import libsbml
-from typing import Optional, List, Union, Dict, Iterable
+from typing import Optional, List, Union, Dict, Iterable, Callable
 from . import (parameter_mapping, measurements, conditions, parameters,
                sampling, sbml, yaml, core, observables, format_version)
 from .C import *  # noqa: F403
+from . import observables
 
 
 class Problem:
@@ -674,6 +675,20 @@ class Problem:
         return sampling.sample_parameter_startpoints(
             self.parameter_df, n_starts=n_starts)
 
+    def get_objective_function(self) -> Callable:
+        """get a callable for the objective function.
+        Returns
+        -------
+        objective_function: A callable that is used to calculate the objective
+        function.
+        """
+        return get_objective_function(observable_df=self.observable_df)
+
+
+def get_objective_function(observable_df):
+    objective_function = observables.get_objective_function(observable_df)
+    return objective_function
+
 
 def get_default_condition_file_name(model_name: str, folder: str = ''):
     """Get file name according to proposed convention"""
@@ -708,20 +723,32 @@ def get_default_sbml_file_name(model_name: str, folder: str = ''):
 
 
 def check_value_type(value):
-    """check the type of measurement column
+    """check the type of external file
             Parameters
         ----------
         value:
-            the first value of the measurement column.
+            the first value of the external file.
 
         Returns
         -------
         result:
-            "regular" if the value is of a type int, "external_file"
-             if it is of a type string (external file).
+            "regular" if the value is of a type int, "data_file" if it is of a
+             type .csv (external file), "script_file" if it is of a type .r
+             or .py.
+.
 
     """
-    if isinstance(value,numbers.Number):
+    if isinstance(value, numbers.Number):
         return "regular"
     elif isinstance(value, str):
-        return "external_file"
+        a_split = value.split(';')
+        filename, file_extension = os.path.splitext(a_split[0])
+        if file_extension.lower() == '.r':
+            return "r_file"
+        elif file_extension.lower() == '.py':
+            return "python_file"
+        elif file_extension.lower() == '.csv':
+            return "csv_file"
+        else:
+            raise ValueError("Non supported external file "
+                             f"type {file_extension}")
