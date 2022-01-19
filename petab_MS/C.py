@@ -165,7 +165,7 @@ CONDITION_FILES = 'condition_files'
 MEASUREMENT_FILES = 'measurement_files'
 OBSERVABLE_FILES = 'observable_files'
 VISUALIZATION_FILES = 'visualization_files'
-
+OBJECTIVE_FILE = 'objective_file'
 
 # MORE
 
