@@ -74,10 +74,10 @@ def get_measurement_df(
                 measurement_df_dict[condition] = tmp_measurement_df
             return measurement_df_dict
 
-    lint.assert_no_leading_trailing_whitespace(
-        measurement_df.columns.values, MEASUREMENT)
+    # lint.assert_no_leading_trailing_whitespace(
+    #     measurement_df_dict.columns.values, MEASUREMENT)
 
-    return measurement_df
+    return measurement_df_dict
 
 
 def write_measurement_df(df: pd.DataFrame, filename: str) -> None:

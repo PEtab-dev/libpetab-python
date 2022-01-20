@@ -13,6 +13,7 @@ from .C import *  # noqa: F403
 from . import observables
 from . import obcetive_function as obj_fun
 
+
 class Problem:
     """
     PEtab parameter estimation problem as defined by
@@ -177,7 +178,7 @@ class Problem:
                 os.path.join(path_prefix, f)
                 for f in problem0.get(OBSERVABLE_FILES, [])],
             objective_file=os.path.join(path_prefix,
-                                            problem0[OBJECTIVE_FILE][0])
+                                        problem0[OBJECTIVE_FILE][0])
         )
 
     @staticmethod
