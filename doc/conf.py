@@ -50,7 +50,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
-    'recommonmark',
+    'myst_parser',
     'sphinx_markdown_tables',
     'nbsphinx',
 ]
@@ -99,10 +99,6 @@ source_suffix = {
 # ignore numpy warnings
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
-# ignore recommonmark warnings
-#  https://github.com/readthedocs/recommonmark/issues/177
-warnings.filterwarnings("ignore",
-                        message="Container node skipped: type=document")
 
 # -- Options for HTML output -------------------------------------------------
 
