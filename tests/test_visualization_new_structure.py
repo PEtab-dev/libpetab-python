@@ -1,9 +1,14 @@
 from os import path
 from tempfile import TemporaryDirectory
+
+import matplotlib.pyplot as plt
 import pytest
 from petab.C import *
 from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
 from petab.visualize.plotting import VisSpecParser
+
+# Avoid errors when plotting without X server
+plt.switch_backend('agg')
 
 
 @pytest.fixture
@@ -259,9 +264,9 @@ def test_save_visu_file(data_file_Isensee,
 
     with TemporaryDirectory() as temp_dir:
 
-        vis_spec_parcer = VisSpecParser(condition_file_Isensee,
+        vis_spec_parser = VisSpecParser(condition_file_Isensee,
                                         data_file_Isensee)
-        figure, _ = vis_spec_parcer.parse_from_id_list()
+        figure, _ = vis_spec_parser.parse_from_id_list()
 
         figure.save_to_tsv(path.join(temp_dir, "visuSpec.tsv"))
 
@@ -271,8 +276,8 @@ def test_save_visu_file(data_file_Isensee,
                      'JI09_160201_Drg453-452_CycNuc__Fsk',
                      'JI09_160201_Drg453-452_CycNuc__Sp8_Br_cAMPS_AM']]
 
-        vis_spec_parcer = VisSpecParser(condition_file_Isensee,
+        vis_spec_parser = VisSpecParser(condition_file_Isensee,
                                         data_file_Isensee)
-        figure, _ = vis_spec_parcer.parse_from_id_list(datasets,
+        figure, _ = vis_spec_parser.parse_from_id_list(datasets,
                                                        group_by='dataset')
         figure.save_to_tsv(path.join(temp_dir, "visuSpec1.tsv"))
