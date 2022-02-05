@@ -2,6 +2,22 @@
 
 ## 0.1 series
 
+### 0.1.23
+
+* Added command line interface for plotting by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/98
+* Fixed petab.visualize.data_overview.create_report by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/96,
+  https://github.com/PEtab-dev/libpetab-python/pull/104
+* Vis: Fixed cropped errorbars by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/99
+* Fixed pandas deprecation warning by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/103
+
+... and other changes by @plakrisenko, @dweindl
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.1.22...v0.1.23
+
 ### 0.1.22
 
 * Allow zero bounds for log parameters by @FFroehlich in
