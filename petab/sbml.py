@@ -442,7 +442,7 @@ def get_sbml_model(
     :return: The SBML document, model and reader
     """
     if is_file_like(filepath_or_buffer) or is_url(filepath_or_buffer):
-        with get_handle(filepath_or_buffer, mode='r') as io_handle
+        with get_handle(filepath_or_buffer, mode='r') as io_handle:
             data = load_sbml_from_string(''.join(io_handle.handle))
         # URL or already opened file, we will load the model from a string
         return data
