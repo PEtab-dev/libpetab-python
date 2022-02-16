@@ -548,8 +548,7 @@ def get_model_for_condition(
     def remove_rules(target_id: str):
         if sbml_model.removeRuleByVariable(target_id):
             warn("An SBML rule was removed to set the component "
-                 f"{sbml_model.getElementBySId(target_id).getId()} to a "
-                 "constant value.")
+                 f"{target_id} to a constant value.")
         sbml_model.removeInitialAssignment(target_id)
 
     for parameter in sbml_model.getListOfParameters():
