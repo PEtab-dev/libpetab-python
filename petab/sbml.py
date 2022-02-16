@@ -573,7 +573,7 @@ def get_model_for_condition(
             sbml_species.setInitialAmount(new_value)
         else:
             raise AssertionError(
-                "Neither initial amount not initial concentration "
+                "Neither initial amount nor initial concentration "
                 f"set for {sbml_species.getId()}")
 
     # set compartment size for any compartments in the condition table
