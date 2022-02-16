@@ -549,6 +549,8 @@ def get_model_for_condition(
         new_value = get_param_value(parameter.getId())
         if new_value:
             parameter.setValue(new_value)
+            # remove rules that would override that value
+            sbml_model.removeRuleByVariable(parameter.getId())
 
     # set concentrations for any overridden species
     for component_id in petab_problem.condition_df:
@@ -556,9 +558,10 @@ def get_model_for_condition(
         if not sbml_species:
             continue
 
-        # if there is an initial assignment for that species, remove it,
-        #  as the species in the condition table would override it
+        # if there is an initial assignment or rule for that species,
+        #  remove it, as the species in the condition table would override it
         sbml_model.removeInitialAssignment(component_id)
+        sbml_model.removeRuleByVariable(component_id)
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
@@ -582,9 +585,11 @@ def get_model_for_condition(
         if not sbml_compartment:
             continue
 
-        # if there is an initial assignment for that compartment, remove it,
-        #  as the compartment in the condition table would override it
+        # if there is an initial assignment or rule for that compartment,
+        #  remove it, as the compartment in the condition table would override
+        #  it
         sbml_model.removeInitialAssignment(component_id)
+        sbml_model.removeRuleByVariable(component_id)
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
