@@ -504,7 +504,7 @@ def get_model_for_condition(
     :param preeq_condition_id: Preequilibration conditionId of the settings
         for which to generate a model. This is only used to determine the
         relevant output parameter overrides. Preequilibration is not encoded
-        in the result model.
+        in the resulting model.
     :return: The generated SBML document, and SBML model
     """
     condition_dict = {petab.SIMULATION_CONDITION_ID: sim_condition_id}
@@ -536,7 +536,7 @@ def get_model_for_condition(
 
     # fill in parameters
     def get_param_value(parameter_id: str):
-        """Parameter value from mapping of nominalParameter"""
+        """Parameter value from mapping or nominal value"""
         mapped_value = parameter_map.get(parameter_id)
         if not isinstance(mapped_value, str):
             return mapped_value
@@ -556,7 +556,7 @@ def get_model_for_condition(
         if not sbml_species:
             continue
 
-        # if there is an initial assignment for that parameter, remove it,
+        # if there is an initial assignment for that species, remove it,
         #  as the species in the condition table would override it
         sbml_model.removeInitialAssignment(condition_par_id)
 
