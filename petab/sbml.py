@@ -551,18 +551,18 @@ def get_model_for_condition(
             parameter.setValue(new_value)
 
     # set concentrations for any overridden species
-    for condition_par_id in petab_problem.condition_df:
-        sbml_species = sbml_model.getSpecies(condition_par_id)
+    for component_id in petab_problem.condition_df:
+        sbml_species = sbml_model.getSpecies(component_id)
         if not sbml_species:
             continue
 
         # if there is an initial assignment for that species, remove it,
         #  as the species in the condition table would override it
-        sbml_model.removeInitialAssignment(condition_par_id)
+        sbml_model.removeInitialAssignment(component_id)
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
-            petab_problem.condition_df.loc[sim_condition_id, condition_par_id])
+            petab_problem.condition_df.loc[sim_condition_id, component_id])
         if not isinstance(new_value, Number):
             # parameter reference in condition table
             new_value = get_param_value(new_value)
