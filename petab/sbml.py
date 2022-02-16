@@ -550,7 +550,8 @@ def get_model_for_condition(
         if new_value:
             parameter.setValue(new_value)
             # remove rules that would override that value
-            sbml_model.removeRuleByVariable(parameter.getId())
+            if sbml_model.removeRuleByVariable(parameter.getId()) is not None:
+                warnings.warn(f'An SBML rule was removed to set the component {parameter.getId()} to a constant value.')
 
     # set concentrations for any overridden species
     for component_id in petab_problem.condition_df:
