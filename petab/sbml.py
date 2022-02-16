@@ -545,13 +545,19 @@ def get_model_for_condition(
         return petab_problem.parameter_df.loc[mapped_value,
                                               petab.NOMINAL_VALUE]
 
+    def remove_rules(target_id: str):
+        if sbml_model.removeRuleByVariable(target_id):
+            warn("An SBML rule was removed to set the component "
+                 f"{sbml_model.getElementBySId(target_id).getId()} to a "
+                 "constant value.")
+        sbml_model.removeInitialAssignment(target_id)
+
     for parameter in sbml_model.getListOfParameters():
         new_value = get_param_value(parameter.getId())
         if new_value:
             parameter.setValue(new_value)
             # remove rules that would override that value
-            if sbml_model.removeRuleByVariable(parameter.getId()) is not None:
-                warnings.warn(f'An SBML rule was removed to set the component {parameter.getId()} to a constant value.')
+            remove_rules(parameter.getId())
 
     # set concentrations for any overridden species
     for component_id in petab_problem.condition_df:
@@ -559,10 +565,8 @@ def get_model_for_condition(
         if not sbml_species:
             continue
 
-        # if there is an initial assignment or rule for that species,
-        #  remove it, as the species in the condition table would override it
-        sbml_model.removeInitialAssignment(component_id)
-        sbml_model.removeRuleByVariable(component_id)
+        # remove any rules overriding that species' initials
+        remove_rules(component_id)
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
@@ -584,11 +588,8 @@ def get_model_for_condition(
         if not sbml_compartment:
             continue
 
-        # if there is an initial assignment or rule for that compartment,
-        #  remove it, as the compartment in the condition table would override
-        #  it
-        sbml_model.removeInitialAssignment(component_id)
-        sbml_model.removeRuleByVariable(component_id)
+        # remove any rules overriding that compartment's size
+        remove_rules(component_id)
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
