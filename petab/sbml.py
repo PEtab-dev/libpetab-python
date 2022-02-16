@@ -1,12 +1,15 @@
 """Functions for interacting with SBML models"""
 import logging
 import re
+from numbers import Number
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from warnings import warn
 
 import libsbml
 from pandas.io.common import get_handle, is_file_like, is_url
+
+import petab
 
 logger = logging.getLogger(__name__)
 __all__ = ['add_global_parameter',
@@ -15,6 +18,7 @@ __all__ = ['add_global_parameter',
            'add_model_output_with_sigma',
            'assignment_rules_to_dict',
            'create_assigment_rule',
+           'get_model_for_condition',
            'get_model_parameters',
            'get_observables',
            'get_sbml_model',
@@ -481,3 +485,118 @@ def load_sbml_from_file(
     sbml_model = sbml_document.getModel()
 
     return sbml_reader, sbml_document, sbml_model
+
+
+def get_model_for_condition(
+        petab_problem: "petab.Problem",
+        sim_condition_id: str = None,
+        preeq_condition_id: Optional[str] = None,
+) -> Tuple[libsbml.SBMLDocument, libsbml.Model]:
+    """Create an SBML model for the given condition.
+
+    Creates a copy of the model and updates parameters according to the PEtab
+    files. Estimated parameters are set to their ``nominalValue``.
+    Observables defined in the observables table are not added to the model.
+
+    :param petab_problem: PEtab problem
+    :param sim_condition_id: Simulation ``conditionId`` for which to generate a
+        model
+    :param preeq_condition_id: Preequilibration ``conditionId`` of the settings
+        for which to generate a model. This is only used to determine the
+        relevant output parameter overrides. Preequilibration is not encoded
+        in the resulting model.
+    :return: The generated SBML document, and SBML model
+    """
+    condition_dict = {petab.SIMULATION_CONDITION_ID: sim_condition_id}
+    if preeq_condition_id:
+        condition_dict[petab.PREEQUILIBRATION_CONDITION_ID] = \
+            preeq_condition_id
+    cur_measurement_df = petab.measurements.get_rows_for_condition(
+        measurement_df=petab_problem.measurement_df,
+        condition=condition_dict,
+    )
+    parameter_map, scale_map = \
+        petab.parameter_mapping.get_parameter_mapping_for_condition(
+            condition_id=sim_condition_id,
+            is_preeq=False,
+            cur_measurement_df=cur_measurement_df,
+            sbml_model=petab_problem.sbml_model,
+            condition_df=petab_problem.condition_df,
+            parameter_df=petab_problem.parameter_df,
+            warn_unmapped=True,
+            scaled_parameters=False,
+            fill_fixed_parameters=True,
+            # will only become problematic once the observable and noise terms
+            #  are added to the model
+            allow_timepoint_specific_numeric_noise_parameters=True,
+        )
+    # create a copy of the model
+    sbml_doc = petab_problem.sbml_model.getSBMLDocument().clone()
+    sbml_model = sbml_doc.getModel()
+
+    # fill in parameters
+    def get_param_value(parameter_id: str):
+        """Parameter value from mapping or nominal value"""
+        mapped_value = parameter_map.get(parameter_id)
+        if not isinstance(mapped_value, str):
+            return mapped_value
+
+        # estimated parameter, look up in nominal parameters
+        return petab_problem.parameter_df.loc[mapped_value,
+                                              petab.NOMINAL_VALUE]
+
+    def remove_rules(target_id: str):
+        if sbml_model.removeRuleByVariable(target_id):
+            warn("An SBML rule was removed to set the component "
+                 f"{target_id} to a constant value.")
+        sbml_model.removeInitialAssignment(target_id)
+
+    for parameter in sbml_model.getListOfParameters():
+        new_value = get_param_value(parameter.getId())
+        if new_value:
+            parameter.setValue(new_value)
+            # remove rules that would override that value
+            remove_rules(parameter.getId())
+
+    # set concentrations for any overridden species
+    for component_id in petab_problem.condition_df:
+        sbml_species = sbml_model.getSpecies(component_id)
+        if not sbml_species:
+            continue
+
+        # remove any rules overriding that species' initials
+        remove_rules(component_id)
+
+        # set initial concentration/amount
+        new_value = petab.to_float_if_float(
+            petab_problem.condition_df.loc[sim_condition_id, component_id])
+        if not isinstance(new_value, Number):
+            # parameter reference in condition table
+            new_value = get_param_value(new_value)
+
+        if sbml_species.isSetInitialAmount() \
+            or (sbml_species.getHasOnlySubstanceUnits()
+                and not sbml_species.isSetInitialConcentration()):
+            sbml_species.setInitialAmount(new_value)
+        else:
+            sbml_species.setInitialConcentration(new_value)
+
+    # set compartment size for any compartments in the condition table
+    for component_id in petab_problem.condition_df:
+        sbml_compartment = sbml_model.getCompartment(component_id)
+        if not sbml_compartment:
+            continue
+
+        # remove any rules overriding that compartment's size
+        remove_rules(component_id)
+
+        # set initial concentration/amount
+        new_value = petab.to_float_if_float(
+            petab_problem.condition_df.loc[sim_condition_id, component_id])
+        if not isinstance(new_value, Number):
+            # parameter reference in condition table
+            new_value = get_param_value(new_value)
+
+        sbml_compartment.setSize(new_value)
+
+    return sbml_doc, sbml_model
