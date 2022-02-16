@@ -571,5 +571,28 @@ def get_model_for_condition(
             sbml_species.setInitialConcentration(new_value)
         elif sbml_species.isSetInitialAmount():
             sbml_species.setInitialAmount(new_value)
+        else:
+            raise AssertionError(
+                "Neither initial amount not initial concentration "
+                f"set for {sbml_species.getId()}")
+
+    # set compartment size for any compartments in the condition table
+    for component_id in petab_problem.condition_df:
+        sbml_compartment = sbml_model.getCompartment(component_id)
+        if not sbml_compartment:
+            continue
+
+        # if there is an initial assignment for that compartment, remove it,
+        #  as the compartment in the condition table would override it
+        sbml_model.removeInitialAssignment(component_id)
+
+        # set initial concentration/amount
+        new_value = petab.to_float_if_float(
+            petab_problem.condition_df.loc[sim_condition_id, component_id])
+        if not isinstance(new_value, Number):
+            # parameter reference in condition table
+            new_value = get_param_value(new_value)
+
+        sbml_compartment.setSize(new_value)
 
     return sbml_doc, sbml_model

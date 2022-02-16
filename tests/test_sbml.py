@@ -41,6 +41,10 @@ def test_get_condition_specific_models():
     sbml_document = libsbml.SBMLDocument(3, 1)
     sbml_model = sbml_document.createModel()
 
+    c = sbml_model.createCompartment()
+    c.setId("compartment_1")
+    c.setSize(1)
+
     for i in range(1, 4):
         p = sbml_model.createParameter()
         p.setId(f"parameter_{i}")
@@ -61,6 +65,7 @@ def test_get_condition_specific_models():
         "species_1": [15],
         "species_2": [25],
         "species_3": ['parameter_1'],
+        "compartment_1": [2],
     })
     condition_df.set_index([petab.CONDITION_ID], inplace=True)
 
@@ -104,6 +109,7 @@ def test_get_condition_specific_models():
         "species_3").getInitialConcentration() == 1.25
     assert len(condition_model.getListOfInitialAssignments()) == 0, \
         "InitialAssignment not removed"
+    assert condition_model.getCompartment("compartment_1").getSize() == 2.0
     assert condition_model.getParameter("parameter_1").getValue() == 1.25
     assert condition_model.getParameter("parameter_2").getValue() == 2.25
     assert condition_model.getParameter("parameter_3").getValue() == 2.25
