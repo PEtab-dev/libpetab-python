@@ -499,9 +499,9 @@ def get_model_for_condition(
     Observables defined in the observables table are not added to the model.
 
     :param petab_problem: PEtab problem
-    :param sim_condition_id: Simulation conditionId for which to generate a
+    :param sim_condition_id: Simulation ``conditionId`` for which to generate a
         model
-    :param preeq_condition_id: Preequilibration conditionId of the settings
+    :param preeq_condition_id: Preequilibration ``conditionId`` of the settings
         for which to generate a model. This is only used to determine the
         relevant output parameter overrides. Preequilibration is not encoded
         in the resulting model.
