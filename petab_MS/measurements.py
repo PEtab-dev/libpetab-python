@@ -6,7 +6,7 @@ import itertools
 import numbers
 from typing import List, Union, Dict
 from warnings import warn
-
+import copy
 import numpy as np
 import pandas as pd
 
@@ -15,6 +15,8 @@ from . import problem
 from .C import *  # noqa: F403
 from pyabc.external.r import R
 import os
+
+
 def get_measurement_df(
         measurement_file: Union[None, str, pd.DataFrame]
 ) -> pd.DataFrame:
@@ -61,7 +63,7 @@ def get_measurement_df(
                     for col in tmp_measurement_df.columns:
                         measurement_df_dict[condition + "__" + observables_id + "__" + col] = \
                         tmp_measurement_df[col]
-        if type is "r_file":
+        elif type is "r_file":
             for name, condition, observables_id in zip(
                     measurement_df.measurement,
                     measurement_df.simulationConditionId,
@@ -73,6 +75,8 @@ def get_measurement_df(
                 tmp_measurement_df = r.observation(functionname)
                 measurement_df_dict[condition] = tmp_measurement_df
             return measurement_df_dict
+        elif type is "regular":
+            measurement_df_dict = df_to_dict(measurement_df)
 
     # lint.assert_no_leading_trailing_whitespace(
     #     measurement_df_dict.columns.values, MEASUREMENT)
@@ -359,3 +363,18 @@ def assert_overrides_match_parameter_count(
                     f'for observable {row[OBSERVABLE_ID]}, but parameter ID '
                     'or multiple overrides were specified in the '
                     'noiseParameters column.')
+
+
+def df_to_dict(measurement_df):
+    measurement_dict = {}
+    column_values = measurement_df["observableId"].values.ravel()
+    unique_values = pd.unique(column_values)
+
+    # for [index, row], uni_val in zip(measurement_df.iterrows(), unique_values):
+    #
+    #     tmp_df = measurement_df.loc[measurement_df['obsearvableId'] == uni_val]
+    #
+    for uni_val in unique_values:
+        tmp_df = measurement_df.loc[measurement_df['observableId'] == uni_val]
+        measurement_dict[uni_val] = np.array(tmp_df['measurement'])
+    return  measurement_dict
