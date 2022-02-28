@@ -132,8 +132,9 @@ def load_yaml(yaml_config: Union[Dict, Path, str]) -> Dict:
     if isinstance(yaml_config, dict):
         return yaml_config
 
-    handle = get_handle(yaml_config, mode='r').handle
-    return yaml.safe_load(handle)
+    with get_handle(yaml_config, mode='r') as io_handle:
+        data = yaml.safe_load(io_handle.handle)
+    return data
 
 
 def is_composite_problem(yaml_config: Union[Dict, str, Path]) -> bool:
