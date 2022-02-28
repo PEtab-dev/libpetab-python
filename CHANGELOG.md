@@ -2,6 +2,17 @@
 
 ## 0.1 series
 
+### 0.1.24
+
+* Added method to generate condition-specific SBML models by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/108
+* GHA: Regular package installation instead of -e by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/106
+* Fixed unclosed file warnings by @dilpath in
+  https://github.com/PEtab-dev/libpetab-python/pull/107
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.1.23...v0.1.24
+
 ### 0.1.23
 
 * Added command line interface for plotting by @dweindl in
