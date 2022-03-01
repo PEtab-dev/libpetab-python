@@ -334,7 +334,7 @@ class Problem:
         if self.sbml_document is not None:
             filenames['sbml_file'] = 'model.xml'
 
-        filenames['yaml_file'] = 'problem.yaml'
+        filenames['yaml_file'] = 'petab_problem.yaml'
 
         self.to_files(**filenames, prefix_path=prefix_path)
 
