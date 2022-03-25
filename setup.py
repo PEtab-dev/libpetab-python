@@ -82,6 +82,7 @@ setup(name='petab',
               'nbsphinx>=0.8.2',
               'm2r>=0.2.1',
               'ipython>=7.21.0',
+              'Jinja2==3.0.3',  # https://github.com/spatialaudio/nbsphinx/issues/641
           ]
       }
       )
