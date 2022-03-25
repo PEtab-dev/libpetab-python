@@ -21,7 +21,7 @@ MEASUREMENT = 'measurement'
 TIME = 'time'
 
 #:
-INF = 'inf'
+STEADY_STATE = 'inf'
 
 #:
 OBSERVABLE_PARAMETERS = 'observableParameters'
