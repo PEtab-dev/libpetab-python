@@ -182,8 +182,10 @@ def _map_condition(packed_args):
     cur_measurement_df = None
     # Get the condition specific measurements for the current condition, but
     # only if relevant for parameter mapping
-    if OBSERVABLE_PARAMETERS in measurement_df or \
-            NOISE_PARAMETERS in measurement_df:
+    if (OBSERVABLE_PARAMETERS in measurement_df 
+        and measurement_df[OBSERVABLE_PARAMETERS].notna().any()) \
+        or (NOISE_PARAMETERS in measurement_df 
+            and measurement_df[NOISE_PARAMETERS].notna().any()):
         cur_measurement_df = measurements.get_rows_for_condition(
             measurement_df, condition)
 
