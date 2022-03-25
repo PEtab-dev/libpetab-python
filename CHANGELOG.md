@@ -6,6 +6,7 @@
 * Fix for pytest 7.1 by @yannikschaelte in https://github.com/PEtab-dev/libpetab-python/pull/112
 * Fix jinja version by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/115
 * Add steady state constant by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/114
+* Omit measurement processing if not relevant for parameter mapping by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/117
 
 **Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.1.24...v0.1.25
 
