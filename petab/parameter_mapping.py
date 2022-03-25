@@ -179,8 +179,13 @@ def _map_condition(packed_args):
      fill_fixed_parameters,
      allow_timepoint_specific_numeric_noise_parameters) = packed_args
 
-    cur_measurement_df = measurements.get_rows_for_condition(
-        measurement_df, condition)
+    cur_measurement_df = None
+    # Get the condition specific measurements for the current condition, but
+    # only if relevant for parameter mapping
+    if OBSERVABLE_PARAMETERS in measurement_df or \
+            NOISE_PARAMETERS in measurement_df:
+        cur_measurement_df = measurements.get_rows_for_condition(
+            measurement_df, condition)
 
     if PREEQUILIBRATION_CONDITION_ID not in condition \
             or not isinstance(condition[PREEQUILIBRATION_CONDITION_ID], str) \
@@ -224,7 +229,7 @@ def _map_condition(packed_args):
 def get_parameter_mapping_for_condition(
         condition_id: str,
         is_preeq: bool,
-        cur_measurement_df: pd.DataFrame,
+        cur_measurement_df: Optional[pd.DataFrame],
         sbml_model: libsbml.Model,
         condition_df: pd.DataFrame,
         parameter_df: pd.DataFrame = None,
@@ -244,7 +249,8 @@ def get_parameter_mapping_for_condition(
         is_preeq:
             If ``True``, output parameters will not be mapped
         cur_measurement_df:
-            Measurement sub-table for current condition
+            Measurement sub-table for current condition, can be ``None`` if
+            not relevant for parameter mapping
         condition_df:
             PEtab condition DataFrame
         parameter_df:
@@ -278,10 +284,11 @@ def get_parameter_mapping_for_condition(
         Second dictionary mapping model parameter IDs to their scale.
         ``NaN`` is used where no mapping exists.
     """
-    _perform_mapping_checks(
-        cur_measurement_df,
-        allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-        allow_timepoint_specific_numeric_noise_parameters)
+    if cur_measurement_df is not None:
+        _perform_mapping_checks(
+            cur_measurement_df,
+            allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters)
 
     if simulation_parameters is None:
         simulation_parameters = sbml.get_model_parameters(sbml_model,
@@ -298,7 +305,8 @@ def get_parameter_mapping_for_condition(
 
     # not strictly necessary for preequilibration, be we do it to have
     # same length of parameter vectors
-    _apply_output_parameter_overrides(par_mapping, cur_measurement_df)
+    if cur_measurement_df is not None:
+        _apply_output_parameter_overrides(par_mapping, cur_measurement_df)
 
     if not is_preeq:
         handle_missing_overrides(par_mapping, warn=warn_unmapped)
