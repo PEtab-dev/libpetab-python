@@ -2,6 +2,13 @@
 
 ## 0.1 series
 
+### 0.1.25
+* Fix for pytest 7.1 by @yannikschaelte in https://github.com/PEtab-dev/libpetab-python/pull/112
+* Fix jinja version by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/115
+* Add steady state constant by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/114
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.1.24...v0.1.25
+
 ### 0.1.24
 
 * Added method to generate condition-specific SBML models by @dweindl in
