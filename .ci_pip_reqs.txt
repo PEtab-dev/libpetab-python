@@ -7,3 +7,5 @@ sphinxcontrib-napoleon
 sphinx-markdown-tables
 sphinx-rtd-theme
 recommonmark
+# https://github.com/spatialaudio/nbsphinx/issues/641
+Jinja2==3.0.3
