@@ -20,7 +20,7 @@ MEASUREMENT = 'measurement'
 #:
 TIME = 'time'
 
-#:
+#: Time value that indicates steady-state measurements
 STEADY_STATE = 'inf'
 
 #:
