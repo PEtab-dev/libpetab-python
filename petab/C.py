@@ -3,6 +3,9 @@
 This file contains constant definitions.
 """
 
+import math
+
+
 # MEASUREMENTS
 
 #:
@@ -19,6 +22,9 @@ MEASUREMENT = 'measurement'
 
 #:
 TIME = 'time'
+
+#: Time value that indicates steady-state measurements
+TIME_STEADY_STATE = math.inf
 
 #:
 OBSERVABLE_PARAMETERS = 'observableParameters'
