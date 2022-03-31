@@ -404,6 +404,9 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
             continue
         if sbml_model.getCompartment(overridee_id) is not None:
             continue
+        if (rule := sbml_model.getRuleByVariable(overridee_id)) is not None\
+                and rule.getTypeCode() == libsbml.SBML_RATE_RULE:
+            continue
 
         par_mapping[overridee_id] = core.to_float_if_float(
             condition_df.loc[condition_id, overridee_id])
