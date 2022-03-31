@@ -404,7 +404,9 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
             continue
         if sbml_model.getCompartment(overridee_id) is not None:
             continue
-        if (rule := sbml_model.getRuleByVariable(overridee_id)) is not None\
+
+        rule = sbml_model.getRuleByVariable(overridee_id)
+        if rule is not None\
                 and rule.getTypeCode() == libsbml.SBML_RATE_RULE:
             continue
 
