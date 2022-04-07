@@ -2,6 +2,11 @@
 
 ## 0.1 series
 
+### 0.1.26
+
+* Fix SBML Rule handling logic by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/120
+
 ### 0.1.25
 * Fix for pytest 7.1 by @yannikschaelte in https://github.com/PEtab-dev/libpetab-python/pull/112
 * Fix jinja version by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/115
