@@ -399,10 +399,12 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
         if overridee_id == CONDITION_NAME:
             continue
 
-        # Species and compartments are handled elsewhere
+        # Species, compartments, and rule targets are handled elsewhere
         if sbml_model.getSpecies(overridee_id) is not None:
             continue
         if sbml_model.getCompartment(overridee_id) is not None:
+            continue
+        if sbml_model.getRuleByVariable(overridee_id) is not None:
             continue
 
         par_mapping[overridee_id] = core.to_float_if_float(

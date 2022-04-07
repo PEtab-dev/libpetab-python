@@ -399,24 +399,23 @@ def get_sigmas(sbml_model: libsbml.Model, remove: bool = False) -> dict:
 
 def get_model_parameters(sbml_model: libsbml.Model, with_values=False
                          ) -> Union[List[str], Dict[str, float]]:
-    """Return SBML model parameters which are not AssignmentRule
-    targets for observables or sigmas
+    """Return SBML model parameters which are not Rule targets
 
     Arguments:
         sbml_model: SBML model
         with_values:
             If False, returns list of SBML model parameter IDs which
-            are not AssignmentRule targets for observables or sigmas. If True,
-            returns a dictionary with those parameter IDs as keys and parameter
-            values from the SBML model as values.
+            are not Rule targets. If True, returns a dictionary with those
+            parameter IDs as keys and parameter values from the SBML model as
+            values.
     """
     if not with_values:
         return [p.getId() for p in sbml_model.getListOfParameters()
-                if sbml_model.getAssignmentRuleByVariable(p.getId()) is None]
+                if sbml_model.getRuleByVariable(p.getId()) is None]
 
     return {p.getId(): p.getValue()
             for p in sbml_model.getListOfParameters()
-            if sbml_model.getAssignmentRuleByVariable(p.getId()) is None}
+            if sbml_model.getRuleByVariable(p.getId()) is None}
 
 
 def write_sbml(
