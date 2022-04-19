@@ -52,7 +52,7 @@ def write_condition_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         df: PEtab condition table
         filename: Destination file name
     """
-    df.to_csv(filename, sep='\t', index=True)
+    df.to_csv(filename, sep='\t', index=False)
 
 
 def create_condition_df(parameter_ids: Iterable[str],
