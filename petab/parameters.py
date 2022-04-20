@@ -90,6 +90,7 @@ def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         df: PEtab parameter table
         filename: Destination file name
     """
+    df = get_parameter_df(df)
     df.to_csv(filename, sep='\t', index=True)
 
 
