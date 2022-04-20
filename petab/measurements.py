@@ -59,6 +59,7 @@ def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         df: PEtab measurement table
         filename: Destination file name
     """
+    df = get_measurement_df(df)
     df.to_csv(filename, sep='\t', index=False)
 
 

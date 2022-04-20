@@ -61,6 +61,7 @@ def write_observable_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         df: PEtab observable table
         filename: Destination file name
     """
+    df = get_observable_df(df)
     df.to_csv(filename, sep='\t', index=True)
 
 
