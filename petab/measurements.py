@@ -2,6 +2,7 @@
 # noqa: F405
 
 import itertools
+import math
 import numbers
 from pathlib import Path
 from typing import Dict, List, Union
@@ -21,6 +22,7 @@ __all__ = ['assert_overrides_match_parameter_count',
            'get_rows_for_condition',
            'get_simulation_conditions',
            'measurements_have_replicates',
+           'measurement_is_at_steady_state',
            'split_parameter_replacement_list',
            'write_measurement_df']
 
@@ -343,3 +345,16 @@ def assert_overrides_match_parameter_count(
                     f'for observable {row[OBSERVABLE_ID]}, but parameter ID '
                     'or multiple overrides were specified in the '
                     'noiseParameters column.')
+
+
+def measurement_is_at_steady_state(time: float) -> bool:
+    """Check whether a measurement is at steady state.
+
+    Arguments:
+        time:
+            The time.
+
+    Returns:
+        Whether the measurement is at steady state.
+    """
+    return math.isinf(time)
