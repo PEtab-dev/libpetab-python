@@ -126,6 +126,8 @@ def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
         Missing 'preequilibrationConditionId's will be set to '' (empty
         string).
     """
+    if measurement_df.empty:
+        return pd.DataFrame(data={SIMULATION_CONDITION_ID: []})
     # find columns to group by (i.e. if not all nans).
     # can be improved by checking for identical condition vectors
     grouping_cols = core.get_notnull_columns(
