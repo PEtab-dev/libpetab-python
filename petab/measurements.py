@@ -336,7 +336,7 @@ def assert_overrides_match_parameter_count(
             if len(replacements) != expected:
                 raise AssertionError(
                     f'Mismatch of noise parameter overrides in:\n{row}\n'
-                    f'Expected {expected} but got {actual}')
+                    f'Expected {expected} but got {len(replacements)}')
         except KeyError:
             # no overrides defined, but a numerical sigma can be provided
             # anyways
