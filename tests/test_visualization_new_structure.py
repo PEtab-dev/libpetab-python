@@ -1,12 +1,14 @@
 from os import path
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
 import pytest
+
 from petab.C import *
 from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
 from petab.visualize.plotting import VisSpecParser
-from pathlib import Path
+
 # Avoid errors when plotting without X server
 plt.switch_backend('agg')
 
