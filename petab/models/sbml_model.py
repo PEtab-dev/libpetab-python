@@ -1,7 +1,7 @@
 """Functions for handling SBML models"""
 
 from .model import Model
-from ..sbml import get_sbml_model
+from ..sbml import get_sbml_model, load_sbml_from_string
 import libsbml
 from typing import Optional, Iterable, Tuple
 
@@ -19,6 +19,32 @@ class SbmlModel(Model):
         self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
         self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
         self.sbml_model: Optional[libsbml.Model] = sbml_model
+
+    def __getstate__(self):
+        """Return state for pickling"""
+        state = self.__dict__.copy()
+
+        # libsbml stuff cannot be serialized directly
+        if self.sbml_model:
+            sbml_document = self.sbml_model.getSBMLDocument()
+            sbml_writer = libsbml.SBMLWriter()
+            state['sbml_string'] = sbml_writer.writeSBMLToString(sbml_document)
+
+        exclude = ['sbml_reader', 'sbml_document', 'sbml_model']
+        for key in exclude:
+            state.pop(key)
+
+        return state
+
+    def __setstate__(self, state):
+        """Set state after unpickling"""
+        # load SBML model from pickled string
+        sbml_string = state.pop('sbml_string', None)
+        if sbml_string:
+            self.sbml_reader, self.sbml_document, self.sbml_model = \
+                load_sbml_from_string(sbml_string)
+
+        self.__dict__.update(state)
 
     @staticmethod
     def from_file(filepath_or_buffer):

@@ -12,6 +12,8 @@ import pandas as pd
 from . import (conditions, core, format_version, measurements, observables,
                parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
+from .models.model import Model
+from .models.sbml_model import SbmlModel
 
 __all__ = ['Problem']
 
@@ -43,6 +45,7 @@ class Problem:
                  sbml_model: libsbml.Model = None,
                  sbml_reader: libsbml.SBMLReader = None,
                  sbml_document: libsbml.SBMLDocument = None,
+                 model: Model = None,
                  condition_df: pd.DataFrame = None,
                  measurement_df: pd.DataFrame = None,
                  parameter_df: pd.DataFrame = None,
@@ -55,35 +58,40 @@ class Problem:
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
         self.observable_df: Optional[pd.DataFrame] = observable_df
 
-        self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
-        self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
-        self.sbml_model: Optional[libsbml.Model] = sbml_model
+        if any((sbml_model, sbml_document, sbml_reader),):
+            warn("Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
+                 "to petab.Problem is deprecated and will be removed in a "
+                 "future version. Use `model=petab.models.SbmlModel(...)` "
+                 "instead.", DeprecationWarning, stacklevel=2)
+            if model:
+                raise ValueError("Must only provide one of (`sbml_model`, "
+                                 "`sbml_document`, `sbml_reader`) or `model`.")
 
-    def __getstate__(self):
-        """Return state for pickling"""
-        state = self.__dict__.copy()
+            model = SbmlModel(
+                sbml_model=sbml_model,
+                sbml_reader=sbml_reader,
+                sbml_document=sbml_document)
 
-        # libsbml stuff cannot be serialized directly
-        if self.sbml_model:
-            sbml_document = self.sbml_model.getSBMLDocument()
-            sbml_writer = libsbml.SBMLWriter()
-            state['sbml_string'] = sbml_writer.writeSBMLToString(sbml_document)
+        self.model: Optional[Model] = model
 
-        exclude = ['sbml_reader', 'sbml_document', 'sbml_model']
-        for key in exclude:
-            state.pop(key)
+    def __getattr__(self, name):
+        # For backward-compatibility, allow access to SBML model related
+        #  attributes now stored in self.model
+        if name in {'sbml_model', 'sbml_reader', 'sbml_document'}:
+            return getattr(self.model, name) if self.model else None
+        raise AttributeError(f"'{self.__class__.__name__}' object has no "
+                             f"attribute '{name}'")
 
-        return state
-
-    def __setstate__(self, state):
-        """Set state after unpickling"""
-        # load SBML model from pickled string
-        sbml_string = state.pop('sbml_string', None)
-        if sbml_string:
-            self.sbml_reader, self.sbml_document, self.sbml_model = \
-                sbml.load_sbml_from_string(sbml_string)
-
-        self.__dict__.update(state)
+    def __setattr__(self, name, value):
+        # For backward-compatibility, allow access to SBML model related
+        #  attributes now stored in self.model
+        if name in {'sbml_model', 'sbml_reader', 'sbml_document'}:
+            if self.model:
+                setattr(self.model, name, value)
+            else:
+                self.model = SbmlModel(**{name: value})
+        else:
+            super().__setattr__(name, value)
 
     @staticmethod
     def from_files(
