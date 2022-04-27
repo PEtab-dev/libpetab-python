@@ -1,5 +1,5 @@
-[![CI](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml/badge.svg?branch=master)](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml)
-[![codecov](https://codecov.io/gh/PEtab-dev/libpetab-python/branch/master/graph/badge.svg)](https://codecov.io/gh/PEtab-dev/libpetab-python)
+[![CI](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml/badge.svg?branch=main)](https://github.com/PEtab-dev/libpetab-python/actions/workflows/ci_tests.yml)
+[![codecov](https://codecov.io/gh/PEtab-dev/libpetab-python/branch/main/graph/badge.svg)](https://codecov.io/gh/PEtab-dev/libpetab-python)
 [![PyPI version](https://badge.fury.io/py/petab.svg)](https://badge.fury.io/py/petab)
 
 # petab - a Python package for handling PEtab files
@@ -50,8 +50,8 @@ be:
 
 Examples for PEtab Python library usage:
 
-* [Validation](https://github.com/PEtab-dev/libpetab-python/blob/master/doc/example/example_petablint.ipynb)
-* [Visualization](https://github.com/PEtab-dev/libpetab-python/blob/master/doc/example/example_visualization.ipynb)
+* [Validation](https://github.com/PEtab-dev/libpetab-python/blob/main/doc/example/example_petablint.ipynb)
+* [Visualization](https://github.com/PEtab-dev/libpetab-python/blob/main/doc/example/example_visualization.ipynb)
 
 
 ## Getting help
