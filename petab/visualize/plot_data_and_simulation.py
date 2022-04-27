@@ -16,15 +16,10 @@ IdsList = List[str]
 NumList = List[int]
 
 __all__ = [
-    "plot_data_and_simulation",
     "plot_with_vis_spec",
     "plot_without_vis_spec",
     "plot_problem"
 ]
-
-
-# autodoc mixes up plot_data_and_simulation model and function and documents
-# the latter, but this function will be removed in future releases
 
 
 def plot_with_vis_spec(
@@ -73,8 +68,7 @@ def plot_with_vis_spec(
 
     vis_spec_parser = VisSpecParser(conditions_df, measurements_df,
                                     simulations_df)
-    figure, dataprovider = vis_spec_parser.parse_from_vis_spec(
-        vis_spec_df)
+    figure, dataprovider = vis_spec_parser.parse_from_vis_spec(vis_spec_df)
 
     if plotter_type == 'mpl':
         plotter = MPLPlotter(figure, dataprovider)
@@ -166,7 +160,7 @@ def plot_problem(
         plotted_noise: str = MEAN_AND_SD,
         subplot_dir: Optional[str] = None,
         plotter_type: str = 'mpl'
-        ) -> Optional[Dict[str, plt.Subplot]]:
+) -> Optional[Dict[str, plt.Subplot]]:
     """
     Visualization using petab problem.
     If Visualization table is part of the petab_problem, it will be used for
