@@ -7,25 +7,20 @@ import petab.visualize.
 
 """
 
-from .plot_data_and_simulation import (plot_data_and_simulation,
-                                       plot_petab_problem,
-                                       plot_measurements_by_observable,
-                                       plot_without_vis_spec,
-                                       plot_with_vis_spec,
-                                       plot_problem,
-                                       save_vis_spec)
+from .plot_data_and_simulation import (
+    plot_without_vis_spec,
+    plot_with_vis_spec,
+    plot_problem,
+)
 
 from .plotter import MPLPlotter
 from .plotting import DataProvider, Figure
 
-__all__ = ["plot_data_and_simulation",
-           "plot_petab_problem",
-           "plot_measurements_by_observable",
-           "plot_without_vis_spec",
-           "plot_with_vis_spec",
-           "plot_problem",
-           "save_vis_spec",
-           "MPLPlotter",
-           "DataProvider",
-           "Figure"
-           ]
+__all__ = [
+    "plot_without_vis_spec",
+    "plot_with_vis_spec",
+    "plot_problem",
+    "MPLPlotter",
+    "DataProvider",
+    "Figure"
+]

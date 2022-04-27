@@ -1,16 +1,17 @@
 """PEtab visualization data selection and visualization settings classes"""
+import warnings
+from numbers import Number, Real
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 
-from typing import Dict, List, Optional, Tuple, Union
-
-from .helper_functions import (generate_dataset_id_col,
-                               create_dataset_id_list_new)
-from .. import measurements, core, conditions
-from ..problem import Problem
+from .helper_functions import (create_dataset_id_list_new,
+                               generate_dataset_id_col)
+from .. import conditions, core, measurements
 from ..C import *
-from numbers import Number, Real
-import warnings
+from ..problem import Problem
 
 __all__ = ['DataSeries', 'DataPlot', 'Subplot', 'Figure', 'DataProvider',
            'VisSpecParser']
@@ -606,19 +607,20 @@ class VisSpecParser:
     Figure instance, a DataProvider instance is created that will be
     responsible for the data selection and manipulation.
     """
-    def __init__(self,
-                 conditions_data: Union[str, pd.DataFrame],
-                 exp_data: Optional[Union[str, pd.DataFrame]] = None,
-                 sim_data: Optional[Union[str, pd.DataFrame]] = None,
-                 ):
-        if isinstance(conditions_data, str):
+    def __init__(
+            self,
+            conditions_data: Union[str, Path, pd.DataFrame],
+            exp_data: Optional[Union[str, Path, pd.DataFrame]] = None,
+            sim_data: Optional[Union[str, Path, pd.DataFrame]] = None,
+    ):
+        if isinstance(conditions_data, (str, Path)):
             conditions_data = conditions.get_condition_df(conditions_data)
 
         # import from file in case experimental data is provided in file
-        if isinstance(exp_data, str):
+        if isinstance(exp_data, (str, Path)):
             exp_data = measurements.get_measurement_df(exp_data)
 
-        if isinstance(sim_data, str):
+        if isinstance(sim_data, (str, Path)):
             sim_data = core.get_simulation_df(sim_data)
 
         if exp_data is None and sim_data is None:
@@ -676,7 +678,7 @@ class VisSpecParser:
         return subplot
 
     def parse_from_vis_spec(self,
-                            vis_spec: Optional[Union[str, pd.DataFrame]],
+                            vis_spec: Optional[Union[str, Path, pd.DataFrame]],
                             ) -> Tuple[Figure, DataProvider]:
         """
         Get visualization settings from a visualization specification.
@@ -694,7 +696,7 @@ class VisSpecParser:
         """
 
         # import visualization specification, if file was specified
-        if isinstance(vis_spec, str):
+        if isinstance(vis_spec, (str, Path)):
             vis_spec = core.get_visualization_df(vis_spec)
 
         if DATASET_ID not in vis_spec.columns:

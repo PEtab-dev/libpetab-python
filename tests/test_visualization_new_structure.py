@@ -6,90 +6,102 @@ import pytest
 from petab.C import *
 from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
 from petab.visualize.plotting import VisSpecParser
-
+from pathlib import Path
 # Avoid errors when plotting without X server
 plt.switch_backend('agg')
+
+EXAMPLE_DIR = Path(__file__).parents[1] / "doc" / "example"
 
 
 @pytest.fixture
 def data_file_Fujita():
-    return "doc/example/example_Fujita/Fujita_measurementData.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "Fujita_measurementData.tsv"
 
 
 @pytest.fixture
 def condition_file_Fujita():
-    return "doc/example/example_Fujita/Fujita_experimentalCondition.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "Fujita_experimentalCondition.tsv"
 
 
 @pytest.fixture
 def data_file_Fujita_wrongNoise():
-    return "doc/example/example_Fujita/Fujita_measurementData_wrongNoise.tsv"
+    return EXAMPLE_DIR / "example_Fujita" \
+           / "Fujita_measurementData_wrongNoise.tsv"
 
 
 @pytest.fixture
 def data_file_Fujita_nanData():
-    return "doc/example/example_Fujita/Fujita_measurementData_nanData.tsv"
+    return EXAMPLE_DIR / "example_Fujita" \
+           / "Fujita_measurementData_nanData.tsv"
 
 
 @pytest.fixture
 def simu_file_Fujita():
-    return "doc/example/example_Fujita/Fujita_simulatedData.tsv"
+    return EXAMPLE_DIR / "example_Fujita" \
+                      / "Fujita_simulatedData.tsv"
 
 
 @pytest.fixture
 def data_file_Fujita_minimal():
-    return "doc/example/example_Fujita/Fujita_measurementData_minimal.tsv"
+    return EXAMPLE_DIR / "example_Fujita"\
+           / "Fujita_measurementData_minimal.tsv"
 
 
 @pytest.fixture
 def visu_file_Fujita_small():
-    return "doc/example/example_Fujita/Fujita_visuSpec_small.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "Fujita_visuSpec_small.tsv"
 
 
 @pytest.fixture
 def visu_file_Fujita_wo_dsid_wo_yvalues():
-    return "doc/example/example_Fujita/visuSpecs/Fujita_visuSpec_1.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
+           / "Fujita_visuSpec_1.tsv"
 
 
 @pytest.fixture
 def visu_file_Fujita_all_obs_with_diff_settings():
-    return "doc/example/example_Fujita/visuSpecs/Fujita_visuSpec_3.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
+           / "Fujita_visuSpec_3.tsv"
 
 
 @pytest.fixture
 def visu_file_Fujita_minimal():
-    return "doc/example/example_Fujita/visuSpecs/Fujita_visuSpec_mandatory.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "visuSpecs"\
+           / "Fujita_visuSpec_mandatory.tsv"
 
 
 @pytest.fixture
 def visu_file_Fujita_empty():
-    return "doc/example/example_Fujita/visuSpecs/Fujita_visuSpec_empty.tsv"
+    return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
+           / "Fujita_visuSpec_empty.tsv"
 
 
 @pytest.fixture
 def data_file_Isensee():
-    return "doc/example/example_Isensee/Isensee_measurementData.tsv"
+    return EXAMPLE_DIR / "example_Isensee" / "Isensee_measurementData.tsv"
 
 
 @pytest.fixture
 def condition_file_Isensee():
-    return "doc/example/example_Isensee/Isensee_experimentalCondition.tsv"
+    return EXAMPLE_DIR / "example_Isensee" \
+           / "Isensee_experimentalCondition.tsv"
 
 
 @pytest.fixture
 def vis_spec_file_Isensee():
-    return "doc/example/example_Isensee/Isensee_visualizationSpecification.tsv"
+    return EXAMPLE_DIR / "example_Isensee" \
+           / "Isensee_visualizationSpecification.tsv"
 
 
 @pytest.fixture
 def vis_spec_file_Isensee_replicates():
-    return "doc/example/example_Isensee/Isensee_visualizationSpecification_" \
-           "replicates.tsv"
+    return EXAMPLE_DIR / "example_Isensee" \
+           / "Isensee_visualizationSpecification_replicates.tsv"
 
 
 @pytest.fixture
 def simulation_file_Isensee():
-    return "doc/example/example_Isensee/Isensee_simulationData.tsv"
+    return EXAMPLE_DIR / "example_Isensee" / "Isensee_simulationData.tsv"
 
 
 def test_visualization_with_vis_and_sim(data_file_Isensee,
