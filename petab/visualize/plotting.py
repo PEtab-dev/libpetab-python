@@ -903,7 +903,7 @@ class VisSpecParser:
             cond_name = cond_id
         else:
             cond_name = tmp[CONDITION_NAME]
-        return cond_name + ' - ' + obs_id
+        return f'{cond_name} - {obs_id}'
 
     def _expand_vis_spec_settings(self, vis_spec: pd.DataFrame):
         """
@@ -923,34 +923,32 @@ class VisSpecParser:
         if DATASET_ID in vis_spec.columns:
             raise ValueError(f"visualization specification expansion is "
                              f"unnecessary if column {DATASET_ID} is present")
-        else:
-            vis_spec_exp = pd.DataFrame()
-            if vis_spec.empty:
-                # in case of empty spec all measurements corresponding to each
-                # observable will be plotted on a separate subplot
+
+        if vis_spec.empty:
+            # in case of empty spec all measurements corresponding to each
+            # observable will be plotted on a separate subplot
+            observable_ids = self._data_df[OBSERVABLE_ID].unique()
+
+            vis_spec_exp_rows = [
+                self._vis_spec_rows_for_obs(obs_id, {PLOT_ID: f'plot{idx}'})
+                for idx, obs_id in enumerate(observable_ids)
+            ]
+            return pd.concat(vis_spec_exp_rows, ignore_index=True)
+
+        vis_spec_exp_rows = []
+        for _, row in vis_spec.iterrows():
+            if Y_VALUES in row:
+                vis_spec_exp_rows.append(
+                    self._vis_spec_rows_for_obs(row[Y_VALUES], row.to_dict())
+                )
+            else:
                 observable_ids = self._data_df[OBSERVABLE_ID].unique()
 
-                for idx, obs_id in enumerate(observable_ids):
-                    obs_vis_spec = self._vis_spec_rows_for_obs(
-                        obs_id, {PLOT_ID: f'plot{idx}'})
-                    vis_spec_exp = vis_spec_exp.append(obs_vis_spec,
-                                                       ignore_index=True)
-            else:
-                for _, row in vis_spec.iterrows():
-                    if Y_VALUES in row:
-                        obs_vis_spec = self._vis_spec_rows_for_obs(
-                            row[Y_VALUES], row.to_dict())
-                        vis_spec_exp = vis_spec_exp.append(obs_vis_spec,
-                                                           ignore_index=True)
-                    else:
-                        observable_ids = self._data_df[OBSERVABLE_ID].unique()
-
-                        for obs_id in observable_ids:
-                            obs_vis_spec = self._vis_spec_rows_for_obs(
-                                obs_id, row.to_dict())
-                            vis_spec_exp = vis_spec_exp.append(
-                                obs_vis_spec, ignore_index=True)
-        return vis_spec_exp
+                for obs_id in observable_ids:
+                    vis_spec_exp_rows.append(
+                        self._vis_spec_rows_for_obs(obs_id, row.to_dict())
+                    )
+        return pd.concat(vis_spec_exp_rows, ignore_index=True)
 
     def _vis_spec_rows_for_obs(self, obs_id: str, settings: dict
                                ) -> pd.DataFrame:
