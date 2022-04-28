@@ -2,11 +2,9 @@
 # noqa: F405
 
 import itertools
-import math
 import numbers
 from pathlib import Path
 from typing import Dict, List, Union
-from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -18,7 +16,6 @@ __all__ = ['assert_overrides_match_parameter_count',
            'create_measurement_df',
            'get_measurement_df',
            'get_measurement_parameter_ids',
-           'get_noise_distributions',
            'get_rows_for_condition',
            'get_simulation_conditions',
            'measurements_have_replicates',
@@ -61,54 +58,6 @@ def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     """
     df = get_measurement_df(df)
     df.to_csv(filename, sep='\t', index=False)
-
-
-def get_noise_distributions(measurement_df: pd.DataFrame) -> dict:
-    """
-    Returns dictionary of cost definitions per observable, if specified.
-
-    Looks through all parameters satisfying `sbml_parameter_is_cost` and
-    return as dictionary.
-
-    Parameters:
-        measurement_df: PEtab measurement table
-
-    Returns:
-        Dictionary with `observableId` => `cost definition`
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    lint.assert_noise_distributions_valid(measurement_df)
-
-    # read noise distributions from measurement file
-    grouping_cols = core.get_notnull_columns(
-        measurement_df, [OBSERVABLE_ID, OBSERVABLE_TRANSFORMATION,
-                         NOISE_DISTRIBUTION])
-
-    observables = measurement_df.fillna('').groupby(grouping_cols).size()\
-        .reset_index()
-    noise_distrs = {}
-    for _, row in observables.iterrows():
-        # prefix id to get observable id
-        id_ = 'observable_' + row.observableId
-
-        # extract observable transformation and noise distribution,
-        # use lin+normal as default if none provided
-        obs_trafo = row.observableTransformation \
-            if OBSERVABLE_TRANSFORMATION in row \
-            and row.observableTransformation \
-            else LIN
-        noise_distr = row.noiseDistribution \
-            if NOISE_DISTRIBUTION in row \
-            and row.noiseDistribution \
-            else NORMAL
-        # add to noise distributions
-        noise_distrs[id_] = {
-            OBSERVABLE_TRANSFORMATION: obs_trafo,
-            NOISE_DISTRIBUTION: noise_distr}
-
-    return noise_distrs
 
 
 def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
