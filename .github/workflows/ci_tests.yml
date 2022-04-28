@@ -40,7 +40,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r .ci_pip_reqs.txt
-        pip install .[reports,combine]
+        pip install .[reports,combine,tests]
 
     - name: Run flake8
       run: |
