@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Union
 from urllib.parse import unquote, urlparse, urlunparse
+from warnings import warn
 
 import libsbml
 import pandas as pd
