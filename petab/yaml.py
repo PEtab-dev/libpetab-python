@@ -248,7 +248,7 @@ def create_problem_yaml(
                    SBML_FILES: sbml_files,
                    OBSERVABLE_FILES: observable_files}
     if visualization_files is not None:
-        problem_dic.update({'visualization_files': visualization_files})
+        problem_dic.update({VISUALIZATION_FILES: visualization_files})
     yaml_dic = {PARAMETER_FILE: parameter_file,
                 FORMAT_VERSION: 1,
                 PROBLEMS: [problem_dic]}
