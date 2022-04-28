@@ -67,7 +67,7 @@ setup(name='petab',
                         'jsonschema',
                         ],
       include_package_data=True,
-      tests_require=['flake8', 'pytest', 'python-libcombine'],
+      tests_require=['flake8', 'pytest', 'python-libcombine', 'simplesbml'],
       python_requires='>=3.7.1',
       entry_points=ENTRY_POINTS,
       extras_require={

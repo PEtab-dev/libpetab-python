@@ -24,28 +24,13 @@ def condition_df_2_conditions():
 
 
 @pytest.fixture
-def minimal_sbml_model():
-    document = libsbml.SBMLDocument(3, 1)
-    model = document.createModel()
-    model.setTimeUnits("second")
-    model.setExtentUnits("mole")
-    model.setSubstanceUnits('mole')
-    return document, model
-
-
-@pytest.fixture
-def petab_problem(minimal_sbml_model):  # pylint: disable=W0621
+def petab_problem():
     """Test petab problem."""
     # create test model
-    document, model = minimal_sbml_model
-
-    p = model.createParameter()
-    p.setId('fixedParameter1')
-    p.setName('FixedParameter1')
-
-    p = model.createParameter()
-    p.setId('observable_1')
-    p.setName('Observable 1')
+    import simplesbml
+    model = simplesbml.SbmlModel()
+    model.addParameter('fixedParameter1', 0.0)
+    model.addParameter('observable_1', 0.0)
 
     measurement_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['obs1', 'obs2'],
@@ -73,7 +58,7 @@ def petab_problem(minimal_sbml_model):  # pylint: disable=W0621
 
     with tempfile.TemporaryDirectory() as temp_dir:
         sbml_file_name = Path(temp_dir, "model.xml")
-        libsbml.writeSBMLToFile(document, str(sbml_file_name))
+        libsbml.writeSBMLToFile(model.document, str(sbml_file_name))
 
         measurement_file_name = Path(temp_dir, "measurements.tsv")
         petab.write_measurement_df(measurement_df, measurement_file_name)
@@ -214,24 +199,13 @@ def test_startpoint_sampling(fujita_model_scaling):
 
 
 def test_create_parameter_df(
-        minimal_sbml_model,  # pylint: disable=W0621
         condition_df_2_conditions):  # pylint: disable=W0621
     """Test petab.create_parameter_df."""
-    _, model = minimal_sbml_model
-    s = model.createSpecies()
-    s.setId('x1')
-
-    petab.sbml.add_global_parameter(
-        model,
-        parameter_id='fixedParameter1',
-        parameter_name='FixedParameter1',
-        value=2.0)
-
-    petab.sbml.add_global_parameter(
-        model,
-        parameter_id='p0',
-        parameter_name='Parameter 0',
-        value=3.0)
+    import simplesbml
+    ss_model = simplesbml.SbmlModel()
+    ss_model.addSpecies('[x1]', 1.0)
+    ss_model.addParameter('fixedParameter1', 2.0)
+    ss_model.addParameter('p0', 3.0)
 
     observable_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['obs1', 'obs2'],
@@ -239,10 +213,8 @@ def test_create_parameter_df(
     }).set_index(OBSERVABLE_ID)
 
     # Add assignment rule target which should be ignored
-    petab.add_global_parameter(sbml_model=model,
-                               parameter_id='assignment_target')
-    petab.create_assigment_rule(sbml_model=model,
-                                assignee_id='assignment_target', formula='1.0')
+    ss_model.addParameter('assignment_target', 0.0)
+    ss_model.addAssignmentRule('assignment_target', "1.0")
 
     measurement_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['obs1', 'obs2'],
@@ -251,7 +223,7 @@ def test_create_parameter_df(
     })
 
     parameter_df = petab.create_parameter_df(
-        model,
+        ss_model.model,
         condition_df_2_conditions,
         observable_df,
         measurement_df)
@@ -267,7 +239,7 @@ def test_create_parameter_df(
     expected = ['p3', 'p4', 'p1', 'p2', 'p5', 'overrider']
 
     parameter_df = petab.create_parameter_df(
-        model,
+        ss_model.model,
         condition_df_2_conditions,
         observable_df,
         measurement_df)
@@ -278,7 +250,7 @@ def test_create_parameter_df(
     expected = ['p0', 'p3', 'p4', 'p1', 'p2', 'p5', 'overrider']
 
     parameter_df = petab.create_parameter_df(
-        model,
+        ss_model.model,
         condition_df_2_conditions,
         observable_df,
         measurement_df,
