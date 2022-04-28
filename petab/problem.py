@@ -1,13 +1,13 @@
 """PEtab Problem class"""
+from __future__ import annotations
 
 import os
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union, TYPE_CHECKING
 from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
-import libsbml
 import pandas as pd
 
 from . import (conditions, core, format_version, measurements, observables,
@@ -15,6 +15,10 @@ from . import (conditions, core, format_version, measurements, observables,
 from .C import *  # noqa: F403
 from .models.model import Model
 from .models.sbml_model import SbmlModel
+
+if TYPE_CHECKING:
+    import libsbml
+
 
 __all__ = ['Problem']
 
