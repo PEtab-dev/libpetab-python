@@ -14,10 +14,7 @@ from . import (conditions, core, format_version, measurements, observables,
                parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
 
-__all__ = ['Problem', 'get_default_condition_file_name',
-           'get_default_measurement_file_name',
-           'get_default_parameter_file_name',
-           'get_default_sbml_file_name']
+__all__ = ['Problem']
 
 
 class Problem:
@@ -221,43 +218,6 @@ class Problem:
                 get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
             observable_files=[
                 get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
-        )
-
-    @staticmethod
-    def from_folder(folder: str, model_name: str = None) -> 'Problem':
-        """
-        Factory method to use the standard folder structure
-        and file names, i.e.
-
-        ::
-
-            ${model_name}/
-              +-- experimentalCondition_${model_name}.tsv
-              +-- measurementData_${model_name}.tsv
-              +-- model_${model_name}.xml
-              +-- parameters_${model_name}.tsv
-
-        Arguments:
-            folder:
-                Path to the directory in which the files are located.
-            model_name:
-                If specified, overrides the model component in the file names.
-                Defaults to the last component of ``folder``.
-        """
-        warn("This function will be removed in future releases. "
-             "Consider using a PEtab YAML file for grouping files",
-             DeprecationWarning)
-
-        folder = os.path.abspath(folder)
-        if model_name is None:
-            model_name = os.path.split(folder)[-1]
-
-        return Problem.from_files(
-            condition_file=get_default_condition_file_name(model_name, folder),
-            measurement_file=get_default_measurement_file_name(model_name,
-                                                               folder),
-            parameter_file=get_default_parameter_file_name(model_name, folder),
-            sbml_file=get_default_sbml_file_name(model_name, folder),
         )
 
     @staticmethod
@@ -768,35 +728,3 @@ class Problem:
             )
             for parameter_id, parameter_value in x_dict.items()
         }
-
-
-def get_default_condition_file_name(model_name: str, folder: str = ''):
-    """Get file name according to proposed convention"""
-    warn("This function will be removed in future releases. ",
-         DeprecationWarning)
-
-    return os.path.join(folder, f"experimentalCondition_{model_name}.tsv")
-
-
-def get_default_measurement_file_name(model_name: str, folder: str = ''):
-    """Get file name according to proposed convention"""
-    warn("This function will be removed in future releases. ",
-         DeprecationWarning)
-
-    return os.path.join(folder, f"measurementData_{model_name}.tsv")
-
-
-def get_default_parameter_file_name(model_name: str, folder: str = ''):
-    """Get file name according to proposed convention"""
-    warn("This function will be removed in future releases. ",
-         DeprecationWarning)
-
-    return os.path.join(folder, f"parameters_{model_name}.tsv")
-
-
-def get_default_sbml_file_name(model_name: str, folder: str = ''):
-    """Get file name according to proposed convention"""
-    warn("This function will be removed in future releases. ",
-         DeprecationWarning)
-
-    return os.path.join(folder, f"model_{model_name}.xml")
