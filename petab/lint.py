@@ -292,7 +292,12 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
 
         noise = getattr(row, NOISE_FORMULA)
         try:
-            sp.sympify(noise)
+            sympified_noise = sp.sympify(noise)
+            if sympified_noise is None \
+                    or (sympified_noise.is_Number
+                        and not sympified_noise.is_finite):
+                raise AssertionError(f"No or non-finite {NOISE_FORMULA} "
+                                     f"given for observable {row.Index}.")
         except sp.SympifyError as e:
             raise AssertionError(f"Cannot parse expression '{noise}' "
                                  f"for noise model for observable "
