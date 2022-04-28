@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Union
 from urllib.parse import unquote, urlparse, urlunparse
-from warnings import warn
 
 import libsbml
 import pandas as pd
@@ -431,42 +430,11 @@ class Problem:
         """See :py:func:`petab.sbml.get_model_parameters`"""
         return sbml.get_model_parameters(self.sbml_model)
 
-    def get_observables(self, remove: bool = False):
-        """
-        Returns dictionary of observables definitions.
-
-        See :py:func:`petab.assignment_rules_to_dict` for details.
-        """
-        warn("This function will be removed in future releases.",
-             DeprecationWarning)
-
-        return sbml.get_observables(sbml_model=self.sbml_model, remove=remove)
-
     def get_observable_ids(self):
         """
         Returns dictionary of observable ids.
         """
         return list(self.observable_df.index)
-
-    def get_sigmas(self, remove: bool = False):
-        """
-        Return dictionary of observableId => sigma as defined in the SBML
-        model.
-
-        This does not include parameter mappings defined in the measurement
-        table.
-        """
-        warn("This function will be removed in future releases.",
-             DeprecationWarning)
-
-        return sbml.get_sigmas(sbml_model=self.sbml_model, remove=remove)
-
-    def get_noise_distributions(self):
-        """
-        See :py:func:`petab.get_noise_distributions`.
-        """
-        return measurements.get_noise_distributions(
-            measurement_df=self.measurement_df)
 
     def _apply_mask(self, v: List, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.

@@ -1,9 +1,8 @@
 """Functions for interacting with SBML models"""
 import logging
-import re
 from numbers import Number
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from warnings import warn
 
 import libsbml
@@ -16,13 +15,10 @@ __all__ = ['add_global_parameter',
            'add_model_output',
            'add_model_output_sigma',
            'add_model_output_with_sigma',
-           'assignment_rules_to_dict',
            'create_assigment_rule',
            'get_model_for_condition',
            'get_model_parameters',
-           'get_observables',
            'get_sbml_model',
-           'get_sigmas',
            'globalize_parameters',
            'is_sbml_consistent',
            'load_sbml_from_file',
@@ -31,61 +27,6 @@ __all__ = ['add_global_parameter',
            'sbml_parameter_is_observable',
            'sbml_parameter_is_sigma',
            'write_sbml']
-
-
-def assignment_rules_to_dict(
-        sbml_model: libsbml.Model, filter_function=lambda *_: True,
-        remove: bool = False) -> Dict[str, Dict[str, Any]]:
-    """
-    Turn assignment rules into dictionary.
-
-    Parameters:
-        sbml_model:
-            a sbml model instance.
-        filter_function:
-            callback function taking assignment variable as input
-            and returning True/False to indicate if the respective rule should
-            be turned into an observable.
-        remove:
-            Remove the all matching assignment rules from the model
-
-    Returns:
-        ::
-
-            {
-                assigneeId:
-                {
-                    'name': assigneeName,
-                    'formula': formulaString
-                }
-            }
-
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    result = {}
-
-    # iterate over rules
-    for rule in sbml_model.getListOfRules():
-        if rule.getTypeCode() != libsbml.SBML_ASSIGNMENT_RULE:
-            continue
-        assignee = rule.getVariable()
-        parameter = sbml_model.getParameter(assignee)
-        # filter
-        if parameter and filter_function(parameter):
-            result[assignee] = {
-                'name': parameter.getName(),
-                'formula': libsbml.formulaToL3String(rule.getMath())
-            }
-
-    # remove from model?
-    if remove:
-        for parameter_id in result:
-            sbml_model.removeRuleByVariable(parameter_id)
-            sbml_model.removeParameter(parameter_id)
-
-    return result
 
 
 def is_sbml_consistent(sbml_document: libsbml.SBMLDocument,
@@ -352,49 +293,6 @@ def sbml_parameter_is_sigma(sbml_parameter: libsbml.Parameter) -> bool:
          DeprecationWarning)
 
     return sbml_parameter.getId().startswith('sigma_')
-
-
-def get_observables(sbml_model: libsbml.Model, remove: bool = False) -> dict:
-    """
-    Get observables defined in SBML model according to PEtab format.
-
-    Returns:
-        Dictionary of observable definitions.
-        See `assignment_rules_to_dict` for details.
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    observables = assignment_rules_to_dict(
-        sbml_model,
-        filter_function=sbml_parameter_is_observable,
-        remove=remove
-    )
-    return observables
-
-
-def get_sigmas(sbml_model: libsbml.Model, remove: bool = False) -> dict:
-    """
-    Get sigmas defined in SBML model according to PEtab format.
-
-    Returns:
-        Dictionary of sigma definitions.
-
-        Keys are observable IDs, for values see `assignment_rules_to_dict` for
-        details.
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    sigmas = assignment_rules_to_dict(
-        sbml_model,
-        filter_function=sbml_parameter_is_sigma,
-        remove=remove
-    )
-    # set correct observable name
-    sigmas = {re.sub('^sigma_', 'observable_', key): value['formula']
-              for key, value in sigmas.items()}
-    return sigmas
 
 
 def get_model_parameters(sbml_model: libsbml.Model, with_values=False
