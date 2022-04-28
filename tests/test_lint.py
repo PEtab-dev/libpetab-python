@@ -495,6 +495,12 @@ def test_check_observable_df():
     with pytest.raises(AssertionError):
         lint.check_observable_df(bad_observable_df)
 
+    # Check that missing noiseFormula is detected
+    bad_observable_df = observable_df.copy()
+    bad_observable_df.loc['obs1', NOISE_FORMULA] = nan
+    with pytest.raises(AssertionError):
+        lint.check_observable_df(bad_observable_df)
+
 
 def test_condition_ids_are_unique():
     condition_df = pd.DataFrame(data={
