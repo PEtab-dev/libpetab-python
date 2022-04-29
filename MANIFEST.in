@@ -1,2 +1,2 @@
-include petab/petab_schema.yaml
-recursive-include petab/visualize/templates
+recursive-include petab/schemas *.yaml
+recursive-include petab/visualize/templates *
