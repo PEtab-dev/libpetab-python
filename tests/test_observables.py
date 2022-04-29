@@ -61,18 +61,13 @@ def test_write_observable_df():
         assert (observable_df == re_df).all().all()
 
 
-def test_get_output_parameters(minimal_sbml_model):
+def test_get_output_parameters():
     """Test measurements.get_output_parameters."""
     # sbml model
-    _, model = minimal_sbml_model
-
-    p = model.createParameter()
-    p.setId('fixedParameter1')
-    p.setName('FixedParameter1')
-
-    p = model.createParameter()
-    p.setId('observable_1')
-    p.setName('Observable 1')
+    import simplesbml
+    ss_model = simplesbml.SbmlModel()
+    ss_model.addParameter('fixedParameter1', 1.0)
+    ss_model.addParameter('observable_1', 1.0)
 
     # observable file
     observable_df = pd.DataFrame(data={
@@ -82,7 +77,8 @@ def test_get_output_parameters(minimal_sbml_model):
         NOISE_FORMULA: [1],
     }).set_index(OBSERVABLE_ID)
 
-    output_parameters = petab.get_output_parameters(observable_df, model)
+    output_parameters = petab.get_output_parameters(
+        observable_df, ss_model.model)
 
     assert output_parameters == ['offset', 'scaling']
 

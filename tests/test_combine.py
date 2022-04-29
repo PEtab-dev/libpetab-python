@@ -12,11 +12,12 @@ pytest_plugins = [
 ]
 
 
-def test_combine_archive(minimal_sbml_model):
+def test_combine_archive():
     """Test `create_combine_archive` and `Problem.from_combine`"""
 
     # Create test files
-    document, _ = minimal_sbml_model
+    import simplesbml
+    ss_model = simplesbml.SbmlModel()
 
     # Create tables with arbitrary content
     measurement_df = pd.DataFrame(data={
@@ -69,7 +70,7 @@ def test_combine_archive(minimal_sbml_model):
             as tempdir:
         # Write test data
         outdir = Path(tempdir)
-        petab.write_sbml(document, outdir / sbml_file_name)
+        petab.write_sbml(ss_model.document, outdir / sbml_file_name)
         petab.write_measurement_df(
             measurement_df, outdir / measurement_file_name)
         petab.write_parameter_df(
