@@ -205,10 +205,12 @@ class Problem:
                 get_path(f) for f in yaml_config[PARAMETER_FILE]
             ]
         else:
-            parameter_file = get_path(yaml_config[PARAMETER_FILE])
+            parameter_file = get_path(yaml_config[PARAMETER_FILE]) \
+                if yaml_config[PARAMETER_FILE] else None
 
         return Problem.from_files(
-            sbml_file=get_path(problem0[SBML_FILES][0]),
+            sbml_file=get_path(problem0[SBML_FILES][0])
+            if problem0[SBML_FILES] else None,
             measurement_file=[get_path(f)
                               for f in problem0[MEASUREMENT_FILES]],
             condition_file=get_path(problem0[CONDITION_FILES][0]),
