@@ -46,19 +46,22 @@ class Problem:
         sbml_reader: Stored to keep object alive (deprecated).
         sbml_document: Stored to keep object alive (deprecated).
         sbml_model: PEtab SBML model (deprecated)
+        extensions_config: Information on the extensions used
     """
 
-    def __init__(self,
-                 sbml_model: libsbml.Model = None,
-                 sbml_reader: libsbml.SBMLReader = None,
-                 sbml_document: libsbml.SBMLDocument = None,
-                 model: Model = None,
-                 condition_df: pd.DataFrame = None,
-                 measurement_df: pd.DataFrame = None,
-                 parameter_df: pd.DataFrame = None,
-                 visualization_df: pd.DataFrame = None,
-                 observable_df: pd.DataFrame = None):
-
+    def __init__(
+            self,
+            sbml_model: libsbml.Model = None,
+            sbml_reader: libsbml.SBMLReader = None,
+            sbml_document: libsbml.SBMLDocument = None,
+            model: Model = None,
+            condition_df: pd.DataFrame = None,
+            measurement_df: pd.DataFrame = None,
+            parameter_df: pd.DataFrame = None,
+            visualization_df: pd.DataFrame = None,
+            observable_df: pd.DataFrame = None,
+            extensions_config: Dict = None,
+    ):
         self.condition_df: Optional[pd.DataFrame] = condition_df
         self.measurement_df: Optional[pd.DataFrame] = measurement_df
         self.parameter_df: Optional[pd.DataFrame] = parameter_df
@@ -80,6 +83,8 @@ class Problem:
                 sbml_document=sbml_document)
 
         self.model: Optional[Model] = model
+        self.extensions_config = extensions_config or {}
+
 
     def __getattr__(self, name):
         # For backward-compatibility, allow access to SBML model related
@@ -113,6 +118,7 @@ class Problem:
                                        Iterable[Union[str, Path]]] = None,
             observable_files: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
+            extensions_config: Dict = None,
     ) -> 'Problem':
         """
         Factory method to load model and tables from files.
@@ -124,6 +130,7 @@ class Problem:
             parameter_file: PEtab parameter table
             visualization_files: PEtab visualization tables
             observable_files: PEtab observables tables
+            extensions_config: Information on the extensions used
         """
         warn("petab.Problem.from_files is deprecated and will be removed in a "
              "future version. Use `petab.Problem.from_yaml instead.",
@@ -154,12 +161,16 @@ class Problem:
             observable_files, observables.get_observable_df) \
             if observable_files else None
 
-        return Problem(model=model,
-                       condition_df=condition_df,
-                       measurement_df=measurement_df,
-                       parameter_df=parameter_df,
-                       observable_df=observable_df,
-                       visualization_df=visualization_df)
+        return Problem(
+            model=model,
+            condition_df=condition_df,
+            measurement_df=measurement_df,
+            parameter_df=parameter_df,
+            observable_df=observable_df,
+            visualization_df=visualization_df,
+            extensions_config=extensions_config,
+        )
+
 
     @staticmethod
     def from_yaml(yaml_config: Union[Dict, Path, str]) -> 'Problem':
@@ -258,12 +269,15 @@ class Problem:
             observable_files, observables.get_observable_df) \
             if observable_files else None
 
-        return Problem(condition_df=condition_df,
-                       measurement_df=measurement_df,
-                       parameter_df=parameter_df,
-                       observable_df=observable_df,
-                       model=model,
-                       visualization_df=visualization_df)
+        return Problem(
+            condition_df=condition_df,
+            measurement_df=measurement_df,
+            parameter_df=parameter_df,
+            observable_df=observable_df,
+            model=model,
+            visualization_df=visualization_df,
+            extensions_config=yaml_config.get(EXTENSIONS, {})
+        )
 
     @staticmethod
     def from_combine(filename: Union[Path, str]) -> 'Problem':
@@ -281,10 +295,11 @@ class Problem:
         # other SWIG interfaces
         try:
             import libcombine
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "To use PEtab's COMBINE functionality, libcombine "
-                "(python-libcombine) must be installed.")
+                "To use PEtab's COMBINE functionality, libcombine " 
+                "(python-libcombine) must be installed.") from e
+
 
         archive = libcombine.CombineArchive()
         if archive.initializeFromArchive(str(filename)) is None:
