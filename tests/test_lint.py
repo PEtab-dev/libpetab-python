@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 import petab
-from petab import lint  # noqa: E402
+from petab import lint
 from petab.C import *
 
 # import fixtures
