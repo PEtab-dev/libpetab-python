@@ -15,7 +15,7 @@ from .C import *  # noqa: F403
 logger = logging.getLogger(__name__)
 __all__ = ['get_simulation_df', 'write_simulation_df', 'get_visualization_df',
            'write_visualization_df', 'get_notnull_columns',
-           'get_observable_id', 'flatten_timepoint_specific_output_overrides',
+           'flatten_timepoint_specific_output_overrides',
            'concat_tables', 'to_float_if_float', 'is_empty',
            'create_combine_archive', 'unique_preserve_order']
 
@@ -88,30 +88,6 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
     """
     return [col for col in candidates
             if col in df and not np.all(df[col].isnull())]
-
-
-def get_observable_id(parameter_id: str) -> str:
-    """Get PEtab observable ID from PEtab-style sigma or observable
-    `AssignmentRule`-target ``parameter_id``.
-
-    e.g. for 'observable_obs1' -> 'obs1', for 'sigma_obs1' -> 'obs1'
-
-    Arguments:
-        parameter_id: Some parameter ID
-
-    Returns:
-        Observable ID
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    if parameter_id.startswith(r'observable_'):
-        return parameter_id[len('observable_'):]
-
-    if parameter_id.startswith(r'sigma_'):
-        return parameter_id[len('sigma_'):]
-
-    raise ValueError('Cannot extract observable id from: ' + parameter_id)
 
 
 def flatten_timepoint_specific_output_overrides(

@@ -145,11 +145,6 @@ def test_serialization(petab_problem):
         == len(petab_problem.sbml_model.getListOfParameters())
 
 
-def test_get_observable_id():
-    assert petab.get_observable_id('observable_obs1') == 'obs1'
-    assert petab.get_observable_id('sigma_obs1') == 'obs1'
-
-
 def test_get_priors_from_df():
     """Check petab.get_priors_from_df."""
     parameter_df = pd.DataFrame({
