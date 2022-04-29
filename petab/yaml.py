@@ -11,8 +11,14 @@ from pandas.io.common import get_handle
 
 from .C import *  # noqa: F403
 
-SCHEMA = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                      "petab_schema.yaml")
+# directory with PEtab yaml schema files
+SCHEMA_DIR = Path(__file__).parent / "schemas"
+# map of version number to validation schema
+SCHEMAS = {
+    '1': SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
+    '1.0.0': SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
+}
+
 __all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
            'load_yaml', 'is_composite_problem',
            'assert_single_condition_and_sbml_file', 'write_yaml',
@@ -52,13 +58,17 @@ def validate_yaml_syntax(
     Raises:
         see jsonschema.validate
     """
-
-    if schema is None:
-        schema = SCHEMA
-
-    schema = load_yaml(schema)
     yaml_config = load_yaml(yaml_config)
 
+    if schema is None:
+        # try get PEtab version from yaml file
+        #  if this is not the available, the file is not valid anyways,
+        #  but let's still use the latest PEtab schema for full validation
+        version = yaml_config.get(FORMAT_VERSION, None) \
+                      or list(SCHEMAS.values())[-1]
+        schema = SCHEMAS[str(version)]
+
+    schema = load_yaml(schema)
     jsonschema.validate(instance=yaml_config, schema=schema)
 
 
