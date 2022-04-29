@@ -1,9 +1,13 @@
 """Functions for handling SBML models"""
 
-from .model import Model
-from ..sbml import get_sbml_model, load_sbml_from_string
+import itertools
+from typing import Iterable, Optional, Tuple
+
 import libsbml
-from typing import Optional, Iterable, Tuple
+
+from .model import Model
+from ..sbml import (get_sbml_model, is_sbml_consistent, load_sbml_from_string,
+                    log_sbml_errors)
 
 
 class SbmlModel(Model):
@@ -62,6 +66,12 @@ class SbmlModel(Model):
             if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
         )
 
+    def get_parameter_value(self, id_: str) -> float:
+        parameter = self.sbml_model.getParameter(id_)
+        if not parameter:
+            raise ValueError(f"Parameter {id_} does not exist.")
+        return parameter.getValue()
+
     def get_parameter_ids_with_values(self) -> Iterable[Tuple[str, float]]:
         return (
             (p.getId(), p.getValue())
@@ -79,5 +89,27 @@ class SbmlModel(Model):
         return self.sbml_model.getElementBySId(entity_id) is not None
 
     def get_valid_parameters_for_parameter_table(self) -> Iterable[str]:
-        # TODO
-        pass
+        # exclude rule targets
+        disallowed_set = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
+        return (p.getId() for p in self.sbml_model.getListOfParameters()
+                if p.getId() not in disallowed_set)
+
+    def get_valid_ids_for_condition_table(self) -> Iterable[str]:
+        return (
+            x.getId() for x in itertools.chain(
+                self.sbml_model.getListOfParameters(),
+                self.sbml_model.getListOfSpecies(),
+                self.sbml_model.getListOfCompartments()
+            )
+        )
+
+    def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
+        return self.sbml_model.getElementBySId(id_) or id_ == 'time'
+
+    def validate(self) -> bool:
+        valid = is_sbml_consistent(self.sbml_model.getSBMLDocument())
+        log_sbml_errors(self.sbml_model.getSBMLDocument())
+        return not valid

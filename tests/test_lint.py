@@ -211,11 +211,12 @@ def test_assert_no_leading_trailing_whitespace():
 
 def test_assert_model_parameters_in_condition_or_parameter_table():
     import simplesbml
+    from petab.models.sbml_model import SbmlModel
     ss_model = simplesbml.SbmlModel()
     ss_model.addParameter('parameter1', 0.0)
     ss_model.addParameter('noiseParameter1_', 0.0)
     ss_model.addParameter('observableParameter1_', 0.0)
-    sbml_model = ss_model.model
+    sbml_model = SbmlModel(sbml_model=ss_model.model)
 
     lint.assert_model_parameters_in_condition_or_parameter_table(
             sbml_model, pd.DataFrame(columns=['parameter1']), pd.DataFrame()
@@ -405,8 +406,9 @@ def test_assert_measurement_conditions_present_in_condition_table():
 def test_check_condition_df():
     """Check that we correctly detect errors in condition table"""
     import simplesbml
+    from petab.models.sbml_model import SbmlModel
     ss_model = simplesbml.SbmlModel()
-
+    model = SbmlModel(sbml_model=ss_model.model)
     condition_df = pd.DataFrame(data={
         CONDITION_ID: ['condition1'],
         'p1': [nan],
@@ -415,29 +417,29 @@ def test_check_condition_df():
 
     # parameter missing in model
     with pytest.raises(AssertionError):
-        lint.check_condition_df(condition_df, ss_model.model)
+        lint.check_condition_df(condition_df, model)
 
     # fix:
     ss_model.addParameter('p1', 1.0)
-    lint.check_condition_df(condition_df, ss_model.model)
+    lint.check_condition_df(condition_df, model)
 
     # species missing in model
     condition_df['s1'] = [3.0]
     with pytest.raises(AssertionError):
-        lint.check_condition_df(condition_df, ss_model.model)
+        lint.check_condition_df(condition_df, model)
 
     # fix:
     ss_model.addSpecies("[s1]", 1.0)
-    lint.check_condition_df(condition_df, ss_model.model)
+    lint.check_condition_df(condition_df, model)
 
     # compartment missing in model
     condition_df['c2'] = [4.0]
     with pytest.raises(AssertionError):
-        lint.check_condition_df(condition_df, ss_model.model)
+        lint.check_condition_df(condition_df, model)
 
     # fix:
     ss_model.addCompartment(comp_id='c2', vol=1.0)
-    lint.check_condition_df(condition_df, ss_model.model)
+    lint.check_condition_df(condition_df, model)
 
 
 def test_check_ids():

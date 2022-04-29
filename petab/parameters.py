@@ -1,9 +1,10 @@
 """Functions operating on the PEtab parameter table"""
 
 import numbers
+import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Iterable, List, Set, Tuple, Union
+from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
 
 import libsbml
 import numpy as np
@@ -11,14 +12,13 @@ import pandas as pd
 
 from . import conditions, core, lint, measurements, observables
 from .C import *  # noqa: F403
+from .models import Model
 
 __all__ = ['create_parameter_df',
            'get_optimization_parameter_scaling',
            'get_optimization_parameters',
            'get_parameter_df',
            'get_priors_from_df',
-           'get_required_parameters_for_parameter_table',
-           'get_valid_parameters_for_parameter_table',
            'map_scale',
            'map_unscale',
            'normalize_parameter_df',
@@ -124,14 +124,17 @@ def get_optimization_parameter_scaling(
     return dict(zip(estimated_df.index, estimated_df[PARAMETER_SCALE]))
 
 
-def create_parameter_df(sbml_model: libsbml.Model,
-                        condition_df: pd.DataFrame,
-                        observable_df: pd.DataFrame,
-                        measurement_df: pd.DataFrame,
-                        include_optional: bool = False,
-                        parameter_scale: str = LOG10,
-                        lower_bound: Iterable = None,
-                        upper_bound: Iterable = None) -> pd.DataFrame:
+def create_parameter_df(
+        sbml_model: Optional[libsbml.Model] = None,
+        condition_df: Optional[pd.DataFrame] = None,
+        observable_df: Optional[pd.DataFrame] = None,
+        measurement_df: Optional[pd.DataFrame] = None,
+        model: Optional[Model] = None,
+        include_optional: bool = False,
+        parameter_scale: str = LOG10,
+        lower_bound: Iterable = None,
+        upper_bound: Iterable = None
+) -> pd.DataFrame:
     """Create a new PEtab parameter table
 
     All table entries can be provided as string or list-like with length
@@ -146,7 +149,7 @@ def create_parameter_df(sbml_model: libsbml.Model,
             required to be present in the parameter table. If set to True,
             this returns all parameters that are allowed to be present in the
             parameter table (i.e. also including parameters specified in the
-            SBML model).
+            model).
         parameter_scale: parameter scaling
         lower_bound: lower bound for parameter value
         upper_bound: upper bound for parameter value
@@ -154,14 +157,23 @@ def create_parameter_df(sbml_model: libsbml.Model,
     Returns:
         The created parameter DataFrame
     """
-
+    if sbml_model:
+        warnings.warn("Passing a model via the `sbml_model` argument is "
+                      "deprecated, use `model=petab.models.sbml_model."
+                      "SbmlModel(...)` instead.", DeprecationWarning,
+                      stacklevel=2)
+        from petab.models.sbml_model import SbmlModel
+        if model:
+            raise ValueError("Arguments `model` and `sbml_model` are "
+                             "mutually exclusive.")
+        model = SbmlModel(sbml_model=sbml_model)
     if include_optional:
         parameter_ids = list(get_valid_parameters_for_parameter_table(
-            sbml_model=sbml_model, condition_df=condition_df,
+            model=model, condition_df=condition_df,
             observable_df=observable_df, measurement_df=measurement_df))
     else:
         parameter_ids = list(get_required_parameters_for_parameter_table(
-            sbml_model=sbml_model, condition_df=condition_df,
+            model=model, condition_df=condition_df,
             observable_df=observable_df, measurement_df=measurement_df))
 
     df = pd.DataFrame(
@@ -180,12 +192,11 @@ def create_parameter_df(sbml_model: libsbml.Model,
         })
     df.set_index([PARAMETER_ID], inplace=True)
 
-    # For SBML model parameters, set nominal values as defined in the model
+    # For model parameters, set nominal values as defined in the model
     for parameter_id in df.index:
         try:
-            parameter = sbml_model.getParameter(parameter_id)
-            if parameter:
-                df.loc[parameter_id, NOMINAL_VALUE] = parameter.getValue()
+            df.loc[parameter_id, NOMINAL_VALUE] = \
+                model.get_parameter_value(parameter_id)
         except ValueError:
             # parameter was introduced as condition-specific override and
             # is potentially not present in the model
@@ -194,7 +205,7 @@ def create_parameter_df(sbml_model: libsbml.Model,
 
 
 def get_required_parameters_for_parameter_table(
-        sbml_model: libsbml.Model,
+        model: Model,
         condition_df: pd.DataFrame,
         observable_df: pd.DataFrame,
         measurement_df: pd.DataFrame) -> Set[str]:
@@ -202,7 +213,7 @@ def get_required_parameters_for_parameter_table(
     Get set of parameters which need to go into the parameter table
 
     Arguments:
-        sbml_model: PEtab SBML model
+        model: PEtab model
         condition_df: PEtab condition table
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
@@ -211,7 +222,7 @@ def get_required_parameters_for_parameter_table(
         Set of parameter IDs which PEtab requires to be present in the
         parameter table. That is all {observable,noise}Parameters from the
         measurement table as well as all parametric condition table overrides
-        that are not defined in the SBML model.
+        that are not defined in the model.
     """
 
     # use ordered dict as proxy for ordered set
@@ -231,27 +242,28 @@ def get_required_parameters_for_parameter_table(
             row.get(NOISE_PARAMETERS, None)))
 
     # Add output parameters except for placeholders
+    model_parameter_ids = set(model.get_parameter_ids())
     for kwargs in [dict(observables=True, noise=False),
                    dict(observables=False, noise=True)]:
         output_parameters = observables.get_output_parameters(
-            observable_df, sbml_model, **kwargs)
+            observable_df, model, **kwargs)
         placeholders = observables.get_placeholders(
             observable_df, **kwargs)
         for p in output_parameters:
-            if p not in placeholders and sbml_model.getParameter(p) is None:
+            if p not in placeholders and p not in model_parameter_ids:
                 parameter_ids[p] = None
 
     # Add condition table parametric overrides unless already defined in the
-    # SBML model
+    #  model
     for p in conditions.get_parametric_overrides(condition_df):
-        if sbml_model.getParameter(p) is None:
+        if p not in model_parameter_ids:
             parameter_ids[p] = None
 
     return parameter_ids.keys()
 
 
 def get_valid_parameters_for_parameter_table(
-        sbml_model: libsbml.Model,
+        model: Model,
         condition_df: pd.DataFrame,
         observable_df: pd.DataFrame,
         measurement_df: pd.DataFrame) -> Set[str]:
@@ -259,7 +271,7 @@ def get_valid_parameters_for_parameter_table(
     Get set of parameters which may be present inside the parameter table
 
     Arguments:
-        sbml_model: PEtab SBML model
+        model: PEtab model
         condition_df: PEtab condition table
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
@@ -268,38 +280,32 @@ def get_valid_parameters_for_parameter_table(
         Set of parameter IDs which PEtab allows to be present in the
         parameter table.
     """
-
-    # - grab all model parameters
+    # - grab all allowed model parameters
     # - grab all output parameters defined in {observable,noise}Formula
     # - grab all parameters from measurement table
     # - grab all parametric overrides from condition table
     # - remove parameters for which condition table columns exist
-    # - remove observables assigment targets
-    # - remove sigma assignment targets
     # - remove placeholder parameters
     #   (only partial overrides are not supported)
 
     placeholders = set(observables.get_placeholders(observable_df))
 
-    # exclude rule targets
-    assignment_targets = {ar.getVariable()
-                          for ar in sbml_model.getListOfRules()}
-
     # must not go into parameter table
     blackset = set()
     # collect assignment targets
     blackset |= placeholders
-    blackset |= assignment_targets
     blackset |= set(condition_df.columns.values) - {CONDITION_NAME}
 
-    # use ordered dict as proxy for ordered set
+    # don't use sets here, to have deterministic ordering,
+    #  e.g. for creating parameter tables
     parameter_ids = OrderedDict.fromkeys(
-        p.getId() for p in sbml_model.getListOfParameters()
-        if p.getId() not in blackset)
+        p for p in model.get_valid_parameters_for_parameter_table()
+        if p not in blackset
+    )
 
     # add output parameters from observables table
     output_parameters = observables.get_output_parameters(
-        observable_df, sbml_model)
+        observable_df=observable_df, model=model)
     for p in output_parameters:
         if p not in blackset:
             parameter_ids[p] = None
@@ -353,7 +359,7 @@ def get_priors_from_df(parameter_df: pd.DataFrame,
             lb, ub = map_scale([row[LOWER_BOUND], row[UPPER_BOUND]],
                                [row[PARAMETER_SCALE]] * 2)
             pars_str = f'{lb};{ub}'
-        prior_pars = tuple([float(entry) for entry in pars_str.split(';')])
+        prior_pars = tuple(float(entry) for entry in pars_str.split(';'))
 
         # add parameter scale and bounds, as this may be needed
         par_scale = row[PARAMETER_SCALE]

@@ -10,6 +10,9 @@ class Model:
 
     def __init__(self):
         ...
+    # TODO more coherent method names / arguments
+    # TODO doc
+    # TODO remove unused
 
     @staticmethod
     @abc.abstractmethod
@@ -18,6 +21,10 @@ class Model:
 
     @abc.abstractmethod
     def get_parameter_ids(self) -> Iterable[str]:
+        ...
+
+    @abc.abstractmethod
+    def get_parameter_value(self, id_: str) -> float:
         ...
 
     @abc.abstractmethod
@@ -38,6 +45,22 @@ class Model:
 
     @abc.abstractmethod
     def get_valid_parameters_for_parameter_table(self) -> Iterable[str]:
+        ...
+
+    @abc.abstractmethod
+    def get_valid_ids_for_condition_table(self) -> Iterable[str]:
+        ...
+
+    @abc.abstractmethod
+    def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def validate(self) -> bool:
+        """Validate model
+
+        :returns: `True` if errors occurred, `False` otherwise.
+        """
         ...
 
 
