@@ -83,12 +83,9 @@ setup(name='petab',
               'sphinxcontrib-napoleon>=0.7',
               'sphinx-markdown-tables>=0.0.15',
               'sphinx-rtd-theme>=0.5.1',
-              'myst-parser>=0.16.1',
-              'nbsphinx>=0.8.2',
-              'm2r>=0.2.1',
+              'm2r2',
+              'myst-nb>=0.14.0',
               'ipython>=7.21.0',
-              # https://github.com/spatialaudio/nbsphinx/issues/641
-              'Jinja2==3.0.3',
           ]
       }
       )
