@@ -50,9 +50,8 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
-    'myst_parser',
     'sphinx_markdown_tables',
-    'nbsphinx',
+    'myst_nb',
 ]
 
 intersphinx_mapping = {
@@ -73,6 +72,9 @@ exclude_patterns = [
     'build/html',
     '**.ipynb_checkpoints',
     'logo/LICENSE.md',
+    # TODO update and un-exclude
+    'example/example_visualization.ipynb',
+    'example/example_visualization_without_visspec.ipynb',
 ]
 
 master_doc = 'index'
@@ -90,10 +92,14 @@ autodoc_default_options = {
 # For some reason causes sphinx import errors otherwise
 autodoc_mock_imports = ['yaml']
 
+# myst_nb options
+#  https://myst-nb.readthedocs.io/en/latest/configuration.html
+nb_execution_mode = "force"
+
+
 source_suffix = {
     '.rst': 'restructuredtext',
     '.txt': 'restructuredtext',
-    '.md': 'markdown',
 }
 
 # ignore numpy warnings

@@ -9,8 +9,6 @@ The following examples should help to get a better idea of how to use the PEtab 
    :maxdepth: 1
 
    example/example_petablint.ipynb
-   example/example_visualization.ipynb
-   example/example_visualization_without_visspec.ipynb
    example/example_visualization_with_visspec.ipynb
 
 Examples of systems biology parameter estimation problems specified in PEtab
