@@ -112,4 +112,4 @@ class SbmlModel(Model):
     def is_valid(self) -> bool:
         valid = is_sbml_consistent(self.sbml_model.getSBMLDocument())
         log_sbml_errors(self.sbml_model.getSBMLDocument())
-        return not valid
+        return valid
