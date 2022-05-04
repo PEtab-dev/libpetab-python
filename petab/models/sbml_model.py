@@ -109,7 +109,7 @@ class SbmlModel(Model):
     def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
         return self.sbml_model.getElementBySId(id_) or id_ == 'time'
 
-    def validate(self) -> bool:
+    def is_valid(self) -> bool:
         valid = is_sbml_consistent(self.sbml_model.getSBMLDocument())
         log_sbml_errors(self.sbml_model.getSBMLDocument())
         return not valid

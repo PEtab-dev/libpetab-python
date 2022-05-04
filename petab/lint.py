@@ -764,7 +764,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     # Run checks on individual files
     if problem.model is not None:
         logger.info("Checking model...")
-        errors_occurred |= problem.model.validate()
+        errors_occurred |= not problem.model.is_valid()
     else:
         logger.warning("Model not available. Skipping.")
 
