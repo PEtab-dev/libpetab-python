@@ -9,14 +9,6 @@ import subprocess
 import sys
 import warnings
 
-# Sphinx autosummary does not handle well submodules and functions with
-#  identical names if the function is part of __all__ of the parent module.
-#  This is way, we get autosummary to create the submodule documentation:
-import petab
-from petab.visualize.plot_data_and_simulation import plot_data_and_simulation
-petab.visualize.plot_data_and_simulation = \
-    sys.modules['petab.visualize.plot_data_and_simulation']
-
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
