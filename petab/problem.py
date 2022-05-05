@@ -127,42 +127,34 @@ class Problem:
              "future version. Use `petab.Problem.from_yaml instead.",
              DeprecationWarning, stacklevel=2)
 
-        sbml_model = sbml_document = sbml_reader = None
-        condition_df = measurement_df = parameter_df = visualization_df = None
-        observable_df = None
+        model = model_factory(sbml_file, 'sbml') if sbml_file else None
 
-        if condition_file:
-            condition_df = conditions.get_condition_df(condition_file)
+        condition_df = conditions.get_condition_df(condition_file) \
+            if condition_file else None
 
-        if measurement_file:
-            # If there are multiple tables, we will merge them
-            measurement_df = core.concat_tables(
-                measurement_file, measurements.get_measurement_df)
+        # If there are multiple tables, we will merge them
+        measurement_df = core.concat_tables(
+            measurement_file, measurements.get_measurement_df) \
+            if measurement_file else None
 
-        if parameter_file:
-            parameter_df = parameters.get_parameter_df(parameter_file)
+        parameter_df = parameters.get_parameter_df(parameter_file) \
+            if parameter_file else None
 
-        if sbml_file:
-            sbml_reader, sbml_document, sbml_model = \
-                sbml.get_sbml_model(sbml_file)
+        # If there are multiple tables, we will merge them
+        visualization_df = core.concat_tables(
+            visualization_files, core.get_visualization_df) \
+            if visualization_files else None
 
-        if visualization_files:
-            # If there are multiple tables, we will merge them
-            visualization_df = core.concat_tables(
-                visualization_files, core.get_visualization_df)
+        # If there are multiple tables, we will merge them
+        observable_df = core.concat_tables(
+            observable_files, observables.get_observable_df) \
+            if observable_files else None
 
-        if observable_files:
-            # If there are multiple tables, we will merge them
-            observable_df = core.concat_tables(
-                observable_files, observables.get_observable_df)
-
-        return Problem(condition_df=condition_df,
+        return Problem(model=model,
+                       condition_df=condition_df,
                        measurement_df=measurement_df,
                        parameter_df=parameter_df,
                        observable_df=observable_df,
-                       sbml_model=sbml_model,
-                       sbml_document=sbml_document,
-                       sbml_reader=sbml_reader,
                        visualization_df=visualization_df)
 
     @staticmethod

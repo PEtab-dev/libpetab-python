@@ -1,15 +1,18 @@
 import copy
 import pickle
 import tempfile
+import warnings
 from math import nan
 from pathlib import Path
 
 import libsbml
 import numpy as np
 import pandas as pd
-import petab
 import pytest
+
+import petab
 from petab.C import *
+from petab.models.sbml_model import SbmlModel
 
 
 @pytest.fixture
@@ -201,6 +204,7 @@ def test_create_parameter_df(
     ss_model.addSpecies('[x1]', 1.0)
     ss_model.addParameter('fixedParameter1', 2.0)
     ss_model.addParameter('p0', 3.0)
+    model = SbmlModel(sbml_model=ss_model.model)
 
     observable_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['obs1', 'obs2'],
@@ -217,16 +221,28 @@ def test_create_parameter_df(
         NOISE_PARAMETERS: ['p3;p4', 'p5']
     })
 
-    parameter_df = petab.create_parameter_df(
-        ss_model.model,
-        condition_df_2_conditions,
-        observable_df,
-        measurement_df)
-
     # first model parameters, then row by row noise and sigma overrides
     expected = ['p3', 'p4', 'p1', 'p2', 'p5']
-    actual = parameter_df.index.values.tolist()
-    assert actual == expected
+
+    # Test old API with passing libsbml.Model directly
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        parameter_df = petab.create_parameter_df(
+            ss_model.model,
+            condition_df_2_conditions,
+            observable_df,
+            measurement_df)
+        assert len(w) == 1
+        assert issubclass(w[-1].category, DeprecationWarning)
+        assert parameter_df.index.values.tolist() == expected
+
+    parameter_df = petab.create_parameter_df(
+        model=model,
+        condition_df=condition_df_2_conditions,
+        observable_df=observable_df,
+        measurement_df=measurement_df
+    )
+    assert parameter_df.index.values.tolist() == expected
 
     # test with condition parameter override:
     condition_df_2_conditions.loc['condition2', 'fixedParameter1'] \
@@ -234,10 +250,11 @@ def test_create_parameter_df(
     expected = ['p3', 'p4', 'p1', 'p2', 'p5', 'overrider']
 
     parameter_df = petab.create_parameter_df(
-        ss_model.model,
-        condition_df_2_conditions,
-        observable_df,
-        measurement_df)
+        model=model,
+        condition_df=condition_df_2_conditions,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
+    )
     actual = parameter_df.index.values.tolist()
     assert actual == expected
 
@@ -245,10 +262,10 @@ def test_create_parameter_df(
     expected = ['p0', 'p3', 'p4', 'p1', 'p2', 'p5', 'overrider']
 
     parameter_df = petab.create_parameter_df(
-        ss_model.model,
-        condition_df_2_conditions,
-        observable_df,
-        measurement_df,
+        model=model,
+        condition_df=condition_df_2_conditions,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
         include_optional=True)
     actual = parameter_df.index.values.tolist()
     assert actual == expected
