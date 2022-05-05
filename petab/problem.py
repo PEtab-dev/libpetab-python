@@ -337,7 +337,10 @@ class Problem:
             if getattr(self, f'{table_name}_df') is not None:
                 filenames[f'{table_name}_file'] = f'{table_name}s.tsv'
 
-        if self.sbml_document is not None:
+        if self.model:
+            if not isinstance(self.model, SbmlModel):
+                raise NotImplementedError("Saving non-SBML models is "
+                                          "currently not supported.")
             filenames['sbml_file'] = 'model.xml'
 
         filenames['yaml_file'] = 'problem.yaml'
@@ -475,6 +478,11 @@ class Problem:
 
     def get_model_parameters(self):
         """See :py:func:`petab.sbml.get_model_parameters`"""
+        warn("petab.Problem.get_model_parameters is deprecated and will be "
+             "removed in a future version. Use "
+             "`petab.Problem.model.get_parameter_ids` instead.",
+             DeprecationWarning, stacklevel=2)
+
         return sbml.get_model_parameters(self.sbml_model)
 
     def get_observable_ids(self):
@@ -713,10 +721,10 @@ class Problem:
         See :py:func:`create_parameter_df`.
         """
         return parameters.create_parameter_df(
-            self.sbml_model,
-            self.condition_df,
-            self.observable_df,
-            self.measurement_df,
+            model=self.model,
+            condition_df=self.condition_df,
+            observable_df=self.observable_df,
+            measurement_df=self.measurement_df,
             *args, **kwargs)
 
     def sample_parameter_startpoints(self, n_starts: int = 100):
