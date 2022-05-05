@@ -13,7 +13,7 @@ import pandas as pd
 from . import (conditions, core, format_version, measurements, observables,
                parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
-from .models.model import Model
+from .models.model import Model, model_factory
 from .models.sbml_model import SbmlModel
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class Problem:
     """
     PEtab parameter estimation problem as defined by
 
-    - SBML model
+    - model
     - condition table
     - measurement table
     - parameter table
@@ -41,9 +41,10 @@ class Problem:
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
         visualization_df: PEtab visualization table
-        sbml_reader: Stored to keep object alive.
-        sbml_document: Stored to keep object alive.
-        sbml_model: PEtab SBML model
+        model: The underlying model
+        sbml_reader: Stored to keep object alive (deprecated).
+        sbml_document: Stored to keep object alive (deprecated).
+        sbml_model: PEtab SBML model (deprecated)
     """
 
     def __init__(self,
@@ -109,7 +110,7 @@ class Problem:
             visualization_files: Union[str, Path,
                                        Iterable[Union[str, Path]]] = None,
             observable_files: Union[str, Path,
-                                    Iterable[Union[str, Path]]] = None
+                                    Iterable[Union[str, Path]]] = None,
     ) -> 'Problem':
         """
         Factory method to load model and tables from files.
@@ -122,6 +123,9 @@ class Problem:
             visualization_files: PEtab visualization tables
             observable_files: PEtab observables tables
         """
+        warn("petab.Problem.from_files is deprecated and will be removed in a "
+             "future version. Use `petab.Problem.from_yaml instead.",
+             DeprecationWarning, stacklevel=2)
 
         sbml_model = sbml_document = sbml_reader = None
         condition_df = measurement_df = parameter_df = visualization_df = None
@@ -214,25 +218,53 @@ class Problem:
         yaml.assert_single_condition_and_sbml_file(problem0)
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
-            parameter_file = [
-                get_path(f) for f in yaml_config[PARAMETER_FILE]
+            parameter_df = [
+                parameters.get_parameter_df(get_path(f))
+                for f in yaml_config[PARAMETER_FILE]
             ]
         else:
-            parameter_file = get_path(yaml_config[PARAMETER_FILE]) \
+            parameter_df = parameters.get_parameter_df(
+                get_path(yaml_config[PARAMETER_FILE])) \
                 if yaml_config[PARAMETER_FILE] else None
 
-        return Problem.from_files(
-            sbml_file=get_path(problem0[SBML_FILES][0])
-            if problem0[SBML_FILES] else None,
-            measurement_file=[get_path(f)
-                              for f in problem0[MEASUREMENT_FILES]],
-            condition_file=get_path(problem0[CONDITION_FILES][0]),
-            parameter_file=parameter_file,
-            visualization_files=[
-                get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
-            observable_files=[
-                get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
-        )
+        model = model_factory(get_path(problem0[SBML_FILES][0]), 'sbml') \
+            if problem0[SBML_FILES] else None
+
+        if problem0[MEASUREMENT_FILES]:
+            measurement_files = [
+                get_path(f) for f in problem0[MEASUREMENT_FILES]
+            ]
+            # If there are multiple tables, we will merge them
+            measurement_df = core.concat_tables(
+                measurement_files, measurements.get_measurement_df) \
+                if measurement_files else None
+        else:
+            measurement_df = None
+
+        condition_df = conditions.get_condition_df(
+            get_path(problem0[CONDITION_FILES][0])) \
+            if problem0[CONDITION_FILES][0] else None
+
+        visualization_files = [
+            get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])]
+        # If there are multiple tables, we will merge them
+        visualization_df = core.concat_tables(
+            visualization_files, core.get_visualization_df) \
+            if visualization_files else None
+
+        observable_files = [
+            get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
+        # If there are multiple tables, we will merge them
+        observable_df = core.concat_tables(
+            observable_files, observables.get_observable_df) \
+            if observable_files else None
+
+        return Problem(condition_df=condition_df,
+                       measurement_df=measurement_df,
+                       parameter_df=parameter_df,
+                       observable_df=observable_df,
+                       model=model,
+                       visualization_df=visualization_df)
 
     @staticmethod
     def from_combine(filename: Union[Path, str]) -> 'Problem':
