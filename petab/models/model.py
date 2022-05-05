@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import abc
 from typing import Any, Iterable, Tuple
+from . import MODEL_TYPE_SBML, known_model_types
 
 
 class Model:
@@ -22,6 +23,12 @@ class Model:
         :param filepath_or_buffer: URL or path of the model
         :returns: A ``Model`` instance holding the given model
         """
+        ...
+
+    @classmethod
+    @property
+    @abc.abstractmethod
+    def type_id(cls):
         ...
 
     @abc.abstractmethod
@@ -114,9 +121,12 @@ def model_factory(filepath_or_buffer: Any, model_language: str) -> Model:
     :param model_language: PEtab model language ID for the given model
     :returns: A :py:class:`Model` instance representing the given model
     """
-
-    if model_language == "sbml":
+    if model_language == MODEL_TYPE_SBML:
         from .sbml_model import SbmlModel
         return SbmlModel.from_file(filepath_or_buffer)
 
-    raise ValueError(f"Unsupported model format: {model_language}")
+    if model_language in known_model_types:
+        raise NotImplementedError(
+            f"Unsupported model format: {model_language}")
+
+    raise ValueError(f"Unknown model format: {model_language}")

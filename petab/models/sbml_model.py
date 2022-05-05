@@ -5,6 +5,7 @@ from typing import Iterable, Optional, Tuple
 
 import libsbml
 
+from . import MODEL_TYPE_SBML
 from .model import Model
 from ..sbml import (get_sbml_model, is_sbml_consistent, load_sbml_from_string,
                     log_sbml_errors)
@@ -12,6 +13,9 @@ from ..sbml import (get_sbml_model, is_sbml_consistent, load_sbml_from_string,
 
 class SbmlModel(Model):
     """PEtab wrapper for SBML models"""
+
+    type_id = MODEL_TYPE_SBML
+
     def __init__(
             self,
             sbml_model: libsbml.Model = None,

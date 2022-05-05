@@ -13,6 +13,7 @@ import pandas as pd
 from . import (conditions, core, format_version, measurements, observables,
                parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
+from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
 from .models.sbml_model import SbmlModel
 
@@ -127,7 +128,8 @@ class Problem:
              "future version. Use `petab.Problem.from_yaml instead.",
              DeprecationWarning, stacklevel=2)
 
-        model = model_factory(sbml_file, 'sbml') if sbml_file else None
+        model = model_factory(sbml_file, MODEL_TYPE_SBML) \
+            if sbml_file else None
 
         condition_df = conditions.get_condition_df(condition_file) \
             if condition_file else None
@@ -219,7 +221,8 @@ class Problem:
                 get_path(yaml_config[PARAMETER_FILE])) \
                 if yaml_config[PARAMETER_FILE] else None
 
-        model = model_factory(get_path(problem0[SBML_FILES][0]), 'sbml') \
+        model = model_factory(get_path(problem0[SBML_FILES][0]),
+                              MODEL_TYPE_SBML) \
             if problem0[SBML_FILES] else None
 
         if problem0[MEASUREMENT_FILES]:
