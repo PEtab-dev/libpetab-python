@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import abc
+from pathlib import Path
 from typing import Any, Iterable, Tuple
+
 from . import MODEL_TYPE_SBML, known_model_types
 
 
@@ -22,6 +24,14 @@ class Model:
 
         :param filepath_or_buffer: URL or path of the model
         :returns: A ``Model`` instance holding the given model
+        """
+        ...
+
+    @abc.abstractmethod
+    def to_file(self, filename: [str, Path]):
+        """Save the model to the given file
+
+        :param filename: Destination filename
         """
         ...
 

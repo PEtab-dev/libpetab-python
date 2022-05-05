@@ -356,6 +356,7 @@ class Problem:
                  yaml_file: Union[None, str, Path] = None,
                  prefix_path: Union[None, str, Path] = None,
                  relative_paths: bool = True,
+                 model_file: Union[None, str, Path] = None,
                  ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -404,11 +405,18 @@ class Problem:
             yaml_file = add_prefix(yaml_file)
 
         if sbml_file:
-            if self.sbml_document is not None:
-                sbml.write_sbml(self.sbml_document, sbml_file)
-            else:
-                raise ValueError("Unable to save SBML model with no "
-                                 "sbml_doc set.")
+            warn("The `sbml_file` argument is deprecated and will be "
+                 "removed in a future version. Use `model_file` instead.",
+                 DeprecationWarning, stacklevel=2)
+
+            if model_file:
+                raise ValueError("Must provide either `sbml_file` or "
+                                 "`model_file` argument, but not both.")
+
+            model_file = sbml_file
+
+        if model_file:
+            self.model.to_file(model_file)
 
         def error(name: str) -> ValueError:
             return ValueError(f"Unable to save non-existent {name} table")

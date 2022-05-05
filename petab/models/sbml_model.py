@@ -1,6 +1,7 @@
 """Functions for handling SBML models"""
 
 import itertools
+from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
 import libsbml
@@ -63,6 +64,11 @@ class SbmlModel(Model):
             sbml_reader=sbml_reader,
             sbml_document=sbml_document,
         )
+
+    def to_file(self, filename: [str, Path]):
+        from ..sbml import write_sbml
+        write_sbml(self.sbml_document or self.sbml_model.getSBMLDocument(),
+                   filename)
 
     def get_parameter_ids(self) -> Iterable[str]:
         return (
