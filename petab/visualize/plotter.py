@@ -222,7 +222,7 @@ class MPLPlotter(Plotter):
             self.data_provider.get_data_to_plot(dataplot,
                                                 plotTypeData == PROVIDED)
 
-        if simulations_to_plot is None:
+        if simulations_to_plot is None or measurements_to_plot is None:
             raise NotImplementedError('Scatter plots do not work without'
                                       ' simulation data')
         ax.scatter(measurements_to_plot.data_to_plot['mean'],
