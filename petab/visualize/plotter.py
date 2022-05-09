@@ -194,12 +194,11 @@ class MPLPlotter(Plotter):
             p = ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
                        yerr=measurements_to_plot.data_to_plot[noise_col],
                        color=color, **bar_kwargs, label='measurement')
-            simu_colors = p[0].get_facecolor()
 
         if simulations_to_plot is not None:
             bar_kwargs['width'] = -bar_kwargs['width']
             ax.bar(x_name, simulations_to_plot.data_to_plot['mean'],
-                   color='white', edgecolor=simu_colors, **bar_kwargs,
+                   color='white', edgecolor=color, **bar_kwargs,
                    label='simulation')
 
     def generate_scatterplot(self, ax: 'matplotlib.pyplot.Axes',
