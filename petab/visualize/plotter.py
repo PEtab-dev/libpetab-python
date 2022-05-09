@@ -7,6 +7,7 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.ticker as mtick
 
 from .plotting import (Figure, DataProvider, Subplot, DataPlot)
@@ -65,7 +66,7 @@ class MPLPlotter(Plotter):
             return 'noise_model'
         return None
 
-    def generate_lineplot(self, ax: 'matplotlib.pyplot.Axes',
+    def generate_lineplot(self, fig, ax: 'matplotlib.pyplot.Axes',
                           dataplot: DataPlot,
                           plotTypeData: str) -> None:
         """
@@ -122,10 +123,57 @@ class MPLPlotter(Plotter):
                         measurements_to_plot.conditions,
                         measurements_to_plot.data_to_plot['mean'],
                         measurements_to_plot.data_to_plot[noise_col])))
-                p = ax.errorbar(
-                    scond, smean, snoise,
-                    linestyle='-.', marker='.', label=label_base
-                )
+
+                if np.inf in scond:
+                    divider = make_axes_locatable(ax)
+                    ax2 = divider.new_horizontal(size="10%", pad=0.3)
+                    fig.add_axes(ax2)
+
+                    scond_finite = list(scond)
+                    smean_finite = list(smean)
+                    snoise_finite = list(snoise)
+
+                    left = min(scond_finite)
+                    right = max(scond_finite[:-1])
+
+                    t_inf = right + (right-left)*0.1
+                    # scond_finite[-1] = t_inf
+
+                    p = ax.errorbar(
+                        scond_finite[:-1], smean_finite[:-1],
+                        snoise_finite[:-1],
+                        linestyle='-.', marker='.', label=label_base,
+                        clip_on=False
+                    )
+                    left, right = ax.set_xlim(right=right)
+                    ax.spines['right'].set_visible(False)
+                    ax2.errorbar(
+                        t_inf, smean_finite[-1], snoise_finite[-1],
+                        linestyle='-.', marker='.', label=label_base,
+                        color=p[0].get_color()
+                    )
+                    ax2.set_xlim(right,
+                                 right + (right-left)*0.2)
+                    ax2.tick_params(left=False, labelleft=False)
+                    ax2.spines['left'].set_visible(False)
+                    ax2.set_xticks([t_inf])
+                    ax2.set_xticklabels(['$t_{\infty}$'])
+
+                    # From https://matplotlib.org/examples/pylab_examples/broken_axis.html
+                    d = .01  # how big to make the diagonal lines in axes coordinates
+                    # arguments to pass to plot, just so we don't keep repeating them
+                    kwargs = dict(transform=ax2.transAxes, color='k', clip_on=False)
+                    ax2.plot((-d, +d), (-d, +d), **kwargs)        # bottom-right diagonal
+                    ax2.plot((-d, d), (1 - d, 1+d), **kwargs)  # top-right diagonal
+
+                    kwargs.update(transform=ax.transAxes)  # switch to the bottom axes
+                    ax.plot((1-d, 1+d), (1 - d, 1 + d), **kwargs)  # top-left diagonal
+                    ax.plot((1 - d,  1+ d), ( -d, d), **kwargs)  # bottom-left diagonal
+                else:
+                    p = ax.errorbar(
+                        scond, smean, snoise,
+                        linestyle='-.', marker='.', label=label_base
+                    )
 
             # simulations should have the same colors if both measurements
             # and simulations are plotted
@@ -231,6 +279,7 @@ class MPLPlotter(Plotter):
         self._square_plot_equal_ranges(ax)
 
     def generate_subplot(self,
+                         fig,
                          ax,
                          subplot: Subplot) -> None:
         """
@@ -299,7 +348,7 @@ class MPLPlotter(Plotter):
                                      'monotonically decreasing')
 
             for data_plot in subplot.data_plots:
-                self.generate_lineplot(ax, data_plot, subplot.plotTypeData)
+                self.generate_lineplot(fig, ax, data_plot, subplot.plotTypeData)
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
@@ -370,7 +419,7 @@ class MPLPlotter(Plotter):
             else:
                 ax = axes[subplot.plotId]
 
-            self.generate_subplot(ax, subplot)
+            self.generate_subplot(fig, ax, subplot)
 
             if subplot_dir is not None:
                 # TODO: why this doesn't work?
