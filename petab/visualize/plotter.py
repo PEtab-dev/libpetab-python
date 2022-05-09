@@ -170,7 +170,6 @@ class MPLPlotter(Plotter):
         # TODO: plotTypeData == REPLICATE?
         noise_col = self._error_column_for_plot_type_data(plotTypeData)
 
-        simu_colors = None
         measurements_to_plot, simulations_to_plot = \
             self.data_provider.get_data_to_plot(dataplot,
                                                 plotTypeData == PROVIDED)
@@ -191,9 +190,9 @@ class MPLPlotter(Plotter):
         color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
 
         if measurements_to_plot is not None:
-            p = ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
-                       yerr=measurements_to_plot.data_to_plot[noise_col],
-                       color=color, **bar_kwargs, label='measurement')
+            ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
+                   yerr=measurements_to_plot.data_to_plot[noise_col],
+                   color=color, **bar_kwargs, label='measurement')
 
         if simulations_to_plot is not None:
             bar_kwargs['width'] = -bar_kwargs['width']
