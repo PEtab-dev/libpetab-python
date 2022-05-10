@@ -65,7 +65,6 @@ exclude_patterns = [
     '**.ipynb_checkpoints',
     'logo/LICENSE.md',
     # TODO update and un-exclude
-    'example/example_visualization.ipynb',
     'example/example_visualization_without_visspec.ipynb',
 ]
 

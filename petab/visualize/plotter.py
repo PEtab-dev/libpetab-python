@@ -170,7 +170,6 @@ class MPLPlotter(Plotter):
         # TODO: plotTypeData == REPLICATE?
         noise_col = self._error_column_for_plot_type_data(plotTypeData)
 
-        simu_colors = None
         measurements_to_plot, simulations_to_plot = \
             self.data_provider.get_data_to_plot(dataplot,
                                                 plotTypeData == PROVIDED)
@@ -191,15 +190,14 @@ class MPLPlotter(Plotter):
         color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
 
         if measurements_to_plot is not None:
-            p = ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
-                       yerr=measurements_to_plot.data_to_plot[noise_col],
-                       color=color, **bar_kwargs, label='measurement')
-            simu_colors = p[0].get_facecolor()
+            ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
+                   yerr=measurements_to_plot.data_to_plot[noise_col],
+                   color=color, **bar_kwargs, label='measurement')
 
         if simulations_to_plot is not None:
             bar_kwargs['width'] = -bar_kwargs['width']
             ax.bar(x_name, simulations_to_plot.data_to_plot['mean'],
-                   color='white', edgecolor=simu_colors, **bar_kwargs,
+                   color='white', edgecolor=color, **bar_kwargs,
                    label='simulation')
 
     def generate_scatterplot(self, ax: 'matplotlib.pyplot.Axes',
@@ -222,7 +220,7 @@ class MPLPlotter(Plotter):
             self.data_provider.get_data_to_plot(dataplot,
                                                 plotTypeData == PROVIDED)
 
-        if simulations_to_plot is None:
+        if simulations_to_plot is None or measurements_to_plot is None:
             raise NotImplementedError('Scatter plots do not work without'
                                       ' simulation data')
         ax.scatter(measurements_to_plot.data_to_plot['mean'],
