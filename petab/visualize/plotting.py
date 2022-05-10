@@ -52,8 +52,8 @@ class DataSeries:
 
         self.conditions = conditions_
         # sort index for the case that indices of conditions and
-        # measurements differ if indep_var='time', conditions is a
-        # numpy array, for indep_var=observable its a Series
+        # measurements differ. if indep_var='time', conditions is a
+        # numpy array, if indep_var=observable its a Series
         if isinstance(self.conditions, np.ndarray):
             self.conditions.sort()
         elif isinstance(self.conditions, pd.Series):
