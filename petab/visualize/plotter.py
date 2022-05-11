@@ -69,7 +69,9 @@ class MPLPlotter(Plotter):
 
     def generate_lineplot(self, fig, ax: 'matplotlib.pyplot.Axes',
                           dataplot: DataPlot,
-                          plotTypeData: str) -> None:
+                          plotTypeData: str,
+                          ax_inf: Optional[matplotlib.axes.Axes] = None
+                          ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Generate lineplot.
 
@@ -170,14 +172,16 @@ class MPLPlotter(Plotter):
 
         # plot inf points
         if split_axes:
-            self._split_axes_line_plot(
-                fig, ax, plotTypeData,
+            ax, ax_inf = self._split_axes_line_plot(
+                fig, ax, ax_inf, plotTypeData,
                 measurements_to_plot,
                 simulations_to_plot,
                 noise_col,
                 label_base,
                 color=simu_color
             )
+
+        return ax, ax_inf
 
     def generate_barplot(self, ax: 'matplotlib.pyplot.Axes',
                          dataplot: DataPlot,
@@ -326,8 +330,10 @@ class MPLPlotter(Plotter):
                                      'some are mon. increasing, some '
                                      'monotonically decreasing')
 
+            ax_inf = None
             for data_plot in subplot.data_plots:
-                self.generate_lineplot(fig, ax, data_plot, subplot.plotTypeData)
+                ax, ax_inf = self.generate_lineplot(
+                    fig, ax, data_plot, subplot.plotTypeData, ax_inf)
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
@@ -444,15 +450,19 @@ class MPLPlotter(Plotter):
     @staticmethod
     def _split_axes_line_plot(fig,
                               ax: matplotlib.axes.Axes,
+                              ax_inf: Optional[matplotlib.axes.Axes],
                               plotTypeData: str,
                               measurements_to_plot: DataSeries,
                               simulations_to_plot: DataSeries,
                               noise_col,
                               label_base: str,
                               color=None):
-        divider = make_axes_locatable(ax)
-        ax2 = divider.new_horizontal(size="10%", pad=0.3)
-        fig.add_axes(ax2)
+        first_iter = False
+        if ax_inf is None:
+            divider = make_axes_locatable(ax)
+            first_iter = True
+            ax_inf = divider.new_horizontal(size="10%", pad=0.3)
+            fig.add_axes(ax_inf)
 
         if measurements_to_plot is not None:
             measurements_data_to_plot_inf = \
@@ -460,13 +470,12 @@ class MPLPlotter(Plotter):
             measurements_to_plot.conditions.sort()
             left = min(measurements_to_plot.conditions)
             ax_right_limit = measurements_to_plot.conditions[-2]
-            left = min(measurements_to_plot.conditions)
             t_inf = ax_right_limit + (ax_right_limit-left)*0.1
             if plotTypeData == REPLICATE:
                 # todo
                 pass
             else:
-                ax2.errorbar(
+                ax_inf.errorbar(
                     t_inf, measurements_data_to_plot_inf['mean'],
                     measurements_data_to_plot_inf[noise_col],
                     linestyle='-.', marker='.', label=label_base,
@@ -477,28 +486,32 @@ class MPLPlotter(Plotter):
             simulations_data_to_plot_inf = \
                 simulations_to_plot.data_to_plot.loc[np.inf]
 
+        bottom, top = ax.get_ylim()
         left, right = ax.set_xlim(right=ax_right_limit)
         ax.spines['right'].set_visible(False)
 
-        ax2.set_xlim(right,
-                     right + (right-left)*0.2)
-        ax2.tick_params(left=False, labelleft=False)
-        ax2.spines['left'].set_visible(False)
-        ax2.set_xticks([t_inf])
-        ax2.set_xticklabels(['$t_{\infty}$'])
+        ax_inf.set_xlim(right,
+                        right + (right-left)*0.2)
+        ax_inf.set_ylim(bottom, top)
 
-        # From https://matplotlib.org/examples/pylab_examples/broken_axis.html
-        d = .01  # how big to make the diagonal lines in axes coordinates
-        # arguments to pass to plot, just so we don't keep repeating them
-        kwargs = dict(transform=ax2.transAxes, color='k', clip_on=False)
-        ax2.plot((-d, +d), (-d, +d), **kwargs)     # bottom-right diagonal
-        ax2.plot((-d, d), (1-d, 1+d), **kwargs)    # top-right diagonal
+        if first_iter:
+            ax_inf.tick_params(left=False, labelleft=False)
+            ax_inf.spines['left'].set_visible(False)
+            ax_inf.set_xticks([t_inf])
+            ax_inf.set_xticklabels(['$t_{\infty}$'])
 
-        # todo: the left one is ugly
-        kwargs.update(transform=ax.transAxes)      # switch to the bottom axes
-        ax.plot((1-d, 1+d), (1-d, 1+d), **kwargs)  # top-left diagonal
-        ax.plot((1-d, 1+d), (-d, d), **kwargs)     # bottom-left diagonal
-        return ax
+            # From https://matplotlib.org/examples/pylab_examples/broken_axis.html
+            d = .01  # how big to make the diagonal lines in axes coordinates
+            # arguments to pass to plot, just so we don't keep repeating them
+            kwargs = dict(transform=ax_inf.transAxes, color='k', clip_on=False)
+            ax_inf.plot((-d, +d), (-d, +d), **kwargs)     # bottom-right diagonal
+            ax_inf.plot((-d, d), (1-d, 1+d), **kwargs)    # top-right diagonal
+
+            # todo: the left ones are ugly
+            kwargs.update(transform=ax.transAxes)      # switch to the bottom axes
+            ax.plot((1-d, 1+d), (1-d, 1+d), **kwargs)  # top-left diagonal
+            ax.plot((1-d, 1+d), (-d, d), **kwargs)     # bottom-left diagonal
+        return ax, ax_inf
 
 
 class SeabornPlotter(Plotter):
