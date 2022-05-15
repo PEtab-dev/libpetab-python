@@ -334,6 +334,21 @@ class MPLPlotter(Plotter):
             for data_plot in subplot.data_plots:
                 ax, ax_inf = self.generate_lineplot(
                     fig, ax, data_plot, subplot.plotTypeData, ax_inf)
+            if ax_inf is not None:
+                bottom, top = ax.get_ylim()
+                left, right = ax.get_xlim()
+                ax.spines['right'].set_visible(False)
+
+                ax_inf.set_xlim(right,
+                                right + (right-left)*0.2)
+
+                d = (top-bottom)*0.02
+                ax_inf.vlines(x=right, ymin=bottom+d, ymax=top-d, ls='--',
+                              color='gray')    # right
+                ax.vlines(x=right, ymin=bottom+d, ymax=top-d, ls='--',
+                          color='gray')  # left
+                ax_inf.set_ylim(bottom, top)
+                ax.set_ylim(bottom, top)
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
@@ -475,6 +490,11 @@ class MPLPlotter(Plotter):
                 # todo
                 pass
             else:
+                ax_inf.plot([ax_right_limit,
+                             ax_right_limit + (ax_right_limit-left)*0.2],
+                            [measurements_data_to_plot_inf['mean'],
+                             measurements_data_to_plot_inf['mean']],
+                            linestyle='-.', color=color)
                 ax_inf.errorbar(
                     t_inf, measurements_data_to_plot_inf['mean'],
                     measurements_data_to_plot_inf[noise_col],
@@ -486,31 +506,12 @@ class MPLPlotter(Plotter):
             simulations_data_to_plot_inf = \
                 simulations_to_plot.data_to_plot.loc[np.inf]
 
-        bottom, top = ax.get_ylim()
-        left, right = ax.set_xlim(right=ax_right_limit)
-        ax.spines['right'].set_visible(False)
-
-        ax_inf.set_xlim(right,
-                        right + (right-left)*0.2)
-        ax_inf.set_ylim(bottom, top)
-
+        ax.set_xlim(right=ax_right_limit)
         if first_iter:
             ax_inf.tick_params(left=False, labelleft=False)
             ax_inf.spines['left'].set_visible(False)
             ax_inf.set_xticks([t_inf])
             ax_inf.set_xticklabels(['$t_{\infty}$'])
-
-            # From https://matplotlib.org/examples/pylab_examples/broken_axis.html
-            d = .01  # how big to make the diagonal lines in axes coordinates
-            # arguments to pass to plot, just so we don't keep repeating them
-            kwargs = dict(transform=ax_inf.transAxes, color='k', clip_on=False)
-            ax_inf.plot((-d, +d), (-d, +d), **kwargs)     # bottom-right diagonal
-            ax_inf.plot((-d, d), (1-d, 1+d), **kwargs)    # top-right diagonal
-
-            # todo: the left ones are ugly
-            kwargs.update(transform=ax.transAxes)      # switch to the bottom axes
-            ax.plot((1-d, 1+d), (1-d, 1+d), **kwargs)  # top-left diagonal
-            ax.plot((1-d, 1+d), (-d, d), **kwargs)     # bottom-left diagonal
         return ax, ax_inf
 
 
