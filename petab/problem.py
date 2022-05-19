@@ -369,6 +369,7 @@ class Problem:
 
         Arguments:
             sbml_file: SBML model destination
+            model_file: Model destination
             condition_file: Condition table destination
             measurement_file: Measurement table destination
             parameter_file: Parameter table destination
@@ -388,22 +389,6 @@ class Problem:
             ValueError:
                 If a destination was provided for a non-existing entity.
         """
-        if prefix_path is not None:
-            prefix_path = Path(prefix_path)
-
-            def add_prefix(path0: Union[None, str, Path]) -> str:
-                if path0 is None:
-                    return path0
-                return str(prefix_path / path0)
-
-            sbml_file = add_prefix(sbml_file)
-            condition_file = add_prefix(condition_file)
-            measurement_file = add_prefix(measurement_file)
-            parameter_file = add_prefix(parameter_file)
-            observable_file = add_prefix(observable_file)
-            visualization_file = add_prefix(visualization_file)
-            yaml_file = add_prefix(yaml_file)
-
         if sbml_file:
             warn("The `sbml_file` argument is deprecated and will be "
                  "removed in a future version. Use `model_file` instead.",
@@ -414,6 +399,22 @@ class Problem:
                                  "`model_file` argument, but not both.")
 
             model_file = sbml_file
+
+        if prefix_path is not None:
+            prefix_path = Path(prefix_path)
+
+            def add_prefix(path0: Union[None, str, Path]) -> str:
+                if path0 is None:
+                    return path0
+                return str(prefix_path / path0)
+
+            model_file = add_prefix(model_file)
+            condition_file = add_prefix(condition_file)
+            measurement_file = add_prefix(measurement_file)
+            parameter_file = add_prefix(parameter_file)
+            observable_file = add_prefix(observable_file)
+            visualization_file = add_prefix(visualization_file)
+            yaml_file = add_prefix(yaml_file)
 
         if model_file:
             self.model.to_file(model_file)

@@ -142,6 +142,7 @@ def create_parameter_df(
 
     Arguments:
         sbml_model: SBML Model
+        model: PEtab model
         condition_df: PEtab condition DataFrame
         observable_df: PEtab observable DataFrame
         measurement_df: PEtab measurement DataFrame
