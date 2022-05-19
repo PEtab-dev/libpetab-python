@@ -862,32 +862,36 @@ def assert_model_parameters_in_condition_or_parameter_table(
     Raises:
         AssertionError: in case of problems
     """
-
     allowed_in_condition_cols = set(model.get_valid_ids_for_condition_table())
     allowed_in_parameter_table = \
         set(model.get_valid_parameters_for_parameter_table())
+    entities_in_condition_table = set(condition_df.columns) - {CONDITION_NAME}
+    entities_in_parameter_table = set(parameter_df.index.values)
 
-    for parameter_id in model.get_parameter_ids():
-        if parameter_id.startswith('observableParameter'):
-            continue
-        if parameter_id.startswith('noiseParameter'):
-            continue
+    disallowed_in_condition = {
+        x for x in (entities_in_condition_table - allowed_in_condition_cols)
+        # we only check model entities here, not output parameters
+        if model.has_entity_with_id(x)
+    }
+    if disallowed_in_condition:
+        raise AssertionError(f"{disallowed_in_condition} is not "
+                             "allowed to occur in condition table "
+                             "columns.")
 
-        in_parameter_df = parameter_id in parameter_df.index
-        in_condition_df = parameter_id in condition_df.columns
+    disallowed_in_parameters = {
+        x for x in (entities_in_parameter_table - allowed_in_parameter_table)
+        # we only check model entities here, not output parameters
+        if model.has_entity_with_id(x)
+    }
 
-        if in_condition_df and parameter_id not in allowed_in_condition_cols:
-            raise AssertionError(f"Model parameter '{parameter_id}' is not "
-                                 "allowed to occur in condition table "
-                                 "columns.")
-        if in_parameter_df and parameter_id not in allowed_in_parameter_table:
-            raise AssertionError(f"Model parameter '{parameter_id}' is not "
-                                 "allowed to occur in the parameter table.")
+    if disallowed_in_parameters:
+        raise AssertionError(f"{disallowed_in_parameters} is not "
+                             "allowed to occur in the parameters table.")
 
-        if in_parameter_df and in_condition_df:
-            raise AssertionError(f"Model parameter '{parameter_id}' present "
-                                 "in both condition table and parameter "
-                                 "table.")
+    in_both = entities_in_condition_table & entities_in_parameter_table
+    if in_both:
+        raise AssertionError(f"{in_both} are present in both condition table "
+                             "and parameter table.")
 
 
 def assert_measurement_conditions_present_in_condition_table(
