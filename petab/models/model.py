@@ -60,8 +60,14 @@ class Model:
         ...
 
     @abc.abstractmethod
-    def get_parameter_ids_with_values(self) -> Iterable[Tuple[str, float]]:
-        # TODO yet unused
+    def get_free_parameter_ids_with_values(
+            self
+    ) -> Iterable[Tuple[str, float]]:
+        """Get free model parameters along with their values
+
+        Returns:
+            Iterator over tuples of (parameter_id, parameter_value)
+        """
         ...
 
     @abc.abstractmethod
@@ -121,6 +127,11 @@ class Model:
         :returns: `True` if the model is valid, `False` if there are errors in
         this model
         """
+        ...
+
+    @abc.abstractmethod
+    def is_state(self, id_: str) -> bool:
+        """Check whether the given ID corresponds to a model state"""
         ...
 
 

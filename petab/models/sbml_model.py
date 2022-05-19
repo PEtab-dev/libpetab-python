@@ -82,7 +82,9 @@ class SbmlModel(Model):
             raise ValueError(f"Parameter {id_} does not exist.")
         return parameter.getValue()
 
-    def get_parameter_ids_with_values(self) -> Iterable[Tuple[str, float]]:
+    def get_free_parameter_ids_with_values(
+            self
+    ) -> Iterable[Tuple[str, float]]:
         return (
             (p.getId(), p.getValue())
             for p in self.sbml_model.getListOfParameters()
@@ -123,3 +125,8 @@ class SbmlModel(Model):
         valid = is_sbml_consistent(self.sbml_model.getSBMLDocument())
         log_sbml_errors(self.sbml_model.getSBMLDocument())
         return valid
+
+    def is_state(self, id_: str) -> bool:
+        return (self.sbml_model.getSpecies(id_) is not None
+                or self.sbml_model.getCompartment(id_) is not None
+                or self.sbml_model.getRuleByVariable(id_) is not None)

@@ -483,8 +483,7 @@ class Problem:
     def get_model_parameters(self):
         """See :py:func:`petab.sbml.get_model_parameters`"""
         warn("petab.Problem.get_model_parameters is deprecated and will be "
-             "removed in a future version. Use "
-             "`petab.Problem.model.get_parameter_ids` instead.",
+             "removed in a future version.",
              DeprecationWarning, stacklevel=2)
 
         return sbml.get_model_parameters(self.sbml_model)
@@ -706,13 +705,13 @@ class Problem:
         """
         See get_simulation_to_optimization_parameter_mapping.
         """
-        return parameter_mapping\
+        return parameter_mapping \
             .get_optimization_to_simulation_parameter_mapping(
-                self.condition_df,
-                self.measurement_df,
-                self.parameter_df,
-                self.observable_df,
-                self.sbml_model,
+                condition_df=self.condition_df,
+                measurement_df=self.measurement_df,
+                parameter_df=self.parameter_df,
+                observable_df=self.observable_df,
+                model=self.model,
                 warn_unmapped=warn_unmapped,
                 scaled_parameters=scaled_parameters,
                 allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
