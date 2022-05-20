@@ -1,9 +1,11 @@
-import numpy as np
 import os
+
+import numpy as np
 import pandas as pd
 import petab
-from petab.parameter_mapping import _apply_parameter_table
 from petab.C import *
+from petab.models.sbml_model import SbmlModel
+from petab.parameter_mapping import _apply_parameter_table
 
 # import fixtures
 pytest_plugins = [
@@ -61,8 +63,9 @@ class TestGetSimulationToOptimizationParameterMapping(object):
                       'fixedParameter1': LIN}
                      )]
 
+        model = SbmlModel(sbml_model=ss_model.model)
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
         )
@@ -101,7 +104,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
                     ]
 
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df
@@ -135,7 +138,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         ]
 
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
@@ -170,7 +173,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         ]
 
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
@@ -188,6 +191,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         ss_model = simplesbml.SbmlModel()
         ss_model.addParameter('dynamicParameter1', 0.0)
         ss_model.addParameter('dynamicParameter2', 0.0)
+        model = SbmlModel(sbml_model=ss_model.model)
 
         measurement_df = pd.DataFrame(data={
             OBSERVABLE_ID: ['obs1', 'obs2', 'obs1', 'obs2'],
@@ -253,7 +257,9 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,
-            sbml_model=ss_model.model, parameter_df=parameter_df)
+            model=model,
+            parameter_df=parameter_df
+        )
         assert actual == expected
 
         # For one case we test parallel execution, which must yield the same
@@ -262,7 +268,9 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,
-            sbml_model=ss_model.model, parameter_df=parameter_df)
+            model=model,
+            parameter_df=parameter_df
+        )
         assert actual == expected
 
     @staticmethod
