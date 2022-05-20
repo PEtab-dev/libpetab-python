@@ -70,12 +70,6 @@ class SbmlModel(Model):
         write_sbml(self.sbml_document or self.sbml_model.getSBMLDocument(),
                    filename)
 
-    def get_parameter_ids(self) -> Iterable[str]:
-        return (
-            p.getId() for p in self.sbml_model.getListOfParameters()
-            if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
-        )
-
     def get_parameter_value(self, id_: str) -> float:
         parameter = self.sbml_model.getParameter(id_)
         if not parameter:
@@ -91,17 +85,11 @@ class SbmlModel(Model):
             if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
         )
 
-    def has_species_with_id(self, entity_id: str) -> bool:
-        return self.sbml_model.getSpecies(entity_id) is not None
-
-    def has_compartment_with_id(self, entity_id: str) -> bool:
-        return self.sbml_model.getCompartment(entity_id) is not None
-
     def has_entity_with_id(self, entity_id) -> bool:
         return self.sbml_model.getElementBySId(entity_id) is not None
 
     def get_valid_parameters_for_parameter_table(self) -> Iterable[str]:
-        # exclude rule targets
+        # All parameters except rule-targets
         disallowed_set = {
             ar.getVariable() for ar in self.sbml_model.getListOfRules()
         }

@@ -243,7 +243,6 @@ def get_required_parameters_for_parameter_table(
             row.get(NOISE_PARAMETERS, None)))
 
     # Add output parameters except for placeholders
-    model_parameter_ids = set(model.get_parameter_ids())
     for kwargs in [dict(observables=True, noise=False),
                    dict(observables=False, noise=True)]:
         output_parameters = observables.get_output_parameters(
@@ -251,13 +250,13 @@ def get_required_parameters_for_parameter_table(
         placeholders = observables.get_placeholders(
             observable_df, **kwargs)
         for p in output_parameters:
-            if p not in placeholders and p not in model_parameter_ids:
+            if p not in placeholders:
                 parameter_ids[p] = None
 
     # Add condition table parametric overrides unless already defined in the
     #  model
     for p in conditions.get_parametric_overrides(condition_df):
-        if p not in model_parameter_ids:
+        if not model.has_entity_with_id(p):
             parameter_ids[p] = None
 
     return parameter_ids.keys()

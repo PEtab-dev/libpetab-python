@@ -15,7 +15,6 @@ class Model:
         ...
     # TODO more coherent method names / arguments
     # TODO doc
-    # TODO remove unused
 
     @staticmethod
     @abc.abstractmethod
@@ -42,14 +41,6 @@ class Model:
         ...
 
     @abc.abstractmethod
-    def get_parameter_ids(self) -> Iterable[str]:
-        """Get all parameter IDs from this model
-
-        :returns: Iterator over model parameter IDs
-        """
-        ...
-
-    @abc.abstractmethod
     def get_parameter_value(self, id_: str) -> float:
         """Get a parameter value
 
@@ -68,16 +59,6 @@ class Model:
         Returns:
             Iterator over tuples of (parameter_id, parameter_value)
         """
-        ...
-
-    @abc.abstractmethod
-    def has_species_with_id(self, entity_id: str) -> bool:
-        # TODO yet unused
-        ...
-
-    @abc.abstractmethod
-    def has_compartment_with_id(self, entity_id: str) -> bool:
-        # TODO yet unused
         ...
 
     @abc.abstractmethod
@@ -110,9 +91,8 @@ class Model:
 
     @abc.abstractmethod
     def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
-        """Check if the given ID is allowed to be used in observable formulas
-
-        # TODO currently also used for noise
+        """Check if the given ID is allowed to be used in observable and noise
+        formulas
 
         :returns: ``True``, if allowed, ``False`` otherwise
         """
@@ -123,7 +103,6 @@ class Model:
     def is_valid(self) -> bool:
         """Validate this model
 
-        # TODO optional printing?
         :returns: `True` if the model is valid, `False` if there are errors in
         this model
         """
