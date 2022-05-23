@@ -147,7 +147,7 @@ def evaluate_noise_formula(
         measurement: pd.Series,
         noise_formulas: Dict[str, sympy.Expr],
         parameter_df: pd.DataFrame,
-        simulation: numbers.Number
+        simulation: numbers.Number,
 ) -> float:
     """Fill in parameters for `measurement` and evaluate noise_formula.
 
@@ -239,7 +239,7 @@ def calculate_chi2(
 
 
 def calculate_chi2_for_table_from_residuals(
-        residual_df: pd.DataFrame
+        residual_df: pd.DataFrame,
 ) -> float:
     """Compute chi2 value for a single residual table."""
     return (np.array(residual_df[RESIDUAL])**2).sum()
@@ -374,4 +374,4 @@ def calculate_single_llh(
         raise NotImplementedError(
             "Unsupported combination of noise_distribution and scale "
             f"specified: {noise_distribution}, {scale}.")
-    return - nllh
+    return -nllh
