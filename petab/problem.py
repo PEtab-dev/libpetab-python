@@ -88,7 +88,8 @@ class Problem:
     @staticmethod
     def from_files(
             sbml_file: Union[str, Path, None] = None,
-            condition_file: Union[str, Path, None] = None,
+            condition_file:
+            Union[str, Path, None, Iterable[Union[str, Path]]] = None,
             measurement_file: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
             parameter_file: Union[str, Path,
@@ -115,7 +116,8 @@ class Problem:
         observable_df = None
 
         if condition_file:
-            condition_df = conditions.get_condition_df(condition_file)
+            condition_df = core.concat_tables(condition_file,
+                                              conditions.get_condition_df)
 
         if measurement_file:
             # If there are multiple tables, we will merge them
@@ -198,7 +200,10 @@ class Problem:
 
         problem0 = yaml_config['problems'][0]
 
-        yaml.assert_single_condition_and_sbml_file(problem0)
+        if len(problem0[SBML_FILES]) > 1:
+            # TODO https://github.com/ICB-DCM/PEtab/issues/188
+            raise NotImplementedError(
+                'Support for multiple models is not yet implemented.')
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_file = [
@@ -213,7 +218,8 @@ class Problem:
             if problem0[SBML_FILES] else None,
             measurement_file=[get_path(f)
                               for f in problem0[MEASUREMENT_FILES]],
-            condition_file=get_path(problem0[CONDITION_FILES][0]),
+            condition_file=[get_path(f)
+                            for f in problem0[CONDITION_FILES]],
             parameter_file=parameter_file,
             visualization_files=[
                 get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
