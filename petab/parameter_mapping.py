@@ -430,6 +430,20 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
 
         par_mapping[overridee_id] = core.to_float_if_float(
             condition_df.loc[condition_id, overridee_id])
+
+        if isinstance(par_mapping[overridee_id], numbers.Number) \
+                and np.isnan(par_mapping[overridee_id]):
+            # NaN in the condition table for an entity without time derivative
+            #  indicates that the model value should be used
+            parameter = sbml_model.getParameter(overridee_id)
+            if parameter:
+                par_mapping[overridee_id] = parameter.getValue()
+            else:
+                raise NotImplementedError(
+                    "Not sure how to handle NaN in condition table for "
+                    f"{overridee_id}."
+                )
+
         scale_mapping[overridee_id] = LIN
 
 
