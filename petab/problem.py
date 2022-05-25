@@ -87,9 +87,9 @@ class Problem:
 
     @staticmethod
     def from_files(
-            sbml_file: Union[str, Path, None] = None,
+            sbml_file: Union[str, Path] = None,
             condition_file:
-            Union[str, Path, None, Iterable[Union[str, Path]]] = None,
+            Union[str, Path, Iterable[Union[str, Path]]] = None,
             measurement_file: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
             parameter_file: Union[str, Path,
