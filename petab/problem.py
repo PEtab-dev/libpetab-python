@@ -201,7 +201,7 @@ class Problem:
         problem0 = yaml_config['problems'][0]
 
         if len(problem0[SBML_FILES]) > 1:
-            # TODO https://github.com/ICB-DCM/PEtab/issues/188
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
             raise NotImplementedError(
                 'Support for multiple models is not yet implemented.')
 

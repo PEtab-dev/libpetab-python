@@ -477,7 +477,6 @@ def test_concat_condition_df():
         'par2': [2.1, 2.2, 2.3],
         'par3': [3.1, 3.2, np.nan],
     }).set_index(CONDITION_ID)
-    print(petab.concat_tables((df1, df2), petab.get_condition_df))
     assert df_expected.equals(
         petab.concat_tables((df1, df2), petab.get_condition_df)
     )
