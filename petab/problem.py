@@ -132,7 +132,8 @@ class Problem:
         model = model_factory(sbml_file, MODEL_TYPE_SBML) \
             if sbml_file else None
 
-        condition_df = conditions.get_condition_df(condition_file) \
+        condition_df = core.concat_tables(
+            condition_file, conditions.get_condition_df) \
             if condition_file else None
 
         # If there are multiple tables, we will merge them
@@ -229,20 +230,19 @@ class Problem:
                               MODEL_TYPE_SBML) \
             if problem0[SBML_FILES] else None
 
-        if problem0[MEASUREMENT_FILES]:
-            measurement_files = [
-                get_path(f) for f in problem0[MEASUREMENT_FILES]
-            ]
-            # If there are multiple tables, we will merge them
-            measurement_df = core.concat_tables(
-                measurement_files, measurements.get_measurement_df) \
-                if measurement_files else None
-        else:
-            measurement_df = None
+        measurement_files = [
+            get_path(f) for f in problem0.get(MEASUREMENT_FILES, [])]
+        # If there are multiple tables, we will merge them
+        measurement_df = core.concat_tables(
+            measurement_files, measurements.get_measurement_df) \
+            if measurement_files else None
 
-        condition_df = core.get_condition_df(
-          [get_path(f) for f in problem0[CONDITION_FILES]]
-        )
+        condition_files = [
+            get_path(f) for f in problem0.get(CONDITION_FILES, [])]
+        # If there are multiple tables, we will merge them
+        condition_df = core.concat_tables(
+            condition_files, conditions.get_condition_df) \
+            if condition_files else None
 
         visualization_files = [
             get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])]
@@ -264,7 +264,6 @@ class Problem:
                        observable_df=observable_df,
                        model=model,
                        visualization_df=visualization_df)
-
 
     @staticmethod
     def from_combine(filename: Union[Path, str]) -> 'Problem':
