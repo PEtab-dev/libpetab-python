@@ -43,9 +43,6 @@ def get_parameter_df(
     """
     if parameter_file is None:
         return None
-
-    parameter_df = None
-
     if isinstance(parameter_file, pd.DataFrame):
         parameter_df = parameter_file
     elif isinstance(parameter_file, (str, Path)):
