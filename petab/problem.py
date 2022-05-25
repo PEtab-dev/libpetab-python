@@ -102,8 +102,9 @@ class Problem:
 
     @staticmethod
     def from_files(
-            sbml_file: Union[str, Path, None] = None,
-            condition_file: Union[str, Path, None] = None,
+            sbml_file: Union[str, Path] = None,
+            condition_file:
+            Union[str, Path, Iterable[Union[str, Path]]] = None,
             measurement_file: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
             parameter_file: Union[str, Path,
@@ -209,7 +210,10 @@ class Problem:
 
         problem0 = yaml_config['problems'][0]
 
-        yaml.assert_single_condition_and_sbml_file(problem0)
+        if len(problem0[SBML_FILES]) > 1:
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+            raise NotImplementedError(
+                'Support for multiple models is not yet implemented.')
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_df = [
@@ -236,9 +240,9 @@ class Problem:
         else:
             measurement_df = None
 
-        condition_df = conditions.get_condition_df(
-            get_path(problem0[CONDITION_FILES][0])) \
-            if problem0[CONDITION_FILES][0] else None
+        condition_df = core.get_condition_df(
+          [get_path(f) for f in problem0[CONDITION_FILES]]
+        )
 
         visualization_files = [
             get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])]
@@ -260,6 +264,7 @@ class Problem:
                        observable_df=observable_df,
                        model=model,
                        visualization_df=visualization_df)
+
 
     @staticmethod
     def from_combine(filename: Union[Path, str]) -> 'Problem':
