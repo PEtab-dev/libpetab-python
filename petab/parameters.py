@@ -28,38 +28,41 @@ __all__ = ['create_parameter_df',
 
 
 def get_parameter_df(
-        parameter_file: Union[str, Path, List[str], pd.DataFrame, None]
-) -> pd.DataFrame:
+        parameter_file: Union[str, Path, pd.DataFrame,
+                              Iterable[Union[str, Path, pd.DataFrame]], None]
+) -> Union[pd.DataFrame, None]:
     """
     Read the provided parameter file into a ``pandas.Dataframe``.
 
     Arguments:
-        parameter_file: Name of the file to read from or pandas.Dataframe.
+        parameter_file: Name of the file to read from or pandas.Dataframe,
+        or an Iterable.
 
     Returns:
-        Parameter DataFrame
+        Parameter ``DataFrame``, or ``None`` if ``None`` was passed.
     """
     if parameter_file is None:
-        return parameter_file
+        return None
 
     parameter_df = None
 
     if isinstance(parameter_file, pd.DataFrame):
         parameter_df = parameter_file
-
-    if isinstance(parameter_file, (str, Path)):
+    elif isinstance(parameter_file, (str, Path)):
         parameter_df = pd.read_csv(parameter_file, sep='\t',
                                    float_precision='round_trip')
+    elif isinstance(parameter_file, Iterable):
+        dfs = [get_parameter_df(x) for x in parameter_file if x]
 
-    if isinstance(parameter_file, list):
-        parameter_df = pd.concat([pd.read_csv(subset_file, sep='\t',
-                                              float_precision='round_trip')
-                                  for subset_file in parameter_file])
+        if not dfs:
+            return None
+
+        parameter_df = pd.concat(dfs)
         # Remove identical parameter definitions
-        parameter_df.drop_duplicates(inplace=True, ignore_index=True)
+        parameter_df.drop_duplicates(inplace=True, ignore_index=False)
         # Check for contradicting parameter definitions
-        parameter_duplicates = set(parameter_df[PARAMETER_ID].loc[
-            parameter_df[PARAMETER_ID].duplicated()])
+        parameter_duplicates = set(parameter_df.index.values[
+                                       parameter_df.index.duplicated()])
         if parameter_duplicates:
             raise ValueError(
                 f'The values of {PARAMETER_ID} must be unique or'
@@ -67,6 +70,8 @@ def get_parameter_df(
                 ' following duplicates were found:\n'
                 f'{parameter_duplicates}'
             )
+
+        return parameter_df
 
     lint.assert_no_leading_trailing_whitespace(
         parameter_df.columns.values, "parameter")
@@ -76,9 +81,9 @@ def get_parameter_df(
 
     try:
         parameter_df.set_index([PARAMETER_ID], inplace=True)
-    except KeyError:
+    except KeyError as e:
         raise KeyError(
-            f"Parameter table missing mandatory field {PARAMETER_ID}.")
+            f"Parameter table missing mandatory field {PARAMETER_ID}.") from e
 
     return parameter_df
 
