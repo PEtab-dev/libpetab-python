@@ -51,9 +51,10 @@ class DataSeries:
         self.data_to_plot.sort_index(inplace=True)
 
         self.conditions = conditions_
+        self.inf_point = np.inf in self.conditions
         # sort index for the case that indices of conditions and
         # measurements differ. if indep_var='time', conditions is a
-        # numpy array, if indep_var=observable its a Series
+        # numpy array, if indep_var=observable it's a Series
         if isinstance(self.conditions, np.ndarray):
             self.conditions.sort()
         elif isinstance(self.conditions, pd.Series):

@@ -67,11 +67,14 @@ class MPLPlotter(Plotter):
             return 'noise_model'
         return None
 
-    def generate_lineplot(self, fig, ax: 'matplotlib.pyplot.Axes',
+    def generate_lineplot(self,
+                          fig: matplotlib.figure.Figure,
+                          ax: matplotlib.axes.Axes,
                           dataplot: DataPlot,
                           plotTypeData: str,
                           ax_inf: Optional[matplotlib.axes.Axes] = None
-                          ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
+                          ) -> Tuple[matplotlib.axes.Axes,
+                                     matplotlib.axes.Axes]:
         """
         Generate lineplot.
 
@@ -79,12 +82,16 @@ class MPLPlotter(Plotter):
 
         Parameters
         ----------
+        fig:
+            Figure object.
         ax:
             Axis object.
         dataplot:
             Visualization settings for the plot.
         plotTypeData:
             Specifies how replicates should be handled.
+        ax_inf:
+            Axis object for points at t='inf'.
         """
 
         simu_color = None
@@ -98,9 +105,9 @@ class MPLPlotter(Plotter):
         # check if there t_inf
         # todo: if only t_inf
         split_axes = (measurements_to_plot is not None and
-                      np.inf in measurements_to_plot.conditions) or (
+                      measurements_to_plot.inf_point) or (
                 simulations_to_plot is not None and
-                np.inf in simulations_to_plot.conditions)
+                simulations_to_plot.conditions.inf_point)
 
         if measurements_to_plot is not None:
             # plotting all measurement data
@@ -262,14 +269,16 @@ class MPLPlotter(Plotter):
         self._square_plot_equal_ranges(ax)
 
     def generate_subplot(self,
-                         fig,
-                         ax,
+                         fig: matplotlib.figure.Figure,
+                         ax: matplotlib.axes.Axes,
                          subplot: Subplot) -> None:
         """
         Generate subplot based on markup provided by subplot.
 
         Parameters
         ----------
+        fig:
+            Figure object.
         ax:
             Axis object.
         subplot:
@@ -335,20 +344,7 @@ class MPLPlotter(Plotter):
                 ax, ax_inf = self.generate_lineplot(
                     fig, ax, data_plot, subplot.plotTypeData, ax_inf)
             if ax_inf is not None:
-                bottom, top = ax.get_ylim()
-                left, right = ax.get_xlim()
-                ax.spines['right'].set_visible(False)
-
-                ax_inf.set_xlim(right,
-                                right + (right-left)*0.2)
-
-                d = (top-bottom)*0.02
-                ax_inf.vlines(x=right, ymin=bottom+d, ymax=top-d, ls='--',
-                              color='gray')    # right
-                ax.vlines(x=right, ymin=bottom+d, ymax=top-d, ls='--',
-                          color='gray')  # left
-                ax_inf.set_ylim(bottom, top)
-                ax.set_ylim(bottom, top)
+                self._postprocess_splitaxes(ax, ax_inf)
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
@@ -513,6 +509,21 @@ class MPLPlotter(Plotter):
             ax_inf.set_xticks([t_inf])
             ax_inf.set_xticklabels(['$t_{\infty}$'])
         return ax, ax_inf
+
+    @staticmethod
+    def _postprocess_splitaxes(ax, ax_inf):
+        bottom, top = ax.get_ylim()
+        left, right = ax.get_xlim()
+        ax.spines['right'].set_visible(False)
+        ax_inf.set_xlim(right,
+                        right + (right - left) * 0.2)
+        d = (top - bottom) * 0.02
+        ax_inf.vlines(x=right, ymin=bottom + d, ymax=top - d, ls='--',
+                      color='gray')  # right
+        ax.vlines(x=right, ymin=bottom + d, ymax=top - d, ls='--',
+                  color='gray')  # left
+        ax_inf.set_ylim(bottom, top)
+        ax.set_ylim(bottom, top)
 
 
 class SeabornPlotter(Plotter):
