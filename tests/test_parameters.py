@@ -108,7 +108,38 @@ def test_get_parameter_df():
             petab.get_parameter_df([parameter_files['subset1'],
                                     parameter_files['subset2_contradiction']])
         
+    # Ensure that parameters that differ only by parameterId 
+    # are recognized as distinct
+    with tempfile.TemporaryDirectory() as directory:
+        parameter_dfs, parameter_files = ({}, {})
+        parameter_dfs['complete'] = pd.DataFrame(data={
+            PARAMETER_ID: ['id1', 'id2', 'id3', 'id4'],
+            NOMINAL_VALUE: [1, 1, 1, 1]
+        })
+        parameter_dfs['m1'] = pd.DataFrame(data={
+            PARAMETER_ID: ['id1', 'id2'],
+            NOMINAL_VALUE: [1, 1]
+        })
+        parameter_dfs['m2'] = pd.DataFrame(data={
+            PARAMETER_ID: ['id3', 'id4'],
+            NOMINAL_VALUE: [1, 1]
+        })
+        for name, df in parameter_dfs.items():
+            with tempfile.NamedTemporaryFile(
+                    mode='w', delete=False, dir=directory) as fh:
+                parameter_files[name] = fh.name
+                parameter_dfs[name].to_csv(fh, sep='\t', index=False)
+        # from one parameter file
+        df = petab.get_parameter_df(parameter_files['complete'])
+        assert (
+            df == parameter_dfs['complete'].set_index(PARAMETER_ID)
+        ).all().all()
+        # several parameter files
+        assert(petab.get_parameter_df(parameter_files['complete']).equals(
+            petab.get_parameter_df([parameter_files['m1'],
+                                    parameter_files['m2']])))
 
+        
 def test_write_parameter_df():
     """Test parameters.write_parameter_df."""
     parameter_df = pd.DataFrame(data={
