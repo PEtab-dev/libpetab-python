@@ -55,18 +55,8 @@ def get_parameter_df(
             return None
 
         parameter_df = pd.concat(dfs)
-        # Remove identical parameter definitions
-        parameter_df.drop_duplicates(inplace=True, ignore_index=False)
         # Check for contradicting parameter definitions
-        parameter_duplicates = set(parameter_df.index.values[
-                                       parameter_df.index.duplicated()])
-        if parameter_duplicates:
-            raise ValueError(
-                f'The values of {PARAMETER_ID} must be unique or'
-                ' identical between all parameter subset files. The'
-                ' following duplicates were found:\n'
-                f'{parameter_duplicates}'
-            )
+        _check_for_contradicting_parameter_definitions(parameter_df)
 
         return parameter_df
 
@@ -81,8 +71,24 @@ def get_parameter_df(
     except KeyError as e:
         raise KeyError(
             f"Parameter table missing mandatory field {PARAMETER_ID}.") from e
+    _check_for_contradicting_parameter_definitions(parameter_df)
 
     return parameter_df
+
+
+def _check_for_contradicting_parameter_definitions(parameter_df: pd.DataFrame):
+    """
+    Raises a ValueError for non-unique parameter IDs
+    """
+    parameter_duplicates = set(parameter_df.index.values[
+                                    parameter_df.index.duplicated()])
+    if parameter_duplicates:
+        raise ValueError(
+            f'The values of {PARAMETER_ID} must be unique or'
+            ' identical between all parameter subset files. The'
+            ' following duplicates were found:\n'
+            f'{parameter_duplicates}'
+        )
 
 
 def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
