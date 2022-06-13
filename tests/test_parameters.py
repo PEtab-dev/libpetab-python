@@ -81,11 +81,11 @@ def test_get_parameter_df():
             PARAMETER_ID: ['id3'],
             PARAMETER_NAME: ['name3']
         })
-        parameter_dfs['subset2_overlap'] = pd.DataFrame(data={
+        parameter_dfs['subset2_redundance'] = pd.DataFrame(data={
             PARAMETER_ID: ['id2', 'id3'],
             PARAMETER_NAME: ['name2', 'name3']
         })
-        parameter_dfs['subset2_error'] = pd.DataFrame(data={
+        parameter_dfs['subset2_contradiction'] = pd.DataFrame(data={
             PARAMETER_ID: ['id2', 'id3'],
             PARAMETER_NAME: ['different_name2', 'name3']
         })
@@ -98,16 +98,16 @@ def test_get_parameter_df():
         assert(petab.get_parameter_df(parameter_files['complete']).equals(
             petab.get_parameter_df([parameter_files['subset1'],
                                     parameter_files['subset2_strict']])))
-        # Check that identical parameter definitions are correctly combined
-        assert(petab.get_parameter_df(parameter_files['complete']).equals(
-            petab.get_parameter_df([parameter_files['subset1'],
-                                    parameter_files['subset2_overlap']])))
         # Ensure an error is raised if there exist parameterId duplicates
+        # with identical parameter definitions
+        with pytest.raises(ValueError):
+            petab.get_parameter_df([parameter_files['subset1'],
+                                    parameter_files['subset2_redundance']])
         # with non-identical parameter definitions
         with pytest.raises(ValueError):
             petab.get_parameter_df([parameter_files['subset1'],
-                                    parameter_files['subset2_error']])
-
+                                    parameter_files['subset2_contradiction']])
+        
 
 def test_write_parameter_df():
     """Test parameters.write_parameter_df."""
