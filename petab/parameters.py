@@ -84,10 +84,8 @@ def _check_for_contradicting_parameter_definitions(parameter_df: pd.DataFrame):
                                     parameter_df.index.duplicated()])
     if parameter_duplicates:
         raise ValueError(
-            f'The values of {PARAMETER_ID} must be unique or'
-            ' identical between all parameter subset files. The'
-            ' following duplicates were found:\n'
-            f'{parameter_duplicates}'
+            f'The values of `{PARAMETER_ID}` must be unique. The '
+            f'following duplicates were found:\n{parameter_duplicates}'
         )
 
 
