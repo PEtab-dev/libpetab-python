@@ -102,14 +102,15 @@ def test_get_parameter_df():
         # with identical parameter definitions
         with pytest.raises(ValueError):
             petab.get_parameter_df(
-                [parameter_files["subset1"], parameter_files["subset2_redundance"]]
+                [parameter_files["subset1"],
+                 parameter_files["subset2_redundance"]]
             )
         # with non-identical parameter definitions
         with pytest.raises(ValueError):
             petab.get_parameter_df(
-                [parameter_files["subset1"], 
-                parameter_files["subset2_contradiction"],
-                ]
+                [parameter_files["subset1"],
+                 parameter_files["subset2_contradiction"],
+                 ]
             )
 
     # Ensure that parameters that differ only by parameterId
@@ -140,11 +141,11 @@ def test_get_parameter_df():
         assert (df_template == df_test).all().all()
         # several parameter files
         assert petab.get_parameter_df(parameter_files["complete"]).equals(
-            petab.get_parameter_df([parameter_files["subset1"], 
+            petab.get_parameter_df([parameter_files["subset1"],
                                     parameter_files["subset2"]])
         )
 
-        
+
 def test_write_parameter_df():
     """Test parameters.write_parameter_df."""
     parameter_df = pd.DataFrame(data={
