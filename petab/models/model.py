@@ -8,7 +8,7 @@ from typing import Any, Iterable, Tuple
 from . import MODEL_TYPE_SBML, known_model_types
 
 
-class Model:
+class Model(abc.ABC):
     """Base class for wrappers for any PEtab-supported model type"""
 
     def __init__(self):
