@@ -109,8 +109,8 @@ class Model(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def is_state(self, id_: str) -> bool:
-        """Check whether the given ID corresponds to a model state"""
+    def is_state_variable(self, id_: str) -> bool:
+        """Check whether the given ID corresponds to a model state variable"""
         ...
 
 
