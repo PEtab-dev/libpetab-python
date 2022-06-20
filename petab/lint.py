@@ -894,7 +894,7 @@ def assert_model_parameters_in_condition_or_parameter_table(
     if in_both:
         is_or_are = "is" if len(in_both) == 1 else "are"
         raise AssertionError(f"{in_both} {is_or_are} present in both "
-                             "condition table and parameter table.")
+                             "the condition table and the parameter table.")
 
 
 def assert_measurement_conditions_present_in_condition_table(
