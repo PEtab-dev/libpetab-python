@@ -874,7 +874,8 @@ def assert_model_parameters_in_condition_or_parameter_table(
         if model.has_entity_with_id(x)
     }
     if disallowed_in_condition:
-        raise AssertionError(f"{disallowed_in_condition} is not "
+        is_or_are = "is" if len(disallowed_in_condition) == 1 else "are"
+        raise AssertionError(f"{disallowed_in_condition} {is_or_are} not "
                              "allowed to occur in condition table "
                              "columns.")
 
@@ -885,13 +886,15 @@ def assert_model_parameters_in_condition_or_parameter_table(
     }
 
     if disallowed_in_parameters:
-        raise AssertionError(f"{disallowed_in_parameters} is not "
+        is_or_are = "is" if len(disallowed_in_parameters) == 1 else "are"
+        raise AssertionError(f"{disallowed_in_parameters} {is_or_are} not "
                              "allowed to occur in the parameters table.")
 
     in_both = entities_in_condition_table & entities_in_parameter_table
     if in_both:
-        raise AssertionError(f"{in_both} are present in both condition table "
-                             "and parameter table.")
+        is_or_are = "is" if len(in_both) == 1 else "are"
+        raise AssertionError(f"{in_both} {is_or_are} present in both "
+                             "condition table and parameter table.")
 
 
 def assert_measurement_conditions_present_in_condition_table(
