@@ -9,7 +9,7 @@ import libsbml
 from . import MODEL_TYPE_SBML
 from .model import Model
 from ..sbml import (get_sbml_model, is_sbml_consistent, load_sbml_from_string,
-                    log_sbml_errors)
+                    log_sbml_errors, write_sbml)
 
 
 class SbmlModel(Model):
@@ -66,7 +66,6 @@ class SbmlModel(Model):
         )
 
     def to_file(self, filename: [str, Path]):
-        from ..sbml import write_sbml
         write_sbml(self.sbml_document or self.sbml_model.getSBMLDocument(),
                    filename)
 
