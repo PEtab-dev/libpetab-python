@@ -113,7 +113,7 @@ class SbmlModel(Model):
         log_sbml_errors(self.sbml_model.getSBMLDocument())
         return valid
 
-    def is_state(self, id_: str) -> bool:
+    def is_state_variable(self, id_: str) -> bool:
         return (self.sbml_model.getSpecies(id_) is not None
                 or self.sbml_model.getCompartment(id_) is not None
                 or self.sbml_model.getRuleByVariable(id_) is not None)

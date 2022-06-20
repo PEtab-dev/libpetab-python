@@ -425,7 +425,7 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
             continue
 
         # Species, compartments, and rule targets are handled elsewhere
-        if model.is_state(overridee_id):
+        if model.is_state_variable(overridee_id):
             continue
 
         par_mapping[overridee_id] = core.to_float_if_float(
