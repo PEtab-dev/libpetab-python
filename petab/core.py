@@ -120,8 +120,8 @@ def flatten_timepoint_specific_output_overrides(
         replacement_id = ''
         for field in possible_groupvars:
             if field in groupvars:
-                val = str(groupvar[groupvars.index(field)
-                                   ]).replace(';', '_').replace('.', '_')
+                val = str(groupvar[groupvars.index(field)])\
+                    .replace(PARAMETER_SEPARATOR, '_').replace('.', '_')
                 if replacement_id == '':
                     replacement_id = val
                 elif val != '':

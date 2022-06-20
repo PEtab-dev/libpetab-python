@@ -537,7 +537,9 @@ def assert_parameter_prior_parameters_are_valid(
                 continue
             # parse parameters
             try:
-                pars = tuple([float(val) for val in pars_str.split(';')])
+                pars = tuple(
+                    float(val) for val in pars_str.split(PARAMETER_SEPARATOR)
+                )
             except ValueError:
                 raise AssertionError(
                     f"Could not parse prior parameters '{pars_str}'.")
@@ -545,8 +547,8 @@ def assert_parameter_prior_parameters_are_valid(
             if len(pars) != 2:
                 raise AssertionError(
                     f"The prior parameters '{pars}' do not contain the "
-                    "expected number of entries (currently 'par1;par2' "
-                    "for all prior types).")
+                    "expected number of entries (currently 'par1"
+                    f"{PARAMETER_SEPARATOR}par2' for all prior types).")
 
 
 def assert_parameter_estimate_is_boolean(parameter_df: pd.DataFrame) -> None:

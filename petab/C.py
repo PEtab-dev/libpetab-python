@@ -274,3 +274,6 @@ SIMULATION = 'simulation'
 RESIDUAL = 'residual'
 #:
 NOISE_VALUE = 'noiseValue'
+
+# separator for multiple parameter values (bounds, observableParameters, ...)
+PARAMETER_SEPARATOR = ';'

@@ -360,8 +360,10 @@ def get_priors_from_df(parameter_df: pd.DataFrame,
         if core.is_empty(pars_str):
             lb, ub = map_scale([row[LOWER_BOUND], row[UPPER_BOUND]],
                                [row[PARAMETER_SCALE]] * 2)
-            pars_str = f'{lb};{ub}'
-        prior_pars = tuple(float(entry) for entry in pars_str.split(';'))
+            pars_str = f'{lb}{PARAMETER_SEPARATOR}{ub}'
+        prior_pars = tuple(
+            float(entry) for entry in pars_str.split(PARAMETER_SEPARATOR)
+        )
 
         # add parameter scale and bounds, as this may be needed
         par_scale = row[PARAMETER_SCALE]
@@ -490,6 +492,6 @@ def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:
                     and row[prior_type_col] == PARAMETER_SCALE_UNIFORM:
                 lb, ub = map_scale([row[LOWER_BOUND], row[UPPER_BOUND]],
                                    [row[PARAMETER_SCALE]] * 2)
-                df.loc[irow, prior_par_col] = f'{lb};{ub}'
+                df.loc[irow, prior_par_col] = f'{lb}{PARAMETER_SEPARATOR}{ub}'
 
     return df
