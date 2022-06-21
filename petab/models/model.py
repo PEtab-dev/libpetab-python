@@ -13,8 +13,6 @@ class Model(abc.ABC):
 
     def __init__(self):
         ...
-    # TODO more coherent method names / arguments
-    # TODO doc
 
     @staticmethod
     @abc.abstractmethod
