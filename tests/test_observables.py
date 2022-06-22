@@ -65,6 +65,7 @@ def test_get_output_parameters():
     """Test measurements.get_output_parameters."""
     # sbml model
     import simplesbml
+    from petab.models.sbml_model import SbmlModel
     ss_model = simplesbml.SbmlModel()
     ss_model.addParameter('fixedParameter1', 1.0)
     ss_model.addParameter('observable_1', 1.0)
@@ -78,7 +79,7 @@ def test_get_output_parameters():
     }).set_index(OBSERVABLE_ID)
 
     output_parameters = petab.get_output_parameters(
-        observable_df, ss_model.model)
+        observable_df, SbmlModel(sbml_model=ss_model.model))
 
     assert output_parameters == ['offset', 'scaling']
 

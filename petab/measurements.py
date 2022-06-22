@@ -154,7 +154,7 @@ def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
 
 def split_parameter_replacement_list(
         list_string: Union[str, numbers.Number],
-        delim: str = ';') -> List[Union[str, numbers.Number]]:
+        delim: str = PARAMETER_SEPARATOR) -> List[Union[str, numbers.Number]]:
     """
     Split values in observableParameters and noiseParameters in measurement
     table.
