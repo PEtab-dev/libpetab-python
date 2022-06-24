@@ -85,7 +85,6 @@ class Problem:
         self.model: Optional[Model] = model
         self.extensions_config = extensions_config or {}
 
-
     def __getattr__(self, name):
         # For backward-compatibility, allow access to SBML model related
         #  attributes now stored in self.model
@@ -170,7 +169,6 @@ class Problem:
             visualization_df=visualization_df,
             extensions_config=extensions_config,
         )
-
 
     @staticmethod
     def from_yaml(yaml_config: Union[Dict, Path, str]) -> 'Problem':
@@ -297,9 +295,8 @@ class Problem:
             import libcombine
         except ImportError as e:
             raise ImportError(
-                "To use PEtab's COMBINE functionality, libcombine " 
+                "To use PEtab's COMBINE functionality, libcombine "
                 "(python-libcombine) must be installed.") from e
-
 
         archive = libcombine.CombineArchive()
         if archive.initializeFromArchive(str(filename)) is None:
