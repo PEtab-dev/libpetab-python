@@ -217,10 +217,10 @@ class Problem:
                 'Support for multiple models is not yet implemented.')
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
-            parameter_df = [
-                parameters.get_parameter_df(get_path(f))
+            parameter_df = parameters.get_parameter_df([
+                get_path(f)
                 for f in yaml_config[PARAMETER_FILE]
-            ]
+            ])
         else:
             parameter_df = parameters.get_parameter_df(
                 get_path(yaml_config[PARAMETER_FILE])) \
