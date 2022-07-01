@@ -710,14 +710,11 @@ class Problem:
         return measurements.get_simulation_conditions(self.measurement_df)
 
     def get_optimization_to_simulation_parameter_mapping(
-            self,
-            warn_unmapped: bool = True,
-            scaled_parameters: bool = False,
-            allow_timepoint_specific_numeric_noise_parameters:
-            bool = False,
+            self, **kwargs
     ):
         """
-        See get_simulation_to_optimization_parameter_mapping.
+        See :py:func:`get_simulation_to_optimization_parameter_mapping`, to
+        which all keyword arguments are forwarded.
         """
         return parameter_mapping\
             .get_optimization_to_simulation_parameter_mapping(
@@ -726,10 +723,7 @@ class Problem:
                 self.parameter_df,
                 self.observable_df,
                 self.sbml_model,
-                warn_unmapped=warn_unmapped,
-                scaled_parameters=scaled_parameters,
-                allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-                allow_timepoint_specific_numeric_noise_parameters
+                **kwargs
             )
 
     def create_parameter_df(self, *args, **kwargs):
