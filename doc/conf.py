@@ -9,14 +9,6 @@ import subprocess
 import sys
 import warnings
 
-# Sphinx autosummary does not handle well submodules and functions with
-#  identical names if the function is part of __all__ of the parent module.
-#  This is way, we get autosummary to create the submodule documentation:
-import petab
-from petab.visualize.plot_data_and_simulation import plot_data_and_simulation
-petab.visualize.plot_data_and_simulation = \
-    sys.modules['petab.visualize.plot_data_and_simulation']
-
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -50,9 +42,8 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
-    'myst_parser',
     'sphinx_markdown_tables',
-    'nbsphinx',
+    'myst_nb',
 ]
 
 intersphinx_mapping = {
@@ -90,10 +81,14 @@ autodoc_default_options = {
 # For some reason causes sphinx import errors otherwise
 autodoc_mock_imports = ['yaml']
 
+# myst_nb options
+#  https://myst-nb.readthedocs.io/en/latest/configuration.html
+nb_execution_mode = "force"
+
+
 source_suffix = {
     '.rst': 'restructuredtext',
     '.txt': 'restructuredtext',
-    '.md': 'markdown',
 }
 
 # ignore numpy warnings

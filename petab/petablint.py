@@ -4,7 +4,6 @@
 
 import argparse
 import logging
-import os
 import sys
 
 import petab
@@ -57,50 +56,13 @@ def parse_cli_args():
     group.add_argument('-y', '--yaml', dest='yaml_file_name',
                        help='PEtab YAML problem filename')
 
-    # or with model name, following default naming
-    group.add_argument('-n', '--model-name', dest='model_name',
-                       help='Model name where all files are in the working '
-                            'directory and follow PEtab naming convention. '
-                            'Specifying -[smcp] will override defaults')
-    parser.add_argument('-d', '--directory', dest='directory',
-                        default=os.getcwd())
     args = parser.parse_args()
-
-    if args.model_name:
-        if not args.sbml_file_name:
-            args.sbml_file_name = petab.get_default_sbml_file_name(
-                args.model_name,
-                folder=args.directory,
-            )
-        if not args.measurement_file_name:
-            args.measurement_file_name = \
-                petab.get_default_measurement_file_name(
-                    args.model_name,
-                    folder=args.directory,
-                )
-        if not args.condition_file_name:
-            args.condition_file_name = petab.get_default_condition_file_name(
-                args.model_name,
-                folder=args.directory,
-            )
-        if not args.parameter_file_name:
-            args.parameter_file_name = petab.get_default_parameter_file_name(
-                args.model_name,
-                folder=args.directory,
-            )
 
     if (args.yaml_file_name
             and any((args.sbml_file_name, args.condition_file_name,
                      args.measurement_file_name, args.parameter_file_name))):
         parser.error('When providing a yaml file, no other files may '
                      'be specified.')
-
-    if (not args.model_name
-            and not any([args.sbml_file_name, args.condition_file_name,
-                         args.measurement_file_name, args.parameter_file_name,
-                         args.observable_file_name, args.yaml_file_name])):
-        parser.error('Neither model name nor any filename specified. '
-                     'What shall I do?')
 
     return args
 

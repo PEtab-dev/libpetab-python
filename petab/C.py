@@ -3,7 +3,7 @@
 This file contains constant definitions.
 """
 
-import math
+import math as _math
 
 
 # MEASUREMENTS
@@ -24,7 +24,7 @@ MEASUREMENT = 'measurement'
 TIME = 'time'
 
 #: Time value that indicates steady-state measurements
-TIME_STEADY_STATE = math.inf
+TIME_STEADY_STATE = _math.inf
 
 #:
 OBSERVABLE_PARAMETERS = 'observableParameters'
@@ -274,3 +274,6 @@ SIMULATION = 'simulation'
 RESIDUAL = 'residual'
 #:
 NOISE_VALUE = 'noiseValue'
+
+# separator for multiple parameter values (bounds, observableParameters, ...)
+PARAMETER_SEPARATOR = ';'

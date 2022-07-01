@@ -5,7 +5,6 @@ import itertools
 import numbers
 from pathlib import Path
 from typing import Dict, List, Union
-from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -17,10 +16,10 @@ __all__ = ['assert_overrides_match_parameter_count',
            'create_measurement_df',
            'get_measurement_df',
            'get_measurement_parameter_ids',
-           'get_noise_distributions',
            'get_rows_for_condition',
            'get_simulation_conditions',
            'measurements_have_replicates',
+           'measurement_is_at_steady_state',
            'split_parameter_replacement_list',
            'write_measurement_df']
 
@@ -57,55 +56,8 @@ def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         df: PEtab measurement table
         filename: Destination file name
     """
+    df = get_measurement_df(df)
     df.to_csv(filename, sep='\t', index=False)
-
-
-def get_noise_distributions(measurement_df: pd.DataFrame) -> dict:
-    """
-    Returns dictionary of cost definitions per observable, if specified.
-
-    Looks through all parameters satisfying `sbml_parameter_is_cost` and
-    return as dictionary.
-
-    Parameters:
-        measurement_df: PEtab measurement table
-
-    Returns:
-        Dictionary with `observableId` => `cost definition`
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    lint.assert_noise_distributions_valid(measurement_df)
-
-    # read noise distributions from measurement file
-    grouping_cols = core.get_notnull_columns(
-        measurement_df, [OBSERVABLE_ID, OBSERVABLE_TRANSFORMATION,
-                         NOISE_DISTRIBUTION])
-
-    observables = measurement_df.fillna('').groupby(grouping_cols).size()\
-        .reset_index()
-    noise_distrs = {}
-    for _, row in observables.iterrows():
-        # prefix id to get observable id
-        id_ = 'observable_' + row.observableId
-
-        # extract observable transformation and noise distribution,
-        # use lin+normal as default if none provided
-        obs_trafo = row.observableTransformation \
-            if OBSERVABLE_TRANSFORMATION in row \
-            and row.observableTransformation \
-            else LIN
-        noise_distr = row.noiseDistribution \
-            if NOISE_DISTRIBUTION in row \
-            and row.noiseDistribution \
-            else NORMAL
-        # add to noise distributions
-        noise_distrs[id_] = {
-            OBSERVABLE_TRANSFORMATION: obs_trafo,
-            NOISE_DISTRIBUTION: noise_distr}
-
-    return noise_distrs
 
 
 def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
@@ -123,6 +75,8 @@ def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
         Missing 'preequilibrationConditionId's will be set to '' (empty
         string).
     """
+    if measurement_df.empty:
+        return pd.DataFrame(data={SIMULATION_CONDITION_ID: []})
     # find columns to group by (i.e. if not all nans).
     # can be improved by checking for identical condition vectors
     grouping_cols = core.get_notnull_columns(
@@ -200,7 +154,7 @@ def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
 
 def split_parameter_replacement_list(
         list_string: Union[str, numbers.Number],
-        delim: str = ';') -> List[Union[str, numbers.Number]]:
+        delim: str = PARAMETER_SEPARATOR) -> List[Union[str, numbers.Number]]:
     """
     Split values in observableParameters and noiseParameters in measurement
     table.
@@ -331,7 +285,7 @@ def assert_overrides_match_parameter_count(
             if len(replacements) != expected:
                 raise AssertionError(
                     f'Mismatch of noise parameter overrides in:\n{row}\n'
-                    f'Expected {expected} but got {actual}')
+                    f'Expected {expected} but got {len(replacements)}')
         except KeyError:
             # no overrides defined, but a numerical sigma can be provided
             # anyways
@@ -342,3 +296,16 @@ def assert_overrides_match_parameter_count(
                     f'for observable {row[OBSERVABLE_ID]}, but parameter ID '
                     'or multiple overrides were specified in the '
                     'noiseParameters column.')
+
+
+def measurement_is_at_steady_state(time: float) -> bool:
+    """Check whether a measurement is at steady state.
+
+    Arguments:
+        time:
+            The time.
+
+    Returns:
+        Whether the measurement is at steady state.
+    """
+    return math.isinf(time)
