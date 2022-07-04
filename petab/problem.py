@@ -704,7 +704,7 @@ class Problem:
     ):
         """
         See
-        :py:func:`parameter_mapping.get_optimization_to_simulation_parameter_mapping`,
+        :py:func:`petab.parameter_mapping.get_optimization_to_simulation_parameter_mapping`,
         to which all keyword arguments are forwarded.
         """
         return parameter_mapping \
