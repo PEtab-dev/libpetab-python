@@ -763,6 +763,13 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     # pylint: disable=too-many-statements
     errors_occurred = False
 
+    if problem.extensions_config:
+        logger.warning(
+            "Validation of PEtab extensions is not yet implemented, "
+            "but the given problem uses the following extensions: "
+            f"{'', ''.join(problem.extensions_config.keys())}"
+        )
+
     # Run checks on individual files
     if problem.model is not None:
         logger.info("Checking model...")

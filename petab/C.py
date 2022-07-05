@@ -264,6 +264,8 @@ MEASUREMENT_FILES = 'measurement_files'
 OBSERVABLE_FILES = 'observable_files'
 #:
 VISUALIZATION_FILES = 'visualization_files'
+#:
+EXTENSIONS = 'extensions'
 
 
 # MORE
