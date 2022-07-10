@@ -1,4 +1,3 @@
-import libsbml
 import sys
 import os
 
@@ -8,56 +7,19 @@ sys.path.append(os.getcwd())
 import petab  # noqa: E402
 
 
-def test_assignment_rules_to_dict():
-    # Create Sbml model with one parameter and one assignment rule
-    document = libsbml.SBMLDocument(3, 1)
-    model = document.createModel()
-    petab.sbml.add_model_output(sbml_model=model,
-                                observable_id='1',
-                                observable_name='Observable 1',
-                                formula='a+b')
-
-    expected = {
-        'observable_1': {
-            'name': 'Observable 1',
-            'formula': 'a + b'
-        }
-    }
-
-    actual = petab.assignment_rules_to_dict(model, remove=False)
-    assert actual == expected
-    assert model.getAssignmentRuleByVariable('observable_1') is not None
-    assert len(model.getListOfParameters()) == 1
-
-    actual = petab.assignment_rules_to_dict(model, remove=True)
-    assert actual == expected
-    assert model.getAssignmentRuleByVariable('observable_1') is None
-    assert len(model.getListOfParameters()) == 0
-
-
 def test_get_condition_specific_models():
     """Test for petab.sbml.get_condition_specific_models"""
     # Create test model and data files
-    sbml_document = libsbml.SBMLDocument(3, 1)
-    sbml_model = sbml_document.createModel()
-
-    c = sbml_model.createCompartment()
-    c.setId("compartment_1")
-    c.setSize(1)
+    import simplesbml
+    ss_model = simplesbml.SbmlModel()
+    ss_model.addCompartment(comp_id="compartment_1", vol=1)
+    for i in range(1, 4):
+        ss_model.addParameter(f"parameter_{i}", i)
 
     for i in range(1, 4):
-        p = sbml_model.createParameter()
-        p.setId(f"parameter_{i}")
-        p.setValue(i)
+        ss_model.addSpecies(f"[species_{i}]", 10 * i)
 
-    for i in range(1, 4):
-        s = sbml_model.createSpecies()
-        s.setId(f"species_{i}")
-        s.setInitialConcentration(10 * i)
-
-    ia = sbml_model.createInitialAssignment()
-    ia.setSymbol("species_2")
-    ia.setMath(libsbml.parseL3Formula("25"))
+    ss_model.addAssignmentRule("species_2", "25")
 
     condition_df = pd.DataFrame({
         petab.CONDITION_ID: ["condition_1"],
@@ -90,7 +52,7 @@ def test_get_condition_specific_models():
     parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
 
     petab_problem = petab.Problem(
-        sbml_model=sbml_model,
+        sbml_model=ss_model.model,
         condition_df=condition_df,
         observable_df=observable_df,
         measurement_df=measurement_df,

@@ -2,6 +2,62 @@
 
 ## 0.1 series
 
+### 0.1.27
+
+Features:
+* Added method to check if measurement time is at steady-state by @dilpath in
+  https://github.com/PEtab-dev/libpetab-python/pull/124
+* Create dummy simulation conditions dataframe for empty measurements by
+  @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/127
+* Validator: Report empty noiseFormula by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/134
+* Speedup visspec assembly / fix deprecation warning by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/135
+* Handle incomplete PEtab problems in `petab.Problem.from_yaml` by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/138
+* Argument forwarding for
+  `Problem.get_optimization_to_simulation_parameter_mapping` by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/159
+* Added candidate schema for version 2  by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/142
+* `get_parameter_df`: Allow any collection of parameter tables by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/153,
+  @m-philipps in https://github.com/PEtab-dev/libpetab-python/pull/156,
+  @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/157
+* Updated visualization example notebooks
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/137,
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/146,
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/147
+* Added support for PEtab problems with multiple condition files
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/152
+* Added abstraction for (SBML) models by @dweindl in
+  https://github.com/PEtab-dev/libpetab-python/pull/133
+
+Fixes:
+* Apply get table method before write table method to ensure correct index
+  by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/126
+* petablint: Fix incorrect noise-parameter-mismatch error message
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/129
+* Fixed handling of NaN values for parameters in condition table
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/150
+* More informative `petab.calculate` errors
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/151
+
+Removals:
+* Removed ancient/deprecated default file naming scheme
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/132
+* Removed ancient deprecated functions related to specifying observables/noise
+  models inside SBML
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/140
+  https://github.com/PEtab-dev/libpetab-python/pull/131
+* Removed deprecated visualization functions
+   by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/130
+
+**New Contributors**
+* @m-philipps made their first contribution in https://github.com/PEtab-dev/libpetab-python/pull/156
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.1.26...v0.1.27
+
 ### 0.1.26
 
 * Fix SBML Rule handling logic by @dweindl in

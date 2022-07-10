@@ -7,13 +7,13 @@ import re
 from typing import Optional, Iterable, Any
 from collections import Counter
 
-import libsbml
 import numpy as np
 import pandas as pd
 import sympy as sp
 
 import petab
-from . import (core, parameters, sbml, measurements)
+from . import (core, parameters, measurements)
+from .models import Model
 from .C import *  # noqa: F403
 
 logger = logging.getLogger(__name__)
@@ -85,12 +85,12 @@ def assert_no_leading_trailing_whitespace(
 
 
 def check_condition_df(
-        df: pd.DataFrame, sbml_model: Optional[libsbml.Model] = None) -> None:
+        df: pd.DataFrame, model: Optional[Model] = None) -> None:
     """Run sanity checks on PEtab condition table
 
     Arguments:
         df: PEtab condition DataFrame
-        sbml_model: SBML Model for additional checking of parameter IDs
+        model: Model for additional checking of parameter IDs
 
     Raises:
         AssertionError: in case of problems
@@ -117,16 +117,14 @@ def check_condition_df(
             assert_no_leading_trailing_whitespace(
                 df[column_name].values, column_name)
 
-    if sbml_model is not None:
+    if model is not None:
+        allowed_cols = set(model.get_valid_ids_for_condition_table())
         for column_name in df.columns:
             if column_name != CONDITION_NAME \
-                    and sbml_model.getParameter(column_name) is None \
-                    and sbml_model.getSpecies(column_name) is None \
-                    and sbml_model.getCompartment(column_name) is None:
+                    and column_name not in allowed_cols:
                 raise AssertionError(
                     "Condition table contains column for unknown entity '"
-                    f"{column_name}'. Column names must match parameter, "
-                    "species or compartment IDs specified in the SBML model.")
+                    f"{column_name}'.")
 
 
 def check_measurement_df(df: pd.DataFrame,
@@ -189,7 +187,7 @@ def check_measurement_df(df: pd.DataFrame,
 
 def check_parameter_df(
         df: pd.DataFrame,
-        sbml_model: Optional[libsbml.Model] = None,
+        model: Optional[Model] = None,
         observable_df: Optional[pd.DataFrame] = None,
         measurement_df: Optional[pd.DataFrame] = None,
         condition_df: Optional[pd.DataFrame] = None) -> None:
@@ -197,7 +195,7 @@ def check_parameter_df(
 
     Arguments:
         df: PEtab condition DataFrame
-        sbml_model: SBML Model for additional checking of parameter IDs
+        model: Model for additional checking of parameter IDs
         observable_df: PEtab observable table for additional checks
         measurement_df: PEtab measurement table for additional checks
         condition_df: PEtab condition table for additional checks
@@ -247,10 +245,10 @@ def check_parameter_df(
     check_parameter_bounds(df)
     assert_parameter_prior_type_is_valid(df)
 
-    if sbml_model and measurement_df is not None \
+    if model and measurement_df is not None \
             and condition_df is not None:
         assert_all_parameters_present_in_parameter_df(
-            df, sbml_model, observable_df, measurement_df, condition_df)
+            df, model, observable_df, measurement_df, condition_df)
 
 
 def check_observable_df(observable_df: pd.DataFrame) -> None:
@@ -292,7 +290,12 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
 
         noise = getattr(row, NOISE_FORMULA)
         try:
-            sp.sympify(noise)
+            sympified_noise = sp.sympify(noise)
+            if sympified_noise is None \
+                    or (sympified_noise.is_Number
+                        and not sympified_noise.is_finite):
+                raise AssertionError(f"No or non-finite {NOISE_FORMULA} "
+                                     f"given for observable {row.Index}.")
         except sp.SympifyError as e:
             raise AssertionError(f"Cannot parse expression '{noise}' "
                                  f"for noise model for observable "
@@ -301,7 +304,7 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
 
 def assert_all_parameters_present_in_parameter_df(
         parameter_df: pd.DataFrame,
-        sbml_model: libsbml.Model,
+        model: Model,
         observable_df: pd.DataFrame,
         measurement_df: pd.DataFrame,
         condition_df: pd.DataFrame) -> None:
@@ -310,7 +313,7 @@ def assert_all_parameters_present_in_parameter_df(
 
     Arguments:
         parameter_df: PEtab parameter DataFrame
-        sbml_model: PEtab SBML Model
+        model: model
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
         condition_df: PEtab condition table
@@ -320,11 +323,11 @@ def assert_all_parameters_present_in_parameter_df(
     """
 
     required = parameters.get_required_parameters_for_parameter_table(
-        sbml_model=sbml_model, condition_df=condition_df,
+        model=model, condition_df=condition_df,
         observable_df=observable_df, measurement_df=measurement_df)
 
     allowed = parameters.get_valid_parameters_for_parameter_table(
-        sbml_model=sbml_model, condition_df=condition_df,
+        model=model, condition_df=condition_df,
         observable_df=observable_df, measurement_df=measurement_df)
 
     actual = set(parameter_df.index)
@@ -534,7 +537,9 @@ def assert_parameter_prior_parameters_are_valid(
                 continue
             # parse parameters
             try:
-                pars = tuple([float(val) for val in pars_str.split(';')])
+                pars = tuple(
+                    float(val) for val in pars_str.split(PARAMETER_SEPARATOR)
+                )
             except ValueError:
                 raise AssertionError(
                     f"Could not parse prior parameters '{pars_str}'.")
@@ -542,8 +547,8 @@ def assert_parameter_prior_parameters_are_valid(
             if len(pars) != 2:
                 raise AssertionError(
                     f"The prior parameters '{pars}' do not contain the "
-                    "expected number of entries (currently 'par1;par2' "
-                    "for all prior types).")
+                    "expected number of entries (currently 'par1"
+                    f"{PARAMETER_SEPARATOR}par2' for all prior types).")
 
 
 def assert_parameter_estimate_is_boolean(parameter_df: pd.DataFrame) -> None:
@@ -758,14 +763,19 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     # pylint: disable=too-many-statements
     errors_occurred = False
 
+    if problem.extensions_config:
+        logger.warning(
+            "Validation of PEtab extensions is not yet implemented, "
+            "but the given problem uses the following extensions: "
+            f"{'', ''.join(problem.extensions_config.keys())}"
+        )
+
     # Run checks on individual files
-    if problem.sbml_model is not None:
-        logger.info("Checking SBML model...")
-        errors_occurred |= not sbml.is_sbml_consistent(
-            problem.sbml_model.getSBMLDocument())
-        sbml.log_sbml_errors(problem.sbml_model.getSBMLDocument())
+    if problem.model is not None:
+        logger.info("Checking model...")
+        errors_occurred |= not problem.model.is_valid()
     else:
-        logger.warning("SBML model not available. Skipping.")
+        logger.warning("Model not available. Skipping.")
 
     if problem.measurement_df is not None:
         logger.info("Checking measurement table...")
@@ -785,7 +795,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if problem.condition_df is not None:
         logger.info("Checking condition table...")
         try:
-            check_condition_df(problem.condition_df, problem.sbml_model)
+            check_condition_df(problem.condition_df, problem.model)
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True
@@ -799,9 +809,9 @@ def lint_problem(problem: 'petab.Problem') -> bool:
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True
-        if problem.sbml_model is not None:
+        if problem.model is not None:
             for obs_id in problem.observable_df.index:
-                if problem.sbml_model.getElementBySId(obs_id):
+                if problem.model.has_entity_with_id(obs_id):
                     logger.error(f"Observable ID {obs_id} shadows model "
                                  "entity.")
                     errors_occurred = True
@@ -811,7 +821,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if problem.parameter_df is not None:
         logger.info("Checking parameter table...")
         try:
-            check_parameter_df(problem.parameter_df, problem.sbml_model,
+            check_parameter_df(problem.parameter_df, problem.model,
                                problem.observable_df,
                                problem.measurement_df, problem.condition_df)
         except AssertionError as e:
@@ -820,11 +830,11 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     else:
         logger.warning("Parameter table not available. Skipping.")
 
-    if problem.sbml_model is not None and problem.condition_df is not None \
+    if problem.model is not None and problem.condition_df is not None \
             and problem.parameter_df is not None:
         try:
             assert_model_parameters_in_condition_or_parameter_table(
-                problem.sbml_model,
+                problem.model,
                 problem.condition_df,
                 problem.parameter_df
             )
@@ -835,7 +845,7 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if errors_occurred:
         logger.error('Not OK')
     elif problem.measurement_df is None or problem.condition_df is None \
-            or problem.sbml_model is None or problem.parameter_df is None \
+            or problem.model is None or problem.parameter_df is None \
             or problem.observable_df is None:
         logger.warning('Not all files of the PEtab problem definition could '
                        'be checked.')
@@ -846,46 +856,54 @@ def lint_problem(problem: 'petab.Problem') -> bool:
 
 
 def assert_model_parameters_in_condition_or_parameter_table(
-        sbml_model: libsbml.Model,
+        model: Model,
         condition_df: pd.DataFrame,
         parameter_df: pd.DataFrame) -> None:
-    """Model parameters that are targets of AssignmentRule must not be present
-    in parameter table or in condition table columns. Other parameters must
-    only be present in either in parameter table or condition table columns.
-    Check that.
+    """Model parameters that are rule targets must not be present in the
+    parameter table. Other parameters must only be present in either in
+    parameter table or condition table columns. Check that.
 
     Arguments:
         parameter_df: PEtab parameter DataFrame
-        sbml_model: PEtab SBML Model
+        model: PEtab model
         condition_df: PEtab condition table
 
     Raises:
         AssertionError: in case of problems
     """
+    allowed_in_condition_cols = set(model.get_valid_ids_for_condition_table())
+    allowed_in_parameter_table = \
+        set(model.get_valid_parameters_for_parameter_table())
+    entities_in_condition_table = set(condition_df.columns) - {CONDITION_NAME}
+    entities_in_parameter_table = set(parameter_df.index.values)
 
-    for parameter in sbml_model.getListOfParameters():
-        parameter_id = parameter.getId()
+    disallowed_in_condition = {
+        x for x in (entities_in_condition_table - allowed_in_condition_cols)
+        # we only check model entities here, not output parameters
+        if model.has_entity_with_id(x)
+    }
+    if disallowed_in_condition:
+        is_or_are = "is" if len(disallowed_in_condition) == 1 else "are"
+        raise AssertionError(f"{disallowed_in_condition} {is_or_are} not "
+                             "allowed to occur in condition table "
+                             "columns.")
 
-        if parameter_id.startswith('observableParameter'):
-            continue
-        if parameter_id.startswith('noiseParameter'):
-            continue
+    disallowed_in_parameters = {
+        x for x in (entities_in_parameter_table - allowed_in_parameter_table)
+        # we only check model entities here, not output parameters
+        if model.has_entity_with_id(x)
+    }
 
-        is_assignee = \
-            sbml_model.getAssignmentRuleByVariable(parameter_id) is not None
-        in_parameter_df = parameter_id in parameter_df.index
-        in_condition_df = parameter_id in condition_df.columns
+    if disallowed_in_parameters:
+        is_or_are = "is" if len(disallowed_in_parameters) == 1 else "are"
+        raise AssertionError(f"{disallowed_in_parameters} {is_or_are} not "
+                             "allowed to occur in the parameters table.")
 
-        if is_assignee and (in_parameter_df or in_condition_df):
-            raise AssertionError(f"Model parameter '{parameter_id}' is target "
-                                 "of AssignmentRule, and thus, must not be "
-                                 "present in condition table or in parameter "
-                                 "table.")
-
-        if in_parameter_df and in_condition_df:
-            raise AssertionError(f"Model parameter '{parameter_id}' present "
-                                 "in both condition table and parameter "
-                                 "table.")
+    in_both = entities_in_condition_table & entities_in_parameter_table
+    if in_both:
+        is_or_are = "is" if len(in_both) == 1 else "are"
+        raise AssertionError(f"{in_both} {is_or_are} present in both "
+                             "the condition table and the parameter table.")
 
 
 def assert_measurement_conditions_present_in_condition_table(

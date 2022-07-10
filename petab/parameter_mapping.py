@@ -5,16 +5,17 @@ import logging
 import numbers
 import os
 import re
-from typing import Tuple, Dict, Union, Any, List, Optional, Iterable
+import warnings
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import libsbml
 import numpy as np
 import pandas as pd
 
-from . import lint, measurements, sbml, core, observables, parameters
-from . import ENV_NUM_THREADS
+from . import ENV_NUM_THREADS, core, lint, measurements, observables, \
+    parameters
 from .C import *  # noqa: F403
-
+from .models import Model
 
 logger = logging.getLogger(__name__)
 __all__ = ['get_optimization_to_simulation_parameter_mapping',
@@ -51,10 +52,11 @@ def get_optimization_to_simulation_parameter_mapping(
         warn_unmapped: Optional[bool] = True,
         scaled_parameters: bool = False,
         fill_fixed_parameters: bool = True,
-        allow_timepoint_specific_numeric_noise_parameters: bool = False
+        allow_timepoint_specific_numeric_noise_parameters: bool = False,
+        model: Model = None,
 ) -> List[ParMappingDictQuadruple]:
     """
-    Create list of mapping dicts from PEtab-problem to SBML parameters.
+    Create list of mapping dicts from PEtab-problem to model parameters.
 
     Mapping can be performed in parallel. The number of threads is controlled
     by the environment variable with the name of
@@ -64,8 +66,9 @@ def get_optimization_to_simulation_parameter_mapping(
         condition_df, measurement_df, parameter_df, observable_df:
             The dataframes in the PEtab format.
         sbml_model:
-            The sbml model with observables and noise specified according to
-            the PEtab format.
+            The SBML model (deprecated)
+        model:
+            The model.
         simulation_conditions:
             Table of simulation conditions as created by
             ``petab.get_simulation_conditions``.
@@ -100,6 +103,16 @@ def get_optimization_to_simulation_parameter_mapping(
         If no preequilibration condition is defined, the respective dicts will
         be empty. ``NaN`` is used where no mapping exists.
     """
+    if sbml_model:
+        warnings.warn("Passing a model via the `sbml_model` argument is "
+                      "deprecated, use `model=petab.models.sbml_model."
+                      "SbmlModel(...)` instead.", DeprecationWarning,
+                      stacklevel=2)
+        from petab.models.sbml_model import SbmlModel
+        if model:
+            raise ValueError("Arguments `model` and `sbml_model` are "
+                             "mutually exclusive.")
+        model = SbmlModel(sbml_model=sbml_model)
 
     # Ensure inputs are okay
     _perform_mapping_checks(
@@ -111,12 +124,11 @@ def get_optimization_to_simulation_parameter_mapping(
         simulation_conditions = measurements.get_simulation_conditions(
             measurement_df)
 
-    simulation_parameters = sbml.get_model_parameters(sbml_model,
-                                                      with_values=True)
-    # Add output parameters that are not already defined in the SBML model
+    simulation_parameters = dict(model.get_free_parameter_ids_with_values())
+    # Add output parameters that are not already defined in the model
     if observable_df is not None:
         output_parameters = observables.get_output_parameters(
-            observable_df=observable_df, sbml_model=sbml_model)
+            observable_df=observable_df, model=model)
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
 
@@ -129,7 +141,7 @@ def get_optimization_to_simulation_parameter_mapping(
             _map_condition,
             _map_condition_arg_packer(
                 simulation_conditions, measurement_df, condition_df,
-                parameter_df, sbml_model, simulation_parameters, warn_unmapped,
+                parameter_df, model, simulation_parameters, warn_unmapped,
                 scaled_parameters, fill_fixed_parameters,
                 allow_timepoint_specific_numeric_noise_parameters))
         return list(mapping)
@@ -141,7 +153,7 @@ def get_optimization_to_simulation_parameter_mapping(
             _map_condition,
             _map_condition_arg_packer(
                 simulation_conditions, measurement_df, condition_df,
-                parameter_df, sbml_model, simulation_parameters, warn_unmapped,
+                parameter_df, model, simulation_parameters, warn_unmapped,
                 scaled_parameters, fill_fixed_parameters,
                 allow_timepoint_specific_numeric_noise_parameters))
     return list(mapping)
@@ -152,7 +164,7 @@ def _map_condition_arg_packer(
         measurement_df,
         condition_df,
         parameter_df,
-        sbml_model,
+        model,
         simulation_parameters,
         warn_unmapped,
         scaled_parameters,
@@ -162,7 +174,7 @@ def _map_condition_arg_packer(
     """Helper function to pack extra arguments for _map_condition"""
     for _, condition in simulation_conditions.iterrows():
         yield(condition, measurement_df, condition_df, parameter_df,
-              sbml_model, simulation_parameters, warn_unmapped,
+              model, simulation_parameters, warn_unmapped,
               scaled_parameters, fill_fixed_parameters,
               allow_timepoint_specific_numeric_noise_parameters)
 
@@ -174,7 +186,7 @@ def _map_condition(packed_args):
     :py:func:`get_optimization_to_simulation_parameter_mapping`.
     """
 
-    (condition, measurement_df, condition_df, parameter_df, sbml_model,
+    (condition, measurement_df, condition_df, parameter_df, model,
      simulation_parameters, warn_unmapped, scaled_parameters,
      fill_fixed_parameters,
      allow_timepoint_specific_numeric_noise_parameters) = packed_args
@@ -199,7 +211,7 @@ def _map_condition(packed_args):
             condition_id=condition[PREEQUILIBRATION_CONDITION_ID],
             is_preeq=True,
             cur_measurement_df=cur_measurement_df,
-            sbml_model=sbml_model,
+            model=model,
             condition_df=condition_df,
             parameter_df=parameter_df,
             simulation_parameters=simulation_parameters,
@@ -214,7 +226,7 @@ def _map_condition(packed_args):
         condition_id=condition[SIMULATION_CONDITION_ID],
         is_preeq=False,
         cur_measurement_df=cur_measurement_df,
-        sbml_model=sbml_model,
+        model=model,
         condition_df=condition_df,
         parameter_df=parameter_df,
         simulation_parameters=simulation_parameters,
@@ -232,14 +244,15 @@ def get_parameter_mapping_for_condition(
         condition_id: str,
         is_preeq: bool,
         cur_measurement_df: Optional[pd.DataFrame],
-        sbml_model: libsbml.Model,
-        condition_df: pd.DataFrame,
+        sbml_model: libsbml.Model = None,
+        condition_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
         simulation_parameters: Optional[Dict[str, str]] = None,
         warn_unmapped: bool = True,
         scaled_parameters: bool = False,
         fill_fixed_parameters: bool = True,
         allow_timepoint_specific_numeric_noise_parameters: bool = False,
+        model: Model = None,
 ) -> Tuple[ParMappingDict, ScaleMappingDict]:
     """
     Create dictionary of parameter value and parameter scale mappings from
@@ -258,8 +271,9 @@ def get_parameter_mapping_for_condition(
         parameter_df:
             PEtab parameter DataFrame
         sbml_model:
-            The sbml model with observables and noise specified according to
-            the PEtab format used to retrieve simulation parameter IDs.
+            The SBML model (deprecated)
+        model:
+            The model.
         simulation_parameters:
             Model simulation parameter IDs mapped to parameter values (output
             of ``petab.sbml.get_model_parameters(.., with_values=True)``).
@@ -286,6 +300,17 @@ def get_parameter_mapping_for_condition(
         Second dictionary mapping model parameter IDs to their scale.
         ``NaN`` is used where no mapping exists.
     """
+    if sbml_model:
+        warnings.warn("Passing a model via the `sbml_model` argument is "
+                      "deprecated, use `model=petab.models.sbml_model."
+                      "SbmlModel(...)` instead.", DeprecationWarning,
+                      stacklevel=2)
+        from petab.models.sbml_model import SbmlModel
+        if model:
+            raise ValueError("Arguments `model` and `sbml_model` are "
+                             "mutually exclusive.")
+        model = SbmlModel(sbml_model=sbml_model)
+
     if cur_measurement_df is not None:
         _perform_mapping_checks(
             cur_measurement_df,
@@ -293,11 +318,11 @@ def get_parameter_mapping_for_condition(
             allow_timepoint_specific_numeric_noise_parameters)
 
     if simulation_parameters is None:
-        simulation_parameters = sbml.get_model_parameters(sbml_model,
-                                                          with_values=True)
+        simulation_parameters = dict(
+            model.get_free_parameter_ids_with_values())
 
     # NOTE: order matters here - the former is overwritten by the latter:
-    #  SBML model < condition table < measurement < table parameter table
+    #  model < condition table < measurement < table parameter table
 
     # initialize mapping dicts
     # for the case of matching simulation and optimization parameter vector
@@ -314,7 +339,7 @@ def get_parameter_mapping_for_condition(
         handle_missing_overrides(par_mapping, warn=warn_unmapped)
 
     _apply_condition_parameters(par_mapping, scale_mapping, condition_id,
-                                condition_df, sbml_model)
+                                condition_df, model)
     _apply_parameter_table(par_mapping, scale_mapping,
                            parameter_df, scaled_parameters,
                            fill_fixed_parameters)
@@ -386,7 +411,7 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
                                 scale_mapping: ScaleMappingDict,
                                 condition_id: str,
                                 condition_df: pd.DataFrame,
-                                sbml_model: libsbml.Model) -> None:
+                                model: Model) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
 
@@ -400,15 +425,25 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
             continue
 
         # Species, compartments, and rule targets are handled elsewhere
-        if sbml_model.getSpecies(overridee_id) is not None:
-            continue
-        if sbml_model.getCompartment(overridee_id) is not None:
-            continue
-        if sbml_model.getRuleByVariable(overridee_id) is not None:
+        if model.is_state_variable(overridee_id):
             continue
 
         par_mapping[overridee_id] = core.to_float_if_float(
             condition_df.loc[condition_id, overridee_id])
+
+        if isinstance(par_mapping[overridee_id], numbers.Number) \
+                and np.isnan(par_mapping[overridee_id]):
+            # NaN in the condition table for an entity without time derivative
+            #  indicates that the model value should be used
+            try:
+                par_mapping[overridee_id] = \
+                    model.get_parameter_value(overridee_id)
+            except ValueError as e:
+                raise NotImplementedError(
+                    "Not sure how to handle NaN in condition table for "
+                    f"{overridee_id}."
+                ) from e
+
         scale_mapping[overridee_id] = LIN
 
 

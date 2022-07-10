@@ -1,9 +1,8 @@
 """Functions for interacting with SBML models"""
 import logging
-import re
 from numbers import Number
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from warnings import warn
 
 import libsbml
@@ -12,80 +11,17 @@ from pandas.io.common import get_handle, is_file_like, is_url
 import petab
 
 logger = logging.getLogger(__name__)
-__all__ = ['add_global_parameter',
-           'add_model_output',
-           'add_model_output_sigma',
-           'add_model_output_with_sigma',
-           'assignment_rules_to_dict',
-           'create_assigment_rule',
-           'get_model_for_condition',
-           'get_model_parameters',
-           'get_observables',
-           'get_sbml_model',
-           'get_sigmas',
-           'globalize_parameters',
-           'is_sbml_consistent',
-           'load_sbml_from_file',
-           'load_sbml_from_string',
-           'log_sbml_errors',
-           'sbml_parameter_is_observable',
-           'sbml_parameter_is_sigma',
-           'write_sbml']
-
-
-def assignment_rules_to_dict(
-        sbml_model: libsbml.Model, filter_function=lambda *_: True,
-        remove: bool = False) -> Dict[str, Dict[str, Any]]:
-    """
-    Turn assignment rules into dictionary.
-
-    Parameters:
-        sbml_model:
-            a sbml model instance.
-        filter_function:
-            callback function taking assignment variable as input
-            and returning True/False to indicate if the respective rule should
-            be turned into an observable.
-        remove:
-            Remove the all matching assignment rules from the model
-
-    Returns:
-        ::
-
-            {
-                assigneeId:
-                {
-                    'name': assigneeName,
-                    'formula': formulaString
-                }
-            }
-
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    result = {}
-
-    # iterate over rules
-    for rule in sbml_model.getListOfRules():
-        if rule.getTypeCode() != libsbml.SBML_ASSIGNMENT_RULE:
-            continue
-        assignee = rule.getVariable()
-        parameter = sbml_model.getParameter(assignee)
-        # filter
-        if parameter and filter_function(parameter):
-            result[assignee] = {
-                'name': parameter.getName(),
-                'formula': libsbml.formulaToL3String(rule.getMath())
-            }
-
-    # remove from model?
-    if remove:
-        for parameter_id in result:
-            sbml_model.removeRuleByVariable(parameter_id)
-            sbml_model.removeParameter(parameter_id)
-
-    return result
+__all__ = [
+    'get_model_for_condition',
+    'get_model_parameters',
+    'get_sbml_model',
+    'globalize_parameters',
+    'is_sbml_consistent',
+    'load_sbml_from_file',
+    'load_sbml_from_string',
+    'log_sbml_errors',
+    'write_sbml'
+]
 
 
 def is_sbml_consistent(sbml_document: libsbml.SBMLDocument,
@@ -180,221 +116,6 @@ def globalize_parameters(sbml_model: libsbml.Model,
 
             # removeParameter, not removeLocalParameter!
             law.removeParameter(lp.getId())
-
-
-def add_global_parameter(sbml_model: libsbml.Model,
-                         parameter_id: str,
-                         parameter_name: str = None,
-                         constant: bool = False,
-                         units: str = 'dimensionless',
-                         value: float = 0.0) -> libsbml.Parameter:
-    """Add new global parameter to SBML model
-
-    Arguments:
-        sbml_model: SBML model
-        parameter_id: ID of the new parameter
-        parameter_name: Name of the new parameter
-        constant: Is parameter constant?
-        units: SBML unit ID
-        value: parameter value
-
-    Returns:
-        The created parameter
-    """
-
-    if parameter_name is None:
-        parameter_name = parameter_id
-
-    p = sbml_model.createParameter()
-    p.setId(parameter_id)
-    p.setName(parameter_name)
-    p.setConstant(constant)
-    p.setValue(value)
-    p.setUnits(units)
-    return p
-
-
-def create_assigment_rule(sbml_model: libsbml.Model,
-                          assignee_id: str,
-                          formula: str,
-                          rule_id: str = None,
-                          rule_name: str = None) -> libsbml.AssignmentRule:
-    """Create SBML AssignmentRule
-
-    Arguments:
-        sbml_model: Model to add output to
-        assignee_id: Target of assignment
-        formula: Formula string for model output
-        rule_id: SBML id for created rule
-        rule_name: SBML name for created rule
-
-    Returns:
-        The created ``AssignmentRule``
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    if rule_id is None:
-        rule_id = assignee_id
-
-    if rule_name is None:
-        rule_name = rule_id
-
-    rule = sbml_model.createAssignmentRule()
-    rule.setId(rule_id)
-    rule.setName(rule_name)
-    rule.setVariable(assignee_id)
-    rule.setFormula(formula)
-
-    return rule
-
-
-def add_model_output(sbml_model: libsbml.Model,
-                     observable_id: str,
-                     formula: str,
-                     observable_name: str = None) -> None:
-    """Add PEtab-style output to model
-
-    We expect that all formula parameters are added to the model elsewhere.
-
-    Arguments:
-        sbml_model: Model to add output to
-        formula: Formula string for model output
-        observable_id: ID without "observable\\_" prefix
-        observable_name: Any observable name
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    if observable_name is None:
-        observable_name = observable_id
-
-    prefixed_id = f'observable_{observable_id}'
-    add_global_parameter(sbml_model, prefixed_id, observable_name)
-    create_assigment_rule(sbml_model=sbml_model,
-                          assignee_id=prefixed_id,
-                          formula=formula)
-
-
-def add_model_output_sigma(sbml_model: libsbml.Model,
-                           observable_id: str,
-                           formula: str) -> None:
-    """Add PEtab-style sigma for the given observable id
-
-    We expect that all formula parameters are added to the model elsewhere.
-
-    Arguments:
-        sbml_model: Model to add to
-        observable_id: Observable id for which to add sigma
-        formula: Formula for sigma
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    add_global_parameter(sbml_model, f'sigma_{observable_id}')
-    create_assigment_rule(sbml_model, f'sigma_{observable_id}', formula)
-
-
-def add_model_output_with_sigma(
-        sbml_model: libsbml.Model,
-        observable_id: str,
-        observable_formula: str,
-        observable_name: str = None) -> None:
-    """Add PEtab-style output and corresponding sigma with single
-    (newly created) parameter
-
-    We expect that all formula parameters are added to the model elsewhere.
-
-    Arguments:
-        sbml_model:
-            Model to add output to
-        observable_formula:
-            Formula string for model output
-        observable_id:
-            ID without "observable\\_" prefix
-        observable_name:
-            Any name
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    add_model_output(sbml_model=sbml_model,
-                     observable_id=observable_id,
-                     observable_name=observable_name,
-                     formula=observable_formula)
-
-    noise_parameter_id = f'noiseParameter1_{observable_id}'
-    add_global_parameter(sbml_model=sbml_model,
-                         parameter_id=noise_parameter_id)
-
-    add_model_output_sigma(sbml_model=sbml_model,
-                           observable_id=observable_id,
-                           formula=noise_parameter_id)
-
-
-def sbml_parameter_is_observable(sbml_parameter: libsbml.Parameter) -> bool:
-    """
-    Returns whether the ``libsbml.Parameter`` ``sbml_parameter``
-    matches the defined observable format.
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    return sbml_parameter.getId().startswith('observable_')
-
-
-def sbml_parameter_is_sigma(sbml_parameter: libsbml.Parameter) -> bool:
-    """
-    Returns whether the ``libsbml.Parameter`` ``sbml_parameter``
-    matches the defined sigma format.
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    return sbml_parameter.getId().startswith('sigma_')
-
-
-def get_observables(sbml_model: libsbml.Model, remove: bool = False) -> dict:
-    """
-    Get observables defined in SBML model according to PEtab format.
-
-    Returns:
-        Dictionary of observable definitions.
-        See `assignment_rules_to_dict` for details.
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    observables = assignment_rules_to_dict(
-        sbml_model,
-        filter_function=sbml_parameter_is_observable,
-        remove=remove
-    )
-    return observables
-
-
-def get_sigmas(sbml_model: libsbml.Model, remove: bool = False) -> dict:
-    """
-    Get sigmas defined in SBML model according to PEtab format.
-
-    Returns:
-        Dictionary of sigma definitions.
-
-        Keys are observable IDs, for values see `assignment_rules_to_dict` for
-        details.
-    """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
-
-    sigmas = assignment_rules_to_dict(
-        sbml_model,
-        filter_function=sbml_parameter_is_sigma,
-        remove=remove
-    )
-    # set correct observable name
-    sigmas = {re.sub('^sigma_', 'observable_', key): value['formula']
-              for key, value in sigmas.items()}
-    return sigmas
 
 
 def get_model_parameters(sbml_model: libsbml.Model, with_values=False

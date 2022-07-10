@@ -17,7 +17,8 @@ def test_validate():
         validate(data)
 
     # should be well-formed
-    file_ = "doc/example/example_Fujita/Fujita.yaml"
+    file_ = Path(__file__).parents[1] / "doc" / "example" / "example_Fujita"\
+        / "Fujita.yaml"
     validate(file_)
 
 

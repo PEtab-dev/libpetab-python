@@ -1,14 +1,15 @@
 """Functions performing various calculations."""
 
+import numbers
+from functools import reduce
+from typing import Dict, List, Union
+
 import numpy as np
 import pandas as pd
-from functools import reduce
-from typing import List, Union
+import petab
 import sympy
-import numbers
 
 from .C import *
-import petab
 
 __all__ = ['calculate_residuals', 'calculate_residuals_for_table',
            'get_symbolic_noise_formulas', 'evaluate_noise_formula',
@@ -121,7 +122,7 @@ def calculate_residuals_for_table(
     return residual_df
 
 
-def get_symbolic_noise_formulas(observable_df) -> dict:
+def get_symbolic_noise_formulas(observable_df) -> Dict[str, sympy.Expr]:
     """Sympify noise formulas.
 
     Arguments:
@@ -144,9 +145,10 @@ def get_symbolic_noise_formulas(observable_df) -> dict:
 
 def evaluate_noise_formula(
         measurement: pd.Series,
-        noise_formulas: dict,
+        noise_formulas: Dict[str, sympy.Expr],
         parameter_df: pd.DataFrame,
-        simulation: numbers.Number) -> float:
+        simulation: numbers.Number,
+) -> float:
     """Fill in parameters for `measurement` and evaluate noise_formula.
 
     Arguments:
@@ -165,10 +167,11 @@ def evaluate_noise_formula(
     # extract measurement specific overrides
     observable_parameter_overrides = petab.split_parameter_replacement_list(
         measurement.get(NOISE_PARAMETERS, None))
-    overrides = {}
     # fill in measurement specific parameters
-    for i_obs_par, obs_par in enumerate(observable_parameter_overrides):
-        overrides[f"noiseParameter{i_obs_par+1}_{observable_id}"] = obs_par
+    overrides = {
+        f"noiseParameter{i_obs_par + 1}_{observable_id}": obs_par
+        for i_obs_par, obs_par in enumerate(observable_parameter_overrides)
+    }
 
     # fill in observables
     overrides[observable_id] = simulation
@@ -190,10 +193,12 @@ def evaluate_noise_formula(
     # conversion is possible if all parameters are replaced
     try:
         noise_value = float(noise_value)
-    except TypeError:
-        raise TypeError(
+    except TypeError as e:
+        raise ValueError(
             f"Cannot replace all parameters in noise formula {noise_value} "
-            f"for observable {observable_id}.")
+            f"for observable {observable_id}. "
+            f"Missing {noise_formula.free_symbols}. Note that model states "
+            "are currently not supported.") from e
     return noise_value
 
 
@@ -230,12 +235,12 @@ def calculate_chi2(
         normalize, scale)
     chi2s = [calculate_chi2_for_table_from_residuals(df)
              for df in residual_dfs]
-    chi2 = sum(chi2s)
-    return chi2
+    return sum(chi2s)
 
 
 def calculate_chi2_for_table_from_residuals(
-        residual_df: pd.DataFrame) -> float:
+        residual_df: pd.DataFrame,
+) -> float:
     """Compute chi2 value for a single residual table."""
     return (np.array(residual_df[RESIDUAL])**2).sum()
 
@@ -278,8 +283,7 @@ def calculate_llh(
         _llh = calculate_llh_for_table(
             measurement_df, simulation_df, observable_df, parameter_df)
         llhs.append(_llh)
-    llh = sum(llhs)
-    return llh
+    return sum(llhs)
 
 
 def calculate_llh_for_table(
@@ -326,8 +330,7 @@ def calculate_llh_for_table(
         llh = calculate_single_llh(
             measurement, simulation, scale, noise_distribution, noise_value)
         llhs.append(llh)
-    llh = sum(llhs)
-    return llh
+    return sum(llhs)
 
 
 def calculate_single_llh(
@@ -371,5 +374,4 @@ def calculate_single_llh(
         raise NotImplementedError(
             "Unsupported combination of noise_distribution and scale "
             f"specified: {noise_distribution}, {scale}.")
-    llh = - nllh
-    return llh
+    return -nllh
