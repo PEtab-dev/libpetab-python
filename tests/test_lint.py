@@ -459,7 +459,7 @@ def test_check_ids():
 
 
 def test_check_parameter_df():
-    """Check parameters.normalize_parameter_df."""
+    """Check lint.check_parameter_df."""
 
     parameter_df = pd.DataFrame({
         PARAMETER_ID: ['par0', 'par1', 'par2'],
