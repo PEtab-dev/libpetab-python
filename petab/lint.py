@@ -85,12 +85,16 @@ def assert_no_leading_trailing_whitespace(
 
 
 def check_condition_df(
-        df: pd.DataFrame, model: Optional[Model] = None) -> None:
+        df: pd.DataFrame,
+        model: Optional[Model] = None,
+        observable_df: Optional[pd.DataFrame] = None
+) -> None:
     """Run sanity checks on PEtab condition table
 
     Arguments:
         df: PEtab condition DataFrame
         model: Model for additional checking of parameter IDs
+        observable_df: PEtab observables DataFrame
 
     Raises:
         AssertionError: in case of problems
@@ -119,6 +123,9 @@ def check_condition_df(
 
     if model is not None:
         allowed_cols = set(model.get_valid_ids_for_condition_table())
+        if observable_df is not None:
+            allowed_cols |= set(petab.get_output_parameters(
+                model=model, observable_df=observable_df))
         for column_name in df.columns:
             if column_name != CONDITION_NAME \
                     and column_name not in allowed_cols:
@@ -795,7 +802,8 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if problem.condition_df is not None:
         logger.info("Checking condition table...")
         try:
-            check_condition_df(problem.condition_df, problem.model)
+            check_condition_df(problem.condition_df, problem.model,
+                               problem.observable_df)
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True

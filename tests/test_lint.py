@@ -419,7 +419,14 @@ def test_check_condition_df():
     with pytest.raises(AssertionError):
         lint.check_condition_df(condition_df, model)
 
-    # fix:
+    # fix by adding output parameter
+    observable_df = pd.DataFrame({
+        OBSERVABLE_ID: ["obs1"],
+        OBSERVABLE_FORMULA: ["p1"],
+    })
+    lint.check_condition_df(condition_df, model, observable_df)
+
+    # fix by adding parameter
     ss_model.addParameter('p1', 1.0)
     lint.check_condition_df(condition_df, model)
 
@@ -452,7 +459,7 @@ def test_check_ids():
 
 
 def test_check_parameter_df():
-    """Check parameters.normalize_parameter_df."""
+    """Check lint.check_parameter_df."""
 
     parameter_df = pd.DataFrame({
         PARAMETER_ID: ['par0', 'par1', 'par2'],
