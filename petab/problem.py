@@ -55,6 +55,7 @@ class Problem:
             sbml_reader: libsbml.SBMLReader = None,
             sbml_document: libsbml.SBMLDocument = None,
             model: Model = None,
+            model_id: str = None,
             condition_df: pd.DataFrame = None,
             measurement_df: pd.DataFrame = None,
             parameter_df: pd.DataFrame = None,
@@ -80,7 +81,9 @@ class Problem:
             model = SbmlModel(
                 sbml_model=sbml_model,
                 sbml_reader=sbml_reader,
-                sbml_document=sbml_document)
+                sbml_document=sbml_document,
+                model_id=model_id
+            )
 
         self.model: Optional[Model] = model
         self.extensions_config = extensions_config or {}
@@ -117,6 +120,7 @@ class Problem:
                                        Iterable[Union[str, Path]]] = None,
             observable_files: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
+            model_id: str = None,
             extensions_config: Dict = None,
     ) -> 'Problem':
         """
@@ -136,7 +140,7 @@ class Problem:
              "future version. Use `petab.Problem.from_yaml instead.",
              DeprecationWarning, stacklevel=2)
 
-        model = model_factory(sbml_file, MODEL_TYPE_SBML) \
+        model = model_factory(sbml_file, MODEL_TYPE_SBML, model_id=model_id) \
             if sbml_file else None
 
         condition_df = core.concat_tables(
@@ -214,17 +218,14 @@ class Problem:
                              'Consider using '
                              'petab.CompositeProblem.from_yaml() instead.')
 
-        if yaml_config[FORMAT_VERSION] != format_version.__format_version__:
-            raise ValueError("Provided PEtab files are of unsupported version"
+        if yaml_config[FORMAT_VERSION] not in {"1", 1, "1.0.0", "2.0.0"}:
+            raise ValueError("Provided PEtab files are of unsupported version "
                              f"{yaml_config[FORMAT_VERSION]}. Expected "
                              f"{format_version.__format_version__}.")
+        if yaml_config[FORMAT_VERSION] == "2.0.0":
+            warn("Support for PEtab2.0 is experimental!")
 
         problem0 = yaml_config['problems'][0]
-
-        if len(problem0[SBML_FILES]) > 1:
-            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-            raise NotImplementedError(
-                'Support for multiple models is not yet implemented.')
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_df = parameters.get_parameter_df([
@@ -236,9 +237,28 @@ class Problem:
                 get_path(yaml_config[PARAMETER_FILE])) \
                 if yaml_config[PARAMETER_FILE] else None
 
-        model = model_factory(get_path(problem0[SBML_FILES][0]),
-                              MODEL_TYPE_SBML) \
-            if problem0[SBML_FILES] else None
+        if yaml_config[FORMAT_VERSION] in [1, "1"]:
+            if len(problem0[SBML_FILES]) > 1:
+                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+                raise NotImplementedError(
+                    'Support for multiple models is not yet implemented.')
+
+            model = model_factory(get_path(problem0[SBML_FILES][0]),
+                                  MODEL_TYPE_SBML, model_id=None) \
+                if problem0[SBML_FILES] else None
+        else:
+            if len(problem0[MODEL_FILES]) > 1:
+                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+                raise NotImplementedError(
+                    'Support for multiple models is not yet implemented.')
+            if not problem0[MODEL_FILES]:
+                model = None
+            else:
+                model_id, model_info = \
+                    next(iter(problem0[MODEL_FILES].items()))
+                model = model_factory(get_path(model_info[MODEL_LOCATION]),
+                                      model_info[MODEL_LANGUAGE],
+                                      model_id=model_id)
 
         measurement_files = [
             get_path(f) for f in problem0.get(MEASUREMENT_FILES, [])]

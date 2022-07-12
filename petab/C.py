@@ -257,6 +257,12 @@ PROBLEMS = 'problems'
 #:
 SBML_FILES = 'sbml_files'
 #:
+MODEL_FILES = 'model_files'
+#:
+MODEL_LOCATION = 'location'
+#:
+MODEL_LANGUAGE = 'language'
+#:
 CONDITION_FILES = 'condition_files'
 #:
 MEASUREMENT_FILES = 'measurement_files'
