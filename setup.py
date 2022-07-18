@@ -86,6 +86,10 @@ setup(name='petab',
               'm2r2',
               'myst-nb>=0.14.0',
               'ipython>=7.21.0',
+              # until
+              # https://github.com/ryanfox/sphinx-markdown-tables/issues/36
+              # is fixed
+              'markdown<3.4.0',
           ]
       }
       )
