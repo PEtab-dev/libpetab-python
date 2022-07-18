@@ -264,6 +264,8 @@ MEASUREMENT_FILES = 'measurement_files'
 OBSERVABLE_FILES = 'observable_files'
 #:
 VISUALIZATION_FILES = 'visualization_files'
+#:
+EXTENSIONS = 'extensions'
 
 
 # MORE
@@ -274,3 +276,6 @@ SIMULATION = 'simulation'
 RESIDUAL = 'residual'
 #:
 NOISE_VALUE = 'noiseValue'
+
+# separator for multiple parameter values (bounds, observableParameters, ...)
+PARAMETER_SEPARATOR = ';'

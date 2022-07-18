@@ -29,8 +29,8 @@ def absolute_links(txt):
 
 
 # Python version check. We need >= 3.6 due to e.g. f-strings
-if sys.version_info < (3, 7, 1):
-    sys.exit('PEtab requires at least Python version 3.7.1')
+if sys.version_info < (3, 8, 0):
+    sys.exit('PEtab requires at least Python version 3.8')
 
 # read version from file
 __version__ = ''
@@ -67,7 +67,7 @@ setup(name='petab',
                         'jsonschema',
                         ],
       include_package_data=True,
-      python_requires='>=3.7.1',
+      python_requires='>=3.8.0',
       entry_points=ENTRY_POINTS,
       extras_require={
           'tests': [
@@ -86,6 +86,10 @@ setup(name='petab',
               'm2r2',
               'myst-nb>=0.14.0',
               'ipython>=7.21.0',
+              # until
+              # https://github.com/ryanfox/sphinx-markdown-tables/issues/36
+              # is fixed
+              'markdown<3.4.0',
           ]
       }
       )

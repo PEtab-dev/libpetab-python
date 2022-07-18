@@ -1,15 +1,21 @@
 import copy
 import pickle
 import tempfile
+import warnings
+from io import StringIO
 from math import nan
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import libsbml
 import numpy as np
 import pandas as pd
-import petab
 import pytest
+
+import petab
 from petab.C import *
+from petab.models.sbml_model import SbmlModel
+from yaml import safe_load
 
 
 @pytest.fixture
@@ -201,6 +207,7 @@ def test_create_parameter_df(
     ss_model.addSpecies('[x1]', 1.0)
     ss_model.addParameter('fixedParameter1', 2.0)
     ss_model.addParameter('p0', 3.0)
+    model = SbmlModel(sbml_model=ss_model.model)
 
     observable_df = pd.DataFrame(data={
         OBSERVABLE_ID: ['obs1', 'obs2'],
@@ -217,16 +224,28 @@ def test_create_parameter_df(
         NOISE_PARAMETERS: ['p3;p4', 'p5']
     })
 
-    parameter_df = petab.create_parameter_df(
-        ss_model.model,
-        condition_df_2_conditions,
-        observable_df,
-        measurement_df)
-
     # first model parameters, then row by row noise and sigma overrides
     expected = ['p3', 'p4', 'p1', 'p2', 'p5']
-    actual = parameter_df.index.values.tolist()
-    assert actual == expected
+
+    # Test old API with passing libsbml.Model directly
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        parameter_df = petab.create_parameter_df(
+            ss_model.model,
+            condition_df_2_conditions,
+            observable_df,
+            measurement_df)
+        assert len(w) == 1
+        assert issubclass(w[-1].category, DeprecationWarning)
+        assert parameter_df.index.values.tolist() == expected
+
+    parameter_df = petab.create_parameter_df(
+        model=model,
+        condition_df=condition_df_2_conditions,
+        observable_df=observable_df,
+        measurement_df=measurement_df
+    )
+    assert parameter_df.index.values.tolist() == expected
 
     # test with condition parameter override:
     condition_df_2_conditions.loc['condition2', 'fixedParameter1'] \
@@ -234,10 +253,11 @@ def test_create_parameter_df(
     expected = ['p3', 'p4', 'p1', 'p2', 'p5', 'overrider']
 
     parameter_df = petab.create_parameter_df(
-        ss_model.model,
-        condition_df_2_conditions,
-        observable_df,
-        measurement_df)
+        model=model,
+        condition_df=condition_df_2_conditions,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
+    )
     actual = parameter_df.index.values.tolist()
     assert actual == expected
 
@@ -245,10 +265,10 @@ def test_create_parameter_df(
     expected = ['p0', 'p3', 'p4', 'p1', 'p2', 'p5', 'overrider']
 
     parameter_df = petab.create_parameter_df(
-        ss_model.model,
-        condition_df_2_conditions,
-        observable_df,
-        measurement_df,
+        model=model,
+        condition_df=condition_df_2_conditions,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
         include_optional=True)
     actual = parameter_df.index.values.tolist()
     assert actual == expected
@@ -452,6 +472,33 @@ def test_concat_measurements():
                                 petab.measurements.get_measurement_df))
 
 
+def test_concat_condition_df():
+    df1 = pd.DataFrame(data={
+        CONDITION_ID: ['condition1', 'condition2'],
+        'par1': [1.1, 1.2],
+        'par2': [2.1, 2.2],
+        'par3': [3.1, 3.2]
+    }).set_index(CONDITION_ID)
+
+    assert df1.equals(petab.concat_tables(df1, petab.get_condition_df))
+
+    df2 = pd.DataFrame(data={
+        CONDITION_ID: ['condition3'],
+        'par1': [1.3],
+        'par2': [2.3],
+    }).set_index(CONDITION_ID)
+
+    df_expected = pd.DataFrame(data={
+        CONDITION_ID: ['condition1', 'condition2', 'condition3'],
+        'par1': [1.1, 1.2, 1.3],
+        'par2': [2.1, 2.2, 2.3],
+        'par3': [3.1, 3.2, np.nan],
+    }).set_index(CONDITION_ID)
+    assert df_expected.equals(
+        petab.concat_tables((df1, df2), petab.get_condition_df)
+    )
+
+
 def test_get_observable_ids(petab_problem):  # pylint: disable=W0621
     """Test if observable ids functions returns correct value."""
     assert set(petab_problem.get_observable_ids()) == {'observable_1'}
@@ -535,3 +582,68 @@ def test_load_remote():
     assert petab_problem.sbml_model is not None
     assert petab_problem.measurement_df is not None \
            and not petab_problem.measurement_df.empty
+
+
+def test_problem_from_yaml_v1_empty():
+    """Test loading PEtab version 1 yaml without any files"""
+    yaml_config = """
+    format_version: 1
+    parameter_file:
+    problems:
+    - condition_files: []
+      measurement_files: []
+      observable_files: []
+      sbml_files: []
+    """
+    yaml_config = safe_load(StringIO(yaml_config))
+    petab.Problem.from_yaml(yaml_config)
+
+
+def test_problem_from_yaml_v1_multiple_files():
+    """Test loading PEtab version 1 yaml with multiple condition / measurement
+    / observable files"""
+    yaml_config = """
+    format_version: 1
+    parameter_file:
+    problems:
+    - condition_files: [conditions1.tsv, conditions2.tsv]
+      measurement_files: [measurements1.tsv, measurements2.tsv]
+      observable_files: [observables1.tsv, observables2.tsv]
+      sbml_files: []
+    """
+
+    with TemporaryDirectory() as tmpdir:
+        yaml_path = Path(tmpdir, "problem.yaml")
+        with open(yaml_path, 'w') as f:
+            f.write(yaml_config)
+
+        for i in (1, 2):
+            condition_df = pd.DataFrame({
+                CONDITION_ID: [f"condition{i}"],
+            })
+            condition_df.set_index([CONDITION_ID], inplace=True)
+            petab.write_condition_df(condition_df,
+                                     Path(tmpdir, f"conditions{i}.tsv"))
+
+            measurement_df = pd.DataFrame({
+                SIMULATION_CONDITION_ID: [f"condition{i}"],
+                OBSERVABLE_ID: [f"observable{i}"],
+                TIME: [i],
+                MEASUREMENT: [1]
+            })
+            petab.write_measurement_df(measurement_df,
+                                       Path(tmpdir, f"measurements{i}.tsv"))
+
+            observables_df = pd.DataFrame({
+                OBSERVABLE_ID: [f"observable{i}"],
+                OBSERVABLE_FORMULA: [1],
+                NOISE_FORMULA: [1],
+            })
+            petab.write_observable_df(observables_df,
+                                      Path(tmpdir, f"observables{i}.tsv"))
+
+        petab_problem = petab.Problem.from_yaml(yaml_path)
+
+    assert petab_problem.measurement_df.shape[0] == 2
+    assert petab_problem.observable_df.shape[0] == 2
+    assert petab_problem.condition_df.shape[0] == 2

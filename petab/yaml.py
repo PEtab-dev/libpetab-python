@@ -17,6 +17,7 @@ SCHEMA_DIR = Path(__file__).parent / "schemas"
 SCHEMAS = {
     '1': SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
     '1.0.0': SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
+    '2.0.0': SCHEMA_DIR / "petab_schema.v2.0.0.yaml",
 }
 
 __all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
@@ -66,8 +67,11 @@ def validate_yaml_syntax(
         #  but let's still use the latest PEtab schema for full validation
         version = yaml_config.get(FORMAT_VERSION, None) \
                       or list(SCHEMAS.values())[-1]
-        schema = SCHEMAS[str(version)]
-
+        try:
+            schema = SCHEMAS[str(version)]
+        except KeyError as e:
+            raise ValueError("Unknown PEtab version given in problem "
+                             f"specification: {version}") from e
     schema = load_yaml(schema)
     jsonschema.validate(instance=yaml_config, schema=schema)
 

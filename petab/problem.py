@@ -1,17 +1,25 @@
 """PEtab Problem class"""
+from __future__ import annotations
 
 import os
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union, TYPE_CHECKING
 from urllib.parse import unquote, urlparse, urlunparse
+from warnings import warn
 
-import libsbml
 import pandas as pd
 
 from . import (conditions, core, format_version, measurements, observables,
                parameter_mapping, parameters, sampling, sbml, yaml)
 from .C import *  # noqa: F403
+from .models import MODEL_TYPE_SBML
+from .models.model import Model, model_factory
+from .models.sbml_model import SbmlModel
+
+if TYPE_CHECKING:
+    import libsbml
+
 
 __all__ = ['Problem']
 
@@ -20,7 +28,7 @@ class Problem:
     """
     PEtab parameter estimation problem as defined by
 
-    - SBML model
+    - model
     - condition table
     - measurement table
     - parameter table
@@ -34,61 +42,73 @@ class Problem:
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
         visualization_df: PEtab visualization table
-        sbml_reader: Stored to keep object alive.
-        sbml_document: Stored to keep object alive.
-        sbml_model: PEtab SBML model
+        model: The underlying model
+        sbml_reader: Stored to keep object alive (deprecated).
+        sbml_document: Stored to keep object alive (deprecated).
+        sbml_model: PEtab SBML model (deprecated)
+        extensions_config: Information on the extensions used
     """
 
-    def __init__(self,
-                 sbml_model: libsbml.Model = None,
-                 sbml_reader: libsbml.SBMLReader = None,
-                 sbml_document: libsbml.SBMLDocument = None,
-                 condition_df: pd.DataFrame = None,
-                 measurement_df: pd.DataFrame = None,
-                 parameter_df: pd.DataFrame = None,
-                 visualization_df: pd.DataFrame = None,
-                 observable_df: pd.DataFrame = None):
-
+    def __init__(
+            self,
+            sbml_model: libsbml.Model = None,
+            sbml_reader: libsbml.SBMLReader = None,
+            sbml_document: libsbml.SBMLDocument = None,
+            model: Model = None,
+            condition_df: pd.DataFrame = None,
+            measurement_df: pd.DataFrame = None,
+            parameter_df: pd.DataFrame = None,
+            visualization_df: pd.DataFrame = None,
+            observable_df: pd.DataFrame = None,
+            extensions_config: Dict = None,
+    ):
         self.condition_df: Optional[pd.DataFrame] = condition_df
         self.measurement_df: Optional[pd.DataFrame] = measurement_df
         self.parameter_df: Optional[pd.DataFrame] = parameter_df
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
         self.observable_df: Optional[pd.DataFrame] = observable_df
 
-        self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
-        self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
-        self.sbml_model: Optional[libsbml.Model] = sbml_model
+        if any((sbml_model, sbml_document, sbml_reader),):
+            warn("Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
+                 "to petab.Problem is deprecated and will be removed in a "
+                 "future version. Use `model=petab.models.SbmlModel(...)` "
+                 "instead.", DeprecationWarning, stacklevel=2)
+            if model:
+                raise ValueError("Must only provide one of (`sbml_model`, "
+                                 "`sbml_document`, `sbml_reader`) or `model`.")
 
-    def __getstate__(self):
-        """Return state for pickling"""
-        state = self.__dict__.copy()
+            model = SbmlModel(
+                sbml_model=sbml_model,
+                sbml_reader=sbml_reader,
+                sbml_document=sbml_document)
 
-        # libsbml stuff cannot be serialized directly
-        if self.sbml_model:
-            sbml_document = self.sbml_model.getSBMLDocument()
-            sbml_writer = libsbml.SBMLWriter()
-            state['sbml_string'] = sbml_writer.writeSBMLToString(sbml_document)
+        self.model: Optional[Model] = model
+        self.extensions_config = extensions_config or {}
 
-        exclude = ['sbml_reader', 'sbml_document', 'sbml_model']
-        for key in exclude:
-            state.pop(key)
+    def __getattr__(self, name):
+        # For backward-compatibility, allow access to SBML model related
+        #  attributes now stored in self.model
+        if name in {'sbml_model', 'sbml_reader', 'sbml_document'}:
+            return getattr(self.model, name) if self.model else None
+        raise AttributeError(f"'{self.__class__.__name__}' object has no "
+                             f"attribute '{name}'")
 
-        return state
-
-    def __setstate__(self, state):
-        """Set state after unpickling"""
-        # load SBML model from pickled string
-        sbml_string = state.pop('sbml_string', None)
-        if sbml_string:
-            self.sbml_reader, self.sbml_document, self.sbml_model = \
-                sbml.load_sbml_from_string(sbml_string)
-
-        self.__dict__.update(state)
+    def __setattr__(self, name, value):
+        # For backward-compatibility, allow access to SBML model related
+        #  attributes now stored in self.model
+        if name in {'sbml_model', 'sbml_reader', 'sbml_document'}:
+            if self.model:
+                setattr(self.model, name, value)
+            else:
+                self.model = SbmlModel(**{name: value})
+        else:
+            super().__setattr__(name, value)
 
     @staticmethod
     def from_files(
-            sbml_file: Union[str, Path, None] = None,
-            condition_file: Union[str, Path, None] = None,
+            sbml_file: Union[str, Path] = None,
+            condition_file:
+            Union[str, Path, Iterable[Union[str, Path]]] = None,
             measurement_file: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
             parameter_file: Union[str, Path,
@@ -96,7 +116,8 @@ class Problem:
             visualization_files: Union[str, Path,
                                        Iterable[Union[str, Path]]] = None,
             observable_files: Union[str, Path,
-                                    Iterable[Union[str, Path]]] = None
+                                    Iterable[Union[str, Path]]] = None,
+            extensions_config: Dict = None,
     ) -> 'Problem':
         """
         Factory method to load model and tables from files.
@@ -108,45 +129,46 @@ class Problem:
             parameter_file: PEtab parameter table
             visualization_files: PEtab visualization tables
             observable_files: PEtab observables tables
+            extensions_config: Information on the extensions used
         """
+        warn("petab.Problem.from_files is deprecated and will be removed in a "
+             "future version. Use `petab.Problem.from_yaml instead.",
+             DeprecationWarning, stacklevel=2)
 
-        sbml_model = sbml_document = sbml_reader = None
-        condition_df = measurement_df = parameter_df = visualization_df = None
-        observable_df = None
+        model = model_factory(sbml_file, MODEL_TYPE_SBML) \
+            if sbml_file else None
 
-        if condition_file:
-            condition_df = conditions.get_condition_df(condition_file)
+        condition_df = core.concat_tables(
+            condition_file, conditions.get_condition_df) \
+            if condition_file else None
 
-        if measurement_file:
-            # If there are multiple tables, we will merge them
-            measurement_df = core.concat_tables(
-                measurement_file, measurements.get_measurement_df)
+        # If there are multiple tables, we will merge them
+        measurement_df = core.concat_tables(
+            measurement_file, measurements.get_measurement_df) \
+            if measurement_file else None
 
-        if parameter_file:
-            parameter_df = parameters.get_parameter_df(parameter_file)
+        parameter_df = parameters.get_parameter_df(parameter_file) \
+            if parameter_file else None
 
-        if sbml_file:
-            sbml_reader, sbml_document, sbml_model = \
-                sbml.get_sbml_model(sbml_file)
+        # If there are multiple tables, we will merge them
+        visualization_df = core.concat_tables(
+            visualization_files, core.get_visualization_df) \
+            if visualization_files else None
 
-        if visualization_files:
-            # If there are multiple tables, we will merge them
-            visualization_df = core.concat_tables(
-                visualization_files, core.get_visualization_df)
+        # If there are multiple tables, we will merge them
+        observable_df = core.concat_tables(
+            observable_files, observables.get_observable_df) \
+            if observable_files else None
 
-        if observable_files:
-            # If there are multiple tables, we will merge them
-            observable_df = core.concat_tables(
-                observable_files, observables.get_observable_df)
-
-        return Problem(condition_df=condition_df,
-                       measurement_df=measurement_df,
-                       parameter_df=parameter_df,
-                       observable_df=observable_df,
-                       sbml_model=sbml_model,
-                       sbml_document=sbml_document,
-                       sbml_reader=sbml_reader,
-                       visualization_df=visualization_df)
+        return Problem(
+            model=model,
+            condition_df=condition_df,
+            measurement_df=measurement_df,
+            parameter_df=parameter_df,
+            observable_df=observable_df,
+            visualization_df=visualization_df,
+            extensions_config=extensions_config,
+        )
 
     @staticmethod
     def from_yaml(yaml_config: Union[Dict, Path, str]) -> 'Problem':
@@ -198,27 +220,61 @@ class Problem:
 
         problem0 = yaml_config['problems'][0]
 
-        yaml.assert_single_condition_and_sbml_file(problem0)
+        if len(problem0[SBML_FILES]) > 1:
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+            raise NotImplementedError(
+                'Support for multiple models is not yet implemented.')
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
-            parameter_file = [
-                get_path(f) for f in yaml_config[PARAMETER_FILE]
-            ]
+            parameter_df = parameters.get_parameter_df([
+                get_path(f)
+                for f in yaml_config[PARAMETER_FILE]
+            ])
         else:
-            parameter_file = get_path(yaml_config[PARAMETER_FILE]) \
+            parameter_df = parameters.get_parameter_df(
+                get_path(yaml_config[PARAMETER_FILE])) \
                 if yaml_config[PARAMETER_FILE] else None
 
-        return Problem.from_files(
-            sbml_file=get_path(problem0[SBML_FILES][0])
-            if problem0[SBML_FILES] else None,
-            measurement_file=[get_path(f)
-                              for f in problem0[MEASUREMENT_FILES]],
-            condition_file=get_path(problem0[CONDITION_FILES][0]),
-            parameter_file=parameter_file,
-            visualization_files=[
-                get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])],
-            observable_files=[
-                get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
+        model = model_factory(get_path(problem0[SBML_FILES][0]),
+                              MODEL_TYPE_SBML) \
+            if problem0[SBML_FILES] else None
+
+        measurement_files = [
+            get_path(f) for f in problem0.get(MEASUREMENT_FILES, [])]
+        # If there are multiple tables, we will merge them
+        measurement_df = core.concat_tables(
+            measurement_files, measurements.get_measurement_df) \
+            if measurement_files else None
+
+        condition_files = [
+            get_path(f) for f in problem0.get(CONDITION_FILES, [])]
+        # If there are multiple tables, we will merge them
+        condition_df = core.concat_tables(
+            condition_files, conditions.get_condition_df) \
+            if condition_files else None
+
+        visualization_files = [
+            get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])]
+        # If there are multiple tables, we will merge them
+        visualization_df = core.concat_tables(
+            visualization_files, core.get_visualization_df) \
+            if visualization_files else None
+
+        observable_files = [
+            get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])]
+        # If there are multiple tables, we will merge them
+        observable_df = core.concat_tables(
+            observable_files, observables.get_observable_df) \
+            if observable_files else None
+
+        return Problem(
+            condition_df=condition_df,
+            measurement_df=measurement_df,
+            parameter_df=parameter_df,
+            observable_df=observable_df,
+            model=model,
+            visualization_df=visualization_df,
+            extensions_config=yaml_config.get(EXTENSIONS, {})
         )
 
     @staticmethod
@@ -237,10 +293,10 @@ class Problem:
         # other SWIG interfaces
         try:
             import libcombine
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "To use PEtab's COMBINE functionality, libcombine "
-                "(python-libcombine) must be installed.")
+                "(python-libcombine) must be installed.") from e
 
         archive = libcombine.CombineArchive()
         if archive.initializeFromArchive(str(filename)) is None:
@@ -292,7 +348,10 @@ class Problem:
             if getattr(self, f'{table_name}_df') is not None:
                 filenames[f'{table_name}_file'] = f'{table_name}s.tsv'
 
-        if self.sbml_document is not None:
+        if self.model:
+            if not isinstance(self.model, SbmlModel):
+                raise NotImplementedError("Saving non-SBML models is "
+                                          "currently not supported.")
             filenames['sbml_file'] = 'model.xml'
 
         filenames['yaml_file'] = 'problem.yaml'
@@ -313,6 +372,7 @@ class Problem:
                  yaml_file: Union[None, str, Path] = None,
                  prefix_path: Union[None, str, Path] = None,
                  relative_paths: bool = True,
+                 model_file: Union[None, str, Path] = None,
                  ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -325,6 +385,7 @@ class Problem:
 
         Arguments:
             sbml_file: SBML model destination
+            model_file: Model destination
             condition_file: Condition table destination
             measurement_file: Measurement table destination
             parameter_file: Parameter table destination
@@ -344,6 +405,17 @@ class Problem:
             ValueError:
                 If a destination was provided for a non-existing entity.
         """
+        if sbml_file:
+            warn("The `sbml_file` argument is deprecated and will be "
+                 "removed in a future version. Use `model_file` instead.",
+                 DeprecationWarning, stacklevel=2)
+
+            if model_file:
+                raise ValueError("Must provide either `sbml_file` or "
+                                 "`model_file` argument, but not both.")
+
+            model_file = sbml_file
+
         if prefix_path is not None:
             prefix_path = Path(prefix_path)
 
@@ -352,7 +424,7 @@ class Problem:
                     return path0
                 return str(prefix_path / path0)
 
-            sbml_file = add_prefix(sbml_file)
+            model_file = add_prefix(model_file)
             condition_file = add_prefix(condition_file)
             measurement_file = add_prefix(measurement_file)
             parameter_file = add_prefix(parameter_file)
@@ -360,12 +432,8 @@ class Problem:
             visualization_file = add_prefix(visualization_file)
             yaml_file = add_prefix(yaml_file)
 
-        if sbml_file:
-            if self.sbml_document is not None:
-                sbml.write_sbml(self.sbml_document, sbml_file)
-            else:
-                raise ValueError("Unable to save SBML model with no "
-                                 "sbml_doc set.")
+        if model_file:
+            self.model.to_file(model_file)
 
         def error(name: str) -> ValueError:
             return ValueError(f"Unable to save non-existent {name} table")
@@ -430,6 +498,10 @@ class Problem:
 
     def get_model_parameters(self):
         """See :py:func:`petab.sbml.get_model_parameters`"""
+        warn("petab.Problem.get_model_parameters is deprecated and will be "
+             "removed in a future version.",
+             DeprecationWarning, stacklevel=2)
+
         return sbml.get_model_parameters(self.sbml_model)
 
     def get_observable_ids(self):
@@ -640,26 +712,21 @@ class Problem:
         return measurements.get_simulation_conditions(self.measurement_df)
 
     def get_optimization_to_simulation_parameter_mapping(
-            self,
-            warn_unmapped: bool = True,
-            scaled_parameters: bool = False,
-            allow_timepoint_specific_numeric_noise_parameters:
-            bool = False,
+            self, **kwargs
     ):
         """
-        See get_simulation_to_optimization_parameter_mapping.
+        See
+        :py:func:`petab.parameter_mapping.get_optimization_to_simulation_parameter_mapping`,
+        to which all keyword arguments are forwarded.
         """
-        return parameter_mapping\
+        return parameter_mapping \
             .get_optimization_to_simulation_parameter_mapping(
-                self.condition_df,
-                self.measurement_df,
-                self.parameter_df,
-                self.observable_df,
-                self.sbml_model,
-                warn_unmapped=warn_unmapped,
-                scaled_parameters=scaled_parameters,
-                allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-                allow_timepoint_specific_numeric_noise_parameters
+                condition_df=self.condition_df,
+                measurement_df=self.measurement_df,
+                parameter_df=self.parameter_df,
+                observable_df=self.observable_df,
+                model=self.model,
+                **kwargs
             )
 
     def create_parameter_df(self, *args, **kwargs):
@@ -668,10 +735,10 @@ class Problem:
         See :py:func:`create_parameter_df`.
         """
         return parameters.create_parameter_df(
-            self.sbml_model,
-            self.condition_df,
-            self.observable_df,
-            self.measurement_df,
+            model=self.model,
+            condition_df=self.condition_df,
+            observable_df=self.observable_df,
+            measurement_df=self.measurement_df,
             *args, **kwargs)
 
     def sample_parameter_startpoints(self, n_starts: int = 100):

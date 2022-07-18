@@ -5,24 +5,26 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import List, Union
 
-import libsbml
 import pandas as pd
 import sympy as sp
 
 from . import core, lint
 from .C import *  # noqa: F403
+from .models import Model
 
-__all__ = ['create_observable_df',
-           'get_formula_placeholders',
-           'get_observable_df',
-           'get_output_parameters',
-           'get_placeholders',
-           'write_observable_df']
+__all__ = [
+    'create_observable_df',
+    'get_formula_placeholders',
+    'get_observable_df',
+    'get_output_parameters',
+    'get_placeholders',
+    'write_observable_df'
+]
 
 
 def get_observable_df(
         observable_file: Union[str, pd.DataFrame, Path, None]
-) -> pd.DataFrame:
+) -> Union[pd.DataFrame, None]:
     """
     Read the provided observable file into a ``pandas.Dataframe``.
 
@@ -67,18 +69,18 @@ def write_observable_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 def get_output_parameters(
         observable_df: pd.DataFrame,
-        sbml_model: libsbml.Model,
+        model: Model,
         observables: bool = True,
         noise: bool = True,
 ) -> List[str]:
     """Get output parameters
 
     Returns IDs of parameters used in observable and noise formulas that are
-    not defined in the SBML model.
+    not defined in the model.
 
     Arguments:
         observable_df: PEtab observable table
-        sbml_model: SBML model
+        model: The underlying model
         observables: Include parameters from observableFormulas
         noise: Include parameters from noiseFormulas
 
@@ -97,7 +99,7 @@ def get_output_parameters(
                            key=lambda symbol: symbol.name)
         for free_sym in free_syms:
             sym = str(free_sym)
-            if sbml_model.getElementBySId(sym) is None and sym != 'time':
+            if not model.symbol_allowed_in_observable_formula(sym):
                 output_parameters[sym] = None
 
     return list(output_parameters.keys())

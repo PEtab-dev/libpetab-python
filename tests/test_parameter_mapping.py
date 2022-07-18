@@ -1,9 +1,13 @@
-import numpy as np
 import os
+from math import nan
+
+import numpy as np
 import pandas as pd
 import petab
-from petab.parameter_mapping import _apply_parameter_table
 from petab.C import *
+from petab.models.sbml_model import SbmlModel
+from petab.parameter_mapping import _apply_parameter_table
+
 
 # import fixtures
 pytest_plugins = [
@@ -61,8 +65,9 @@ class TestGetSimulationToOptimizationParameterMapping(object):
                       'fixedParameter1': LIN}
                      )]
 
+        model = SbmlModel(sbml_model=ss_model.model)
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
         )
@@ -101,7 +106,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
                     ]
 
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df
@@ -135,7 +140,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         ]
 
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
@@ -170,7 +175,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         ]
 
         actual = petab.get_optimization_to_simulation_parameter_mapping(
-            sbml_model=ss_model.model,
+            model=model,
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
@@ -188,6 +193,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         ss_model = simplesbml.SbmlModel()
         ss_model.addParameter('dynamicParameter1', 0.0)
         ss_model.addParameter('dynamicParameter2', 0.0)
+        model = SbmlModel(sbml_model=ss_model.model)
 
         measurement_df = pd.DataFrame(data={
             OBSERVABLE_ID: ['obs1', 'obs2', 'obs1', 'obs2'],
@@ -253,7 +259,9 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,
-            sbml_model=ss_model.model, parameter_df=parameter_df)
+            model=model,
+            parameter_df=parameter_df
+        )
         assert actual == expected
 
         # For one case we test parallel execution, which must yield the same
@@ -262,16 +270,26 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,
-            sbml_model=ss_model.model, parameter_df=parameter_df)
+            model=model,
+            parameter_df=parameter_df
+        )
         assert actual == expected
 
     @staticmethod
     def test_partial_override(condition_df_2_conditions):
         # Condition-specific parameters, keeping original parameters
-        condition_df = condition_df_2_conditions
+        condition_df = pd.DataFrame(data={
+            'conditionId': ['condition1', 'condition2'],
+            'conditionName': ['', 'Condition 2'],
+            'fixedParameter1': [1.0, 2.0],
+            'fixedParameter2': [nan, 2.5],
+        })
+        condition_df.set_index('conditionId', inplace=True)
 
         import simplesbml
         ss_model = simplesbml.SbmlModel()
+        ss_model.addParameter('fixedParameter1', 0.5)
+        ss_model.addParameter('fixedParameter2', 1.0)
         ss_model.addParameter('dynamicParameter1', 0.0)
         ss_model.addParameter('observableParameter1_obs1', 0.0)
         ss_model.addParameter('observableParameter2_obs1', 0.0)
@@ -300,6 +318,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
 
         expected = [({},
                      {'fixedParameter1': 1.0,
+                      'fixedParameter2': 1.0,
                       'dynamicParameter1': 'dynamicParameter1',
                       'observableParameter1_obs1': 'obs1par1override',
                       'observableParameter2_obs1': 'obs1par2cond1override',
@@ -307,12 +326,14 @@ class TestGetSimulationToOptimizationParameterMapping(object):
                       },
                      {},
                      {'fixedParameter1': LIN,
+                      'fixedParameter2': LIN,
                       'dynamicParameter1': LIN,
                       'observableParameter1_obs1': LIN,
                       'observableParameter2_obs1': LIN,
                       'observableParameter1_obs2': LIN}),
                     ({},
                      {'fixedParameter1': 2.0,
+                      'fixedParameter2': 2.5,
                       'dynamicParameter1': 'dynamicParameter1',
                       'observableParameter1_obs1': 'obs1par1override',
                       'observableParameter2_obs1': 'obs1par2cond2override',
@@ -320,6 +341,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
                       },
                      {},
                      {'fixedParameter1': LIN,
+                      'fixedParameter2': LIN,
                       'dynamicParameter1': LIN,
                       'observableParameter1_obs1': LIN,
                       'observableParameter2_obs1': LIN,
