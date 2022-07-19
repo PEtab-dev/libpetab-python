@@ -283,7 +283,7 @@ def get_valid_parameters_for_parameter_table(
         model: Model,
         condition_df: pd.DataFrame,
         observable_df: pd.DataFrame,
-        measurement_df: pd.DataFrame
+        measurement_df: pd.DataFrame,
 ) -> Set[str]:
     """
     Get set of parameters which may be present inside the parameter table
@@ -351,7 +351,7 @@ def get_valid_parameters_for_parameter_table(
 
 def get_priors_from_df(
         parameter_df: pd.DataFrame,
-        mode: Literal['initialization', 'objective']
+        mode: Literal['initialization', 'objective'],
 ) -> List[Tuple]:
     """Create list with information about the parameter priors
 
@@ -400,7 +400,7 @@ def get_priors_from_df(
 
 def scale(
         parameter: numbers.Number,
-        scale_str: PARAMETER_SCALE_ARGS
+        scale_str: PARAMETER_SCALE_ARGS,
 ) -> numbers.Number:
     """Scale parameter according to ``scale_str``.
 
@@ -424,7 +424,7 @@ def scale(
 
 def unscale(
         parameter: numbers.Number,
-        scale_str: PARAMETER_SCALE_ARGS
+        scale_str: PARAMETER_SCALE_ARGS,
 ) -> numbers.Number:
     """Unscale parameter according to ``scale_str``.
 
@@ -448,7 +448,7 @@ def unscale(
 
 def map_scale(
     parameters: Sequence[numbers.Number],
-    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS]
+    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS],
 ) -> Iterable[numbers.Number]:
     """Scale the parameters, i.e. as :func:`scale`, but for Sequences.
 
@@ -468,7 +468,7 @@ def map_scale(
 
 def map_unscale(
     parameters: Sequence[numbers.Number],
-    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS]
+    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS],
 ) -> Iterable[numbers.Number]:
     """Unscale the parameters, i.e. as :func:`unscale`, but for Sequences.
 

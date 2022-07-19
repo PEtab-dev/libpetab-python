@@ -91,7 +91,7 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
 
 
 def flatten_timepoint_specific_output_overrides(
-        petab_problem: 'petab.problem.Problem'
+        petab_problem: 'petab.problem.Problem',
 ) -> None:
     """Flatten timepoint-specific output parameter overrides.
 

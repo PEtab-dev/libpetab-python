@@ -28,7 +28,7 @@ __all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
 
 def validate(
         yaml_config: Union[Dict, str, Path],
-        path_prefix: Union[None, str, Path] = None
+        path_prefix: Union[None, str, Path] = None,
 ):
     """Validate syntax and semantics of PEtab config YAML
 

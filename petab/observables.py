@@ -108,7 +108,7 @@ def get_output_parameters(
 def get_formula_placeholders(
         formula_string: str,
         observable_id: str,
-        override_type: Literal['observable', 'noise']
+        override_type: Literal['observable', 'noise'],
 ) -> List[str]:
     """
     Get placeholder variables in noise or observable definition for the

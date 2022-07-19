@@ -26,7 +26,7 @@ __all__ = [
 
 def is_sbml_consistent(
         sbml_document: libsbml.SBMLDocument,
-        check_units: bool = False
+        check_units: bool = False,
 ) -> bool:
     """Check for SBML validity / consistency
 
@@ -53,7 +53,7 @@ def is_sbml_consistent(
 
 def log_sbml_errors(
         sbml_document: libsbml.SBMLDocument,
-        minimum_severity=libsbml.LIBSBML_SEV_WARNING
+        minimum_severity=libsbml.LIBSBML_SEV_WARNING,
 ) -> None:
     """Log libsbml errors
 
@@ -79,7 +79,7 @@ def log_sbml_errors(
 
 def globalize_parameters(
         sbml_model: libsbml.Model,
-        prepend_reaction_id: bool = False
+        prepend_reaction_id: bool = False,
 ) -> None:
     """Turn all local parameters into global parameters with the same
     properties

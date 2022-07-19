@@ -392,7 +392,7 @@ def _apply_overrides_for_observable(
         mapping: ParMappingDict,
         observable_id: str,
         override_type: Literal['observable', 'noise'],
-        overrides: List[str]
+        overrides: List[str],
 ) -> None:
     """
     Apply parameter-overrides for observables and noises to mapping
@@ -414,7 +414,7 @@ def _apply_condition_parameters(
         scale_mapping: ScaleMappingDict,
         condition_id: str,
         condition_df: pd.DataFrame,
-        model: Model
+        model: Model,
 ) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
@@ -544,7 +544,7 @@ def _perform_mapping_checks(
 def handle_missing_overrides(
         mapping_par_opt_to_par_sim: ParMappingDict,
         warn: bool = True,
-        condition_id: str = None
+        condition_id: str = None,
 ) -> None:
     """
     Find all observable parameters and noise parameters that were not mapped
@@ -585,7 +585,7 @@ def merge_preeq_and_sim_pars_condition(
         condition_map_sim: ParMappingDict,
         condition_scale_map_preeq: ScaleMappingDict,
         condition_scale_map_sim: ScaleMappingDict,
-        condition: Any
+        condition: Any,
 ) -> None:
     """Merge preequilibration and simulation parameters and scales for a single
     condition while checking for compatibility.
