@@ -85,7 +85,8 @@ def assert_no_leading_trailing_whitespace(
 def check_condition_df(
         df: pd.DataFrame,
         model: Optional[Model] = None,
-        observable_df: Optional[pd.DataFrame] = None
+        observable_df: Optional[pd.DataFrame] = None,
+        mapping_df: Optional[pd.DataFrame] = None,
 ) -> None:
     """Run sanity checks on PEtab condition table
 
@@ -93,6 +94,7 @@ def check_condition_df(
         df: PEtab condition DataFrame
         model: Model for additional checking of parameter IDs
         observable_df: PEtab observables DataFrame
+        mapping_df: PEtab mapping DataFrame
 
     Raises:
         AssertionError: in case of problems
@@ -124,6 +126,8 @@ def check_condition_df(
         if observable_df is not None:
             allowed_cols |= set(petab.get_output_parameters(
                 model=model, observable_df=observable_df))
+        if mapping_df is not None:
+            allowed_cols |= set(mapping_df.index.values)
         for column_name in df.columns:
             if column_name != CONDITION_NAME \
                     and column_name not in allowed_cols:
@@ -794,8 +798,12 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if problem.condition_df is not None:
         logger.info("Checking condition table...")
         try:
-            check_condition_df(problem.condition_df, problem.model,
-                               problem.observable_df)
+            check_condition_df(
+                problem.condition_df,
+                model=problem.model,
+                observable_df=problem.observable_df,
+                mapping_df=problem.mapping_df
+            )
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True
@@ -836,7 +844,8 @@ def lint_problem(problem: 'petab.Problem') -> bool:
             assert_model_parameters_in_condition_or_parameter_table(
                 problem.model,
                 problem.condition_df,
-                problem.parameter_df
+                problem.parameter_df,
+                problem.mapping_df,
             )
         except AssertionError as e:
             logger.error(e)
@@ -858,7 +867,9 @@ def lint_problem(problem: 'petab.Problem') -> bool:
 def assert_model_parameters_in_condition_or_parameter_table(
         model: Model,
         condition_df: pd.DataFrame,
-        parameter_df: pd.DataFrame) -> None:
+        parameter_df: pd.DataFrame,
+        mapping_df: pd.DataFrame = None,
+) -> None:
     """Model parameters that are rule targets must not be present in the
     parameter table. Other parameters must only be present in either in
     parameter table or condition table columns. Check that.
@@ -867,11 +878,14 @@ def assert_model_parameters_in_condition_or_parameter_table(
         parameter_df: PEtab parameter DataFrame
         model: PEtab model
         condition_df: PEtab condition table
+        mapping_df: PEtab mapping table
 
     Raises:
         AssertionError: in case of problems
     """
     allowed_in_condition_cols = set(model.get_valid_ids_for_condition_table())
+    if mapping_df is not None:
+        allowed_in_condition_cols |= set(mapping_df.index.values)
     allowed_in_parameter_table = \
         set(model.get_valid_parameters_for_parameter_table())
     entities_in_condition_table = set(condition_df.columns) - {CONDITION_NAME}

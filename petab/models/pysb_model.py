@@ -105,7 +105,8 @@ class PySBModel(Model):
     def get_valid_ids_for_condition_table(self) -> Iterable[str]:
         # TODO what else is allowed?
         # TODO compartments (size vs initial size)
-        return self.get_parameter_ids()
+        return itertools.chain(self.get_parameter_ids(),
+                               self.get_compartment_ids())
 
     def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
         return id_ in (
@@ -123,3 +124,6 @@ class PySBModel(Model):
     def is_state_variable(self, id_: str) -> bool:
         # TODO can we handle that without network generation?
         return False
+
+    def get_compartment_ids(self) -> Iterable[str]:
+        return (compartment.name for compartment in self.model.compartments)

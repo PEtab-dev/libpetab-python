@@ -39,7 +39,7 @@ def get_mapping_df(
                 f"Mapping table missing mandatory field {PETAB_ENTITY_ID}.")
 
         lint.assert_no_leading_trailing_whitespace(
-            mapping_file[col].values, col)
+            mapping_file.reset_index()[col].values, col)
 
     if not isinstance(mapping_file.index, pd.RangeIndex):
         mapping_file.reset_index(inplace=True)
