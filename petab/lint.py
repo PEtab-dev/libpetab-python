@@ -159,13 +159,9 @@ def check_measurement_df(df: pd.DataFrame,
                 df[column_name].values, column_name)
 
     if observable_df is not None:
-        # Check all observables are defined
-        observables_defined = set(observable_df.index.values)
-        observables_used = set(df[OBSERVABLE_ID])
-        if observables_undefined := (observables_used - observables_defined):
-            raise ValueError(f"Observables {observables_undefined} used in "
-                             "measurement table but not defined in "
-                             "observables table.")
+        assert_measured_observables_defined(df, observable_df)
+        measurements.assert_overrides_match_parameter_count(
+            df, observable_df)
 
         if OBSERVABLE_TRANSFORMATION in observable_df:
             # Check for positivity of measurements in case of
@@ -179,11 +175,6 @@ def check_measurement_df(df: pd.DataFrame,
                     raise ValueError('Measurements with observable '
                                      f'transformation {trafo} must be '
                                      f'positive, but {measurement} <= 0.')
-
-    if observable_df is not None:
-        assert_measured_observables_defined(df, observable_df)
-        measurements.assert_overrides_match_parameter_count(
-            df, observable_df)
 
     assert_measurements_not_null(df)
     assert_measurements_numeric(df)
@@ -353,7 +344,8 @@ def assert_all_parameters_present_in_parameter_df(
 
 def assert_measured_observables_defined(
         measurement_df: pd.DataFrame,
-        observable_df: pd.DataFrame) -> None:
+        observable_df: pd.DataFrame
+) -> None:
     """Check if all observables in the measurement table have been defined in
     the observable table
 
@@ -369,8 +361,9 @@ def assert_measured_observables_defined(
     defined_observables = set(observable_df.index.values)
     if undefined_observables := (used_observables - defined_observables):
         raise AssertionError(
-            "Undefined observables in measurement file: "
-            f"{undefined_observables}.")
+            f"Observables {undefined_observables} used in "
+            "measurement table but not defined in observables table."
+        )
 
 
 def condition_table_is_parameter_free(condition_df: pd.DataFrame) -> bool:

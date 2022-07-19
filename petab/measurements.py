@@ -234,7 +234,8 @@ def measurements_have_replicates(measurement_df: pd.DataFrame) -> bool:
 
 def assert_overrides_match_parameter_count(
         measurement_df: pd.DataFrame,
-        observable_df: pd.DataFrame) -> None:
+        observable_df: pd.DataFrame
+) -> None:
     """Ensure that number of parameters in the observable definition matches
     the number of overrides in ``measurement_df``
 
@@ -242,7 +243,6 @@ def assert_overrides_match_parameter_count(
         measurement_df: PEtab measurement table
         observable_df: PEtab observable table
     """
-
     # sympify only once and save number of parameters
     observable_parameters_count = {
         obs_id: len(observables.get_formula_placeholders(
