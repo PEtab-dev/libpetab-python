@@ -28,7 +28,8 @@ __all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
 
 def validate(
         yaml_config: Union[Dict, str, Path],
-        path_prefix: Union[None, str, Path] = None):
+        path_prefix: Union[None, str, Path] = None,
+):
     """Validate syntax and semantics of PEtab config YAML
 
     Arguments:
@@ -57,7 +58,7 @@ def validate_yaml_syntax(
             Custom schema for validation
 
     Raises:
-        see jsonschema.validate
+        see :func:`jsonschema.validate`
     """
     yaml_config = load_yaml(yaml_config)
 
@@ -193,7 +194,6 @@ def write_yaml(
         yaml_config: Data to write
         filename: File to create
     """
-
     with open(filename, 'w') as outfile:
         yaml.dump(yaml_config, outfile, default_flow_style=False,
                   sort_keys=False)
@@ -210,8 +210,7 @@ def create_problem_yaml(
         Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         relative_paths: bool = True,
 ) -> None:
-    """
-    Create and write default YAML file for a single PEtab problem
+    """Create and write default YAML file for a single PEtab problem
 
     Arguments:
         sbml_files: Path of SBML model file or list of such

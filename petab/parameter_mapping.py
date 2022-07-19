@@ -6,7 +6,7 @@ import numbers
 import os
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Literal
 
 import libsbml
 import numpy as np
@@ -362,7 +362,8 @@ def _output_parameters_to_nan(mapping: ParMappingDict) -> None:
 
 def _apply_output_parameter_overrides(
         mapping: ParMappingDict,
-        cur_measurement_df: pd.DataFrame) -> None:
+        cur_measurement_df: pd.DataFrame
+) -> None:
     """
     Apply output parameter overrides to the parameter mapping dict for a given
     condition as defined in the measurement table (``observableParameter``,
@@ -390,8 +391,9 @@ def _apply_output_parameter_overrides(
 def _apply_overrides_for_observable(
         mapping: ParMappingDict,
         observable_id: str,
-        override_type: str,
-        overrides: List[str]) -> None:
+        override_type: Literal['observable', 'noise'],
+        overrides: List[str],
+) -> None:
     """
     Apply parameter-overrides for observables and noises to mapping
     matrix.
@@ -399,7 +401,7 @@ def _apply_overrides_for_observable(
     Arguments:
         mapping: mapping dict to which to apply overrides
         observable_id: observable ID
-        override_type: 'observable' or 'noise'
+        override_type: ``'observable'`` or ``'noise'``
         overrides: list of overrides for noise or observable parameters
     """
     for i, override in enumerate(overrides):
@@ -407,11 +409,13 @@ def _apply_overrides_for_observable(
         mapping[overridee_id] = override
 
 
-def _apply_condition_parameters(par_mapping: ParMappingDict,
-                                scale_mapping: ScaleMappingDict,
-                                condition_id: str,
-                                condition_df: pd.DataFrame,
-                                model: Model) -> None:
+def _apply_condition_parameters(
+        par_mapping: ParMappingDict,
+        scale_mapping: ScaleMappingDict,
+        condition_id: str,
+        condition_df: pd.DataFrame,
+        model: Model,
+) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
 
@@ -447,12 +451,13 @@ def _apply_condition_parameters(par_mapping: ParMappingDict,
         scale_mapping[overridee_id] = LIN
 
 
-def _apply_parameter_table(par_mapping: ParMappingDict,
-                           scale_mapping: ScaleMappingDict,
-                           parameter_df: Optional[pd.DataFrame] = None,
-                           scaled_parameters: bool = False,
-                           fill_fixed_parameters: bool = True,
-                           ) -> None:
+def _apply_parameter_table(
+        par_mapping: ParMappingDict,
+        scale_mapping: ScaleMappingDict,
+        parameter_df: Optional[pd.DataFrame] = None,
+        scaled_parameters: bool = False,
+        fill_fixed_parameters: bool = True,
+) -> None:
     """Replace parameters from parameter table in mapping list for a given
     condition and set the corresponding scale.
 
@@ -536,15 +541,17 @@ def _perform_mapping_checks(
             "Timepoint-specific parameter overrides currently unsupported.")
 
 
-def handle_missing_overrides(mapping_par_opt_to_par_sim: ParMappingDict,
-                             warn: bool = True,
-                             condition_id: str = None) -> None:
+def handle_missing_overrides(
+        mapping_par_opt_to_par_sim: ParMappingDict,
+        warn: bool = True,
+        condition_id: str = None,
+) -> None:
     """
     Find all observable parameters and noise parameters that were not mapped
     and set their mapping to np.nan.
 
-    Assumes that parameters matching "(noise|observable)Parameter[0-9]+_" were
-    all supposed to be overwritten.
+    Assumes that parameters matching the regular expression
+    ``(noise|observable)Parameter[0-9]+_`` were all supposed to be overwritten.
 
     Parameters:
         mapping_par_opt_to_par_sim:
@@ -578,7 +585,8 @@ def merge_preeq_and_sim_pars_condition(
         condition_map_sim: ParMappingDict,
         condition_scale_map_preeq: ScaleMappingDict,
         condition_scale_map_sim: ScaleMappingDict,
-        condition: Any) -> None:
+        condition: Any,
+) -> None:
     """Merge preequilibration and simulation parameters and scales for a single
     condition while checking for compatibility.
 

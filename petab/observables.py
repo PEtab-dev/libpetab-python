@@ -3,7 +3,7 @@
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Literal
 
 import pandas as pd
 import sympy as sp
@@ -105,8 +105,11 @@ def get_output_parameters(
     return list(output_parameters.keys())
 
 
-def get_formula_placeholders(formula_string: str, observable_id: str,
-                             override_type: str) -> List[str]:
+def get_formula_placeholders(
+        formula_string: str,
+        observable_id: str,
+        override_type: Literal['observable', 'noise'],
+) -> List[str]:
     """
     Get placeholder variables in noise or observable definition for the
     given observable ID.
@@ -114,8 +117,8 @@ def get_formula_placeholders(formula_string: str, observable_id: str,
     Arguments:
         formula_string: observable formula
         observable_id: ID of current observable
-        override_type: 'observable' or 'noise', depending on whether `formula`
-            is for observable or for noise model
+        override_type: ``'observable'`` or ``'noise'``, depending on whether
+            ``formula`` is for observable or for noise model
 
     Returns:
         List of placeholder parameter IDs in the order expected in the
@@ -192,6 +195,4 @@ def create_observable_df() -> pd.DataFrame:
         Created DataFrame
     """
 
-    df = pd.DataFrame(data={col: [] for col in OBSERVABLE_DF_COLS})
-
-    return df
+    return pd.DataFrame(data={col: [] for col in OBSERVABLE_DF_COLS})

@@ -17,7 +17,7 @@ class Simulator(abc.ABC):
     """Base class that specific simulators should inherit.
 
     Specific simulators should minimally implement the
-    `simulate_without_noise` method.
+    :meth:`petab.simulate.Simulator.simulate_without_noise` method.
     Example (AMICI): https://bit.ly/33SUSG4
 
     Attributes:
@@ -29,7 +29,7 @@ class Simulator(abc.ABC):
         rng:
             A NumPy random generator, used to sample from noise distributions.
         temporary_working_dir:
-            Whether `working_dir` is a temporary directory, which can be
+            Whether ``working_dir`` is a temporary directory, which can be
             deleted without significant consequence.
         working_dir:
             All simulator-specific output files will be saved here. This
@@ -74,14 +74,15 @@ class Simulator(abc.ABC):
     def remove_working_dir(self, force: bool = False, **kwargs) -> None:
         """Remove the simulator working directory, and all files within.
 
-        See the `__init__` method arguments.
+        See the :meth:`petab.simulate.Simulator.__init__` method arguments.
 
         Arguments:
             force:
-                If True, the working directory is removed regardless of
+                If ``True``, the working directory is removed regardless of
                 whether it is a temporary directory.
             **kwargs:
-                Additional keyword arguments are passed to `shutil.rmtree`.
+                Additional keyword arguments are passed to
+                :func:`shutil.rmtree`.
         """
         if force or self.temporary_working_dir:
             shutil.rmtree(self.working_dir, **kwargs)
@@ -102,11 +103,13 @@ class Simulator(abc.ABC):
 
         Returns:
             Simulated data, as a PEtab measurements table, which should be
-            equivalent to replacing all values in the `petab.C.MEASUREMENT`
-            column of the measurements table (of the PEtab problem supplied to
-            the `__init__` method), with simulated values.
+            equivalent to replacing all values in the
+            :const:`petab.C.MEASUREMENT` column of the measurements table (of
+            the PEtab problem supplied to the
+            :meth:`petab.simulate.Simulator.__init__` method), with
+            simulated values.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def simulate(
             self,
@@ -122,7 +125,7 @@ class Simulator(abc.ABC):
                 A multiplier of the scale of the noise distribution.
             **kwargs:
                 Additional keyword arguments are passed to
-                `simulate_without_noise`.
+                :meth:`petab.simulate.Simulator.simulate_without_noise`.
 
         Returns:
             Simulated data, as a PEtab measurements table.
@@ -146,7 +149,8 @@ class Simulator(abc.ABC):
             noise_scaling_factor:
                 A multiplier of the scale of the noise distribution.
             **kwargs:
-                Additional keyword arguments are passed to `sample_noise`.
+                Additional keyword arguments are passed to
+                :func:`sample_noise`.
 
         Returns:
             Simulated data with noise, as a PEtab measurements table.
@@ -181,7 +185,7 @@ def sample_noise(
     Arguments:
         petab_problem:
             The PEtab problem used to generate the simulated value.
-            Instance of `petab.Problem`.
+            Instance of :class:`petab.Problem`.
         measurement_row:
             The row in the PEtab problem measurement table that corresponds
             to the simulated value.
@@ -189,16 +193,15 @@ def sample_noise(
             A simulated value without noise.
         noise_formulas:
             Processed noise formulas from the PEtab observables table, in the
-            form output by the `petab.calculate.get_symbolic_noise_formulas`
-            method.
+            form output by :func:`petab.calculate.get_symbolic_noise_formulas`.
         rng:
             A NumPy random generator.
         noise_scaling_factor:
             A multiplier of the scale of the noise distribution.
         zero_bounded:
-            Return zero if the sign of the return value and `simulated_value`
+            Return zero if the sign of the return value and ``simulated_value``
             differ. Can be used to ensure non-negative and non-positive values,
-            if the sign of `simulated_value` should not change.
+            if the sign of ``simulated_value`` should not change.
 
     Returns:
         The sample from the PEtab noise distribution.
