@@ -24,8 +24,10 @@ __all__ = [
 ]
 
 
-def is_sbml_consistent(sbml_document: libsbml.SBMLDocument,
-                       check_units: bool = False) -> bool:
+def is_sbml_consistent(
+        sbml_document: libsbml.SBMLDocument,
+        check_units: bool = False
+) -> bool:
     """Check for SBML validity / consistency
 
     Arguments:
@@ -49,13 +51,16 @@ def is_sbml_consistent(sbml_document: libsbml.SBMLDocument,
     return not has_problems
 
 
-def log_sbml_errors(sbml_document: libsbml.SBMLDocument,
-                    minimum_severity=libsbml.LIBSBML_SEV_WARNING) -> None:
+def log_sbml_errors(
+        sbml_document: libsbml.SBMLDocument,
+        minimum_severity=libsbml.LIBSBML_SEV_WARNING
+) -> None:
     """Log libsbml errors
 
     Arguments:
         sbml_document: SBML document to check
-        minimum_severity: Minimum severity level to report (see libsbml)
+        minimum_severity: Minimum severity level to report (see libsbml
+            documentation)
     """
 
     for error_idx in range(sbml_document.getNumErrors()):
@@ -72,8 +77,10 @@ def log_sbml_errors(sbml_document: libsbml.SBMLDocument,
                 logger.error(f'libSBML {severity} ({category}): {message}')
 
 
-def globalize_parameters(sbml_model: libsbml.Model,
-                         prepend_reaction_id: bool = False) -> None:
+def globalize_parameters(
+        sbml_model: libsbml.Model,
+        prepend_reaction_id: bool = False
+) -> None:
     """Turn all local parameters into global parameters with the same
     properties
 
@@ -81,8 +88,8 @@ def globalize_parameters(sbml_model: libsbml.Model,
     function to convert them to global parameters. There may exist local
     parameters with identical IDs within different kinetic laws. This is not
     checked here. If in doubt that local parameter IDs are unique, enable
-    `prepend_reaction_id` to create global parameters named
-    ${reaction_id}_${local_parameter_id}.
+    ``prepend_reaction_id`` to create global parameters named
+    ``${reaction_id}_${local_parameter_id}``.
 
     Arguments:
         sbml_model:
@@ -91,7 +98,6 @@ def globalize_parameters(sbml_model: libsbml.Model,
             Prepend reaction id of local parameter when
             creating global parameters
     """
-
     warn("This function will be removed in future releases.",
          DeprecationWarning)
 
@@ -118,15 +124,16 @@ def globalize_parameters(sbml_model: libsbml.Model,
             law.removeParameter(lp.getId())
 
 
-def get_model_parameters(sbml_model: libsbml.Model, with_values=False
-                         ) -> Union[List[str], Dict[str, float]]:
+def get_model_parameters(
+        sbml_model: libsbml.Model, with_values=False
+) -> Union[List[str], Dict[str, float]]:
     """Return SBML model parameters which are not Rule targets
 
     Arguments:
         sbml_model: SBML model
         with_values:
-            If False, returns list of SBML model parameter IDs which
-            are not Rule targets. If True, returns a dictionary with those
+            If ``False``, returns list of SBML model parameter IDs which
+            are not Rule targets. If ``True``, returns a dictionary with those
             parameter IDs as keys and parameter values from the SBML model as
             values.
     """
@@ -197,9 +204,8 @@ def load_sbml_from_file(
     """Load SBML model from file
 
     :param sbml_file: Filename of the SBML file
-    :return: The SBML document, model and reader
+    :return: The SBML reader, document, model
     """
-
     sbml_reader = libsbml.SBMLReader()
     sbml_document = sbml_reader.readSBML(sbml_file)
     sbml_model = sbml_document.getModel()

@@ -60,9 +60,7 @@ def _check_df(df: pd.DataFrame, req_cols: Iterable, name: str) -> None:
     Raises:
           AssertionError: if a column is missing
     """
-    cols_set = df.columns.values
-    missing_cols = set(req_cols) - set(cols_set)
-    if missing_cols:
+    if missing_cols := set(req_cols) - set(df.columns.values):
         raise AssertionError(
             f"DataFrame {name} requires the columns {missing_cols}.")
 
@@ -105,7 +103,7 @@ def check_condition_df(
     _check_df(df, req_cols, "condition")
 
     # Check for correct index
-    if not df.index.name == CONDITION_ID:
+    if df.index.name != CONDITION_ID:
         raise AssertionError(
             f"Condition table has wrong index {df.index.name}."
             f"expected {CONDITION_ID}.")
@@ -164,8 +162,7 @@ def check_measurement_df(df: pd.DataFrame,
         # Check all observables are defined
         observables_defined = set(observable_df.index.values)
         observables_used = set(df[OBSERVABLE_ID])
-        observables_undefined = observables_used - observables_defined
-        if observables_undefined:
+        if observables_undefined := (observables_used - observables_defined):
             raise ValueError(f"Observables {observables_undefined} used in "
                              "measurement table but not defined in "
                              "observables table.")
@@ -213,7 +210,7 @@ def check_parameter_df(
 
     _check_df(df, PARAMETER_DF_REQUIRED_COLS[1:], "parameter")
 
-    if not df.index.name == PARAMETER_ID:
+    if df.index.name != PARAMETER_ID:
         raise AssertionError(
             f"Parameter table has wrong index {df.index.name}."
             f"expected {PARAMETER_ID}.")
@@ -239,10 +236,11 @@ def check_parameter_df(
                                  f"but column {NOMINAL_VALUE} is missing.")
         try:
             df.loc[non_estimated_par_ids, NOMINAL_VALUE].apply(float)
-        except ValueError:
-            raise AssertionError("Expected numeric values for "
-                                 f"`{NOMINAL_VALUE}` in parameter table for "
-                                 "all non-estimated parameters.")
+        except ValueError as e:
+            raise AssertionError(
+                f"Expected numeric values for `{NOMINAL_VALUE}` in parameter "
+                "table for all non-estimated parameters."
+            ) from e
 
     assert_parameter_id_is_string(df)
     assert_parameter_scale_is_valid(df)
@@ -292,8 +290,9 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
         try:
             sp.sympify(obs)
         except sp.SympifyError as e:
-            raise AssertionError(f"Cannot parse expression '{obs}' "
-                                 f"for observable {row.Index}: {e}")
+            raise AssertionError(
+                f"Cannot parse expression '{obs}' "
+                f"for observable {row.Index}: {e}") from e
 
         noise = getattr(row, NOISE_FORMULA)
         try:
@@ -304,9 +303,10 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
                 raise AssertionError(f"No or non-finite {NOISE_FORMULA} "
                                      f"given for observable {row.Index}.")
         except sp.SympifyError as e:
-            raise AssertionError(f"Cannot parse expression '{noise}' "
-                                 f"for noise model for observable "
-                                 f"{row.Index}: {e}")
+            raise AssertionError(
+                f"Cannot parse expression '{noise}' "
+                f"for noise model for observable " f"{row.Index}: {e}"
+            ) from e
 
 
 def assert_all_parameters_present_in_parameter_df(
@@ -367,9 +367,7 @@ def assert_measured_observables_defined(
 
     used_observables = set(measurement_df[OBSERVABLE_ID].values)
     defined_observables = set(observable_df.index.values)
-    undefined_observables = used_observables - defined_observables
-
-    if undefined_observables:
+    if undefined_observables := (used_observables - defined_observables):
         raise AssertionError(
             "Undefined observables in measurement file: "
             f"{undefined_observables}.")
@@ -547,9 +545,10 @@ def assert_parameter_prior_parameters_are_valid(
                 pars = tuple(
                     float(val) for val in pars_str.split(PARAMETER_SEPARATOR)
                 )
-            except ValueError:
+            except ValueError as e:
                 raise AssertionError(
-                    f"Could not parse prior parameters '{pars_str}'.")
+                    f"Could not parse prior parameters '{pars_str}'.") from e
+
             # all distributions take 2 parameters
             if len(pars) != 2:
                 raise AssertionError(
@@ -933,9 +932,7 @@ def assert_measurement_conditions_present_in_condition_table(
         used_conditions |= \
             set(measurement_df[PREEQUILIBRATION_CONDITION_ID].dropna().values)
     available_conditions = set(condition_df.index.values)
-    missing_conditions = used_conditions - available_conditions
-
-    if missing_conditions:
+    if missing_conditions := (used_conditions - available_conditions):
         raise AssertionError("Measurement table references conditions that "
                              "are not specified in the condition table: "
                              + str(missing_conditions))

@@ -11,18 +11,20 @@ from .C import *  # noqa: F403
 __all__ = ['sample_from_prior', 'sample_parameter_startpoints']
 
 
-def sample_from_prior(prior: Tuple[str, list, str, list],
-                      n_starts: int) -> np.array:
+def sample_from_prior(
+        prior: Tuple[str, list, str, list],
+        n_starts: int
+) -> np.array:
     """Creates samples for one parameter based on prior
 
     Arguments:
-        prior: A tuple as obtained from ``petab.parameter.get_priors_from_df``
+        prior: A tuple as obtained from
+            :func:`petab.parameter.get_priors_from_df`
         n_starts: Number of samples
 
     Returns:
         Array with sampled values
     """
-
     # unpack info
     p_type, p_params, scaling, bounds = prior
 
@@ -40,8 +42,7 @@ def sample_from_prior(prior: Tuple[str, list, str, list],
 
     def clip_to_bounds(x: np.array):
         """Clip values in array x to bounds"""
-        x = np.maximum(np.minimum(scale(bounds[1]), x), scale(bounds[0]))
-        return x
+        return np.maximum(np.minimum(scale(bounds[1]), x), scale(bounds[0]))
 
     # define lambda functions for each parameter
     if p_type == UNIFORM:
@@ -83,15 +84,17 @@ def sample_from_prior(prior: Tuple[str, list, str, list],
     return clip_to_bounds(sp)
 
 
-def sample_parameter_startpoints(parameter_df: pd.DataFrame,
-                                 n_starts: int = 100,
-                                 seed: int = None) -> np.array:
-    """Create numpy.array with starting points for an optimization
+def sample_parameter_startpoints(
+        parameter_df: pd.DataFrame,
+        n_starts: int = 100,
+        seed: int = None
+) -> np.array:
+    """Create :class:`numpy.array` with starting points for an optimization
 
     Arguments:
         parameter_df: PEtab parameter DataFrame
         n_starts: Number of points to be sampled
-        seed: Random number generator seed (see numpy.random.seed)
+        seed: Random number generator seed (see :func:`numpy.random.seed`)
 
     Returns:
         Array of sampled starting points with dimensions

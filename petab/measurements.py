@@ -2,6 +2,7 @@
 # noqa: F405
 
 import itertools
+import math
 import numbers
 from pathlib import Path
 from typing import Dict, List, Union
@@ -201,7 +202,7 @@ def create_measurement_df() -> pd.DataFrame:
         Created DataFrame
     """
 
-    df = pd.DataFrame(data={
+    return pd.DataFrame(data={
         OBSERVABLE_ID: [],
         PREEQUILIBRATION_CONDITION_ID: [],
         SIMULATION_CONDITION_ID: [],
@@ -212,8 +213,6 @@ def create_measurement_df() -> pd.DataFrame:
         DATASET_ID: [],
         REPLICATE_ID: []
     })
-
-    return df
 
 
 def measurements_have_replicates(measurement_df: pd.DataFrame) -> bool:
@@ -260,10 +259,11 @@ def assert_overrides_match_parameter_count(
         # check observable parameters
         try:
             expected = observable_parameters_count[row[OBSERVABLE_ID]]
-        except KeyError:
+        except KeyError as e:
             raise ValueError(
                 f"Observable {row[OBSERVABLE_ID]} used in measurement table "
-                f"is not defined.")
+                f"is not defined.") from e
+
         actual = len(split_parameter_replacement_list(
             row.get(OBSERVABLE_PARAMETERS, None)))
         # No overrides are also allowed
@@ -289,7 +289,7 @@ def assert_overrides_match_parameter_count(
         except KeyError:
             # no overrides defined, but a numerical sigma can be provided
             # anyways
-            if not len(replacements) == 1 \
+            if len(replacements) != 1 \
                     or not isinstance(replacements[0], numbers.Number):
                 raise AssertionError(
                     f'No placeholders have been specified in the noise model '
