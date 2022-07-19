@@ -189,7 +189,7 @@ def check_parameter_df(
     """Run sanity checks on PEtab parameter table
 
     Arguments:
-        df: PEtab condition DataFrame
+        df: PEtab parameter DataFrame
         model: Model for additional checking of parameter IDs
         observable_df: PEtab observable table for additional checks
         measurement_df: PEtab measurement table for additional checks

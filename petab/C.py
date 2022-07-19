@@ -271,8 +271,18 @@ OBSERVABLE_FILES = 'observable_files'
 #:
 VISUALIZATION_FILES = 'visualization_files'
 #:
+MAPPING_FILE = 'mapping_file'
+#:
 EXTENSIONS = 'extensions'
 
+
+# MAPPING
+#:
+PETAB_ENTITY_ID = 'petabEntityId'
+#:
+MODEL_ENTITY_ID = 'modelEntityId'
+#:
+MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
 # MORE
 

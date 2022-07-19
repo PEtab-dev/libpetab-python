@@ -11,7 +11,7 @@ from warnings import warn
 import pandas as pd
 
 from . import (conditions, core, format_version, measurements, observables,
-               parameter_mapping, parameters, sampling, sbml, yaml)
+               parameter_mapping, parameters, sampling, sbml, yaml, mapping)
 from .C import *  # noqa: F403
 from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
@@ -33,6 +33,7 @@ class Problem:
     - measurement table
     - parameter table
     - observables table
+    - mapping table
 
     Optionally it may contain visualization tables.
 
@@ -42,6 +43,7 @@ class Problem:
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
         visualization_df: PEtab visualization table
+        mapping_df: PEtab mapping table
         model: The underlying model
         sbml_reader: Stored to keep object alive (deprecated).
         sbml_document: Stored to keep object alive (deprecated).
@@ -61,6 +63,7 @@ class Problem:
             parameter_df: pd.DataFrame = None,
             visualization_df: pd.DataFrame = None,
             observable_df: pd.DataFrame = None,
+            mapping_df: pd.DataFrame = None,
             extensions_config: Dict = None,
     ):
         self.condition_df: Optional[pd.DataFrame] = condition_df
@@ -68,6 +71,7 @@ class Problem:
         self.parameter_df: Optional[pd.DataFrame] = parameter_df
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
         self.observable_df: Optional[pd.DataFrame] = observable_df
+        self.mapping_df: Optional[pd.DataFrame] = mapping_df
 
         if any((sbml_model, sbml_document, sbml_reader),):
             warn("Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
@@ -288,6 +292,10 @@ class Problem:
             observable_files, observables.get_observable_df) \
             if observable_files else None
 
+        mapping_file = problem0.get(MAPPING_FILE, None)
+        mapping_df = mapping.get_mapping_df(get_path(mapping_file)) \
+            if mapping_file else None
+
         return Problem(
             condition_df=condition_df,
             measurement_df=measurement_df,
@@ -295,6 +303,7 @@ class Problem:
             observable_df=observable_df,
             model=model,
             visualization_df=visualization_df,
+            mapping_df=mapping_df,
             extensions_config=yaml_config.get(EXTENSIONS, {})
         )
 
@@ -365,6 +374,7 @@ class Problem:
             'parameter',
             'observable',
             'visualization',
+            'mapping',
         ]:
             if getattr(self, f'{table_name}_df') is not None:
                 filenames[f'{table_name}_file'] = f'{table_name}s.tsv'
@@ -395,6 +405,7 @@ class Problem:
             prefix_path: Union[None, str, Path] = None,
             relative_paths: bool = True,
             model_file: Union[None, str, Path] = None,
+            mapping_file: Union[None, str, Path] = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -413,6 +424,7 @@ class Problem:
             parameter_file: Parameter table destination
             visualization_file: Visualization table destination
             observable_file: Observables table destination
+            mapping_file: Mapping table destination
             yaml_file: YAML file destination
             prefix_path:
                 Specify a prefix to all paths, to avoid specifying the
@@ -450,6 +462,7 @@ class Problem:
             parameter_file = add_prefix(parameter_file)
             observable_file = add_prefix(observable_file)
             visualization_file = add_prefix(visualization_file)
+            mapping_file = add_prefix(mapping_file)
             yaml_file = add_prefix(yaml_file)
 
         if model_file:
@@ -493,12 +506,24 @@ class Problem:
             else:
                 raise error("visualization")
 
+        if mapping_file:
+            if self.mapping_df is not None:
+                mapping.write_mapping_df(self.mapping_df, mapping_file)
+            else:
+                raise error("mapping")
+
         if yaml_file:
-            yaml.create_problem_yaml(sbml_file, condition_file,
-                                     measurement_file, parameter_file,
-                                     observable_file, yaml_file,
-                                     visualization_file,
-                                     relative_paths=relative_paths,)
+            yaml.create_problem_yaml(
+                sbml_files=sbml_file,
+                condition_files=condition_file,
+                measurement_files=measurement_file,
+                parameter_file=parameter_file,
+                observable_files=observable_file,
+                yaml_file=yaml_file,
+                visualization_files=visualization_file,
+                relative_paths=relative_paths,
+                mapping_file=mapping_file,
+            )
 
     def get_optimization_parameters(self):
         """
