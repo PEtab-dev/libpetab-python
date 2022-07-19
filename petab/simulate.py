@@ -74,14 +74,15 @@ class Simulator(abc.ABC):
     def remove_working_dir(self, force: bool = False, **kwargs) -> None:
         """Remove the simulator working directory, and all files within.
 
-        See the :method:`__init__` method arguments.
+        See the :meth:`__init__` method arguments.
 
         Arguments:
             force:
                 If ``True``, the working directory is removed regardless of
                 whether it is a temporary directory.
             **kwargs:
-                Additional keyword arguments are passed to `shutil.rmtree`.
+                Additional keyword arguments are passed to
+                :func:`shutil.rmtree`.
         """
         if force or self.temporary_working_dir:
             shutil.rmtree(self.working_dir, **kwargs)
@@ -104,7 +105,7 @@ class Simulator(abc.ABC):
             Simulated data, as a PEtab measurements table, which should be
             equivalent to replacing all values in the
             :const:`petab.C.MEASUREMENT` column of the measurements table (of
-            the PEtab problem supplied to the :method:`__init__` method), with
+            the PEtab problem supplied to the :meth:`__init__` method), with
             simulated values.
         """
         raise NotImplementedError()
@@ -123,7 +124,7 @@ class Simulator(abc.ABC):
                 A multiplier of the scale of the noise distribution.
             **kwargs:
                 Additional keyword arguments are passed to
-                :method:`simulate_without_noise`.
+                :meth:`simulate_without_noise`.
 
         Returns:
             Simulated data, as a PEtab measurements table.
