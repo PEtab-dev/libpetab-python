@@ -3,7 +3,9 @@ from pathlib import Path
 import logging
 import os
 import re
-from typing import Iterable, Optional, Callable, Union, Any, Sequence, List
+from typing import (
+    Iterable, Optional, Callable, Union, Any, Sequence, List, Dict,
+)
 from warnings import warn
 
 import numpy as np
@@ -17,7 +19,8 @@ __all__ = ['get_simulation_df', 'write_simulation_df', 'get_visualization_df',
            'write_visualization_df', 'get_notnull_columns',
            'flatten_timepoint_specific_output_overrides',
            'concat_tables', 'to_float_if_float', 'is_empty',
-           'create_combine_archive', 'unique_preserve_order']
+           'create_combine_archive', 'unique_preserve_order',
+           'unflatten_simulation_df']
 
 
 def get_simulation_df(simulation_file: Union[str, Path]) -> pd.DataFrame:
@@ -90,6 +93,72 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
             if col in df and not np.all(df[col].isnull())]
 
 
+def get_replacement_id(possible_groupvars, groupvars, groupvar) -> str:
+    replacement_id = ''
+    for field in possible_groupvars:
+        if field in groupvars:
+            val = str(groupvar[groupvars.index(field)])\
+                .replace(PARAMETER_SEPARATOR, '_').replace('.', '_')
+            if replacement_id == '':
+                replacement_id = val
+            elif val != '':
+                replacement_id += f'__{val}'
+    return replacement_id
+
+
+def get_flattened_id_mappings(
+    petab_problem: 'petab.problem.Problem',
+) -> Dict[str, Dict[str, str]]:
+    """Get mapping from unflattened to flattened observable IDs.
+
+    Arguments:
+        petab_problem:
+            The unflattened PEtab problem.
+
+    Returns:
+        A dictionary of dictionaries. Each inner dictionary is a mapping
+        from original ID to flattened ID. Each outer dictionary is the mapping
+        for either observable IDs; noise parameter IDs; or, observable
+        parameter IDs.
+    """
+    possible_groupvars = [OBSERVABLE_ID, OBSERVABLE_PARAMETERS,
+                          NOISE_PARAMETERS, SIMULATION_CONDITION_ID,
+                          PREEQUILIBRATION_CONDITION_ID]
+    groupvars = get_notnull_columns(petab_problem.measurement_df,
+                                    possible_groupvars)
+    observable_mapping = {}
+    noise_parameter_mapping = {}
+    observable_parameter_mapping = {}
+    mappings = {
+        OBSERVABLE_ID: {},
+        NOISE_PARAMETERS: {},
+        OBSERVABLE_PARAMETERS: {},
+    }
+    for groupvar, measurements in \
+            petab_problem.measurement_df.groupby(groupvars, dropna=False):
+        obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
+        replacement_id = get_replacement_id(possible_groupvars, groupvars, groupvar)
+
+        logger.debug(f'Creating synthetic observable {obs_id}')
+        if replacement_id in petab_problem.observable_df.index:
+            raise RuntimeError('could not create synthetic observables '
+                               f'since {replacement_id} was already '
+                               'present in observable table')
+
+        mappings[OBSERVABLE_ID][replacement_id] = obs_id
+
+        for field, parname, target in [
+            (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
+            (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
+        ]:
+            if field in measurements:
+                mappings[field][f'{parname}\\1_{replacement_id}'] = \
+                    fr'{parname}([0-9]+)_{obs_id}'
+                    
+
+    return mappings
+
+
 def flatten_timepoint_specific_output_overrides(
         petab_problem: 'petab.problem.Problem',
 ) -> None:
@@ -114,25 +183,18 @@ def flatten_timepoint_specific_output_overrides(
                           PREEQUILIBRATION_CONDITION_ID]
     groupvars = get_notnull_columns(petab_problem.measurement_df,
                                     possible_groupvars)
+
+    mappings = get_flattened_id_mappings(petab_problem)
+
     for groupvar, measurements in \
             petab_problem.measurement_df.groupby(groupvars, dropna=False):
+    #for replacement_id, obs_id in mappings[OBSERVABLE_ID].items():
         obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
-        # construct replacement id
-        replacement_id = ''
-        for field in possible_groupvars:
-            if field in groupvars:
-                val = str(groupvar[groupvars.index(field)])\
-                    .replace(PARAMETER_SEPARATOR, '_').replace('.', '_')
-                if replacement_id == '':
-                    replacement_id = val
-                elif val != '':
-                    replacement_id += f'__{val}'
+        #measurements = petab_problem.measurement_df.loc[
+        #    petab_problem.measurement_df[OBSERVABLE_ID] == obs_id
+        #]
+        replacement_id = get_replacement_id(possible_groupvars, groupvars, groupvar)
 
-        logger.debug(f'Creating synthetic observable {obs_id}')
-        if replacement_id in petab_problem.observable_df.index:
-            raise RuntimeError('could not create synthetic observables '
-                               f'since {replacement_id} was already '
-                               'present in observable table')
         observable = petab_problem.observable_df.loc[obs_id].copy()
         observable.name = replacement_id
         for field, parname, target in [
@@ -140,10 +202,13 @@ def flatten_timepoint_specific_output_overrides(
             (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
         ]:
             if field in measurements:
+                parameter_replacement_id = f'{parname}\\1_{replacement_id}'
+                parameter_id = mappings[field][parameter_replacement_id]
+                #parameter_id = fr'{parname}([0-9]+)_{obs_id}'
                 observable[target] = re.sub(
-                    fr'{parname}([0-9]+)_{obs_id}',
-                    f'{parname}\\1_{replacement_id}',
-                    observable[target]
+                    parameter_id,
+                    parameter_replacement_id,
+                    observable[target],
                 )
 
         measurements[OBSERVABLE_ID] = replacement_id
@@ -153,6 +218,37 @@ def flatten_timepoint_specific_output_overrides(
     petab_problem.observable_df = pd.concat(new_observable_dfs, axis=1).T
     petab_problem.observable_df.index.name = OBSERVABLE_ID
     petab_problem.measurement_df = pd.concat(new_measurement_dfs)
+
+
+def unflatten_simulation_df(
+    simulation_df: pd.DataFrame,
+    petab_problem: 'petab.problem.Problem',
+) -> None:
+    """Unflatten simulations from a flattened PEtab problem.
+
+    A flattened PEtab problem is the output of applying
+    `flatten_timepoint_specific_output_overrides` to a PEtab problem.
+
+    Arguments:
+        simulation_df:
+            The simulation dataframe. A dataframe in the same format as a PEtab
+            measurements table, but with the `measurement` column switched with
+            a `simulation column`.
+        petab_problem:
+            The unflattened PEtab problem.
+
+    Returns:
+        The simulation dataframe for the unflattened PEtab problem.
+    """
+    mappings = get_flattened_id_mappings(petab_problem)
+    original_observable_ids = (
+        simulation_df[OBSERVABLE_ID]
+        .replace(mappings[OBSERVABLE_ID])
+    )
+    unflattened_simulation_df = simulation_df.assign(**{
+        OBSERVABLE_ID:original_observable_ids,
+    })
+    return unflattened_simulation_df
 
 
 def concat_tables(
