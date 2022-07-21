@@ -62,19 +62,18 @@ def log_sbml_errors(
         minimum_severity: Minimum severity level to report (see libsbml
             documentation)
     """
-
+    severity_to_log_level = {
+        libsbml.LIBSBML_SEV_INFO: logging.INFO,
+        libsbml.LIBSBML_SEV_WARNING: logging.WARNING,
+    }
     for error_idx in range(sbml_document.getNumErrors()):
         error = sbml_document.getError(error_idx)
-        if error.getSeverity() >= minimum_severity:
+        if (severity := error.getSeverity()) >= minimum_severity:
             category = error.getCategoryAsString()
-            severity = error.getSeverityAsString()
+            severity_str = error.getSeverityAsString()
             message = error.getMessage()
-            if severity == libsbml.LIBSBML_SEV_INFO:
-                logger.info(f'libSBML {severity} ({category}): {message}')
-            elif severity == libsbml.LIBSBML_SEV_WARNING:
-                logger.warning(f'libSBML {severity} ({category}): {message}')
-            else:
-                logger.error(f'libSBML {severity} ({category}): {message}')
+            logger.log(severity_to_log_level.get(severity, logging.ERROR),
+                       f'libSBML {severity_str} ({category}): {message}')
 
 
 def globalize_parameters(
