@@ -9,7 +9,7 @@ import libsbml
 from . import MODEL_TYPE_SBML
 from .model import Model
 from ..sbml import (get_sbml_model, is_sbml_consistent, load_sbml_from_string,
-                    log_sbml_errors, write_sbml)
+                    write_sbml)
 
 
 class SbmlModel(Model):
@@ -109,9 +109,7 @@ class SbmlModel(Model):
         return self.sbml_model.getElementBySId(id_) or id_ == 'time'
 
     def is_valid(self) -> bool:
-        valid = is_sbml_consistent(self.sbml_model.getSBMLDocument())
-        log_sbml_errors(self.sbml_model.getSBMLDocument())
-        return valid
+        return is_sbml_consistent(self.sbml_model.getSBMLDocument())
 
     def is_state_variable(self, id_: str) -> bool:
         return (self.sbml_model.getSpecies(id_) is not None
