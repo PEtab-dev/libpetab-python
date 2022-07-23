@@ -593,7 +593,7 @@ def merge_preeq_and_sim_pars_condition(
     This function is meant for the case where we cannot have different
     parameters (and scales) for preequilibration and simulation. Therefore,
     merge both and ensure matching scales and parameters.
-    ``condition_map_sim`` and ``condition_scale_map_sim`` will ne modified in
+    ``condition_map_sim`` and ``condition_scale_map_sim`` will be modified in
     place.
 
     Arguments:
