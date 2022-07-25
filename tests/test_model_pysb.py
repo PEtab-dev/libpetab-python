@@ -1,6 +1,7 @@
 """Test related to petab.models.model_pysb"""
 import pysb
-from petab.models.pysb_model import PySBModel, parse_species_name
+from petab.models.pysb_model import PySBModel, parse_species_name, \
+    pattern_from_string
 
 
 def test_parse_species_name():
@@ -33,9 +34,9 @@ def test_parse_species_name():
 
 def test_pysb_model():
     model = pysb.Model()
-    model.add_component(pysb.Compartment("c1"))
-    model.add_component(pysb.Monomer("A"))
-    model.add_component(pysb.Monomer("B", ["s"], {'s': ["a", "b"]}))
+    pysb.Compartment("c1")
+    pysb.Monomer("A")
+    pysb.Monomer("B", ["s"], {'s': ["a", "b"]})
     petab_model = PySBModel(model=model, model_id="test_model")
 
     assert petab_model.is_state_variable("A()") is True
@@ -55,3 +56,18 @@ def test_pysb_model():
 
     # non-existing site
     assert petab_model.is_state_variable("A(s='a')") is False
+
+
+def test_pattern_parsing():
+    model = pysb.Model()
+    c1 = pysb.Compartment("c1")
+    A = pysb.Monomer("A")
+    B = pysb.Monomer("B", ["s"], {'s': ["a", "b"]})
+
+    pattern = pysb.as_complex_pattern(A() ** c1)
+    assert pattern_from_string(str(pattern), model).matches(pattern)
+    assert str(pattern) == str(pattern_from_string("A() ** c1", model))
+
+    pattern = pysb.as_complex_pattern(B(s='a') ** c1)
+    assert pattern_from_string(str(pattern), model).matches(pattern)
+    assert str(pattern) == str(pattern_from_string("B(s='a') ** c1", model))

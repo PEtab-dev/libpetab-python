@@ -206,3 +206,18 @@ def parse_species_name(
         result.append((monomer, compartment, site_config),)
 
     return result
+
+
+def pattern_from_string(string: str, model: pysb.Model) -> pysb.ComplexPattern:
+    """Convert a pattern string to a Pattern instance"""
+    parts = parse_species_name(string)
+    patterns = []
+    for part in parts:
+        patterns.append(
+            pysb.MonomerPattern(
+                monomer=model.monomers.get(part[0]),
+                compartment=model.compartments.get(part[1], None),
+                site_conditions=part[2]
+            ))
+
+    return pysb.ComplexPattern(patterns, compartment=None)
