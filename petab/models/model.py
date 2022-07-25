@@ -5,8 +5,6 @@ import abc
 from pathlib import Path
 from typing import Any, Iterable, Tuple
 
-from . import MODEL_TYPE_SBML, MODEL_TYPE_PYSB, known_model_types
-
 
 class Model(abc.ABC):
     """Base class for wrappers for any PEtab-supported model type"""
@@ -138,6 +136,8 @@ def model_factory(
     :param model_id: PEtab model ID for the given model
     :returns: A :py:class:`Model` instance representing the given model
     """
+    from . import MODEL_TYPE_SBML, MODEL_TYPE_PYSB, known_model_types
+
     if model_language == MODEL_TYPE_SBML:
         from .sbml_model import SbmlModel
         return SbmlModel.from_file(filepath_or_buffer, model_id=model_id)
