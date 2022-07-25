@@ -20,7 +20,7 @@ __all__ = ['get_simulation_df', 'write_simulation_df', 'get_visualization_df',
            'create_combine_archive', 'unique_preserve_order']
 
 
-def get_simulation_df(simulation_file: str) -> pd.DataFrame:
+def get_simulation_df(simulation_file: Union[str, Path]) -> pd.DataFrame:
     """Read PEtab simulation table
 
     Arguments:
@@ -33,7 +33,7 @@ def get_simulation_df(simulation_file: str) -> pd.DataFrame:
                        float_precision='round_trip')
 
 
-def write_simulation_df(df: pd.DataFrame, filename: str) -> None:
+def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     """Write PEtab simulation table
 
     Arguments:

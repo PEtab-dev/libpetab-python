@@ -76,8 +76,8 @@ class Problem:
         if any((sbml_model, sbml_document, sbml_reader),):
             warn("Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
                  "to petab.Problem is deprecated and will be removed in a "
-                 "future version. Use `model=petab.models.SbmlModel(...)` "
-                 "instead.", DeprecationWarning, stacklevel=2)
+                 "future version. Use `model=petab.models.sbml_model."
+                 "SbmlModel(...)` instead.", DeprecationWarning, stacklevel=2)
             if model:
                 raise ValueError("Must only provide one of (`sbml_model`, "
                                  "`sbml_document`, `sbml_reader`) or `model`.")
