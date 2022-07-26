@@ -71,8 +71,8 @@ class Problem:
         if any((sbml_model, sbml_document, sbml_reader),):
             warn("Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
                  "to petab.Problem is deprecated and will be removed in a "
-                 "future version. Use `model=petab.models.SbmlModel(...)` "
-                 "instead.", DeprecationWarning, stacklevel=2)
+                 "future version. Use `model=petab.models.sbml_model."
+                 "SbmlModel(...)` instead.", DeprecationWarning, stacklevel=2)
             if model:
                 raise ValueError("Must only provide one of (`sbml_model`, "
                                  "`sbml_document`, `sbml_reader`) or `model`.")
@@ -129,6 +129,7 @@ class Problem:
             parameter_file: PEtab parameter table
             visualization_files: PEtab visualization tables
             observable_files: PEtab observables tables
+            model_id: PEtab ID of the model
             extensions_config: Information on the extensions used
         """
         warn("petab.Problem.from_files is deprecated and will be removed in a "
@@ -327,8 +328,8 @@ class Problem:
             prefix_path:
                 Specify a prefix to all paths, to avoid specifying the
                 prefix for all paths individually. NB: the prefix is added to
-                paths before `relative_paths` is handled downstream in
-                `petab.yaml.create_problem_yaml`.
+                paths before ``relative_paths`` is handled downstream in
+                :func:`petab.yaml.create_problem_yaml`.
 
         Returns:
             The path to the PEtab problem YAML file.
@@ -362,18 +363,19 @@ class Problem:
             return filenames['yaml_file']
         return str(prefix_path / filenames['yaml_file'])
 
-    def to_files(self,
-                 sbml_file: Union[None, str, Path] = None,
-                 condition_file: Union[None, str, Path] = None,
-                 measurement_file: Union[None, str, Path] = None,
-                 parameter_file: Union[None, str, Path] = None,
-                 visualization_file: Union[None, str, Path] = None,
-                 observable_file: Union[None, str, Path] = None,
-                 yaml_file: Union[None, str, Path] = None,
-                 prefix_path: Union[None, str, Path] = None,
-                 relative_paths: bool = True,
-                 model_file: Union[None, str, Path] = None,
-                 ) -> None:
+    def to_files(
+            self,
+            sbml_file: Union[None, str, Path] = None,
+            condition_file: Union[None, str, Path] = None,
+            measurement_file: Union[None, str, Path] = None,
+            parameter_file: Union[None, str, Path] = None,
+            visualization_file: Union[None, str, Path] = None,
+            observable_file: Union[None, str, Path] = None,
+            yaml_file: Union[None, str, Path] = None,
+            prefix_path: Union[None, str, Path] = None,
+            relative_paths: bool = True,
+            model_file: Union[None, str, Path] = None,
+    ) -> None:
         """
         Write PEtab tables to files for this problem
 
@@ -395,10 +397,10 @@ class Problem:
             prefix_path:
                 Specify a prefix to all paths, to avoid specifying the
                 prefix for all paths individually. NB: the prefix is added to
-                paths before `relative_paths` is handled.
+                paths before ``relative_paths`` is handled.
             relative_paths:
                 whether all paths in the YAML file should be
-                relative to the location of the YAML file. If `False`, then
+                relative to the location of the YAML file. If ``False``, then
                 paths are left unchanged.
 
         Raises:
@@ -420,9 +422,7 @@ class Problem:
             prefix_path = Path(prefix_path)
 
             def add_prefix(path0: Union[None, str, Path]) -> str:
-                if path0 is None:
-                    return path0
-                return str(prefix_path / path0)
+                return path0 if path0 is None else str(prefix_path / path0)
 
             model_file = add_prefix(model_file)
             condition_file = add_prefix(condition_file)

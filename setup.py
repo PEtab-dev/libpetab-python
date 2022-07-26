@@ -29,8 +29,8 @@ def absolute_links(txt):
 
 
 # Python version check. We need >= 3.6 due to e.g. f-strings
-if sys.version_info < (3, 7, 1):
-    sys.exit('PEtab requires at least Python version 3.7.1')
+if sys.version_info < (3, 8, 0):
+    sys.exit('PEtab requires at least Python version 3.8')
 
 # read version from file
 __version__ = ''
@@ -67,7 +67,7 @@ setup(name='petab',
                         'jsonschema',
                         ],
       include_package_data=True,
-      python_requires='>=3.7.1',
+      python_requires='>=3.8.0',
       entry_points=ENTRY_POINTS,
       extras_require={
           'tests': [
@@ -79,7 +79,7 @@ setup(name='petab',
           'reports': ['Jinja2'],
           'combine': ['python-libcombine>=0.2.6'],
           'doc': [
-              'sphinx>=3.5.3',
+              'sphinx>=3.5.3, !=5.1.0',
               'sphinxcontrib-napoleon>=0.7',
               'sphinx-markdown-tables>=0.0.15',
               'sphinx-rtd-theme>=0.5.1',

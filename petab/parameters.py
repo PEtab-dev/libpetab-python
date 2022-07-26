@@ -4,7 +4,9 @@ import numbers
 import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
+from typing import (
+    Dict, Iterable, List, Set, Tuple, Union, Optional, Literal, Sequence
+)
 
 import libsbml
 import numpy as np
@@ -19,12 +21,15 @@ __all__ = ['create_parameter_df',
            'get_optimization_parameters',
            'get_parameter_df',
            'get_priors_from_df',
+           'get_valid_parameters_for_parameter_table',
            'map_scale',
            'map_unscale',
            'normalize_parameter_df',
            'scale',
            'unscale',
            'write_parameter_df']
+
+PARAMETER_SCALE_ARGS = Literal['', 'lin', 'log', 'log10']
 
 
 def get_parameter_df(
@@ -147,13 +152,13 @@ def create_parameter_df(
     matching the number of parameters
 
     Arguments:
-        sbml_model: SBML Model
-        model: PEtab model
+        sbml_model: SBML Model (deprecated, mutually exclusive with ``model``)
+        model: PEtab model (mutually exclusive with ``sbml_model``)
         condition_df: PEtab condition DataFrame
         observable_df: PEtab observable DataFrame
         measurement_df: PEtab measurement DataFrame
         include_optional: By default this only returns parameters that are
-            required to be present in the parameter table. If set to True,
+            required to be present in the parameter table. If set to ``True``,
             this returns all parameters that are allowed to be present in the
             parameter table (i.e. also including parameters specified in the
             model).
@@ -265,6 +270,13 @@ def get_required_parameters_for_parameter_table(
         if not model.has_entity_with_id(p):
             parameter_ids[p] = None
 
+    # remove parameters that occur in the condition table and are overridden
+    #  for ALL conditions
+    for p in condition_df.columns[~condition_df.isnull().any()]:
+        try:
+            del parameter_ids[p]
+        except KeyError:
+            pass
     return parameter_ids.keys()
 
 
@@ -272,7 +284,8 @@ def get_valid_parameters_for_parameter_table(
         model: Model,
         condition_df: pd.DataFrame,
         observable_df: pd.DataFrame,
-        measurement_df: pd.DataFrame) -> Set[str]:
+        measurement_df: pd.DataFrame,
+) -> Set[str]:
     """
     Get set of parameters which may be present inside the parameter table
 
@@ -337,13 +350,15 @@ def get_valid_parameters_for_parameter_table(
     return parameter_ids.keys()
 
 
-def get_priors_from_df(parameter_df: pd.DataFrame,
-                       mode: str) -> List[Tuple]:
+def get_priors_from_df(
+        parameter_df: pd.DataFrame,
+        mode: Literal['initialization', 'objective'],
+) -> List[Tuple]:
     """Create list with information about the parameter priors
 
     Arguments:
         parameter_df: PEtab parameter table
-        mode: 'initialization' or 'objective'
+        mode: ``'initialization'`` or ``'objective'``
 
     Returns:
         List with prior information.
@@ -384,55 +399,59 @@ def get_priors_from_df(parameter_df: pd.DataFrame,
     return prior_list
 
 
-def scale(parameter: numbers.Number, scale_str: 'str') -> numbers.Number:
-    """Scale parameter according to `scale_str`.
+def scale(
+        parameter: numbers.Number,
+        scale_str: PARAMETER_SCALE_ARGS,
+) -> numbers.Number:
+    """Scale parameter according to ``scale_str``.
 
     Arguments:
         parameter:
             Parameter to be scaled.
         scale_str:
-            One of 'lin' (synonymous with ''), 'log', 'log10'.
+            One of ``'lin'`` (synonymous with ``''``), ``'log'``, ``'log10'``.
 
     Returns:
         The scaled parameter.
     """
-
     if scale_str == LIN or not scale_str:
         return parameter
     if scale_str == LOG:
         return np.log(parameter)
     if scale_str == LOG10:
         return np.log10(parameter)
-    raise ValueError("Invalid parameter scaling: " + scale_str)
+    raise ValueError(f"Invalid parameter scaling: {scale_str}")
 
 
-def unscale(parameter: numbers.Number, scale_str: 'str') -> numbers.Number:
-    """Unscale parameter according to `scale_str`.
+def unscale(
+        parameter: numbers.Number,
+        scale_str: PARAMETER_SCALE_ARGS,
+) -> numbers.Number:
+    """Unscale parameter according to ``scale_str``.
 
     Arguments:
         parameter:
             Parameter to be unscaled.
         scale_str:
-            One of 'lin' (synonymous with ''), 'log', 'log10'.
+            One of ``'lin'`` (synonymous with ``''``), ``'log'``, ``'log10'``.
 
     Returns:
         The unscaled parameter.
     """
-
     if scale_str == LIN or not scale_str:
         return parameter
     if scale_str == LOG:
         return np.exp(parameter)
     if scale_str == LOG10:
         return 10**parameter
-    raise ValueError("Invalid parameter scaling: " + scale_str)
+    raise ValueError(f"Invalid parameter scaling: {scale_str}")
 
 
 def map_scale(
-    parameters: Iterable[numbers.Number],
-    scale_strs: Union[Iterable[str], str]
+    parameters: Sequence[numbers.Number],
+    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS],
 ) -> Iterable[numbers.Number]:
-    """Scale the parameters, i.e. as `scale()`, but for Iterables.
+    """Scale the parameters, i.e. as :func:`scale`, but for Sequences.
 
     Arguments:
         parameters:
@@ -449,10 +468,10 @@ def map_scale(
 
 
 def map_unscale(
-    parameters: Iterable[numbers.Number],
-    scale_strs: Union[Iterable[str], str]
+    parameters: Sequence[numbers.Number],
+    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS],
 ) -> Iterable[numbers.Number]:
-    """Unscale the parameters, i.e. as `unscale()`, but for Iterables.
+    """Unscale the parameters, i.e. as :func:`unscale`, but for Sequences.
 
     Arguments:
         parameters:

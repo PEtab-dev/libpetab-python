@@ -93,9 +93,8 @@ def get_parametric_overrides(condition_df: pd.DataFrame) -> List[str]:
     Returns:
         List of parameter IDs that are mapped in a condition-specific way
     """
-    constant_parameters = list(
-        set(condition_df.columns.values.tolist()) - {CONDITION_ID,
-                                                     CONDITION_NAME})
+    constant_parameters = (set(condition_df.columns.values.tolist())
+                           - {CONDITION_ID, CONDITION_NAME})
     result = []
 
     for column in constant_parameters:
@@ -104,7 +103,5 @@ def get_parametric_overrides(condition_df: pd.DataFrame) -> List[str]:
 
         floatified = condition_df.loc[:, column].apply(core.to_float_if_float)
 
-        for x in floatified:
-            if not isinstance(x, float):
-                result.append(x)
+        result.extend(x for x in floatified if not isinstance(x, float))
     return result

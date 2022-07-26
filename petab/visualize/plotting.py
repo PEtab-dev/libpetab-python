@@ -2,7 +2,7 @@
 import warnings
 from numbers import Number, Real
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Literal
 
 import numpy as np
 import pandas as pd
@@ -129,6 +129,9 @@ class DataPlot:
         vis_spec_dict = plot_spec.to_dict()
 
         return cls(vis_spec_dict)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.__dict__})"
 
 
 class Subplot:
@@ -480,9 +483,13 @@ class DataProvider:
 
         return uni_condition_id, col_name_unique, conditions_
 
-    def get_data_series(self, data_df: pd.DataFrame, data_col: str,
-                        dataplot: DataPlot,
-                        provided_noise: bool) -> DataSeries:
+    def get_data_series(
+            self,
+            data_df: pd.DataFrame,
+            data_col: Literal['measurement', 'simulation'],
+            dataplot: DataPlot,
+            provided_noise: bool
+    ) -> DataSeries:
         """
         Get data to plot from measurement or simulation DataFrame.
 
@@ -499,10 +506,8 @@ class DataProvider:
         -------
         Data to plot
         """
-
         uni_condition_id, col_name_unique, conditions_ = \
-            self._get_independent_var_values(data_df,
-                                             dataplot)
+            self._get_independent_var_values(data_df, dataplot)
 
         dataset_id = getattr(dataplot, DATASET_ID)
 
@@ -643,8 +648,10 @@ class VisSpecParser:
             None else self.simulations_data
 
     @staticmethod
-    def create_subplot(plot_id: str,
-                       subplot_vis_spec: pd.DataFrame) -> Subplot:
+    def create_subplot(
+            plot_id: str,
+            subplot_vis_spec: pd.DataFrame
+    ) -> Subplot:
         """
         Create subplot.
 
@@ -661,7 +668,6 @@ class VisSpecParser:
 
                 Subplot
         """
-
         subplot_columns = [col for col in subplot_vis_spec.columns if col in
                            VISUALIZATION_DF_SUBPLOT_LEVEL_COLS]
         subplot = Subplot.from_df(plot_id,
@@ -677,9 +683,10 @@ class VisSpecParser:
 
         return subplot
 
-    def parse_from_vis_spec(self,
-                            vis_spec: Optional[Union[str, Path, pd.DataFrame]],
-                            ) -> Tuple[Figure, DataProvider]:
+    def parse_from_vis_spec(
+            self,
+            vis_spec: Optional[Union[str, Path, pd.DataFrame]],
+    ) -> Tuple[Figure, DataProvider]:
         """
         Get visualization settings from a visualization specification.
 
@@ -694,7 +701,6 @@ class VisSpecParser:
 
         A figure template with visualization settings and a data provider
         """
-
         # import visualization specification, if file was specified
         if isinstance(vis_spec, (str, Path)):
             vis_spec = core.get_visualization_df(vis_spec)
