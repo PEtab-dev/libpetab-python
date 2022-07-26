@@ -79,7 +79,7 @@ setup(name='petab',
           'reports': ['Jinja2'],
           'combine': ['python-libcombine>=0.2.6'],
           'doc': [
-              'sphinx>=3.5.3',
+              'sphinx>=3.5.3, !=5.1.0',
               'sphinxcontrib-napoleon>=0.7',
               'sphinx-markdown-tables>=0.0.15',
               'sphinx-rtd-theme>=0.5.1',
