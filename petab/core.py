@@ -159,9 +159,6 @@ def get_flattened_id_mappings(
     """
     groupvars = get_notnull_columns(petab_problem.measurement_df,
                                     POSSIBLE_GROUPVARS_FLATTENED_PROBLEM)
-    observable_mapping = {}
-    noise_parameter_mapping = {}
-    observable_parameter_mapping = {}
     mappings = {
         OBSERVABLE_ID: {},
         NOISE_PARAMETERS: {},
