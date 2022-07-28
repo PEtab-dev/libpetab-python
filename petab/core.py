@@ -102,6 +102,18 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
 
 
 def get_replacement_id(groupvars, groupvar) -> str:
+    """Get the replacement ID for an observable.
+
+    Arguments:
+        groupvars:
+            The columns of a PEtab measurement table that should be unique
+            between observables in a flattened PEtab problem.
+        groupvar:
+            A specific grouping of `groupvars`.
+
+    Returns:
+        The replacement ID.
+    """
     replacement_id = ''
     for field in POSSIBLE_GROUPVARS_FLATTENED_PROBLEM:
         if field in groupvars:
@@ -115,6 +127,18 @@ def get_replacement_id(groupvars, groupvar) -> str:
 
 
 def get_parameter_replacement_id(parname, replacement_id):
+    """Get the full ID for a replaced parameter.
+
+    Arguments:
+        parname:
+            The type of parameter, e.g. `noiseParameter`.
+        replacement_id:
+            The replacement observable ID, e.g. the output of
+            `get_replacement_id`.
+
+    Returns:
+        The parameter replacement ID.
+    """
     return f'{parname}\\1_{replacement_id}'
 
 
