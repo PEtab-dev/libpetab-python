@@ -232,6 +232,9 @@ def get_model_for_condition(
         in the resulting model.
     :return: The generated SBML document, and SBML model
     """
+    from .models.sbml_model import SbmlModel
+    assert isinstance(petab_problem.model, SbmlModel)
+
     condition_dict = {petab.SIMULATION_CONDITION_ID: sim_condition_id}
     if preeq_condition_id:
         condition_dict[petab.PREEQUILIBRATION_CONDITION_ID] = \
@@ -245,7 +248,7 @@ def get_model_for_condition(
             condition_id=sim_condition_id,
             is_preeq=False,
             cur_measurement_df=cur_measurement_df,
-            sbml_model=petab_problem.sbml_model,
+            model=petab_problem.model,
             condition_df=petab_problem.condition_df,
             parameter_df=petab_problem.parameter_df,
             warn_unmapped=True,
@@ -256,7 +259,7 @@ def get_model_for_condition(
             allow_timepoint_specific_numeric_noise_parameters=True,
         )
     # create a copy of the model
-    sbml_doc = petab_problem.sbml_model.getSBMLDocument().clone()
+    sbml_doc = petab_problem.model.sbml_model.getSBMLDocument().clone()
     sbml_model = sbml_doc.getModel()
 
     # fill in parameters
