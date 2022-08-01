@@ -101,7 +101,7 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
             if col in df and not np.all(df[col].isnull())]
 
 
-def get_replacement_id(groupvars, groupvar) -> str:
+def get_observable_replacement_id(groupvars, groupvar) -> str:
     """Get the replacement ID for an observable.
 
     Arguments:
@@ -252,13 +252,13 @@ def unflatten_simulation_df(
     """Unflatten simulations from a flattened PEtab problem.
 
     A flattened PEtab problem is the output of applying
-    `flatten_timepoint_specific_output_overrides` to a PEtab problem.
+    :func:`flatten_timepoint_specific_output_overrides` to a PEtab problem.
 
     Arguments:
         simulation_df:
             The simulation dataframe. A dataframe in the same format as a PEtab
-            measurements table, but with the `measurement` column switched with
-            a `simulation column`.
+            measurements table, but with the ``measurement`` column switched with
+            a ``simulation`` column.
         petab_problem:
             The unflattened PEtab problem.
 
