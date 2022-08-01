@@ -112,7 +112,7 @@ def get_observable_replacement_id(groupvars, groupvar) -> str:
             A specific grouping of `groupvars`.
 
     Returns:
-        The replacement ID.
+        The observable replacement ID.
     """
     replacement_id = ''
     for field in POSSIBLE_GROUPVARS_FLATTENED_PROBLEM:
@@ -126,20 +126,24 @@ def get_observable_replacement_id(groupvars, groupvar) -> str:
     return replacement_id
 
 
-def get_parameter_replacement_id(parname, replacement_id):
-    """Get the full ID for a replaced parameter.
+def get_hyperparameter_replacement_id(
+        hyperparameter_type,
+        observable_replacement_id,
+):
+    """Get the full ID for a replaced hyperparameter.
 
     Arguments:
-        parname:
-            The type of parameter, e.g. `noiseParameter`.
-        replacement_id:
-            The replacement observable ID, e.g. the output of
-            `get_replacement_id`.
+        hyperparameter_type:
+            The type of hyperparameter, e.g. `noiseParameter`.
+        observable_replacement_id:
+            The observable replacement ID, e.g. the output of
+            `get_observable_replacement_id`.
 
     Returns:
-        The parameter replacement ID.
+        The hyperparameter replacement ID, with a field that will be replaced
+        by the first matched substring in a regex substitution.
     """
-    return f'{parname}\\1_{replacement_id}'
+    return f'{hyperparameter_type}\\1_{observable_replacement_id}'
 
 
 def get_flattened_id_mappings(
@@ -154,7 +158,7 @@ def get_flattened_id_mappings(
     Returns:
         A dictionary of dictionaries. Each inner dictionary is a mapping
         from original ID to flattened ID. Each outer dictionary is the mapping
-        for either observable IDs; noise parameter IDs; or, observable
+        for either: observable IDs; noise parameter IDs; or, observable
         parameter IDs.
     """
     groupvars = get_notnull_columns(petab_problem.measurement_df,
@@ -166,26 +170,27 @@ def get_flattened_id_mappings(
     }
     for groupvar, measurements in \
             petab_problem.measurement_df.groupby(groupvars, dropna=False):
-        obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
-        replacement_id = get_replacement_id(groupvars, groupvar)
+        observable_id = groupvar[groupvars.index(OBSERVABLE_ID)]
+        observable_replacement_id = \
+            get_observable_replacement_id(groupvars, groupvar)
 
-        logger.debug(f'Creating synthetic observable {obs_id}')
-        if replacement_id in petab_problem.observable_df.index:
+        logger.debug(f'Creating synthetic observable {observable_id}')
+        if observable_replacement_id in petab_problem.observable_df.index:
             raise RuntimeError('could not create synthetic observables '
-                               f'since {replacement_id} was already '
-                               'present in observable table')
+                               f'since {observable_replacement_id} was '
+                               'already present in observable table')
 
-        mappings[OBSERVABLE_ID][replacement_id] = obs_id
+        mappings[OBSERVABLE_ID][observable_replacement_id] = observable_id
 
-        for field, parname, target in [
+        for field, hyperparameter_type, target in [
             (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
             (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
         ]:
             if field in measurements:
-                mappings[field][get_parameter_replacement_id(
-                    parname=parname,
-                    replacement_id=replacement_id,
-                )] = fr'{parname}([0-9]+)_{obs_id}'
+                mappings[field][get_hyperparameter_replacement_id(
+                    hyperparameter_type=hyperparameter_type,
+                    observable_replacement_id=observable_replacement_id,
+                )] = fr'{hyperparameter_type}([0-9]+)_{observable_id}'
     return mappings
 
 
@@ -216,27 +221,30 @@ def flatten_timepoint_specific_output_overrides(
     for groupvar, measurements in \
             petab_problem.measurement_df.groupby(groupvars, dropna=False):
         obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
-        replacement_id = get_replacement_id(groupvars, groupvar)
+        observable_replacement_id = \
+            get_observable_replacement_id(groupvars, groupvar)
 
         observable = petab_problem.observable_df.loc[obs_id].copy()
-        observable.name = replacement_id
-        for field, parname, target in [
+        observable.name = observable_replacement_id
+        for field, hyperparameter_type, target in [
             (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
             (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
         ]:
             if field in measurements:
-                parameter_replacement_id = get_parameter_replacement_id(
-                    parname=parname,
-                    replacement_id=replacement_id,
-                )
-                parameter_id = mappings[field][parameter_replacement_id]
+                hyperparameter_replacement_id = \
+                    get_hyperparameter_replacement_id(
+                        hyperparameter_type=hyperparameter_type,
+                        observable_replacement_id=observable_replacement_id,
+                    )
+                hyperparameter_id = \
+                    mappings[field][hyperparameter_replacement_id]
                 observable[target] = re.sub(
-                    parameter_id,
-                    parameter_replacement_id,
+                    hyperparameter_id,
+                    hyperparameter_replacement_id,
                     observable[target],
                 )
 
-        measurements[OBSERVABLE_ID] = replacement_id
+        measurements[OBSERVABLE_ID] = observable_replacement_id
         new_measurement_dfs.append(measurements)
         new_observable_dfs.append(observable)
 
@@ -257,8 +265,8 @@ def unflatten_simulation_df(
     Arguments:
         simulation_df:
             The simulation dataframe. A dataframe in the same format as a PEtab
-            measurements table, but with the ``measurement`` column switched with
-            a ``simulation`` column.
+            measurements table, but with the ``measurement`` column switched
+            with a ``simulation`` column.
         petab_problem:
             The unflattened PEtab problem.
 
