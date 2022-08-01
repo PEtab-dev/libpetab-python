@@ -95,9 +95,9 @@ def test_get_parameter_df():
                 parameter_files[name] = fh.name
                 parameter_dfs[name].to_csv(fh, sep='\t', index=False)
         # Check that subset files are correctly combined
-        assert(petab.get_parameter_df(parameter_files['complete']).equals(
+        assert petab.get_parameter_df(parameter_files['complete']).equals(
             petab.get_parameter_df([parameter_files['subset1'],
-                                    parameter_files['subset2_strict']])))
+                                    parameter_files['subset2_strict']]))
         # Ensure an error is raised if there exist parameterId duplicates
         # with identical parameter definitions
         with pytest.raises(ValueError):
