@@ -173,10 +173,12 @@ def _map_condition_arg_packer(
 ):
     """Helper function to pack extra arguments for _map_condition"""
     for _, condition in simulation_conditions.iterrows():
-        yield(condition, measurement_df, condition_df, parameter_df,
-              model, simulation_parameters, warn_unmapped,
-              scaled_parameters, fill_fixed_parameters,
-              allow_timepoint_specific_numeric_noise_parameters)
+        yield (
+            condition, measurement_df, condition_df, parameter_df,
+            model, simulation_parameters, warn_unmapped, scaled_parameters,
+            fill_fixed_parameters,
+            allow_timepoint_specific_numeric_noise_parameters
+        )
 
 
 def _map_condition(packed_args):
