@@ -57,6 +57,16 @@ def problem() -> Problem:
 
 
 def test_remove_nan_measurements(problem):
+    expected = pd.DataFrame(
+            {
+                OBSERVABLE_ID: ["obs_used"] * 2,
+                MEASUREMENT: [1.0, 2.0],
+                SIMULATION_CONDITION_ID:
+                    ["condition_used_1", "condition_used_2"],
+                TIME: [1.0] * 2,
+            }
+        )
+
     problem.measurement_df = pd.DataFrame(
             {
                 OBSERVABLE_ID: ["obs_used", "obs_with_nan", "obs_used"],
@@ -67,24 +77,14 @@ def test_remove_nan_measurements(problem):
                 TIME: [1.0] * 3,
             }
         )
+    assert not problem.measurement_df.equals(expected)
 
     remove_nan_measurements(problem)
 
-    expected = pd.DataFrame(
-            {
-                OBSERVABLE_ID: ["obs_used"] * 2,
-                MEASUREMENT: [1.0, 2.0],
-                SIMULATION_CONDITION_ID:
-                    ["condition_used_1", "condition_used_2"],
-                TIME: [1.0] * 2,
-            }
-        )
     assert_frame_equal(problem.measurement_df, expected)
 
 
 def test_remove_unused_observables(problem):
-    remove_unused_observables(problem)
-
     expected = pd.DataFrame(
             {
                 OBSERVABLE_ID: ["obs_used", "obs_used_2"],
@@ -93,13 +93,14 @@ def test_remove_unused_observables(problem):
             }
         )
     expected.set_index(OBSERVABLE_ID, inplace=True)
+    assert not problem.observable_df.equals(expected)
+
+    remove_unused_observables(problem)
 
     assert_frame_equal(problem.observable_df, expected)
 
 
 def test_remove_unused_conditions(problem):
-    remove_unused_conditions(problem)
-
     expected = pd.DataFrame(
             {
                 CONDITION_ID: ["condition_used_1",
@@ -109,14 +110,15 @@ def test_remove_unused_conditions(problem):
             }
         )
     expected.set_index(CONDITION_ID, inplace=True)
+    assert not problem.condition_df.equals(expected)
+
+    remove_unused_conditions(problem)
 
     assert_frame_equal(problem.condition_df, expected)
 
 
 def test_condition_parameters_to_parameter_table(problem):
-    condition_parameters_to_parameter_table(problem)
-
-    expected = pd.DataFrame(
+    expected_conditions = pd.DataFrame(
         {
             CONDITION_ID: ["condition_used_1",
                            "condition_unused",
@@ -124,10 +126,10 @@ def test_condition_parameters_to_parameter_table(problem):
             "some_parameter": [1.0, 2.0, 3.0],
         }
     )
-    expected.set_index(CONDITION_ID, inplace=True)
-    assert_frame_equal(problem.condition_df, expected)
+    expected_conditions.set_index(CONDITION_ID, inplace=True)
+    assert not problem.condition_df.equals(expected_conditions)
 
-    expected = pd.DataFrame({
+    expected_parameters = pd.DataFrame({
             PARAMETER_ID: ["same_value_for_all_conditions"],
             PARAMETER_SCALE: [LIN],
             LOWER_BOUND: [nan],
@@ -135,8 +137,13 @@ def test_condition_parameters_to_parameter_table(problem):
             NOMINAL_VALUE: [4.0],
             ESTIMATE: [0],
         })
-    expected.set_index(PARAMETER_ID, inplace=True)
-    assert_frame_equal(problem.parameter_df, expected)
+    expected_parameters.set_index(PARAMETER_ID, inplace=True)
+    assert problem.parameter_df is None
+
+    condition_parameters_to_parameter_table(problem)
+
+    assert_frame_equal(problem.condition_df, expected_conditions)
+    assert_frame_equal(problem.parameter_df, expected_parameters)
 
 
 def test_simplify_problem(problem):
