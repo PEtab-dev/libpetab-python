@@ -79,8 +79,6 @@ def test_remove_nan_measurements(problem):
                 TIME: [1.0] * 2,
             }
         )
-    print(problem.measurement_df)
-    print(expected)
     assert_frame_equal(problem.measurement_df, expected)
 
 
