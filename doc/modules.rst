@@ -23,5 +23,6 @@ API Reference
    petab.sampling
    petab.sbml
    petab.simulate
+   petab.simplify
    petab.visualize
    petab.yaml
