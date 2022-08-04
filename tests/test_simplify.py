@@ -110,8 +110,6 @@ def test_remove_unused_conditions(problem):
         )
     expected.set_index(CONDITION_ID, inplace=True)
 
-    print(problem.condition_df)
-    print(expected)
     assert_frame_equal(problem.condition_df, expected)
 
 
