@@ -129,7 +129,6 @@ def test_condition_parameters_to_parameter_table(problem):
         }
     )
     expected.set_index(CONDITION_ID, inplace=True)
-    print(problem.condition_df, expected)
     assert_frame_equal(problem.condition_df, expected)
 
     expected = pd.DataFrame({
