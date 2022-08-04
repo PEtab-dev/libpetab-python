@@ -3,6 +3,7 @@ from math import nan
 
 import pandas as pd
 
+import petab
 from . import Problem
 from .C import *  # noqa: F403
 from .lint import lint_problem
@@ -72,12 +73,10 @@ def condition_parameters_to_parameter_table(problem: Problem):
             continue
 
         series = problem.condition_df[parameter_id]
-        if series.dtype == 'o':
-            # We don't touch parametric overrides
-            continue
+        value = petab.to_float_if_float(series[0])
 
-        # same value for all conditions?
-        if len(series.unique()) == 1:
+        # same value for all conditions and no parametric overrides (str)?
+        if isinstance(value, float) and len(series.unique()) == 1:
             replacements[parameter_id] = series[0]
 
     if not replacements:
