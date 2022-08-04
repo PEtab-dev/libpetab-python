@@ -64,7 +64,7 @@ def condition_parameters_to_parameter_table(problem: Problem):
 
     replacements = {}
     for parameter_id in problem.condition_df:
-        if parameter_id == PARAMETER_NAME:
+        if parameter_id == CONDITION_NAME:
             continue
 
         if problem.model.is_state_variable(parameter_id):
