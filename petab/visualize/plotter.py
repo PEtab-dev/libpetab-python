@@ -35,8 +35,10 @@ class Plotter(ABC):
         self.data_provider = data_provider
 
     @abstractmethod
-    def generate_figure(self, subplot_dir: Optional[str] = None
-                        ) -> Optional[Dict[str, plt.Subplot]]:
+    def generate_figure(
+            self,
+            subplot_dir: Optional[str] = None
+    ) -> Optional[Dict[str, plt.Subplot]]:
         pass
 
 
@@ -67,14 +69,14 @@ class MPLPlotter(Plotter):
             return 'noise_model'
         return None
 
-    def generate_lineplot(self,
-                          fig: matplotlib.figure.Figure,
-                          ax: matplotlib.axes.Axes,
-                          dataplot: DataPlot,
-                          plotTypeData: str,
-                          ax_inf: Optional[matplotlib.axes.Axes] = None
-                          ) -> Tuple[matplotlib.axes.Axes,
-                                     matplotlib.axes.Axes]:
+    def generate_lineplot(
+            self,
+            fig: matplotlib.figure.Figure,
+            ax: matplotlib.axes.Axes,
+            dataplot: DataPlot,
+            plotTypeData: str,
+            ax_inf: Optional[matplotlib.axes.Axes] = None
+    ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Generate lineplot.
 
@@ -93,7 +95,6 @@ class MPLPlotter(Plotter):
         ax_inf:
             Axis object for points at t='inf'.
         """
-
         simu_color = None
         measurements_to_plot, simulations_to_plot = \
             self.data_provider.get_data_to_plot(dataplot,
@@ -190,9 +191,12 @@ class MPLPlotter(Plotter):
 
         return ax, ax_inf
 
-    def generate_barplot(self, ax: 'matplotlib.pyplot.Axes',
-                         dataplot: DataPlot,
-                         plotTypeData: str) -> None:
+    def generate_barplot(
+            self,
+            ax: 'matplotlib.pyplot.Axes',
+            dataplot: DataPlot,
+            plotTypeData: str
+    ) -> None:
         """
         Generate barplot.
 
@@ -238,9 +242,12 @@ class MPLPlotter(Plotter):
                    color='white', edgecolor=color, **bar_kwargs,
                    label='simulation')
 
-    def generate_scatterplot(self, ax: 'matplotlib.pyplot.Axes',
-                             dataplot: DataPlot,
-                             plotTypeData: str) -> None:
+    def generate_scatterplot(
+            self,
+            ax: 'matplotlib.pyplot.Axes',
+            dataplot: DataPlot,
+            plotTypeData: str
+    ) -> None:
         """
         Generate scatterplot.
 
@@ -253,7 +260,6 @@ class MPLPlotter(Plotter):
         plotTypeData:
             Specifies how replicates should be handled.
         """
-
         measurements_to_plot, simulations_to_plot = \
             self.data_provider.get_data_to_plot(dataplot,
                                                 plotTypeData == PROVIDED)
@@ -266,10 +272,12 @@ class MPLPlotter(Plotter):
                    label=getattr(dataplot, LEGEND_ENTRY))
         self._square_plot_equal_ranges(ax)
 
-    def generate_subplot(self,
-                         fig: matplotlib.figure.Figure,
-                         ax: matplotlib.axes.Axes,
-                         subplot: Subplot) -> None:
+    def generate_subplot(
+            self,
+            fig: matplotlib.figure.Figure,
+            ax: matplotlib.axes.Axes,
+            subplot: Subplot
+    ) -> None:
         """
         Generate subplot based on markup provided by subplot.
 
@@ -282,7 +290,6 @@ class MPLPlotter(Plotter):
         subplot:
             Subplot visualization settings.
         """
-
         # set yScale
         if subplot.yScale == LIN:
             ax.set_yscale("linear")
@@ -311,7 +318,6 @@ class MPLPlotter(Plotter):
             for data_plot in subplot.data_plots:
                 self.generate_scatterplot(ax, data_plot, subplot.plotTypeData)
         else:
-
             # set xScale
             if subplot.xScale == LIN:
                 ax.set_xscale("linear")
@@ -390,7 +396,6 @@ class MPLPlotter(Plotter):
         None:
             In case subplots are saved to file.
         """
-
         if subplot_dir is None:
             # compute, how many rows and columns we need for the subplots
             num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
@@ -406,7 +411,7 @@ class MPLPlotter(Plotter):
             axes = dict(zip([plot.plotId for plot in self.figure.subplots],
                             axes.flat))
 
-        for idx, subplot in enumerate(self.figure.subplots):
+        for subplot in self.figure.subplots:
             if subplot_dir is not None:
                 fig, ax = plt.subplots(figsize=self.figure.size)
                 fig.set_tight_layout(True)
@@ -531,6 +536,8 @@ class SeabornPlotter(Plotter):
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
-    def generate_figure(self, subplot_dir: Optional[str] = None
-                        ) -> Optional[Dict[str, plt.Subplot]]:
+    def generate_figure(
+            self,
+            subplot_dir: Optional[str] = None
+    ) -> Optional[Dict[str, plt.Subplot]]:
         pass

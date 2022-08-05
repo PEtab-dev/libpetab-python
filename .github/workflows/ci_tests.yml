@@ -44,7 +44,7 @@ jobs:
 
     - name: Run flake8
       run: |
-        python -m flake8 --exclude=build,doc,example,tmp --extend-ignore=F403,F405
+        python -m flake8
       if: matrix.platform == 'ubuntu-latest'
 
     - name: Run tests
