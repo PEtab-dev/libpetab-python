@@ -566,8 +566,8 @@ class MPLPlotter(Plotter):
                 max_finite = np.max(
                     simulations_to_plot.conditions[
                         simulations_to_plot.conditions != np.inf])
-                ax_finite_right_limit = max(max_finite, ax_finite_right_limit) if \
-                    ax_finite_right_limit else max_finite
+                ax_finite_right_limit = max(max_finite, ax_finite_right_limit)\
+                    if ax_finite_right_limit else max_finite
                 min_cond_value = min(simulations_to_plot.conditions)
                 left = min(min_cond_value, left) if left else min_cond_value
             t_inf = ax_finite_right_limit + (ax_finite_right_limit-left)*0.1
