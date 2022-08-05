@@ -372,6 +372,19 @@ def test_flatten_timepoint_specific_output_overrides():
 
     assert petab.lint_problem(problem) is False
 
+    simulation_df = copy.deepcopy(problem.measurement_df)
+    simulation_df.rename(columns={MEASUREMENT: SIMULATION})
+    unflattened_problem = petab.Problem(
+        measurement_df=measurement_df,
+        observable_df=observable_df,
+    )
+    unflattened_simulation_df = petab.core.unflatten_simulation_df(
+        simulation_df=simulation_df,
+        petab_problem=unflattened_problem,
+    )
+    # The unflattened simulation dataframe has the original observable IDs.
+    assert (unflattened_simulation_df[OBSERVABLE_ID] == 'obs1').all()
+
 
 def test_flatten_timepoint_specific_output_overrides_special_cases():
     """Test flatten_timepoint_specific_output_overrides

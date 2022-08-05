@@ -474,7 +474,7 @@ class Problem:
                 raise error("visualization")
 
         if yaml_file:
-            yaml.create_problem_yaml(sbml_file, condition_file,
+            yaml.create_problem_yaml(model_file, condition_file,
                                      measurement_file, parameter_file,
                                      observable_file, yaml_file,
                                      visualization_file,
