@@ -75,7 +75,7 @@ class MPLPlotter(Plotter):
             ax: matplotlib.axes.Axes,
             dataplot: DataPlot,
             plotTypeData: str,
-            ax_inf: Optional[matplotlib.axes.Axes] = None
+            splitaxes_params: dict
     ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Generate lineplot.
@@ -181,13 +181,16 @@ class MPLPlotter(Plotter):
         # plot inf points
         if split_axes:
             ax, ax_inf = self._split_axes_line_plot(
-                fig, ax, ax_inf, plotTypeData,
+                fig, ax, plotTypeData,
                 measurements_to_plot,
                 simulations_to_plot,
                 noise_col,
                 label_base,
+                splitaxes_params,
                 color=simu_color
             )
+        else:
+            ax_inf = None
 
         return ax, ax_inf
 
@@ -343,12 +346,13 @@ class MPLPlotter(Plotter):
                                      'some are mon. increasing, some '
                                      'monotonically decreasing')
 
-            ax_inf = None
+            splitaxes_params = self._preprocess_splitaxes(subplot)
             for data_plot in subplot.data_plots:
-                ax, ax_inf = self.generate_lineplot(
-                    fig, ax, data_plot, subplot.plotTypeData, ax_inf)
-            if ax_inf is not None:
-                self._postprocess_splitaxes(ax, ax_inf)
+                ax, splitaxes_params['ax_inf'] = self.generate_lineplot(
+                    fig, ax, data_plot, subplot.plotTypeData,
+                    splitaxes_params=splitaxes_params)
+            if splitaxes_params['ax_inf'] is not None:
+                self._postprocess_splitaxes(ax, splitaxes_params['ax_inf'])
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
@@ -464,13 +468,18 @@ class MPLPlotter(Plotter):
     @staticmethod
     def _split_axes_line_plot(fig,
                               ax: matplotlib.axes.Axes,
-                              ax_inf: Optional[matplotlib.axes.Axes],
                               plotTypeData: str,
                               measurements_to_plot: DataSeries,
                               simulations_to_plot: DataSeries,
                               noise_col,
                               label_base: str,
+                              split_axes_params: dict,
                               color=None):
+        ax_inf = split_axes_params['ax_inf']
+        t_inf = split_axes_params['t_inf']
+        ax_finite_right_limit = split_axes_params['ax_finite_right_limit']
+        left = split_axes_params['left']
+
         first_iter = False
         if ax_inf is None:
             divider = make_axes_locatable(ax)
@@ -478,19 +487,18 @@ class MPLPlotter(Plotter):
             ax_inf = divider.new_horizontal(size="10%", pad=0.3)
             fig.add_axes(ax_inf)
 
-        if measurements_to_plot is not None:
+        if measurements_to_plot is not None and np.inf in \
+                measurements_to_plot.conditions:
             measurements_data_to_plot_inf = \
                 measurements_to_plot.data_to_plot.loc[np.inf]
-            measurements_to_plot.conditions.sort()
-            left = min(measurements_to_plot.conditions)
-            ax_right_limit = measurements_to_plot.conditions[-2]
-            t_inf = ax_right_limit + (ax_right_limit-left)*0.1
+
             if plotTypeData == REPLICATE:
                 # todo
                 pass
             else:
-                ax_inf.plot([ax_right_limit,
-                             ax_right_limit + (ax_right_limit-left)*0.2],
+                ax_inf.plot([ax_finite_right_limit,
+                             ax_finite_right_limit +
+                             (ax_finite_right_limit-left)*0.2],
                             [measurements_data_to_plot_inf['mean'],
                              measurements_data_to_plot_inf['mean']],
                             linestyle='-.', color=color)
@@ -501,11 +509,24 @@ class MPLPlotter(Plotter):
                     color=color
                 )
 
-        if simulations_to_plot is not None:
+        if simulations_to_plot is not None and np.inf in \
+                simulations_to_plot.conditions:
             simulations_data_to_plot_inf = \
                 simulations_to_plot.data_to_plot.loc[np.inf]
 
-        ax.set_xlim(right=ax_right_limit)
+            if plotTypeData == REPLICATE:
+                # todo
+                pass
+            else:
+                ax_inf.plot([ax_finite_right_limit,
+                             t_inf,
+                             ax_finite_right_limit +
+                             (ax_finite_right_limit-left)*0.2],
+                            [simulations_data_to_plot_inf['mean']]*3,
+                            linestyle='-', marker='o', markevery=[1],
+                            color=color)
+
+        ax.set_xlim(right=ax_finite_right_limit)
         if first_iter:
             ax_inf.tick_params(left=False, labelleft=False)
             ax_inf.spines['left'].set_visible(False)
@@ -527,6 +548,34 @@ class MPLPlotter(Plotter):
                   color='gray')  # left
         ax_inf.set_ylim(bottom, top)
         ax.set_ylim(bottom, top)
+
+    def _preprocess_splitaxes(self, subplot: Subplot):
+
+        t_inf, ax_finite_right_limit, left = None, None, None
+        for dataplot in subplot.data_plots:
+            measurements_to_plot, simulations_to_plot = \
+                self.data_provider.get_data_to_plot(
+                    dataplot, subplot.plotTypeData == PROVIDED)
+
+            if measurements_to_plot is not None:
+                ax_finite_right_limit = np.max(
+                    measurements_to_plot.conditions[
+                        measurements_to_plot.conditions != np.inf])
+                left = min(measurements_to_plot.conditions)
+            if simulations_to_plot is not None:
+                max_finite = np.max(
+                    simulations_to_plot.conditions[
+                        simulations_to_plot.conditions != np.inf])
+                ax_finite_right_limit = max(max_finite, ax_finite_right_limit) if \
+                    ax_finite_right_limit else max_finite
+                min_cond_value = min(simulations_to_plot.conditions)
+                left = min(min_cond_value, left) if left else min_cond_value
+            t_inf = ax_finite_right_limit + (ax_finite_right_limit-left)*0.1
+
+        return {'ax_inf': None,
+                't_inf': t_inf,
+                'ax_finite_right_limit': ax_finite_right_limit,
+                'left': left}
 
 
 class SeabornPlotter(Plotter):
