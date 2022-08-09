@@ -142,13 +142,13 @@ class MPLPlotter(Plotter):
                         measurements_to_plot.data_to_plot['mean'],
                         measurements_to_plot.data_to_plot[noise_col])))
 
-                if plot_on_split_axes:
+                if np.inf in scond:
                     # remove inf point
                     scond = scond[:-1]
                     smean = smean[:-1]
                     snoise = snoise[:-1]
 
-                if scond and smean and snoise:
+                if len(scond) > 0 and len(smean) > 0 and len(snoise) > 0:
                     # if only t=inf there will be nothing to plot
                     p = ax.errorbar(
                         scond, smean, snoise,
@@ -177,19 +177,20 @@ class MPLPlotter(Plotter):
                 simulations_to_plot.conditions,
                 simulations_to_plot.data_to_plot['mean']))))
 
-            if plot_on_split_axes:
+            if np.inf in xs:
                 # remove inf point
                 xs = xs[:-1]
                 ys = ys[:-1]
+                every = every[:-1]
 
-                if xs and ys:
-                    p = ax.plot(
-                        xs, ys, linestyle='-', marker='o', markevery=every,
-                        label=label_base + " simulation", color=simu_color
-                    )
-                    # lines at t=inf should have the same colors also in case
-                    # only simulations are plotted
-                    simu_color = p[0].get_color()
+            if len(xs) > 0 and len(ys) > 0:
+                p = ax.plot(
+                    xs, ys, linestyle='-', marker='o', markevery=every,
+                    label=label_base + " simulation", color=simu_color
+                )
+                # lines at t=inf should have the same colors also in case
+                # only simulations are plotted
+                simu_color = p[0].get_color()
 
         # plot inf points
         if plot_on_split_axes:
