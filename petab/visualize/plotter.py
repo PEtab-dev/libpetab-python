@@ -95,7 +95,8 @@ class MPLPlotter(Plotter):
 
         label_base = dataplot.legendEntry
 
-        if measurements_to_plot is not None:
+        if measurements_to_plot is not None \
+                and not measurements_to_plot.data_to_plot.empty:
             # plotting all measurement data
 
             if plotTypeData == REPLICATE:
@@ -376,7 +377,11 @@ class MPLPlotter(Plotter):
             else:
                 ax = axes[subplot.plotId]
 
-            self.generate_subplot(ax, subplot)
+            try:
+                self.generate_subplot(ax, subplot)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Error plotting {getattr(subplot, PLOT_ID)}.") from e
 
             if subplot_dir is not None:
                 # TODO: why this doesn't work?
