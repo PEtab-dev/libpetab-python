@@ -396,7 +396,7 @@ def create_combine_archive(
     archive.addFile(
         str(yaml_file),
         os.path.basename(yaml_file),
-        libcombine.KnownFormats.lookupFormat("yaml"),
+        "http://identifiers.org/combine.specifications/petab.version-1",
         True
     )
     _add_file_metadata(location=os.path.basename(yaml_file),
