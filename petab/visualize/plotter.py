@@ -362,7 +362,7 @@ class MPLPlotter(Plotter):
 
             fig, axes = plt.subplots(num_row, num_col, squeeze=False,
                                      figsize=self.figure.size)
-            fig.set_tight_layout(True)
+            fig.set_layout_engine("tight")
 
             for ax in axes.flat[self.figure.num_subplots:]:
                 ax.remove()
@@ -373,7 +373,7 @@ class MPLPlotter(Plotter):
         for subplot in self.figure.subplots:
             if subplot_dir is not None:
                 fig, ax = plt.subplots(figsize=self.figure.size)
-                fig.set_tight_layout(True)
+                fig.set_layout_engine("tight")
             else:
                 ax = axes[subplot.plotId]
 
