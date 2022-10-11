@@ -570,13 +570,14 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 
         # write contents to files
         petab_problem.to_files(
-            sbml_file=sbml_file,
+            model_file=sbml_file,
             condition_file=condition_file,
             measurement_file=measurement_file,
             parameter_file=parameter_file,
             visualization_file=None,
             observable_file=observable_file,
-            yaml_file=None)
+            yaml_file=None,
+        )
 
         # exemplarily load some
         parameter_df = petab.get_parameter_df(parameter_file)

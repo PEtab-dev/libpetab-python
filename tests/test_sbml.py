@@ -52,7 +52,7 @@ def test_get_condition_specific_models():
     parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
 
     petab_problem = petab.Problem(
-        sbml_model=ss_model.model,
+        model=petab.models.sbml_model.SbmlModel(ss_model.model),
         condition_df=condition_df,
         observable_df=observable_df,
         measurement_df=measurement_df,
