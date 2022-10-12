@@ -7,10 +7,10 @@ sys.path.append(os.getcwd())
 import petab  # noqa: E402
 
 
-def test_get_condition_specific_models():
-    """Test for petab.sbml.get_condition_specific_models"""
+def create_test_data():
     # Create test model and data files
     import simplesbml
+
     ss_model = simplesbml.SbmlModel()
     ss_model.addCompartment(comp_id="compartment_1", vol=1)
     for i in range(1, 4):
@@ -51,18 +51,10 @@ def test_get_condition_specific_models():
     })
     parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
 
-    petab_problem = petab.Problem(
-        sbml_model=ss_model.model,
-        condition_df=condition_df,
-        observable_df=observable_df,
-        measurement_df=measurement_df,
-        parameter_df=parameter_df
-    )
+    return ss_model, condition_df, observable_df, measurement_df, parameter_df
 
-    # Actual test
-    condition_doc, condition_model = petab.get_model_for_condition(
-        petab_problem, "condition_1")
 
+def check_model(condition_model):
     assert condition_model.getSpecies(
         "species_1").getInitialConcentration() == 15
     assert condition_model.getSpecies(
@@ -75,3 +67,24 @@ def test_get_condition_specific_models():
     assert condition_model.getParameter("parameter_1").getValue() == 1.25
     assert condition_model.getParameter("parameter_2").getValue() == 2.25
     assert condition_model.getParameter("parameter_3").getValue() == 2.25
+
+
+def test_get_condition_specific_models():
+    """Test for petab.sbml.get_condition_specific_models"""
+    # retrieve test data
+    ss_model, condition_df, observable_df, measurement_df, parameter_df = \
+        create_test_data()
+
+    petab_problem = petab.Problem(
+        model=petab.models.sbml_model.SbmlModel(ss_model.model),
+        condition_df=condition_df,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
+        parameter_df=parameter_df
+    )
+
+    # create SBML model for condition with parameters updated from problem
+    _, condition_model = petab.get_model_for_condition(
+        petab_problem, "condition_1")
+
+    check_model(condition_model)
