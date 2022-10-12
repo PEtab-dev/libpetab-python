@@ -60,7 +60,7 @@ setup(
     install_requires=[
         "numpy>=1.15.1",
         "pandas>=1.2.0",
-        "matplotlib>=3.5.0",
+        "matplotlib>=3.6.0",
         "python-libsbml>=5.17.0",
         "sympy",
         "colorama",
