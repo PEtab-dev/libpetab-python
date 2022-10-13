@@ -2,6 +2,32 @@
 
 ## 0.1 series
 
+### 0.1.30
+
+Various smaller fixes:
+
+* Vis: Handle missing data more gracefully by @dweindl
+  in https://github.com/PEtab-dev/libpetab-python/pull/175
+* Fix test dependencies: scipy by @dweindl
+  in https://github.com/PEtab-dev/libpetab-python/pull/177
+* Add `petab.Problem.__str__` by @dweindl
+  in https://github.com/PEtab-dev/libpetab-python/pull/178
+* Fix deprecated tight layout matplotlib by @yannikschaelte
+  in https://github.com/PEtab-dev/libpetab-python/pull/180
+* Move tests to tox by @yannikschaelte
+  in https://github.com/PEtab-dev/libpetab-python/pull/182
+* Update deprecated functions in tests by @yannikschaelte
+  in https://github.com/PEtab-dev/libpetab-python/pull/181
+* Use petab identifier for combine archives by @fbergmann
+  in https://github.com/PEtab-dev/libpetab-python/pull/179
+
+New Contributors
+* @fbergmann made their first contribution
+  in https://github.com/PEtab-dev/libpetab-python/pull/179
+
+**Full Changelog**:
+https://github.com/PEtab-dev/libpetab-python/compare/v0.1.29...v0.1.30
+
 ### 0.1.29
 
 Features:
