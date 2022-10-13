@@ -39,17 +39,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        pip install -r .ci_pip_reqs.txt
-        pip install .[reports,combine,tests]
+        pip install -r requirements-dev.txt
 
-    - name: Run flake8
-      run: |
-        python -m flake8 --exclude=build,doc,example,tmp --extend-ignore=F403,F405
+    - name: Quality tests
+      run: tox -e quality
       if: matrix.platform == 'ubuntu-latest'
 
-    - name: Run tests
-      run: |
-        pytest --cov --cov-report=xml tests
+    - name: Unit tests
+      run: tox -e unit
 
     - name: Coverage
       uses: codecov/codecov-action@v1

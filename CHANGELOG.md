@@ -2,6 +2,37 @@
 
 ## 0.1 series
 
+### 0.1.29
+
+Features:
+* Method to unflatten simulation dataframe produced by flattened PEtab problem
+  by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/171
+* Methods to simplify PEtab problems
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/172
+
+Fixes:
+* Fix relative paths for model files
+  by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/173
+
+**Full Changelog**
+https://github.com/PEtab-dev/libpetab-python/compare/v0.1.28...v0.1.29
+
+### 0.1.28
+
+* Fixed validation for output parameters columns in the condition table
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/161
+* Added Python support policy
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/162
+* Fixed typehints and deprecation warning
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/165
+* Fixed SBML validation
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/168
+* Fixed deprecation warning from `get_model_for_condition`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/169
+
+**Full Changelog**:
+https://github.com/PEtab-dev/libpetab-python/compare/v0.1.27...v0.1.28
+
 ### 0.1.27
 
 Features:

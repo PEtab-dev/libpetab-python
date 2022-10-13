@@ -5,7 +5,6 @@ import warnings
 from io import StringIO
 from math import nan
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import libsbml
 import numpy as np
@@ -77,12 +76,13 @@ def petab_problem():
         observable_file_name = Path(temp_dir, "observables.tsv")
         petab.write_observable_df(observable_df, observable_file_name)
 
-        yield petab.Problem.from_files(
-            sbml_file=sbml_file_name,
-            measurement_file=measurement_file_name,
-            condition_file=condition_file_name,
-            parameter_file=parameter_file_name,
-            observable_files=observable_file_name)
+        with pytest.deprecated_call():
+            yield petab.Problem.from_files(
+                sbml_file=sbml_file_name,
+                measurement_file=measurement_file_name,
+                condition_file=condition_file_name,
+                parameter_file=parameter_file_name,
+                observable_files=observable_file_name)
 
 
 @pytest.fixture
@@ -94,10 +94,13 @@ def fujita_model_scaling():
     measurement_file = path / 'Fujita_measurementData.tsv'
     parameter_file = path / 'Fujita_parameters_scaling.tsv'
 
-    return petab.Problem.from_files(sbml_file=sbml_file,
-                                    condition_file=condition_file,
-                                    measurement_file=measurement_file,
-                                    parameter_file=parameter_file)
+    with pytest.deprecated_call():
+        return petab.Problem.from_files(
+            sbml_file=sbml_file,
+            condition_file=condition_file,
+            measurement_file=measurement_file,
+            parameter_file=parameter_file,
+        )
 
 
 def test_split_parameter_replacement_list():
@@ -371,6 +374,19 @@ def test_flatten_timepoint_specific_output_overrides():
 
     assert petab.lint_problem(problem) is False
 
+    simulation_df = copy.deepcopy(problem.measurement_df)
+    simulation_df.rename(columns={MEASUREMENT: SIMULATION})
+    unflattened_problem = petab.Problem(
+        measurement_df=measurement_df,
+        observable_df=observable_df,
+    )
+    unflattened_simulation_df = petab.core.unflatten_simulation_df(
+        simulation_df=simulation_df,
+        petab_problem=unflattened_problem,
+    )
+    # The unflattened simulation dataframe has the original observable IDs.
+    assert (unflattened_simulation_df[OBSERVABLE_ID] == 'obs1').all()
+
 
 def test_flatten_timepoint_specific_output_overrides_special_cases():
     """Test flatten_timepoint_specific_output_overrides
@@ -556,13 +572,14 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 
         # write contents to files
         petab_problem.to_files(
-            sbml_file=sbml_file,
+            model_file=sbml_file,
             condition_file=condition_file,
             measurement_file=measurement_file,
             parameter_file=parameter_file,
             visualization_file=None,
             observable_file=observable_file,
-            yaml_file=None)
+            yaml_file=None,
+        )
 
         # exemplarily load some
         parameter_df = petab.get_parameter_df(parameter_file)
@@ -611,7 +628,7 @@ def test_problem_from_yaml_v1_multiple_files():
       sbml_files: []
     """
 
-    with TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         yaml_path = Path(tmpdir, "problem.yaml")
         with open(yaml_path, 'w') as f:
             f.write(yaml_config)

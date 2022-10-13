@@ -12,13 +12,13 @@ def read(fname):
 def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
 
-    raw_base = "(https://raw.githubusercontent.com/"\
-               "petab-dev/libpetab-python/master/"
-    embedded_base = "(https://github.com/petab-dev/libpetab-python/"\
-                    "tree/master/"
+    raw_base = \
+        "(https://raw.githubusercontent.com/petab-dev/libpetab-python/master/"
+    embedded_base = \
+        "(https://github.com/petab-dev/libpetab-python/tree/master/"
     # iterate over links
-    for var in re.findall(r'\[.*?\]\((?!http).*?\)', txt):
-        if re.match(r'.*?.(png|svg)\)', var):
+    for var in re.findall(r"\[.*?\]\((?!http).*?\)", txt):
+        if re.match(r".*?.(png|svg)\)", var):
             # link to raw file
             rep = var.replace("(", raw_base)
         else:
@@ -30,67 +30,73 @@ def absolute_links(txt):
 
 # Python version check. We need >= 3.6 due to e.g. f-strings
 if sys.version_info < (3, 8, 0):
-    sys.exit('PEtab requires at least Python version 3.8')
+    sys.exit("PEtab requires at least Python version 3.8")
 
 # read version from file
-__version__ = ''
-version_file = os.path.join('petab', 'version.py')
+__version__ = ""
+version_file = os.path.join("petab", "version.py")
 # sets __version__
 exec(read(version_file))  # pylint: disable=W0122 # nosec
 
 ENTRY_POINTS = {
-    'console_scripts': [
-        'petablint = petab.petablint:main',
-        'petab_visualize = petab.visualize.cli:_petab_visualize_main',
+    "console_scripts": [
+        "petablint = petab.petablint:main",
+        "petab_visualize = petab.visualize.cli:_petab_visualize_main",
     ]
 }
 
 # project metadata
 # noinspection PyUnresolvedReferences
-setup(name='petab',
-      version=__version__,
-      description='Parameter estimation tabular data',
-      long_description=absolute_links(read('README.md')),
-      long_description_content_type="text/markdown",
-      author='The PEtab developers',
-      author_email='daniel.weindl@helmholtz-muenchen.de',
-      url='https://github.com/PEtab-dev/libpetab-python',
-      packages=find_packages(exclude=['doc*', 'test*']),
-      install_requires=['numpy>=1.15.1',
-                        'pandas>=1.2.0',
-                        'matplotlib>=3.5.0',
-                        'python-libsbml>=5.17.0',
-                        'sympy',
-                        'colorama',
-                        'seaborn',
-                        'pyyaml',
-                        'jsonschema',
-                        ],
-      include_package_data=True,
-      python_requires='>=3.8.0',
-      entry_points=ENTRY_POINTS,
-      extras_require={
-          'tests': [
-              'flake8',
-              'pytest',
-              'python-libcombine',
-              'simplesbml',
-              'pysb',
-          ],
-          'reports': ['Jinja2'],
-          'combine': ['python-libcombine>=0.2.6'],
-          'doc': [
-              'sphinx>=3.5.3',
-              'sphinxcontrib-napoleon>=0.7',
-              'sphinx-markdown-tables>=0.0.15',
-              'sphinx-rtd-theme>=0.5.1',
-              'm2r2',
-              'myst-nb>=0.14.0',
-              'ipython>=7.21.0',
-              # until
-              # https://github.com/ryanfox/sphinx-markdown-tables/issues/36
-              # is fixed
-              'markdown<3.4.0',
-          ]
-      }
-      )
+setup(
+    name="petab",
+    version=__version__,
+    description="Parameter estimation tabular data",
+    long_description=absolute_links(read("README.md")),
+    long_description_content_type="text/markdown",
+    author="The PEtab developers",
+    author_email="daniel.weindl@helmholtz-muenchen.de",
+    url="https://github.com/PEtab-dev/libpetab-python",
+    packages=find_packages(exclude=["doc*", "test*"]),
+    install_requires=[
+        "numpy>=1.15.1",
+        "pandas>=1.2.0",
+        "matplotlib>=3.6.0",
+        "python-libsbml>=5.17.0",
+        "sympy",
+        "colorama",
+        "seaborn",
+        "pyyaml",
+        "jsonschema",
+    ],
+    include_package_data=True,
+    python_requires=">=3.8.0",
+    entry_points=ENTRY_POINTS,
+    extras_require={
+        "tests": [
+            "pytest",
+            "pytest-cov",
+            "simplesbml",
+            "scipy",
+            "pysb",
+        ],
+        "quality": [
+            "flake8>=3.8.3",
+        ],
+        "reports": [
+            # https://github.com/spatialaudio/nbsphinx/issues/641
+            "Jinja2==3.0.3",
+        ],
+        "combine": [
+            "python-libcombine>=0.2.6",
+        ],
+        "doc": [
+            "sphinx>=3.5.3, !=5.1.0",
+            "sphinxcontrib-napoleon>=0.7",
+            "sphinx-markdown-tables>=0.0.15",
+            "sphinx-rtd-theme>=0.5.1",
+            "m2r2",
+            "myst-nb>=0.14.0",
+            "ipython>=7.21.0",
+        ],
+    },
+)
