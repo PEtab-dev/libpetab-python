@@ -104,6 +104,31 @@ class Problem:
         else:
             super().__setattr__(name, value)
 
+    def __str__(self):
+        model = f"with model ({self.model})" if self.model else "without model"
+        conditions = f"{self.condition_df.shape[0]} conditions" \
+            if self.condition_df is not None else "without conditions table"
+
+        observables = f"{self.observable_df.shape[0]} observables" \
+            if self.observable_df is not None else "without observables table"
+
+        measurements = f"{self.measurement_df.shape[0]} measurements" \
+            if self.measurement_df is not None \
+            else "without measurements table"
+
+        if self.parameter_df is not None:
+            num_estimated_parameters = sum(self.parameter_df[ESTIMATE] == 1) \
+                if ESTIMATE in self.parameter_df \
+                else self.parameter_df.shape[0]
+            parameters = f"{num_estimated_parameters} estimated parameters"
+        else:
+            parameters = "without parameter_df table"
+
+        return (
+            f"PEtab Problem {model}, {conditions}, {observables}, "
+            f"{measurements}, {parameters}"
+        )
+
     @staticmethod
     def from_files(
             sbml_file: Union[str, Path] = None,
@@ -386,7 +411,7 @@ class Problem:
         visualization tables, they will be merged and written to a single file.
 
         Arguments:
-            sbml_file: SBML model destination
+            sbml_file: SBML model destination (deprecated)
             model_file: Model destination
             condition_file: Condition table destination
             measurement_file: Measurement table destination

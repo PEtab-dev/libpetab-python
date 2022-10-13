@@ -351,7 +351,8 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,
-            sbml_model=ss_model.model, parameter_df=parameter_df
+            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            parameter_df=parameter_df
         )
 
         # Comparison with NaN containing expected results fails after pickling!
@@ -399,7 +400,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            sbml_model=ss_model.model
+            model=petab.models.sbml_model.SbmlModel(ss_model.model),
         )
 
         expected = [({}, {'dynamicParameter1': 'dynamicOverride1_1'},
@@ -467,7 +468,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            sbml_model=ss_model.model
+            model=petab.models.sbml_model.SbmlModel(ss_model.model)
         )
 
         expected = [
@@ -487,8 +488,8 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            sbml_model=ss_model.model,
-            scaled_parameters=True
+            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            scaled_parameters=True,
         )
 
         expected = [
@@ -510,7 +511,8 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            sbml_model=ss_model.model)
+            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+        )
 
         expected = [
             ({overridee_id: 'dynamicOverrideLog10'},
