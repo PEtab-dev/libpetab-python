@@ -411,7 +411,7 @@ class Problem:
         visualization tables, they will be merged and written to a single file.
 
         Arguments:
-            sbml_file: SBML model destination
+            sbml_file: SBML model destination (deprecated)
             model_file: Model destination
             condition_file: Condition table destination
             measurement_file: Measurement table destination
