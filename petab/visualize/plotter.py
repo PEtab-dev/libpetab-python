@@ -83,16 +83,14 @@ class MPLPlotter(Plotter):
 
         Parameters
         ----------
-        fig:
-            Figure object.
         ax:
             Axis object.
         dataplot:
             Visualization settings for the plot.
         plotTypeData:
             Specifies how replicates should be handled.
-        ax_inf:
-            Axis object for points at t='inf'.
+        splitaxes_params:
+
         """
         simu_color = None
         measurements_to_plot, simulations_to_plot = \
@@ -182,7 +180,7 @@ class MPLPlotter(Plotter):
                 # remove inf point
                 xs = xs[:-1]
                 ys = ys[:-1]
-                every = every[:-1]
+                every = every[:-1] if every else None
 
             if len(xs) > 0 and len(ys) > 0:
                 p = ax.plot(
@@ -583,7 +581,7 @@ class MPLPlotter(Plotter):
         ax_inf.tick_params(left=False, labelleft=False)
         ax_inf.spines['left'].set_visible(False)
         ax_inf.set_xticks([t_inf])
-        ax_inf.set_xticklabels(['$t_{\infty}$'])
+        ax_inf.set_xticklabels([r'$t_{\infty}$'])
 
         bottom, top = ax.get_ylim()
         left, right = ax.get_xlim()
