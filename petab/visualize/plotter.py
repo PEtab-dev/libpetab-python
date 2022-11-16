@@ -102,8 +102,8 @@ class MPLPlotter(Plotter):
 
         label_base = dataplot.legendEntry
 
-        # check if there t_inf
-        # todo: if only t_inf
+        # check if t_inf is there
+        # todo: if only t_inf, adjust appearance for that case
         plot_on_split_axes = (measurements_to_plot is not None and
                               measurements_to_plot.inf_point) or (
                 simulations_to_plot is not None and
@@ -437,7 +437,7 @@ class MPLPlotter(Plotter):
                 ax = axes[subplot.plotId]
 
             try:
-                self.generate_subplot(ax, subplot)
+                self.generate_subplot(fig, ax, subplot)
             except Exception as e:
                 raise RuntimeError(
                     f"Error plotting {getattr(subplot, PLOT_ID)}.") from e
@@ -497,17 +497,39 @@ class MPLPlotter(Plotter):
         ax_finite_right_limit = split_axes_params['ax_finite_right_limit']
         ax_left_limit = split_axes_params['ax_left_limit']
 
+        timepoints_inf = [ax_finite_right_limit,
+                          t_inf,
+                          ax_finite_right_limit +
+                          (ax_finite_right_limit - ax_left_limit) * 0.2]
+
+        # plot measurements
         if measurements_to_plot is not None and measurements_to_plot.inf_point:
             measurements_data_to_plot_inf = \
                 measurements_to_plot.data_to_plot.loc[np.inf]
 
             if plotTypeData == REPLICATE:
-                # todo
-                pass
+                p = None
+                if plotTypeData == REPLICATE:
+                    replicates = measurements_data_to_plot_inf.repl
+
+                    # plot first replicate
+                    p = ax_inf.plot(
+                        timepoints_inf,
+                        [replicates[0]]*3,
+                        linestyle='-.', marker='x', markersize=10,
+                        markevery=[1], label=label_base, color=color
+                    )
+
+                    # plot other replicates with the same color
+                    ax_inf.plot(
+                        timepoints_inf,
+                        [replicates[1:]]*3,
+                        linestyle='-.',
+                        marker='x', markersize=10, markevery=[1],
+                        color=p[0].get_color()
+                    )
             else:
-                p = ax_inf.plot([ax_finite_right_limit,
-                                 ax_finite_right_limit +
-                                 (ax_finite_right_limit-ax_left_limit)*0.2],
+                p = ax_inf.plot([timepoints_inf[0], timepoints_inf[2]],
                                 [measurements_data_to_plot_inf['mean'],
                                  measurements_data_to_plot_inf['mean']],
                                 linestyle='-.', color=color)
@@ -518,24 +540,37 @@ class MPLPlotter(Plotter):
                     color=p[0].get_color()
                 )
 
-                if color is None:
-                    # in case no color was provided from finite time points
-                    # plot and measurements are available corresponding
-                    # simulation should have the same coloe
-                    color = p[0].get_color()
+            if color is None:
+                # in case no color was provided from finite time points
+                # plot and measurements are available corresponding
+                # simulation should have the same color
+                color = p[0].get_color()
 
+        # plot simulations
         if simulations_to_plot is not None and simulations_to_plot.inf_point:
             simulations_data_to_plot_inf = \
                 simulations_to_plot.data_to_plot.loc[np.inf]
 
             if plotTypeData == REPLICATE:
-                # todo
-                pass
+                replicates = simulations_data_to_plot_inf.repl
+
+                # plot first replicate
+                p = ax_inf.plot(
+                    timepoints_inf,
+                    [replicates[0]] * 3,
+                    linestyle='-', marker='o', markevery=[1],
+                    label=label_base, color=color
+                )
+
+                # plot other replicates with the same color
+                ax_inf.plot(
+                    timepoints_inf,
+                    [replicates[1:]] * 3,
+                    linestyle='-', marker='o', markevery=[1],
+                    color=p[0].get_color()
+                )
             else:
-                ax_inf.plot([ax_finite_right_limit,
-                             t_inf,
-                             ax_finite_right_limit +
-                             (ax_finite_right_limit-ax_left_limit)*0.2],
+                ax_inf.plot(timepoints_inf,
                             [simulations_data_to_plot_inf['mean']]*3,
                             linestyle='-', marker='o', markevery=[1],
                             color=color)
