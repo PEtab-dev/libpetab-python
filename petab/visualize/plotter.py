@@ -511,7 +511,7 @@ class MPLPlotter(Plotter):
         label_base:
             Label base.
         split_axes_params:
-            A dictionary of split axes parameters:
+            A dictionary of split axes parameters with
             - Axis object for the data corresponding to t=inf
             - Time value that represents t=inf
             - left and right limits for the axis where the data corresponding
