@@ -515,7 +515,7 @@ class MPLPlotter(Plotter):
             - Axis object for the data corresponding to t=inf
             - Time value that represents t=inf
             - left and right limits for the axis where the data corresponding
-              to the finite timepoints is plotted
+            to the finite timepoints is plotted
         color:
             Line color.
 
