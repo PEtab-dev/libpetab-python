@@ -56,7 +56,8 @@ class MPLPlotter(Plotter):
 
         Parameters
         ----------
-            plot_type_data: PEtab plotTypeData value
+            plot_type_data: PEtab plotTypeData value (the way replicates
+            should be handled)
         Returns
         -------
             Name of corresponding column
@@ -482,14 +483,47 @@ class MPLPlotter(Plotter):
         return ax
 
     @staticmethod
-    def _split_axes_line_plot(ax: matplotlib.axes.Axes,
-                              plotTypeData: str,
-                              measurements_to_plot: DataSeries,
-                              simulations_to_plot: DataSeries,
-                              noise_col,
-                              label_base: str,
-                              split_axes_params: dict,
-                              color=None):
+    def _split_axes_line_plot(
+        ax: matplotlib.axes.Axes,
+        plotTypeData: str,
+        measurements_to_plot: DataSeries,
+        simulations_to_plot: DataSeries,
+        noise_col: str,
+        label_base: str,
+        split_axes_params: dict,
+        color=None
+    ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
+        """
+        Plot data at t=inf.
+
+        Parameters
+        ----------
+        ax:
+            Axis object for the data corresponding to the finite timepoints.
+        plotTypeData:
+            The way replicates should be handled.
+        measurements_to_plot:
+            Measurements to plot.
+        simulations_to_plot:
+            Simulations to plot.
+        noise_col:
+            The name of the error column for plot_type_data.
+        label_base:
+             Label base.
+        split_axes_params:
+            A dictionary of split axes parameters:
+            - Axis object for the data corresponding to t=inf
+            - Time value that represents t=inf
+            - left and right limits for the axis where the data corresponding
+              to the finite timepoints is plotted
+        color:
+            Line color.
+
+        Returns
+        -------
+        Two axis objects: for the data corresponding to the finite timepoints
+        and for the data corresponding to t=inf
+        """
         ax_inf = split_axes_params['ax_inf']
         t_inf = split_axes_params['t_inf']
         ax_finite_right_limit = split_axes_params['ax_finite_right_limit']
@@ -515,7 +549,8 @@ class MPLPlotter(Plotter):
                         timepoints_inf,
                         [replicates[0]]*3,
                         linestyle='-.', marker='x', markersize=10,
-                        markevery=[1], label=label_base, color=color
+                        markevery=[1], label=label_base + " simulation",
+                        color=color
                     )
 
                     # plot other replicates with the same color
@@ -534,8 +569,8 @@ class MPLPlotter(Plotter):
                 ax_inf.errorbar(
                     t_inf, measurements_data_to_plot_inf['mean'],
                     measurements_data_to_plot_inf[noise_col],
-                    linestyle='-.', marker='.', label=label_base,
-                    color=p[0].get_color()
+                    linestyle='-.', marker='.',
+                    label=label_base + " simulation", color=p[0].get_color()
                 )
 
             if color is None:
@@ -577,7 +612,24 @@ class MPLPlotter(Plotter):
         return ax, ax_inf
 
     @staticmethod
-    def _postprocess_splitaxes(ax, ax_inf, t_inf):
+    def _postprocess_splitaxes(
+            ax: matplotlib.axes.Axes,
+            ax_inf: matplotlib.axes.Axes,
+            t_inf: float
+    ) -> None:
+        """
+        Postprocess the splitaxes: set axes limits, turn off unnecessary
+        ticks and plot dashed lines highlighting the gap in the x axis.
+
+        Parameters
+        ----------
+        ax:
+            Axis object for the data corresponding to the finite timepoints.
+        ax_inf:
+            Axis object for the data corresponding to t=inf.
+        t_inf:
+            Time value that represents t=inf
+        """
         ax_inf.tick_params(left=False, labelleft=False)
         ax_inf.spines['left'].set_visible(False)
         ax_inf.set_xticks([t_inf])
@@ -599,9 +651,22 @@ class MPLPlotter(Plotter):
     def _preprocess_splitaxes(self,
                               fig: matplotlib.figure.Figure,
                               ax: matplotlib.axes.Axes,
-                              subplot: Subplot):
+                              subplot: Subplot) -> Dict:
+        """
+        Prepare splitaxes if data at t=inf should be plotted: compute left and
+        right limits for the axis where the data corresponding to the finite
+        timepoints will be plotted, compute time point that will represent
+        t=inf on the plot, create additional axes for plotting data at t=inf.
+        """
 
-        def check_data_to_plot(data_to_plot):
+        def check_data_to_plot(
+                data_to_plot: DataSeries
+        ) -> Tuple[bool, Optional[float], float]:
+            """
+            Check if there is data available at t=inf and compute maximum and
+            minimum finite time points that need to be plotted corresponding
+            to a dataplot.
+            """
             contains_inf = False
             max_finite_cond, min_cond = None, np.inf
             if data_to_plot is not None:
@@ -652,7 +717,6 @@ class MPLPlotter(Plotter):
                                              ax_left_limit)*0.1
             # create axes for t=inf
             divider = make_axes_locatable(ax)
-            # first_iter = True
             ax_inf = divider.new_horizontal(size="10%", pad=0.3)
             fig.add_axes(ax_inf)
 
