@@ -509,7 +509,7 @@ class MPLPlotter(Plotter):
         noise_col:
             The name of the error column for plot_type_data.
         label_base:
-             Label base.
+            Label base.
         split_axes_params:
             A dictionary of split axes parameters:
             - Axis object for the data corresponding to t=inf
