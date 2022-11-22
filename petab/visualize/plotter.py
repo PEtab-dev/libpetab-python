@@ -103,8 +103,8 @@ class MPLPlotter(Plotter):
 
         # check if t_inf is there
         # todo: if only t_inf, adjust appearance for that case
-        plot_on_split_axes = (measurements_to_plot is not None and
-                              measurements_to_plot.inf_point) or (
+        plot_at_t_inf = (measurements_to_plot is not None and
+                         measurements_to_plot.inf_point) or (
                 simulations_to_plot is not None and
                 simulations_to_plot.inf_point)
 
@@ -193,8 +193,8 @@ class MPLPlotter(Plotter):
                 simu_color = p[0].get_color()
 
         # plot inf points
-        if plot_on_split_axes:
-            ax, splitaxes_params['ax_inf'] = self._split_axes_line_plot(
+        if plot_at_t_inf:
+            ax, splitaxes_params['ax_inf'] = self._line_plot_at_t_inf(
                 ax, plotTypeData,
                 measurements_to_plot,
                 simulations_to_plot,
@@ -483,7 +483,7 @@ class MPLPlotter(Plotter):
         return ax
 
     @staticmethod
-    def _split_axes_line_plot(
+    def _line_plot_at_t_inf(
         ax: matplotlib.axes.Axes,
         plotTypeData: str,
         measurements_to_plot: DataSeries,
