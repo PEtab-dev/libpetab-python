@@ -11,25 +11,26 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest, macos-latest, ubuntu-latest]
-        python-version: ["3.8", "3.10"]
+        python-version: ["3.8", "3.11"]
     runs-on: ${{ matrix.platform }}
 
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Prepare python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Get pip cache directory
       id: pip_cache_dir
       run: |
-        echo "::set-output name=dir::$(pip cache dir)"
+        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      shell: bash
 
     - name: Cache
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ${{ steps.pip_cache_dir.outputs.dir }}
         key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
@@ -49,7 +50,7 @@ jobs:
       run: tox -e unit
 
     - name: Coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
