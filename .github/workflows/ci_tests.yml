@@ -26,6 +26,8 @@ jobs:
     - name: Get pip cache directory
       id: pip_cache_dir
       run: |
+        echo "dir=$(pip cache dir)"
+        echo $GITHUB_OUTPUT
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
         cat $GITHUB_OUTPUT
 
