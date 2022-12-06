@@ -63,6 +63,14 @@ def validate_visualization_df(
                      f"Must be one of {C.Y_SCALES}")
         errors = True
 
+    if problem.condition_df:
+        for reserved_name in (C.TIME, "condition"):
+            if reserved_name in problem.condition_df \
+                    and reserved_name in vis_df[C.X_VALUES]:
+                logger.error(f"Ambiguous value for `{C.X_VALUES}`: "
+                             f"`{reserved_name}` has a special meaning as "
+                             f"`{C.X_VALUES}`, but there exists also a model "
+                             "entity with that name.")
     return errors
 
 
