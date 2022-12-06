@@ -29,7 +29,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
 
     - name: Cache
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ${{ steps.pip_cache_dir.outputs.dir }}
         key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
@@ -49,7 +49,7 @@ jobs:
       run: tox -e unit
 
     - name: Coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
