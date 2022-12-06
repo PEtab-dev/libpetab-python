@@ -11,21 +11,23 @@ logger = logging.getLogger(__name__)
 
 
 def validate_visualization_df(
-        vis_df: pd.DataFrame,
         problem: Problem
 ) -> bool:
     """Validate visualization table
 
     Arguments:
-        vis_df: A PEtab visualizatin table
-        problem: The PEtab problem ``vis_df`` is referring to
+        problem: The PEtab problem containing a visualization table
 
     Returns:
         ``True`` if errors occurred, ``False`` otherwise
     """
+    vis_df = problem.visualization_df
+    if vis_df is None or vis_df.empty:
+        return False
+
     errors = False
 
-    if missing_req_cols := (VISUALIZATION_DF_REQUIRED_COLS
+    if missing_req_cols := (set(VISUALIZATION_DF_REQUIRED_COLS)
                             - set(vis_df.columns)):
         logger.error(f"Missing required columns {missing_req_cols} "
                      "in visualization table.")
@@ -37,26 +39,26 @@ def validate_visualization_df(
     _apply_defaults(vis_df)
 
     if unknown_types := (set(vis_df[C.PLOT_TYPE_SIMULATION].unique())
-                         - C.PLOT_TYPES_SIMULATION):
+                         - set(C.PLOT_TYPES_SIMULATION)):
         logger.error(f"Unknown {C.PLOT_TYPE_SIMULATION}: {unknown_types}. "
                      f"Must be one of {C.PLOT_TYPES_SIMULATION}")
         errors = True
 
     if unknown_types := (set(vis_df[C.PLOT_TYPE_DATA].unique())
-                         - C.PLOT_TYPES_DATA):
+                         - set(C.PLOT_TYPES_DATA)):
         logger.error(f"Unknown {C.PLOT_TYPE_DATA}: {unknown_types}. "
                      f"Must be one of {C.PLOT_TYPES_DATA}")
         errors = True
 
     if unknown_scale := (set(vis_df[C.X_SCALE].unique())
-                         - C.X_SCALES):
+                         - set(C.X_SCALES)):
         # TODO: handle 'order'
         logger.error(f"Unknown {C.X_SCALE}: {unknown_scale}. "
                      f"Must be one of {C.X_SCALES}")
         errors = True
 
     if unknown_scale := (set(vis_df[C.Y_SCALE].unique())
-                         - C.Y_SCALES):
+                         - set(C.Y_SCALES)):
         logger.error(f"Unknown {C.Y_SCALE}: {unknown_scale}. "
                      f"Must be one of {C.Y_SCALES}")
         errors = True
@@ -74,7 +76,7 @@ def _apply_defaults(vis_df: pd.DataFrame):
     def set_default(column: str, value):
         if column not in vis_df:
             vis_df[column] = value
-        else:
+        elif value is not None:
             vis_df[column].fillna(value)
 
     set_default(C.PLOT_NAME, "")
