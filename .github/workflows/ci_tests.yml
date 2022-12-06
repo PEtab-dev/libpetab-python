@@ -30,6 +30,7 @@ jobs:
         echo $GITHUB_OUTPUT
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
         cat $GITHUB_OUTPUT
+      shell: bash
 
     - run: echo ${{ steps.pip_cache_dir.outputs.dir }}
     - name: Cache
