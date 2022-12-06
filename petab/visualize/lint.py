@@ -87,6 +87,7 @@ def _apply_defaults(vis_df: pd.DataFrame):
     set_default(C.X_OFFSET, 0)
     set_default(C.X_LABEL, vis_df[C.X_VALUES])
     set_default(C.X_SCALE, C.LIN)
+    set_default(C.Y_VALUES, None)
     set_default(C.Y_OFFSET, 0)
     set_default(C.Y_LABEL, vis_df[C.Y_VALUES])
     set_default(C.Y_SCALE, C.LIN)
