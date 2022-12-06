@@ -45,9 +45,21 @@ def simu_file_Fujita():
 
 
 @pytest.fixture
+def simu_file_Fujita_t_inf():
+    return EXAMPLE_DIR / "example_Fujita" \
+                      / "Fujita_simulatedData_t_inf.tsv"
+
+
+@pytest.fixture
 def data_file_Fujita_minimal():
     return EXAMPLE_DIR / "example_Fujita"\
            / "Fujita_measurementData_minimal.tsv"
+
+
+@pytest.fixture
+def data_file_Fujita_t_inf():
+    return EXAMPLE_DIR / "example_Fujita"\
+           / "Fujita_measurementData_t_inf.tsv"
 
 
 @pytest.fixture
@@ -77,6 +89,12 @@ def visu_file_Fujita_minimal():
 def visu_file_Fujita_empty():
     return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
            / "Fujita_visuSpec_empty.tsv"
+
+
+@pytest.fixture
+def visu_file_Fujita_replicates():
+    return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
+           / "Fujita_visuSpec_replicates.tsv"
 
 
 @pytest.fixture
@@ -279,6 +297,30 @@ def test_simple_visualization(data_file_Fujita, condition_file_Fujita):
     plot_without_vis_spec(condition_file_Fujita,
                           measurements_df=data_file_Fujita,
                           plotted_noise=PROVIDED)
+
+
+def test_visualization_with__t_inf(data_file_Fujita_t_inf,
+                                   simu_file_Fujita_t_inf,
+                                   condition_file_Fujita,
+                                   visu_file_Fujita_replicates):
+    # plot only measurements
+    plot_without_vis_spec(condition_file_Fujita,
+                          measurements_df=data_file_Fujita_t_inf)
+
+    # plot only simulation
+    plot_without_vis_spec(condition_file_Fujita,
+                          simulations_df=simu_file_Fujita_t_inf)
+
+    # plot both measurements and simulation
+    plot_without_vis_spec(condition_file_Fujita,
+                          measurements_df=data_file_Fujita_t_inf,
+                          simulations_df=simu_file_Fujita_t_inf)
+
+    # plot both measurements and simulation
+    plot_with_vis_spec(visu_file_Fujita_replicates,
+                       condition_file_Fujita,
+                       measurements_df=data_file_Fujita_t_inf,
+                       simulations_df=simu_file_Fujita_t_inf)
 
 
 def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,

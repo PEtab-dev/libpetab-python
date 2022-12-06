@@ -96,7 +96,8 @@ setup(
             "sphinx-rtd-theme>=0.5.1",
             "m2r2",
             "myst-nb>=0.14.0",
-            "ipython>=7.21.0",
+            # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
+            "ipython>=7.21.0, !=8.7.0",
         ],
     },
 )
