@@ -160,7 +160,8 @@ class MPLPlotter(Plotter):
             simu_color = p[0].get_color() if p else None
 
         # construct simulation plot
-        if simulations_to_plot is not None:
+        if simulations_to_plot is not None \
+                and not simulations_to_plot.data_to_plot.empty:
             # markers will be displayed only for points that have measurement
             # counterpart
             if measurements_to_plot is not None:
@@ -669,7 +670,7 @@ class MPLPlotter(Plotter):
             """
             contains_inf = False
             max_finite_cond, min_cond = None, np.inf
-            if data_to_plot is not None:
+            if data_to_plot is not None and len(data_to_plot.conditions):
                 contains_inf = np.inf in data_to_plot.conditions
                 finite_conditions = data_to_plot.conditions[
                     data_to_plot.conditions != np.inf]
