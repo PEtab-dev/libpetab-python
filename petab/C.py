@@ -234,6 +234,12 @@ SCATTER_PLOT = 'ScatterPlot'
 #: Supported plot types
 PLOT_TYPES_SIMULATION = [LINE_PLOT, BAR_PLOT, SCATTER_PLOT]
 
+#: Supported xScales
+X_SCALES = [LIN, LOG, LOG10]
+
+#: Supported yScales
+Y_SCALES = [LIN, LOG, LOG10]
+
 
 #:
 MEAN_AND_SD = 'MeanAndSD'
