@@ -52,9 +52,16 @@ def validate_visualization_df(
 
     if unknown_scale := (set(vis_df[C.X_SCALE].unique())
                          - set(C.X_SCALES)):
-        # TODO: handle 'order'
         logger.error(f"Unknown {C.X_SCALE}: {unknown_scale}. "
                      f"Must be one of {C.X_SCALES}")
+        errors = True
+
+    if any(
+            (vis_df[C.X_SCALE] == 'order')
+            & (vis_df[C.PLOT_TYPE_SIMULATION] != C.LINE_PLOT)
+    ):
+        logger.error(f"{C.X_SCALE}=order is only allowed with "
+                     f"{C.PLOT_TYPE_SIMULATION}={C.LINE_PLOT}.")
         errors = True
 
     if unknown_scale := (set(vis_df[C.Y_SCALE].unique())
@@ -63,14 +70,35 @@ def validate_visualization_df(
                      f"Must be one of {C.Y_SCALES}")
         errors = True
 
-    if problem.condition_df:
-        for reserved_name in (C.TIME, "condition"):
+    if problem.condition_df is not None:
+        # check for ambiguous values
+        reserved_names = {C.TIME, "condition"}
+        for reserved_name in reserved_names:
             if reserved_name in problem.condition_df \
                     and reserved_name in vis_df[C.X_VALUES]:
                 logger.error(f"Ambiguous value for `{C.X_VALUES}`: "
                              f"`{reserved_name}` has a special meaning as "
                              f"`{C.X_VALUES}`, but there exists also a model "
                              "entity with that name.")
+                errors = True
+
+        # check xValues exist in condition table
+        for xvalue in set(vis_df[C.X_VALUES].unique()) - reserved_names:
+            if xvalue not in problem.condition_df:
+                logger.error(f"{C.X_VALUES} was set to `{xvalue}`, but no "
+                             "such column exists in the conditions table.")
+                errors = True
+
+        if problem.observable_df:
+            # yValues must be an observable
+            for yvalue in vis_df[C.Y_VALUES].unique():
+                if yvalue not in problem.observable_df.index:
+                    logger.error(
+                        f"{C.Y_VALUES} was set to `{yvalue}`, but no such "
+                        "observable exists in the observables table."
+                    )
+                    errors = True
+
     return errors
 
 
