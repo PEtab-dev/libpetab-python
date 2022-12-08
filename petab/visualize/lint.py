@@ -89,7 +89,7 @@ def validate_visualization_df(
                              "such column exists in the conditions table.")
                 errors = True
 
-        if problem.observable_df:
+        if problem.observable_df is not None:
             # yValues must be an observable
             for yvalue in vis_df[C.Y_VALUES].unique():
                 if yvalue not in problem.observable_df.index:
