@@ -6,9 +6,11 @@ from tempfile import TemporaryDirectory
 import matplotlib.pyplot as plt
 import pytest
 
+import petab
 from petab.C import *
 from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
 from petab.visualize.plotting import VisSpecParser
+from petab.visualize.lint import validate_visualization_df
 
 # Avoid errors when plotting without X server
 plt.switch_backend('agg')
@@ -135,6 +137,12 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
                                         condition_file_Isensee,
                                         vis_spec_file_Isensee,
                                         simulation_file_Isensee):
+    validate_visualization_df(
+        petab.Problem(
+            condition_df=petab.get_condition_df(condition_file_Isensee),
+            visualization_df=petab.get_visualization_df(vis_spec_file_Isensee),
+        )
+    )
     plot_with_vis_spec(vis_spec_file_Isensee, condition_file_Isensee,
                        data_file_Isensee, simulation_file_Isensee)
 
@@ -366,3 +374,25 @@ def test_cli():
             "-o", temp_dir
         ]
         subprocess.run(args, check=True)
+
+
+@pytest.mark.parametrize(
+    "vis_file",
+    (
+            "vis_spec_file_Isensee",
+            "vis_spec_file_Isensee_replicates",
+            "vis_spec_file_Isensee_scatterplot",
+            "visu_file_Fujita_wo_dsid_wo_yvalues",
+            "visu_file_Fujita_all_obs_with_diff_settings",
+            "visu_file_Fujita_empty",
+            "visu_file_Fujita_minimal",
+            "visu_file_Fujita_replicates",
+            "visu_file_Fujita_small",
+    )
+)
+def test_validate(vis_file, request):
+    """Check that all test files pass validation."""
+    vis_file = request.getfixturevalue(vis_file)
+    assert False is validate_visualization_df(
+        petab.Problem(visualization_df=petab.get_visualization_df(vis_file))
+    )
