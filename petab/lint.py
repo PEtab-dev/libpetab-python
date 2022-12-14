@@ -851,6 +851,13 @@ def lint_problem(problem: 'petab.Problem') -> bool:
             logger.error(e)
             errors_occurred = True
 
+    if problem.visualization_df is not None:
+        logger.info("Checking visualization table...")
+        from petab.visualize.lint import validate_visualization_df
+        errors_occurred |= validate_visualization_df(problem)
+    else:
+        logger.warning("Visualization table not available. Skipping.")
+
     if errors_occurred:
         logger.error('Not OK')
     elif problem.measurement_df is None or problem.condition_df is None \
