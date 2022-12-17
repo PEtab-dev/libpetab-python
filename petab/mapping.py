@@ -89,3 +89,23 @@ def check_mapping_df(
                     "Mapping table maps to unknown "
                     f"model entity ID {model_entity_id}."
                 )
+
+
+def resolve_mapping(mapping_df: Optional[pd.DataFrame],
+                    element: str) -> str:
+    """Resolve mapping for a given element.
+
+    :param element:
+        Element to resolve.
+
+    :param mapping_df:
+        Mapping table.
+
+    :return:
+        Resolved element.
+    """
+    if mapping_df is None:
+        return element
+    if element in mapping_df.index:
+        return mapping_df.loc[element, MODEL_ENTITY_ID]
+    return element
