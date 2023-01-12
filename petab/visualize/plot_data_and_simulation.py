@@ -23,7 +23,7 @@ __all__ = [
 
 
 def plot_with_vis_spec(
-        vis_spec_df,
+        vis_spec_df: Union[str, pd.DataFrame],
         conditions_df: Union[str, pd.DataFrame],
         measurements_df: Optional[Union[str, pd.DataFrame]] = None,
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,

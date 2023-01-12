@@ -212,7 +212,7 @@ class Subplot:
                         PLOT_TYPES_SIMULATION:
                     raise ValueError(f'{PLOT_TYPE_SIMULATION} has to be one of'
                                      f' the following: '
-                                     + ', '.join(PLOT_TYPES_DATA))
+                                     + ', '.join(PLOT_TYPES_SIMULATION))
 
                 # append new entry to dict
                 vis_spec_dict[col] = entry
