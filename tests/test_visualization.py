@@ -13,7 +13,7 @@ from petab.visualize import plot_with_vis_spec, plot_without_vis_spec, \
 from petab.visualize.plotting import VisSpecParser
 
 # Avoid errors when plotting without X server
-# plt.switch_backend('agg')
+plt.switch_backend('agg')
 
 EXAMPLE_DIR = Path(__file__).parents[1] / "doc" / "example"
 
