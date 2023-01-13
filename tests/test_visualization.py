@@ -6,12 +6,14 @@ from tempfile import TemporaryDirectory
 import matplotlib.pyplot as plt
 import pytest
 
+from petab import Problem
 from petab.C import *
-from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
+from petab.visualize import plot_with_vis_spec, plot_without_vis_spec, \
+    plot_residuals
 from petab.visualize.plotting import VisSpecParser
 
 # Avoid errors when plotting without X server
-plt.switch_backend('agg')
+# plt.switch_backend('agg')
 
 EXAMPLE_DIR = Path(__file__).parents[1] / "doc" / "example"
 
@@ -353,6 +355,12 @@ def test_save_visu_file(data_file_Isensee,
         figure, _ = vis_spec_parser.parse_from_id_list(datasets,
                                                        group_by='dataset')
         figure.save_to_tsv(path.join(temp_dir, "visuSpec1.tsv"))
+
+
+def test_residuals_plot(simu_file_Fujita):
+    fujita_yaml = EXAMPLE_DIR / "example_Fujita" / "Fujita.yaml"
+    fujita_petab_problem = Problem.from_yaml(fujita_yaml)
+    plot_residuals(fujita_petab_problem, simu_file_Fujita)
 
 
 def test_cli():
