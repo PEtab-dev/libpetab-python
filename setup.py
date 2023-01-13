@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 import sys
 import os
 import re
@@ -56,7 +56,7 @@ setup(
     author="The PEtab developers",
     author_email="daniel.weindl@helmholtz-muenchen.de",
     url="https://github.com/PEtab-dev/libpetab-python",
-    packages=find_packages(exclude=["doc*", "test*"]),
+    packages=find_namespace_packages(exclude=["doc*", "test*"]),
     install_requires=[
         "numpy>=1.15.1",
         "pandas>=1.2.0",
@@ -95,7 +95,8 @@ setup(
             "sphinx-rtd-theme>=0.5.1",
             "m2r2",
             "myst-nb>=0.14.0",
-            "ipython>=7.21.0",
+            # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
+            "ipython>=7.21.0, !=8.7.0",
         ],
     },
 )
