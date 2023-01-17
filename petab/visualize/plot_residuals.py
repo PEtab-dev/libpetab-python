@@ -2,7 +2,7 @@
 Functions for plotting residuals.
 """
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,10 +14,12 @@ from .. import calculate, core, problem
 from ..C import *
 
 
-def plot_residuals(petab_problem: problem.Problem,
-                   simulations_df: Union[str, pd.DataFrame],
-                   size: Tuple = (10, 7)
-                   ) -> matplotlib.axes.Axes:
+def plot_residuals(
+        petab_problem: problem.Problem,
+        simulations_df: Union[str, pd.DataFrame],
+        size: Tuple = (10, 7),
+        ax: Optional[plt.Axes] = None
+) -> matplotlib.axes.Axes:
     """
     Plot residuals versus simulation values for measurements with normal noise
     assumption.
@@ -57,8 +59,9 @@ def plot_residuals(petab_problem: problem.Problem,
         raise ValueError("Residuals plot is only applicable for normal "
                          "additive noise assumption")
 
-    fig, ax = plt.subplots(figsize=size)
-    fig.set_layout_engine("tight")
+    if ax is None:
+        fig, ax = plt.subplots(figsize=size)
+        fig.set_layout_engine("tight")
 
     residual_df = calculate.calculate_residuals(
         measurement_dfs=petab_problem.measurement_df,
