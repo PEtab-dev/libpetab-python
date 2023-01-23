@@ -69,7 +69,7 @@ def plot_residuals(
         observable_dfs=petab_problem.observable_df,
         parameter_dfs=petab_problem.parameter_df)[0]
 
-    normal_resuduals = residual_df[residual_df[OBSERVABLE_ID].isin(
+    normal_residuals = residual_df[residual_df[OBSERVABLE_ID].isin(
         observable_ids)]
     simulations_normal = simulations_df[
         simulations_df[OBSERVABLE_ID].isin(observable_ids)]
