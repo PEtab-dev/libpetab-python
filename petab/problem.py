@@ -788,8 +788,8 @@ class Problem:
         """
         return [
             dict(zip(self.x_free_ids, parameter_values))
-            for parameter_values in sampling.sample_parameter_startpoints(
-                    self.parameter_df, n_starts=n_starts
+            for parameter_values in self.sample_parameter_startpoints(
+                n_starts=n_starts
             )
         ]
 
