@@ -155,6 +155,10 @@ PARAMETER_SCALE_UNIFORM = 'parameterScaleUniform'
 #:
 NORMAL = 'normal'
 #:
+LEFT_TRUNCATED_NORMAL = 'left-truncated-normal'
+#:
+RIGHT_TRUNCATED_NORMAL = 'right-truncated-normal'
+#:
 PARAMETER_SCALE_NORMAL = 'parameterScaleNormal'
 #:
 LAPLACE = 'laplace'
@@ -164,6 +168,10 @@ PARAMETER_SCALE_LAPLACE = 'parameterScaleLaplace'
 LOG_NORMAL = 'logNormal'
 #:
 LOG_LAPLACE = 'logLaplace'
+#:
+LEFT_CENSORED_NORMAL = 'left-censored-normal'
+#:
+RIGHT_CENSORED_NORMAL = 'right-censored-normal'
 
 #: Supported prior types
 PRIOR_TYPES = [
@@ -171,7 +179,8 @@ PRIOR_TYPES = [
     PARAMETER_SCALE_UNIFORM, PARAMETER_SCALE_NORMAL, PARAMETER_SCALE_LAPLACE]
 
 #: Supported noise distributions
-NOISE_MODELS = [NORMAL, LAPLACE]
+NOISE_MODELS = [NORMAL, LAPLACE, LEFT_TRUNCATED_NORMAL, RIGHT_TRUNCATED_NORMAL,
+                LEFT_CENSORED_NORMAL, RIGHT_CENSORED_NORMAL]
 
 
 # VISUALIZATION
