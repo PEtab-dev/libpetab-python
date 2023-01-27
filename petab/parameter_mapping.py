@@ -130,7 +130,8 @@ def get_optimization_to_simulation_parameter_mapping(
     # Add output parameters that are not already defined in the model
     if observable_df is not None:
         output_parameters = observables.get_output_parameters(
-            observable_df=observable_df, model=model)
+            observable_df=observable_df, model=model, mapping_df=mapping_df
+        )
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
 

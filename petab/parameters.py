@@ -144,7 +144,8 @@ def create_parameter_df(
         include_optional: bool = False,
         parameter_scale: str = LOG10,
         lower_bound: Iterable = None,
-        upper_bound: Iterable = None
+        upper_bound: Iterable = None,
+        mapping_df: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Create a new PEtab parameter table
 
@@ -165,6 +166,7 @@ def create_parameter_df(
         parameter_scale: parameter scaling
         lower_bound: lower bound for parameter value
         upper_bound: upper bound for parameter value
+        mapping_df: PEtab mapping DataFrame
 
     Returns:
         The created parameter DataFrame
@@ -186,7 +188,9 @@ def create_parameter_df(
     else:
         parameter_ids = list(get_required_parameters_for_parameter_table(
             model=model, condition_df=condition_df,
-            observable_df=observable_df, measurement_df=measurement_df))
+            observable_df=observable_df, measurement_df=measurement_df,
+            mapping_df=mapping_df
+        ))
 
     df = pd.DataFrame(
         data={
@@ -220,7 +224,9 @@ def get_required_parameters_for_parameter_table(
         model: Model,
         condition_df: pd.DataFrame,
         observable_df: pd.DataFrame,
-        measurement_df: pd.DataFrame) -> Set[str]:
+        measurement_df: pd.DataFrame,
+        mapping_df: pd.DataFrame = None
+) -> Set[str]:
     """
     Get set of parameters which need to go into the parameter table
 
@@ -229,6 +235,7 @@ def get_required_parameters_for_parameter_table(
         condition_df: PEtab condition table
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
+        mapping_df: PEtab mapping table
 
     Returns:
         Set of parameter IDs which PEtab requires to be present in the
@@ -236,7 +243,6 @@ def get_required_parameters_for_parameter_table(
         measurement table as well as all parametric condition table overrides
         that are not defined in the model.
     """
-
     # use ordered dict as proxy for ordered set
     parameter_ids = OrderedDict()
 
@@ -257,7 +263,7 @@ def get_required_parameters_for_parameter_table(
     for kwargs in [dict(observables=True, noise=False),
                    dict(observables=False, noise=True)]:
         output_parameters = observables.get_output_parameters(
-            observable_df, model, **kwargs)
+            observable_df, model, mapping_df=mapping_df, **kwargs)
         placeholders = observables.get_placeholders(
             observable_df, **kwargs)
         for p in output_parameters:

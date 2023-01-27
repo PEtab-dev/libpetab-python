@@ -125,7 +125,8 @@ def check_condition_df(
         allowed_cols = set(model.get_valid_ids_for_condition_table())
         if observable_df is not None:
             allowed_cols |= set(petab.get_output_parameters(
-                model=model, observable_df=observable_df))
+                model=model, observable_df=observable_df, mapping_df=mapping_df
+            ))
         if mapping_df is not None:
             allowed_cols |= set(mapping_df.index.values)
         for column_name in df.columns:
@@ -331,7 +332,9 @@ def assert_all_parameters_present_in_parameter_df(
     """
     required = parameters.get_required_parameters_for_parameter_table(
         model=model, condition_df=condition_df,
-        observable_df=observable_df, measurement_df=measurement_df)
+        observable_df=observable_df, measurement_df=measurement_df,
+        mapping_df=mapping_df
+    )
 
     allowed = parameters.get_valid_parameters_for_parameter_table(
         model=model, condition_df=condition_df,
@@ -340,9 +343,26 @@ def assert_all_parameters_present_in_parameter_df(
     )
 
     actual = set(parameter_df.index)
-    # TODO consider mapping table here
     missing = required - actual
     extraneous = actual - allowed
+
+    # missing parameters might be present under a different name based on
+    # the mapping table
+    if missing and mapping_df is not None:
+        model_to_petab_mapping = {}
+        for map_from, map_to in zip(mapping_df.index.values,
+                                    mapping_df[MODEL_ENTITY_ID]):
+            if map_to in model_to_petab_mapping:
+                model_to_petab_mapping[map_to].append(map_from)
+            else:
+                model_to_petab_mapping[map_to] = [map_from]
+        missing = {
+            missing_id
+            for missing_id in missing
+            if missing_id not in model_to_petab_mapping
+            or all(mapping_parameter not in actual
+                   for mapping_parameter in model_to_petab_mapping[missing_id])
+        }
 
     if missing:
         raise AssertionError('Missing parameter(s) in parameter table: '

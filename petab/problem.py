@@ -809,6 +809,7 @@ class Problem:
             condition_df=self.condition_df,
             observable_df=self.observable_df,
             measurement_df=self.measurement_df,
+            mapping_df=self.mapping_df,
             *args, **kwargs)
 
     def sample_parameter_startpoints(self, n_starts: int = 100):
