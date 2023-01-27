@@ -285,6 +285,7 @@ def get_valid_parameters_for_parameter_table(
         condition_df: pd.DataFrame,
         observable_df: pd.DataFrame,
         measurement_df: pd.DataFrame,
+        mapping_df: pd.DataFrame = None,
 ) -> Set[str]:
     """
     Get set of parameters which may be present inside the parameter table
@@ -294,12 +295,14 @@ def get_valid_parameters_for_parameter_table(
         condition_df: PEtab condition table
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
+        mapping_df: PEtab mapping table for additional checks
 
     Returns:
         Set of parameter IDs which PEtab allows to be present in the
         parameter table.
     """
     # - grab all allowed model parameters
+    # - grab corresponding names from mapping table
     # - grab all output parameters defined in {observable,noise}Formula
     # - grab all parameters from measurement table
     # - grab all parametric overrides from condition table
@@ -307,13 +310,17 @@ def get_valid_parameters_for_parameter_table(
     # - remove placeholder parameters
     #   (only partial overrides are not supported)
 
-    placeholders = set(observables.get_placeholders(observable_df))
-
     # must not go into parameter table
     blackset = set()
-    # collect assignment targets
-    blackset |= placeholders
-    blackset |= set(condition_df.columns.values) - {CONDITION_NAME}
+
+    if observable_df is not None:
+        placeholders = set(observables.get_placeholders(observable_df))
+
+        # collect assignment targets
+        blackset |= placeholders
+
+    if condition_df is not None:
+        blackset |= set(condition_df.columns.values) - {CONDITION_NAME}
 
     # don't use sets here, to have deterministic ordering,
     #  e.g. for creating parameter tables
@@ -322,12 +329,19 @@ def get_valid_parameters_for_parameter_table(
         if p not in blackset
     )
 
-    # add output parameters from observables table
-    output_parameters = observables.get_output_parameters(
-        observable_df=observable_df, model=model)
-    for p in output_parameters:
-        if p not in blackset:
-            parameter_ids[p] = None
+    if mapping_df is not None:
+        for from_id, to_id in zip(mapping_df.index.values,
+                                  mapping_df[MODEL_ENTITY_ID]):
+            if to_id in parameter_ids.keys():
+                parameter_ids[from_id] = None
+
+    if observable_df is not None:
+        # add output parameters from observables table
+        output_parameters = observables.get_output_parameters(
+            observable_df=observable_df, model=model)
+        for p in output_parameters:
+            if p not in blackset:
+                parameter_ids[p] = None
 
     # Append parameters from measurement table, unless they occur as condition
     # table columns
@@ -336,16 +350,18 @@ def get_valid_parameters_for_parameter_table(
             if isinstance(p, str) and p not in blackset:
                 parameter_ids[p] = None
 
-    for _, row in measurement_df.iterrows():
-        # we trust that the number of overrides matches
-        append_overrides(measurements.split_parameter_replacement_list(
-            row.get(OBSERVABLE_PARAMETERS, None)))
-        append_overrides(measurements.split_parameter_replacement_list(
-            row.get(NOISE_PARAMETERS, None)))
+    if measurement_df is not None:
+        for _, row in measurement_df.iterrows():
+            # we trust that the number of overrides matches
+            append_overrides(measurements.split_parameter_replacement_list(
+                row.get(OBSERVABLE_PARAMETERS, None)))
+            append_overrides(measurements.split_parameter_replacement_list(
+                row.get(NOISE_PARAMETERS, None)))
 
     # Append parameter overrides from condition table
-    for p in conditions.get_parametric_overrides(condition_df):
-        parameter_ids[p] = None
+    if condition_df is not None:
+        for p in conditions.get_parametric_overrides(condition_df):
+            parameter_ids[p] = None
 
     return parameter_ids.keys()
 
