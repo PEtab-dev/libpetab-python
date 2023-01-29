@@ -94,8 +94,7 @@ def validate_visualization_df(
             for yvalue in vis_df[C.Y_VALUES].unique():
                 if pd.isna(yvalue):
                     # if there is only one observable, we default to that
-                    if len(problem.observable_df.index.unique()) \
-                            == 1:
+                    if len(problem.observable_df.index.unique()) == 1:
                         continue
 
                     logger.error(
