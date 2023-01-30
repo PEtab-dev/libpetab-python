@@ -75,13 +75,13 @@ def plot_residuals(
         simulations_df[OBSERVABLE_ID].isin(observable_ids)]
 
     # compare to standard normal distribution
-    ks_result = stats.kstest(normal_resuduals['residual'], stats.norm.cdf)
+    ks_result = stats.kstest(normal_residuals['residual'], stats.norm.cdf)
 
     ax.hlines(y=0, xmin=min(simulations_normal['simulation']),
               xmax=max(simulations_normal['simulation']), ls='--',
               color='gray')
     ax.scatter(simulations_normal['simulation'],
-               normal_resuduals['residual'])
+               normal_residuals['residual'])
     ax.text(0.3, 0.85,
             f'Kolmogorov-Smirnov test results:\n'
             f'statistic: {ks_result[0]:.2f}\n'
