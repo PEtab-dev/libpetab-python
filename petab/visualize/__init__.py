@@ -3,7 +3,7 @@ Visualize
 =========
 
 PEtab comes with visualization functionality. Those need to be imported via
-import petab.visualize.
+``import petab.visualize``.
 
 """
 
