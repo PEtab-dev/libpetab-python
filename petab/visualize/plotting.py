@@ -403,7 +403,7 @@ class DataProvider:
         )
         if getattr(plot_spec, Y_VALUES) == '':
             if len(df.loc[subset, OBSERVABLE_ID].unique()) > 1:
-                ValueError(
+                raise ValueError(
                     f'{Y_VALUES} must be specified in visualization table if '
                     f'multiple different observables are available.'
                 )
