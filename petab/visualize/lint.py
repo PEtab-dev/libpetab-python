@@ -92,6 +92,17 @@ def validate_visualization_df(
         if problem.observable_df is not None:
             # yValues must be an observable
             for yvalue in vis_df[C.Y_VALUES].unique():
+                if pd.isna(yvalue):
+                    # if there is only one observable, we default to that
+                    if len(problem.observable_df.index.unique()) == 1:
+                        continue
+
+                    logger.error(
+                        f'{C.Y_VALUES} must be specified if there is more '
+                        'than one observable.'
+                    )
+                    errors = True
+
                 if yvalue not in problem.observable_df.index:
                     logger.error(
                         f"{C.Y_VALUES} was set to `{yvalue}`, but no such "
