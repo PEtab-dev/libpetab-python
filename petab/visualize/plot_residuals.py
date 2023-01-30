@@ -93,4 +93,3 @@ def plot_residuals(
 
     plt.tight_layout()
     return ax
-
