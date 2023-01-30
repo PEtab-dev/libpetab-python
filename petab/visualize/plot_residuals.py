@@ -14,7 +14,7 @@ from .. import calculate, core, problem
 from ..C import *
 
 
-def plot_residuals(
+def plot_residuals_vs_simulation(
         petab_problem: problem.Problem,
         simulations_df: Union[str, pd.DataFrame],
         size: Tuple = (10, 7),
@@ -33,6 +33,8 @@ def plot_residuals(
         output data file.
     size:
         Figure size.
+    ax:
+        Axis object.
 
     Returns
     -------
