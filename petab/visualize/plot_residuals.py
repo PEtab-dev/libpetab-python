@@ -91,7 +91,7 @@ def plot_residuals_vs_simulation(
                    color='gray')
     axes[0].scatter(simulations_normal[SIMULATION],
                     normal_residuals[RESIDUAL])
-    axes[0].text(0.3, 0.85,
+    axes[0].text(0.15, 0.85,
                  f'Kolmogorov-Smirnov test results:\n'
                  f'statistic: {ks_result[0]:.2f}\n'
                  f'pvalue: {ks_result[1]:.2e} ', transform=axes[0].transAxes)
