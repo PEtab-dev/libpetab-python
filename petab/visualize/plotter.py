@@ -281,8 +281,8 @@ class MPLPlotter(Plotter):
                                                 plotTypeData == PROVIDED)
 
         if simulations_to_plot is None or measurements_to_plot is None:
-            raise NotImplementedError('Scatter plots do not work without'
-                                      ' simulation data')
+            raise NotImplementedError('Both measurements and simulation data '
+                                      'are needed for scatter plots')
         ax.scatter(measurements_to_plot.data_to_plot['mean'],
                    simulations_to_plot.data_to_plot['mean'],
                    label=getattr(dataplot, LEGEND_ENTRY))

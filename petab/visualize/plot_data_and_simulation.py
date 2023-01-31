@@ -23,7 +23,7 @@ __all__ = [
 
 
 def plot_with_vis_spec(
-        vis_spec_df,
+        vis_spec_df: Union[str, pd.DataFrame],
         conditions_df: Union[str, pd.DataFrame],
         measurements_df: Optional[Union[str, pd.DataFrame]] = None,
         simulations_df: Optional[Union[str, pd.DataFrame]] = None,
@@ -37,7 +37,8 @@ def plot_with_vis_spec(
 
     Parameters
     ----------
-    vis_spec_df: visualization table
+    vis_spec_df:
+        A visualization table.
     conditions_df:
         A condition DataFrame in the PEtab format or path to the condition
         file.
@@ -105,7 +106,7 @@ def plot_without_vis_spec(
         for this plot.
     group_by:
         Grouping type.
-        Possible values: 'dataset', 'observable', 'simulation'
+        Possible values: 'dataset', 'observable', 'simulation'.
     conditions_df:
         A condition DataFrame in the PEtab format or path to the condition
         file.
@@ -116,13 +117,13 @@ def plot_without_vis_spec(
         output data file.
     plotted_noise:
         A string indicating how noise should be visualized:
-        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided'].
     subplot_dir:
         A path to the folder where single subplots should be saved.
         PlotIDs will be taken as file names.
     plotter_type:
         Specifies which library should be used for plot generation. Currently,
-        only matplotlib is supported
+        only matplotlib is supported.
     format_:
         File format for the generated figure.
         (See :py:func:`matplotlib.pyplot.savefig` for supported options).
@@ -172,7 +173,7 @@ def plot_problem(
     Parameters
     ----------
     petab_problem:
-        A PEtab problem
+        A PEtab problem.
     simulations_df:
         A simulation DataFrame in the PEtab format or path to the simulation
         output data file.
@@ -181,16 +182,16 @@ def plot_problem(
         contains the Ids of datasets or observables or simulation conditions
         for this plot.
     group_by:
-        Possible values: 'dataset', 'observable', 'simulation'
+        Possible values: 'dataset', 'observable', 'simulation'.
     plotted_noise:
         A string indicating how noise should be visualized:
-        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided']
+        ['MeanAndSD' (default), 'MeanAndSEM', 'replicate', 'provided'].
     subplot_dir:
         A string which is taken as path to the folder where single subplots
         should be saved. PlotIDs will be taken as file names.
     plotter_type:
         Specifies which library should be used for plot generation. Currently,
-        only matplotlib is supported
+        only matplotlib is supported.
 
     Returns
     -------
