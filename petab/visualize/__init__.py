@@ -13,7 +13,7 @@ from .plot_data_and_simulation import (
     plot_problem,
 )
 
-from .plot_residuals import plot_residuals_vs_simulation
+from .plot_residuals import plot_goodness_of_fit, plot_residuals_vs_simulation
 from .plotter import MPLPlotter
 from .plotting import DataProvider, Figure
 
@@ -21,6 +21,7 @@ __all__ = [
     "plot_without_vis_spec",
     "plot_with_vis_spec",
     "plot_problem",
+    "plot_goodness_of_fit",
     "plot_residuals_vs_simulation",
     "MPLPlotter",
     "DataProvider",
