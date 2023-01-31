@@ -10,13 +10,18 @@ import pandas as pd
 
 from scipy import stats
 
-from .. import calculate, core, problem
-from ..C import *
+from ..calculate import calculate_residuals
+from ..core import get_simulation_df
+from ..problem import Problem
+from ..C import NOISE_DISTRIBUTION, NORMAL, LIN, OBSERVABLE_TRANSFORMATION, \
+    OBSERVABLE_ID
+
+__all__ = ['plot_residuals_vs_simulation']
 
 
 def plot_residuals_vs_simulation(
-        petab_problem: problem.Problem,
-        simulations_df: Union[str, pd.DataFrame],
+        petab_problem: Problem,
+        simulations_df: Union[str, Path, pd.DataFrame],
         size: Tuple = (10, 7),
         ax: Optional[plt.Axes] = None
 ) -> matplotlib.axes.Axes:
@@ -41,7 +46,7 @@ def plot_residuals_vs_simulation(
         ax: Axis object of the created plot.
     """
     if isinstance(simulations_df, (str, Path)):
-        simulations_df = core.get_simulation_df(simulations_df)
+        simulations_df = get_simulation_df(simulations_df)
 
     if NOISE_DISTRIBUTION in petab_problem.observable_df:
         if OBSERVABLE_TRANSFORMATION in petab_problem.observable_df:
@@ -65,7 +70,7 @@ def plot_residuals_vs_simulation(
         fig, ax = plt.subplots(figsize=size)
         fig.set_layout_engine("tight")
 
-    residual_df = calculate.calculate_residuals(
+    residual_df = calculate_residuals(
         measurement_dfs=petab_problem.measurement_df,
         simulation_dfs=simulations_df,
         observable_dfs=petab_problem.observable_df,
