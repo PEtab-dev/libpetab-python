@@ -63,7 +63,6 @@ setup(
         "python-libsbml>=5.17.0",
         "sympy",
         "colorama",
-        "seaborn",
         "pyyaml",
         "jsonschema",
     ],
@@ -99,6 +98,7 @@ setup(
         ],
         "vis": [
             "matplotlib>=3.6.0",
+            "seaborn",
             "scipy"
         ]
     },
