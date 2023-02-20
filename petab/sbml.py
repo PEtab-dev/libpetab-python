@@ -272,7 +272,7 @@ def get_model_for_condition(
             # Handle parametric initial concentrations
             with contextlib.suppress(KeyError):
                 return petab_problem.parameter_df.loc[
-                    parameter_id,petab.NOMINAL_VALUE]
+                    parameter_id, petab.NOMINAL_VALUE]
 
         if not isinstance(mapped_value, str):
             return mapped_value
