@@ -172,6 +172,10 @@ LOG_LAPLACE = 'logLaplace'
 LEFT_CENSORED_NORMAL = 'left-censored-normal'
 #:
 RIGHT_CENSORED_NORMAL = 'right-censored-normal'
+#:
+LEFT_CENSORED_LAPLACE = 'left-censored-laplace'
+#:
+RIGHT_CENSORED_LAPLACE = 'right-censored-laplace'
 
 #: Supported prior types
 PRIOR_TYPES = [
@@ -180,7 +184,8 @@ PRIOR_TYPES = [
 
 #: Supported noise distributions
 NOISE_MODELS = [NORMAL, LAPLACE, LEFT_TRUNCATED_NORMAL, RIGHT_TRUNCATED_NORMAL,
-                LEFT_CENSORED_NORMAL, RIGHT_CENSORED_NORMAL]
+                LEFT_CENSORED_NORMAL, RIGHT_CENSORED_NORMAL,
+                LEFT_CENSORED_LAPLACE, RIGHT_CENSORED_LAPLACE]
 
 
 # VISUALIZATION
