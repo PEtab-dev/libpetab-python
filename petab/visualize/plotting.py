@@ -212,7 +212,7 @@ class Subplot:
                         PLOT_TYPES_SIMULATION:
                     raise ValueError(f'{PLOT_TYPE_SIMULATION} has to be one of'
                                      f' the following: '
-                                     + ', '.join(PLOT_TYPES_DATA))
+                                     + ', '.join(PLOT_TYPES_SIMULATION))
 
                 # append new entry to dict
                 vis_spec_dict[col] = entry
@@ -403,7 +403,7 @@ class DataProvider:
         )
         if getattr(plot_spec, Y_VALUES) == '':
             if len(df.loc[subset, OBSERVABLE_ID].unique()) > 1:
-                ValueError(
+                raise ValueError(
                     f'{Y_VALUES} must be specified in visualization table if '
                     f'multiple different observables are available.'
                 )

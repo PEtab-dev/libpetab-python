@@ -1,0 +1,12 @@
+# see https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# default owners
+* @PEtab-dev/libpetab-python-maintainers
+
+/petab/visualize/ @plakrisenko
+/tests/test_vis* @plakrisenko
+/petab/simulate.py @dilpath
+/tests/test_simulate.py @dilpath
+/petab/calculate.py @yannikschaelte
+/tests/test_calculate.py @yannikschaelte
+/doc/ @dweindl

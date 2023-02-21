@@ -60,11 +60,9 @@ setup(
     install_requires=[
         "numpy>=1.15.1",
         "pandas>=1.2.0",
-        "matplotlib>=3.6.0",
         "python-libsbml>=5.17.0",
         "sympy",
         "colorama",
-        "seaborn",
         "pyyaml",
         "jsonschema",
     ],
@@ -98,5 +96,10 @@ setup(
             # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
             "ipython>=7.21.0, !=8.7.0",
         ],
+        "vis": [
+            "matplotlib>=3.6.0",
+            "seaborn",
+            "scipy"
+        ]
     },
 )
