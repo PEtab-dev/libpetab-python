@@ -1,4 +1,6 @@
 """Functions for interacting with SBML models"""
+
+import contextlib
 import logging
 from numbers import Number
 from pathlib import Path
@@ -266,6 +268,12 @@ def get_model_for_condition(
     def get_param_value(parameter_id: str):
         """Parameter value from mapping or nominal value"""
         mapped_value = parameter_map.get(parameter_id)
+        if mapped_value is None:
+            # Handle parametric initial concentrations
+            with contextlib.suppress(KeyError):
+                return petab_problem.parameter_df.loc[
+                    parameter_id, petab.NOMINAL_VALUE]
+
         if not isinstance(mapped_value, str):
             return mapped_value
 
