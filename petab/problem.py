@@ -813,12 +813,31 @@ class Problem:
             *args, **kwargs)
 
     def sample_parameter_startpoints(self, n_starts: int = 100):
-        """Create starting points for optimization
+        """Create 2D array with starting points for optimization
 
         See :py:func:`petab.sample_parameter_startpoints`.
         """
         return sampling.sample_parameter_startpoints(
             self.parameter_df, n_starts=n_starts)
+
+    def sample_parameter_startpoints_dict(
+            self,
+            n_starts: int = 100
+    ) -> List[Dict[str, float]]:
+        """Create dictionaries with starting points for optimization
+
+        See also :py:func:`petab.sample_parameter_startpoints`.
+
+        Returns:
+            A list of dictionaries with parameter IDs mapping to samples
+            parameter values.
+        """
+        return [
+            dict(zip(self.x_free_ids, parameter_values))
+            for parameter_values in self.sample_parameter_startpoints(
+                n_starts=n_starts
+            )
+        ]
 
     def unscale_parameters(
         self,

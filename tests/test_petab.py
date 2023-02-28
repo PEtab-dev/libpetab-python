@@ -201,6 +201,15 @@ def test_startpoint_sampling(fujita_model_scaling):
         assert -3 <= sp[1] <= 3
 
 
+def test_startpoint_sampling_dict(fujita_model_scaling):
+    n_starts = 10
+    startpoints = fujita_model_scaling.sample_parameter_startpoints_dict(
+        n_starts)
+    assert len(startpoints) == n_starts
+    for startpoint in startpoints:
+        assert set(startpoint.keys()) == set(fujita_model_scaling.x_free_ids)
+
+
 def test_create_parameter_df(
         condition_df_2_conditions):  # pylint: disable=W0621
     """Test petab.create_parameter_df."""

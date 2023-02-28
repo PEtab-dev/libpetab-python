@@ -8,7 +8,8 @@ import pytest
 
 import petab
 from petab.C import *
-from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
+from petab.visualize import plot_with_vis_spec, plot_without_vis_spec, \
+    plot_residuals_vs_simulation, plot_goodness_of_fit
 from petab.visualize.plotting import VisSpecParser
 from petab.visualize.lint import validate_visualization_df
 
@@ -361,6 +362,18 @@ def test_save_visu_file(data_file_Isensee,
         figure, _ = vis_spec_parser.parse_from_id_list(datasets,
                                                        group_by='dataset')
         figure.save_to_tsv(path.join(temp_dir, "visuSpec1.tsv"))
+
+
+def test_residuals_plot(simu_file_Fujita):
+    fujita_yaml = EXAMPLE_DIR / "example_Fujita" / "Fujita.yaml"
+    fujita_petab_problem = petab.Problem.from_yaml(fujita_yaml)
+    plot_residuals_vs_simulation(fujita_petab_problem, simu_file_Fujita)
+
+
+def test_goodness_of_fit_plot(simu_file_Fujita):
+    fujita_yaml = EXAMPLE_DIR / "example_Fujita" / "Fujita.yaml"
+    fujita_petab_problem = petab.Problem.from_yaml(fujita_yaml)
+    plot_goodness_of_fit(fujita_petab_problem, simu_file_Fujita)
 
 
 def test_cli():
