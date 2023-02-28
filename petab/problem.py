@@ -266,7 +266,7 @@ class Problem:
                 get_path(yaml_config[PARAMETER_FILE])) \
                 if yaml_config[PARAMETER_FILE] else None
 
-        if yaml_config[FORMAT_VERSION] in [1, "1"]:
+        if yaml_config[FORMAT_VERSION] in [1, "1", "1.0.0"]:
             if len(problem0[SBML_FILES]) > 1:
                 # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
                 raise NotImplementedError(
