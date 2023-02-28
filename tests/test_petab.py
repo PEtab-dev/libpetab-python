@@ -601,7 +601,7 @@ def test_load_remote():
     """Test loading remote files"""
 
     yaml_url = "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite" \
-               "/master/petabtests/cases/0001/_0001.yaml"
+               "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     petab_problem = petab.Problem.from_yaml(yaml_url)
 
     assert petab_problem.sbml_model is not None
