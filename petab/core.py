@@ -64,9 +64,13 @@ def get_visualization_df(visualization_file: Union[str, Path]) -> pd.DataFrame:
         Visualization DataFrame
     """
     try:
+        types = {PLOT_ID: str, PLOT_NAME: str, PLOT_TYPE_SIMULATION: str,
+                 PLOT_TYPE_DATA: str, DATASET_ID: str,
+                 X_VALUES: str, X_OFFSET: float, X_LABEL: str, X_SCALE: str,
+                 Y_VALUES: str, Y_OFFSET: float, Y_LABEL: str, Y_SCALE: str}
         vis_spec = pd.read_csv(visualization_file, sep="\t", index_col=None,
-                               float_precision='round_trip',
-                               keep_default_na=False)
+                               converters=types,
+                               float_precision='round_trip')
     except pd.errors.EmptyDataError:
         warn("Visualization table is empty. Defaults will be used. "
              "Refer to the documentation for details.")
