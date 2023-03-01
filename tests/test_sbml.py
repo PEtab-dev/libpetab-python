@@ -16,7 +16,7 @@ def create_test_data():
     for i in range(1, 4):
         ss_model.addParameter(f"parameter_{i}", i)
 
-    for i in range(1, 4):
+    for i in range(1, 5):
         ss_model.addSpecies(f"[species_{i}]", 10 * i)
 
     ss_model.addAssignmentRule("species_2", "25")
@@ -27,6 +27,7 @@ def create_test_data():
         "species_1": [15],
         "species_2": [25],
         "species_3": ['parameter_1'],
+        "species_4": ['not_a_model_parameter'],
         "compartment_1": [2],
     })
     condition_df.set_index([petab.CONDITION_ID], inplace=True)
@@ -44,10 +45,11 @@ def create_test_data():
     })
 
     parameter_df = pd.DataFrame({
-        petab.PARAMETER_ID: ["parameter_1", "parameter_2"],
-        petab.PARAMETER_SCALE: [petab.LOG10] * 2,
-        petab.NOMINAL_VALUE: [1.25, 2.25],
-        petab.ESTIMATE: [0, 1],
+        petab.PARAMETER_ID:
+            ["parameter_1", "parameter_2", "not_a_model_parameter"],
+        petab.PARAMETER_SCALE: [petab.LOG10] * 3,
+        petab.NOMINAL_VALUE: [1.25, 2.25, 3.25],
+        petab.ESTIMATE: [0, 1, 0],
     })
     parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
 
@@ -61,6 +63,8 @@ def check_model(condition_model):
         "species_2").getInitialConcentration() == 25
     assert condition_model.getSpecies(
         "species_3").getInitialConcentration() == 1.25
+    assert condition_model.getSpecies(
+        "species_4").getInitialConcentration() == 3.25
     assert len(condition_model.getListOfInitialAssignments()) == 0, \
         "InitialAssignment not removed"
     assert condition_model.getCompartment("compartment_1").getSize() == 2.0
