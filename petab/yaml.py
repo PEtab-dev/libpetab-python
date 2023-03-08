@@ -256,8 +256,7 @@ def create_problem_yaml(
         observable_files = get_rel_to_yaml(observable_files)
         visualization_files = get_rel_to_yaml(visualization_files)
         parameter_file = get_rel_to_yaml([parameter_file])[0]
-        mapping_file = get_rel_to_yaml([mapping_file])[0]\
-            if mapping_file else None
+        mapping_file = get_rel_to_yaml(mapping_file)
 
     problem_dic = {
         CONDITION_FILES: condition_files,
