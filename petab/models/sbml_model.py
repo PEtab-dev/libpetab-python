@@ -90,23 +90,35 @@ class SbmlModel(Model):
     def get_free_parameter_ids_with_values(
             self
     ) -> Iterable[Tuple[str, float]]:
+        rule_targets = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
         return (
             (p.getId(), p.getValue())
             for p in self.sbml_model.getListOfParameters()
-            if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
+            if p.getId() not in rule_targets
         )
 
     def get_parameter_ids(self) -> Iterable[str]:
+        rule_targets = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
         return (
             p.getId() for p in self.sbml_model.getListOfParameters()
-            if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
+            if p.getId() not in rule_targets
         )
 
     def get_parameter_ids_with_values(self) -> Iterable[Tuple[str, float]]:
+        rule_targets = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
         return (
             (p.getId(), p.getValue())
             for p in self.sbml_model.getListOfParameters()
-            if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
+            if p.getId() not in rule_targets
         )
 
     def has_entity_with_id(self, entity_id) -> bool:
