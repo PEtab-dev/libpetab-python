@@ -104,8 +104,6 @@ class PySBModel(Model):
         return self.get_parameter_ids()
 
     def get_valid_ids_for_condition_table(self) -> Iterable[str]:
-        # TODO what else is allowed?
-        # TODO compartments (size vs initial size)
         return itertools.chain(self.get_parameter_ids(),
                                self.get_compartment_ids())
 
