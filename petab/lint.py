@@ -365,7 +365,8 @@ def assert_all_parameters_present_in_parameter_df(
         }
 
     if missing:
-        raise AssertionError('Missing parameter(s) in parameter table: '
+        raise AssertionError('Missing parameter(s) in the model or the '
+                             'parameters table: '
                              + str(missing))
 
     if extraneous:
