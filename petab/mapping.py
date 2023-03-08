@@ -33,16 +33,16 @@ def get_mapping_df(
         mapping_file = pd.read_csv(mapping_file, sep='\t',
                                    float_precision='round_trip')
 
+    if not isinstance(mapping_file.index, pd.RangeIndex):
+        mapping_file.reset_index(inplace=True)
+
     for col in MAPPING_DF_REQUIRED_COLS:
-        if col not in mapping_file.reset_index().columns:
+        if col not in mapping_file.columns:
             raise KeyError(
                 f"Mapping table missing mandatory field {PETAB_ENTITY_ID}.")
 
         lint.assert_no_leading_trailing_whitespace(
             mapping_file.reset_index()[col].values, col)
-
-    if not isinstance(mapping_file.index, pd.RangeIndex):
-        mapping_file.reset_index(inplace=True)
 
     mapping_file.set_index([PETAB_ENTITY_ID], inplace=True)
 
