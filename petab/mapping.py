@@ -77,8 +77,8 @@ def check_mapping_df(
 
     if df.index.name != PETAB_ENTITY_ID:
         raise AssertionError(
-            f"Mapping table has wrong index {df.index.name}."
-            f"expected {PETAB_ENTITY_ID}.")
+            f"Mapping table has wrong index {df.index.name}. "
+            f"Expected {PETAB_ENTITY_ID}.")
 
     lint.check_ids(df.index.values, kind=PETAB_ENTITY_ID)
 
