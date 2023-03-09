@@ -413,6 +413,121 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         assert actual == expected
 
     @staticmethod
+    def test_partial_override_w_mapping_table(condition_df_2_conditions):
+        # Condition-specific parameters, keeping original parameters
+        condition_df = pd.DataFrame(data={
+            'conditionId': ['condition1', 'condition2'],
+            'conditionName': ['', 'Condition 2'],
+            'fixedParameter1': [1.0, 2.0],
+            'fixedParameter2': [nan, 2.5],
+        })
+        condition_df.set_index('conditionId', inplace=True)
+
+        import simplesbml
+        ss_model = simplesbml.SbmlModel()
+        ss_model.addParameter('fixedParameter1', 0.5)
+        ss_model.addParameter('fixedParameter2', 1.0)
+        ss_model.addParameter('dynamicParameter1', 0.0)
+        ss_model.addParameter('observableParameter1_obs1', 0.0)
+        ss_model.addParameter('observableParameter2_obs1', 0.0)
+        ss_model.addParameter('observableParameter1_obs2', 0.0)
+
+        measurement_df = pd.DataFrame(data={
+            OBSERVABLE_ID: ['obs1', 'obs2', 'obs1', 'obs2'],
+            SIMULATION_CONDITION_ID: ['condition1', 'condition1',
+                                      'condition2', 'condition2'],
+            PREEQUILIBRATION_CONDITION_ID: ['', '', '', ''],
+            OBSERVABLE_PARAMETERS: ['obs1par1override;obs1par2cond1override',
+                                    '',
+                                    'obs1par1override;obs1par2cond2override',
+                                    'obs2par1cond2override'],
+            NOISE_PARAMETERS: ['', '', '', '']
+        })
+
+        mapping_df = pd.DataFrame(data={
+            PETAB_ENTITY_ID: [
+                'maps_to_fixedParameter1',
+                'maps_to_fixedParameter2',
+                'maps_to_dynamicParameter1',
+            ],
+            MODEL_ENTITY_ID: [
+                'fixedParameter1',
+                'fixedParameter2',
+                'dynamicParameter1',
+            ],
+        })
+        mapping_df.set_index(PETAB_ENTITY_ID, inplace=True)
+
+        parameter_df = pd.DataFrame(data={
+            PARAMETER_ID: [
+                'maps_to_dynamicParameter1', 'obs1par1override',
+                'obs1par2cond1override', 'obs1par2cond2override',
+                'obs2par1cond2override'],
+            ESTIMATE: [1, 1, 1, 1, 1],
+        })
+        parameter_df.set_index(PARAMETER_ID, inplace=True)
+
+        expected = [({},
+                     {'fixedParameter1': 1.0,
+                      'fixedParameter2': 1.0,
+                      'dynamicParameter1': 'dynamicParameter1',
+                      'maps_to_fixedParameter1': 1.0,
+                      'maps_to_fixedParameter2': 1.0,
+                      'maps_to_dynamicParameter1': 'dynamicParameter1',
+                      'observableParameter1_obs1': 'obs1par1override',
+                      'observableParameter2_obs1': 'obs1par2cond1override',
+                      'observableParameter1_obs2': np.nan,
+                      },
+                     {},
+                     {'fixedParameter1': LIN,
+                      'fixedParameter2': LIN,
+                      'dynamicParameter1': LIN,
+                      'maps_to_fixedParameter1': LIN,
+                      'maps_to_fixedParameter2': LIN,
+                      'maps_to_dynamicParameter1': LIN,
+                      'observableParameter1_obs1': LIN,
+                      'observableParameter2_obs1': LIN,
+                      'observableParameter1_obs2': LIN}),
+                    ({},
+                     {'fixedParameter1': 2.0,
+                      'fixedParameter2': 2.5,
+                      'dynamicParameter1': 'dynamicParameter1',
+                      'maps_to_fixedParameter1': 2.0,
+                      'maps_to_fixedParameter2': 2.5,
+                      'maps_to_dynamicParameter1': 'dynamicParameter1',
+                      'observableParameter1_obs1': 'obs1par1override',
+                      'observableParameter2_obs1': 'obs1par2cond2override',
+                      'observableParameter1_obs2': 'obs2par1cond2override'
+                      },
+                     {},
+                     {'fixedParameter1': LIN,
+                      'fixedParameter2': LIN,
+                      'dynamicParameter1': LIN,
+                      'maps_to_fixedParameter1': LIN,
+                      'maps_to_fixedParameter2': LIN,
+                      'maps_to_dynamicParameter1': LIN,
+                      'observableParameter1_obs1': LIN,
+                      'observableParameter2_obs1': LIN,
+                      'observableParameter1_obs2': LIN}),
+                    ]
+
+        actual = petab.get_optimization_to_simulation_parameter_mapping(
+            measurement_df=measurement_df,
+            condition_df=condition_df,
+            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            parameter_df=parameter_df
+        )
+
+        # Comparison with NaN containing expected results fails after pickling!
+        # Need to test first for correct NaNs, then for the rest.
+        assert np.isnan(expected[0][1]['observableParameter1_obs2'])
+        assert np.isnan(actual[0][1]['observableParameter1_obs2'])
+        expected[0][1]['observableParameter1_obs2'] = 0.0
+        actual[0][1]['observableParameter1_obs2'] = 0.0
+
+        assert actual == expected
+
+    @staticmethod
     def test_parameterized_condition_table_changed_scale():
         """Test overriding a dynamic parameter `overridee` with
         - a log10 parameter to be estimated (condition 1)
