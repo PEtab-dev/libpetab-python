@@ -85,7 +85,8 @@ def assert_no_leading_trailing_whitespace(
 def check_condition_df(
         df: pd.DataFrame,
         model: Optional[Model] = None,
-        observable_df: Optional[pd.DataFrame] = None
+        observable_df: Optional[pd.DataFrame] = None,
+        mapping_df: Optional[pd.DataFrame] = None,
 ) -> None:
     """Run sanity checks on PEtab condition table
 
@@ -93,6 +94,7 @@ def check_condition_df(
         df: PEtab condition DataFrame
         model: Model for additional checking of parameter IDs
         observable_df: PEtab observables DataFrame
+        mapping_df: PEtab mapping DataFrame
 
     Raises:
         AssertionError: in case of problems
@@ -123,7 +125,10 @@ def check_condition_df(
         allowed_cols = set(model.get_valid_ids_for_condition_table())
         if observable_df is not None:
             allowed_cols |= set(petab.get_output_parameters(
-                model=model, observable_df=observable_df))
+                model=model, observable_df=observable_df, mapping_df=mapping_df
+            ))
+        if mapping_df is not None:
+            allowed_cols |= set(mapping_df.index.values)
         for column_name in df.columns:
             if column_name != CONDITION_NAME \
                     and column_name not in allowed_cols:
@@ -185,20 +190,22 @@ def check_parameter_df(
         model: Optional[Model] = None,
         observable_df: Optional[pd.DataFrame] = None,
         measurement_df: Optional[pd.DataFrame] = None,
-        condition_df: Optional[pd.DataFrame] = None) -> None:
+        condition_df: Optional[pd.DataFrame] = None,
+        mapping_df: Optional[pd.DataFrame] = None,
+) -> None:
     """Run sanity checks on PEtab parameter table
 
     Arguments:
-        df: PEtab condition DataFrame
+        df: PEtab parameter DataFrame
         model: Model for additional checking of parameter IDs
         observable_df: PEtab observable table for additional checks
         measurement_df: PEtab measurement table for additional checks
         condition_df: PEtab condition table for additional checks
+        mapping_df: PEtab mapping table for additional checks
 
     Raises:
         AssertionError: in case of problems
     """
-
     _check_df(df, PARAMETER_DF_REQUIRED_COLS[1:], "parameter")
 
     if df.index.name != PARAMETER_ID:
@@ -244,7 +251,8 @@ def check_parameter_df(
     if model and measurement_df is not None \
             and condition_df is not None:
         assert_all_parameters_present_in_parameter_df(
-            df, model, observable_df, measurement_df, condition_df)
+            df, model, observable_df, measurement_df, condition_df, mapping_df
+        )
 
 
 def check_observable_df(observable_df: pd.DataFrame) -> None:
@@ -305,7 +313,9 @@ def assert_all_parameters_present_in_parameter_df(
         model: Model,
         observable_df: pd.DataFrame,
         measurement_df: pd.DataFrame,
-        condition_df: pd.DataFrame) -> None:
+        condition_df: pd.DataFrame,
+        mapping_df: pd.DataFrame = None,
+) -> None:
     """Ensure all required parameters are contained in the parameter table
     with no additional ones
 
@@ -315,26 +325,48 @@ def assert_all_parameters_present_in_parameter_df(
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
         condition_df: PEtab condition table
+        mapping_df: PEtab mapping table for additional checks
 
     Raises:
         AssertionError: in case of problems
     """
-
     required = parameters.get_required_parameters_for_parameter_table(
         model=model, condition_df=condition_df,
-        observable_df=observable_df, measurement_df=measurement_df)
+        observable_df=observable_df, measurement_df=measurement_df,
+        mapping_df=mapping_df
+    )
 
     allowed = parameters.get_valid_parameters_for_parameter_table(
         model=model, condition_df=condition_df,
-        observable_df=observable_df, measurement_df=measurement_df)
+        observable_df=observable_df, measurement_df=measurement_df,
+        mapping_df=mapping_df,
+    )
 
     actual = set(parameter_df.index)
-
     missing = required - actual
     extraneous = actual - allowed
 
+    # missing parameters might be present under a different name based on
+    # the mapping table
+    if missing and mapping_df is not None:
+        model_to_petab_mapping = {}
+        for map_from, map_to in zip(mapping_df.index.values,
+                                    mapping_df[MODEL_ENTITY_ID]):
+            if map_to in model_to_petab_mapping:
+                model_to_petab_mapping[map_to].append(map_from)
+            else:
+                model_to_petab_mapping[map_to] = [map_from]
+        missing = {
+            missing_id
+            for missing_id in missing
+            if missing_id not in model_to_petab_mapping
+            or all(mapping_parameter not in actual
+                   for mapping_parameter in model_to_petab_mapping[missing_id])
+        }
+
     if missing:
-        raise AssertionError('Missing parameter(s) in parameter table: '
+        raise AssertionError('Missing parameter(s) in the model or the '
+                             'parameters table: '
                              + str(missing))
 
     if extraneous:
@@ -794,8 +826,12 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if problem.condition_df is not None:
         logger.info("Checking condition table...")
         try:
-            check_condition_df(problem.condition_df, problem.model,
-                               problem.observable_df)
+            check_condition_df(
+                problem.condition_df,
+                model=problem.model,
+                observable_df=problem.observable_df,
+                mapping_df=problem.mapping_df
+            )
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True
@@ -821,9 +857,11 @@ def lint_problem(problem: 'petab.Problem') -> bool:
     if problem.parameter_df is not None:
         logger.info("Checking parameter table...")
         try:
-            check_parameter_df(problem.parameter_df, problem.model,
-                               problem.observable_df,
-                               problem.measurement_df, problem.condition_df)
+            check_parameter_df(
+                problem.parameter_df, problem.model, problem.observable_df,
+                problem.measurement_df, problem.condition_df,
+                problem.mapping_df
+            )
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True
@@ -836,7 +874,8 @@ def lint_problem(problem: 'petab.Problem') -> bool:
             assert_model_parameters_in_condition_or_parameter_table(
                 problem.model,
                 problem.condition_df,
-                problem.parameter_df
+                problem.parameter_df,
+                problem.mapping_df,
             )
         except AssertionError as e:
             logger.error(e)
@@ -865,7 +904,11 @@ def lint_problem(problem: 'petab.Problem') -> bool:
 def assert_model_parameters_in_condition_or_parameter_table(
         model: Model,
         condition_df: pd.DataFrame,
-        parameter_df: pd.DataFrame) -> None:
+        parameter_df: pd.DataFrame,
+        mapping_df: pd.DataFrame = None,
+        observable_df: pd.DataFrame = None,
+        measurement_df: pd.DataFrame = None,
+) -> None:
     """Model parameters that are rule targets must not be present in the
     parameter table. Other parameters must only be present in either in
     parameter table or condition table columns. Check that.
@@ -874,13 +917,34 @@ def assert_model_parameters_in_condition_or_parameter_table(
         parameter_df: PEtab parameter DataFrame
         model: PEtab model
         condition_df: PEtab condition table
+        mapping_df: PEtab mapping table
+        observable_df: PEtab observable table
+        measurement_df: PEtab measurement table
 
     Raises:
         AssertionError: in case of problems
     """
     allowed_in_condition_cols = set(model.get_valid_ids_for_condition_table())
+    if mapping_df is not None:
+        allowed_in_condition_cols |= {
+            from_id
+            for from_id, to_id in zip(mapping_df.index.values,
+                                      mapping_df[MODEL_ENTITY_ID])
+            # mapping table entities mapping to already allowed parameters
+            if to_id in allowed_in_condition_cols
+            # mapping table entities mapping to species
+            or model.is_state_variable(to_id)
+        }
+
     allowed_in_parameter_table = \
-        set(model.get_valid_parameters_for_parameter_table())
+        parameters.get_valid_parameters_for_parameter_table(
+            model=model,
+            condition_df=condition_df,
+            observable_df=observable_df,
+            measurement_df=measurement_df,
+            mapping_df=mapping_df,
+        )
+
     entities_in_condition_table = set(condition_df.columns) - {CONDITION_NAME}
     entities_in_parameter_table = set(parameter_df.index.values)
 

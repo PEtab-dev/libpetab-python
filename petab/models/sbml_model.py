@@ -22,12 +22,15 @@ class SbmlModel(Model):
             sbml_model: libsbml.Model = None,
             sbml_reader: libsbml.SBMLReader = None,
             sbml_document: libsbml.SBMLDocument = None,
+            model_id: str = None
     ):
         super().__init__()
 
         self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
         self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
         self.sbml_model: Optional[libsbml.Model] = sbml_model
+
+        self._model_id = model_id or sbml_model.getIdAttribute()
 
     def __getstate__(self):
         """Return state for pickling"""
@@ -56,14 +59,23 @@ class SbmlModel(Model):
         self.__dict__.update(state)
 
     @staticmethod
-    def from_file(filepath_or_buffer):
+    def from_file(filepath_or_buffer, model_id: str):
         sbml_reader, sbml_document, sbml_model = get_sbml_model(
             filepath_or_buffer)
         return SbmlModel(
             sbml_model=sbml_model,
             sbml_reader=sbml_reader,
             sbml_document=sbml_document,
+            model_id=model_id,
         )
+
+    @property
+    def model_id(self):
+        return self._model_id
+
+    @model_id.setter
+    def model_id(self, model_id):
+        self._model_id = model_id
 
     def to_file(self, filename: [str, Path]):
         write_sbml(self.sbml_document or self.sbml_model.getSBMLDocument(),
@@ -78,10 +90,35 @@ class SbmlModel(Model):
     def get_free_parameter_ids_with_values(
             self
     ) -> Iterable[Tuple[str, float]]:
+        rule_targets = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
         return (
             (p.getId(), p.getValue())
             for p in self.sbml_model.getListOfParameters()
-            if self.sbml_model.getAssignmentRuleByVariable(p.getId()) is None
+            if p.getId() not in rule_targets
+        )
+
+    def get_parameter_ids(self) -> Iterable[str]:
+        rule_targets = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
+        return (
+            p.getId() for p in self.sbml_model.getListOfParameters()
+            if p.getId() not in rule_targets
+        )
+
+    def get_parameter_ids_with_values(self) -> Iterable[Tuple[str, float]]:
+        rule_targets = {
+            ar.getVariable() for ar in self.sbml_model.getListOfRules()
+        }
+
+        return (
+            (p.getId(), p.getValue())
+            for p in self.sbml_model.getListOfParameters()
+            if p.getId() not in rule_targets
         )
 
     def has_entity_with_id(self, entity_id) -> bool:

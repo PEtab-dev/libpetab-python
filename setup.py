@@ -75,6 +75,7 @@ setup(
             "pytest-cov",
             "simplesbml",
             "scipy",
+            "pysb",
         ],
         "quality": [
             "flake8>=3.8.3",

@@ -9,9 +9,8 @@ from pathlib import Path
 import libsbml
 import numpy as np
 import pandas as pd
-import pytest
-
 import petab
+import pytest
 from petab.C import *
 from petab.models.sbml_model import SbmlModel
 from yaml import safe_load
