@@ -317,9 +317,12 @@ class Problem:
             observable_files, observables.get_observable_df) \
             if observable_files else None
 
-        mapping_file = problem0.get(MAPPING_FILE, None)
-        mapping_df = mapping.get_mapping_df(get_path(mapping_file)) \
-            if mapping_file else None
+        mapping_files = [
+            get_path(f) for f in problem0.get(MAPPING_FILES, [])]
+        # If there are multiple tables, we will merge them
+        mapping_df = core.concat_tables(
+            mapping_files, mapping.get_mapping_df) \
+            if mapping_files else None
 
         return Problem(
             condition_df=condition_df,
@@ -547,7 +550,7 @@ class Problem:
                 yaml_file=yaml_file,
                 visualization_files=visualization_file,
                 relative_paths=relative_paths,
-                mapping_file=mapping_file,
+                mapping_files=mapping_file,
             )
 
     def get_optimization_parameters(self):

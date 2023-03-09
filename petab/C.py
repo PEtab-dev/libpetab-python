@@ -277,7 +277,7 @@ OBSERVABLE_FILES = 'observable_files'
 #:
 VISUALIZATION_FILES = 'visualization_files'
 #:
-MAPPING_FILE = 'mapping_file'
+MAPPING_FILES = 'mapping_files'
 #:
 EXTENSIONS = 'extensions'
 
