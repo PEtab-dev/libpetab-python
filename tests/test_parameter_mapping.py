@@ -414,6 +414,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
 
     @staticmethod
     def test_partial_override_w_mapping_table(condition_df_2_conditions):
+        """Test that the mapping table is applied correctly."""
         # Condition-specific parameters, keeping original parameters
         condition_df = pd.DataFrame(data={
             'conditionId': ['condition1', 'condition2'],
@@ -515,7 +516,8 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             measurement_df=measurement_df,
             condition_df=condition_df,
             model=petab.models.sbml_model.SbmlModel(ss_model.model),
-            parameter_df=parameter_df
+            parameter_df=parameter_df,
+            mapping_df=mapping_df
         )
 
         # Comparison with NaN containing expected results fails after pickling!
