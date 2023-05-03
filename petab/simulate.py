@@ -115,7 +115,7 @@ class Simulator(abc.ABC):
             self,
             noise: bool = False,
             noise_scaling_factor: float = 1,
-            rename: bool = False,
+            as_measurement: bool = False,
             **kwargs
     ) -> pd.DataFrame:
         """Simulate a PEtab problem, optionally with noise.
@@ -124,9 +124,9 @@ class Simulator(abc.ABC):
             noise: If True, noise is added to simulated data.
             noise_scaling_factor:
                 A multiplier of the scale of the noise distribution.
-            rename:
-                Whether to rename the measurement column from
-                :const:`petab.C.MEASUREMENT` to :const:`petab.C.SIMULATION`.
+            as_measurement:
+                Whether the data column is named :const:`petab.C.MEASUREMENT`
+                (`True`) or :const:`petab.C.SIMULATION` (`False`).
             **kwargs:
                 Additional keyword arguments are passed to
                 :meth:`petab.simulate.Simulator.simulate_without_noise`.
@@ -137,7 +137,7 @@ class Simulator(abc.ABC):
         simulation_df = self.simulate_without_noise(**kwargs)
         if noise:
             simulation_df = self.add_noise(simulation_df, noise_scaling_factor)
-        if rename:
+        if not as_measurement:
             simulation_df = simulation_df.rename(
                 columns={petab.C.MEASUREMENT: petab.C.SIMULATION},
             )
