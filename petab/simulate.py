@@ -137,10 +137,12 @@ class Simulator(abc.ABC):
         simulation_df = self.simulate_without_noise(**kwargs)
         if noise:
             simulation_df = self.add_noise(simulation_df, noise_scaling_factor)
-        if not as_measurement:
-            simulation_df = simulation_df.rename(
-                columns={petab.C.MEASUREMENT: petab.C.SIMULATION},
-            )
+
+        columns = {petab.C.MEASUREMENT: petab.C.SIMULATION}
+        if as_measurement:
+            columns = {petab.C.SIMULATION: petab.C.MEASUREMENT}
+        simulation_df = simulation_df.rename(columns=columns)
+
         return simulation_df
 
     def add_noise(
