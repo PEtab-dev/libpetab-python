@@ -84,21 +84,21 @@ def test_zero_bounded(petab_problem):
         (positive if index in pos_indices else np.nan)
         for index in range(n_measurements)
     ]
-    synthetic_data_df = simulator.simulate().assign(**{
+    synthetic_data_df = simulator.simulate(as_measurement=True).assign(**{
         petab.C.MEASUREMENT: measurements
     })
     # All measurements are non-zero
-    assert (synthetic_data_df['measurement'] != 0).all()
+    assert (synthetic_data_df[MEASUREMENT] != 0).all()
     # No measurements are NaN
-    assert not (np.isnan(synthetic_data_df['measurement'])).any()
+    assert not (np.isnan(synthetic_data_df[MEASUREMENT])).any()
 
     synthetic_data_df_with_noise = simulator.add_noise(
         synthetic_data_df,
     )
     # Both negative and positive values are returned by default.
     assert all([
-        (synthetic_data_df_with_noise['measurement'] <= 0).any(),
-        (synthetic_data_df_with_noise['measurement'] >= 0).any(),
+        (synthetic_data_df_with_noise[MEASUREMENT] <= 0).any(),
+        (synthetic_data_df_with_noise[MEASUREMENT] >= 0).any(),
     ])
 
     synthetic_data_df_with_noise = simulator.add_noise(
@@ -108,12 +108,12 @@ def test_zero_bounded(petab_problem):
     # Values with noise that are different in sign to values without noise are
     # zeroed.
     assert all([
-        (synthetic_data_df_with_noise['measurement'][neg_indices] <= 0).all(),
-        (synthetic_data_df_with_noise['measurement'][pos_indices] >= 0).all(),
-        (synthetic_data_df_with_noise['measurement'][neg_indices] == 0).any(),
-        (synthetic_data_df_with_noise['measurement'][pos_indices] == 0).any(),
-        (synthetic_data_df_with_noise['measurement'][neg_indices] < 0).any(),
-        (synthetic_data_df_with_noise['measurement'][pos_indices] > 0).any(),
+        (synthetic_data_df_with_noise[MEASUREMENT][neg_indices] <= 0).all(),
+        (synthetic_data_df_with_noise[MEASUREMENT][pos_indices] >= 0).all(),
+        (synthetic_data_df_with_noise[MEASUREMENT][neg_indices] == 0).any(),
+        (synthetic_data_df_with_noise[MEASUREMENT][pos_indices] == 0).any(),
+        (synthetic_data_df_with_noise[MEASUREMENT][neg_indices] < 0).any(),
+        (synthetic_data_df_with_noise[MEASUREMENT][pos_indices] > 0).any(),
     ])
 
 
@@ -148,7 +148,7 @@ def _test_add_noise(petab_problem) -> None:
     simulator = TestSimulator(petab_problem)
     # Set the random seed to ensure predictable tests.
     simulator.rng = np.random.default_rng(seed=0)
-    synthetic_data_df = simulator.simulate()
+    synthetic_data_df = simulator.simulate(as_measurement=True)
 
     # Generate samples of noisy data
     samples = []
