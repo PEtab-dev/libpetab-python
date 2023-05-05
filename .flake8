@@ -4,11 +4,12 @@ extend-ignore =
     F403
     F405
 exclude =
-    build
-    dist
-    doc
-    env
-    venv
-    example
-    tmp
-    _*
+    build,
+    dist,
+    doc,
+    env,
+    venv,
+    example,
+    tmp,
+    _*,
+    .tox,
