@@ -29,8 +29,8 @@ def absolute_links(txt):
 
 
 # Python version check. We need >= 3.6 due to e.g. f-strings
-if sys.version_info < (3, 8, 0):
-    sys.exit("PEtab requires at least Python version 3.8")
+if sys.version_info < (3, 9, 0):
+    sys.exit("PEtab requires at least Python version 3.9")
 
 # read version from file
 __version__ = ""
