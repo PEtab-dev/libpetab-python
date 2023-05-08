@@ -16,6 +16,7 @@ from . import ENV_NUM_THREADS, core, lint, measurements, observables, \
     parameters
 from .C import *  # noqa: F403
 from .models import Model
+from .mapping import resolve_mapping
 
 logger = logging.getLogger(__name__)
 __all__ = ['get_optimization_to_simulation_parameter_mapping',
@@ -47,6 +48,7 @@ def get_optimization_to_simulation_parameter_mapping(
         measurement_df: pd.DataFrame,
         parameter_df: Optional[pd.DataFrame] = None,
         observable_df: Optional[pd.DataFrame] = None,
+        mapping_df: Optional[pd.DataFrame] = None,
         sbml_model: libsbml.Model = None,
         simulation_conditions: Optional[pd.DataFrame] = None,
         warn_unmapped: Optional[bool] = True,
@@ -128,7 +130,8 @@ def get_optimization_to_simulation_parameter_mapping(
     # Add output parameters that are not already defined in the model
     if observable_df is not None:
         output_parameters = observables.get_output_parameters(
-            observable_df=observable_df, model=model)
+            observable_df=observable_df, model=model, mapping_df=mapping_df
+        )
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
 
@@ -141,8 +144,9 @@ def get_optimization_to_simulation_parameter_mapping(
             _map_condition,
             _map_condition_arg_packer(
                 simulation_conditions, measurement_df, condition_df,
-                parameter_df, model, simulation_parameters, warn_unmapped,
-                scaled_parameters, fill_fixed_parameters,
+                parameter_df, mapping_df,
+                model, simulation_parameters, warn_unmapped, scaled_parameters,
+                fill_fixed_parameters,
                 allow_timepoint_specific_numeric_noise_parameters))
         return list(mapping)
 
@@ -153,8 +157,8 @@ def get_optimization_to_simulation_parameter_mapping(
             _map_condition,
             _map_condition_arg_packer(
                 simulation_conditions, measurement_df, condition_df,
-                parameter_df, model, simulation_parameters, warn_unmapped,
-                scaled_parameters, fill_fixed_parameters,
+                parameter_df, mapping_df, model, simulation_parameters,
+                warn_unmapped, scaled_parameters, fill_fixed_parameters,
                 allow_timepoint_specific_numeric_noise_parameters))
     return list(mapping)
 
@@ -164,6 +168,7 @@ def _map_condition_arg_packer(
         measurement_df,
         condition_df,
         parameter_df,
+        mapping_df,
         model,
         simulation_parameters,
         warn_unmapped,
@@ -174,7 +179,7 @@ def _map_condition_arg_packer(
     """Helper function to pack extra arguments for _map_condition"""
     for _, condition in simulation_conditions.iterrows():
         yield (
-            condition, measurement_df, condition_df, parameter_df,
+            condition, measurement_df, condition_df, parameter_df, mapping_df,
             model, simulation_parameters, warn_unmapped, scaled_parameters,
             fill_fixed_parameters,
             allow_timepoint_specific_numeric_noise_parameters
@@ -188,7 +193,7 @@ def _map_condition(packed_args):
     :py:func:`get_optimization_to_simulation_parameter_mapping`.
     """
 
-    (condition, measurement_df, condition_df, parameter_df, model,
+    (condition, measurement_df, condition_df, parameter_df, mapping_df, model,
      simulation_parameters, warn_unmapped, scaled_parameters,
      fill_fixed_parameters,
      allow_timepoint_specific_numeric_noise_parameters) = packed_args
@@ -216,6 +221,7 @@ def _map_condition(packed_args):
             model=model,
             condition_df=condition_df,
             parameter_df=parameter_df,
+            mapping_df=mapping_df,
             simulation_parameters=simulation_parameters,
             warn_unmapped=warn_unmapped,
             scaled_parameters=scaled_parameters,
@@ -231,6 +237,7 @@ def _map_condition(packed_args):
         model=model,
         condition_df=condition_df,
         parameter_df=parameter_df,
+        mapping_df=mapping_df,
         simulation_parameters=simulation_parameters,
         warn_unmapped=warn_unmapped,
         scaled_parameters=scaled_parameters,
@@ -249,6 +256,7 @@ def get_parameter_mapping_for_condition(
         sbml_model: libsbml.Model = None,
         condition_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
+        mapping_df: Optional[pd.DataFrame] = None,
         simulation_parameters: Optional[Dict[str, str]] = None,
         warn_unmapped: bool = True,
         scaled_parameters: bool = False,
@@ -272,6 +280,8 @@ def get_parameter_mapping_for_condition(
             PEtab condition DataFrame
         parameter_df:
             PEtab parameter DataFrame
+        mapping_df:
+            PEtab mapping DataFrame
         sbml_model:
             The SBML model (deprecated)
         model:
@@ -341,7 +351,7 @@ def get_parameter_mapping_for_condition(
         handle_missing_overrides(par_mapping, warn=warn_unmapped)
 
     _apply_condition_parameters(par_mapping, scale_mapping, condition_id,
-                                condition_df, model)
+                                condition_df, model, mapping_df)
     _apply_parameter_table(par_mapping, scale_mapping,
                            parameter_df, scaled_parameters,
                            fill_fixed_parameters)
@@ -417,6 +427,7 @@ def _apply_condition_parameters(
         condition_id: str,
         condition_df: pd.DataFrame,
         model: Model,
+        mapping_df: Optional[pd.DataFrame] = None,
 ) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
@@ -429,6 +440,8 @@ def _apply_condition_parameters(
     for overridee_id in condition_df.columns:
         if overridee_id == CONDITION_NAME:
             continue
+
+        overridee_id = resolve_mapping(mapping_df, overridee_id)
 
         # Species, compartments, and rule targets are handled elsewhere
         if model.is_state_variable(overridee_id):

@@ -6,9 +6,12 @@ from tempfile import TemporaryDirectory
 import matplotlib.pyplot as plt
 import pytest
 
+import petab
 from petab.C import *
-from petab.visualize import plot_with_vis_spec, plot_without_vis_spec
+from petab.visualize import plot_with_vis_spec, plot_without_vis_spec, \
+    plot_residuals_vs_simulation, plot_goodness_of_fit
 from petab.visualize.plotting import VisSpecParser
+from petab.visualize.lint import validate_visualization_df
 
 # Avoid errors when plotting without X server
 plt.switch_backend('agg')
@@ -45,9 +48,21 @@ def simu_file_Fujita():
 
 
 @pytest.fixture
+def simu_file_Fujita_t_inf():
+    return EXAMPLE_DIR / "example_Fujita" \
+                      / "Fujita_simulatedData_t_inf.tsv"
+
+
+@pytest.fixture
 def data_file_Fujita_minimal():
     return EXAMPLE_DIR / "example_Fujita"\
            / "Fujita_measurementData_minimal.tsv"
+
+
+@pytest.fixture
+def data_file_Fujita_t_inf():
+    return EXAMPLE_DIR / "example_Fujita"\
+           / "Fujita_measurementData_t_inf.tsv"
 
 
 @pytest.fixture
@@ -77,6 +92,12 @@ def visu_file_Fujita_minimal():
 def visu_file_Fujita_empty():
     return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
            / "Fujita_visuSpec_empty.tsv"
+
+
+@pytest.fixture
+def visu_file_Fujita_replicates():
+    return EXAMPLE_DIR / "example_Fujita" / "visuSpecs" \
+           / "Fujita_visuSpec_replicates.tsv"
 
 
 @pytest.fixture
@@ -117,6 +138,12 @@ def test_visualization_with_vis_and_sim(data_file_Isensee,
                                         condition_file_Isensee,
                                         vis_spec_file_Isensee,
                                         simulation_file_Isensee):
+    validate_visualization_df(
+        petab.Problem(
+            condition_df=petab.get_condition_df(condition_file_Isensee),
+            visualization_df=petab.get_visualization_df(vis_spec_file_Isensee),
+        )
+    )
     plot_with_vis_spec(vis_spec_file_Isensee, condition_file_Isensee,
                        data_file_Isensee, simulation_file_Isensee)
 
@@ -281,6 +308,30 @@ def test_simple_visualization(data_file_Fujita, condition_file_Fujita):
                           plotted_noise=PROVIDED)
 
 
+def test_visualization_with__t_inf(data_file_Fujita_t_inf,
+                                   simu_file_Fujita_t_inf,
+                                   condition_file_Fujita,
+                                   visu_file_Fujita_replicates):
+    # plot only measurements
+    plot_without_vis_spec(condition_file_Fujita,
+                          measurements_df=data_file_Fujita_t_inf)
+
+    # plot only simulation
+    plot_without_vis_spec(condition_file_Fujita,
+                          simulations_df=simu_file_Fujita_t_inf)
+
+    # plot both measurements and simulation
+    plot_without_vis_spec(condition_file_Fujita,
+                          measurements_df=data_file_Fujita_t_inf,
+                          simulations_df=simu_file_Fujita_t_inf)
+
+    # plot both measurements and simulation
+    plot_with_vis_spec(visu_file_Fujita_replicates,
+                       condition_file_Fujita,
+                       measurements_df=data_file_Fujita_t_inf,
+                       simulations_df=simu_file_Fujita_t_inf)
+
+
 def test_save_plots_to_file(data_file_Isensee, condition_file_Isensee,
                             vis_spec_file_Isensee, simulation_file_Isensee):
     with TemporaryDirectory() as temp_dir:
@@ -313,6 +364,18 @@ def test_save_visu_file(data_file_Isensee,
         figure.save_to_tsv(path.join(temp_dir, "visuSpec1.tsv"))
 
 
+def test_residuals_plot(simu_file_Fujita):
+    fujita_yaml = EXAMPLE_DIR / "example_Fujita" / "Fujita.yaml"
+    fujita_petab_problem = petab.Problem.from_yaml(fujita_yaml)
+    plot_residuals_vs_simulation(fujita_petab_problem, simu_file_Fujita)
+
+
+def test_goodness_of_fit_plot(simu_file_Fujita):
+    fujita_yaml = EXAMPLE_DIR / "example_Fujita" / "Fujita.yaml"
+    fujita_petab_problem = petab.Problem.from_yaml(fujita_yaml)
+    plot_goodness_of_fit(fujita_petab_problem, simu_file_Fujita)
+
+
 def test_cli():
     fujita_dir = EXAMPLE_DIR / "example_Fujita"
 
@@ -324,3 +387,25 @@ def test_cli():
             "-o", temp_dir
         ]
         subprocess.run(args, check=True)
+
+
+@pytest.mark.parametrize(
+    "vis_file",
+    (
+            "vis_spec_file_Isensee",
+            "vis_spec_file_Isensee_replicates",
+            "vis_spec_file_Isensee_scatterplot",
+            "visu_file_Fujita_wo_dsid_wo_yvalues",
+            "visu_file_Fujita_all_obs_with_diff_settings",
+            "visu_file_Fujita_empty",
+            "visu_file_Fujita_minimal",
+            "visu_file_Fujita_replicates",
+            "visu_file_Fujita_small",
+    )
+)
+def test_validate(vis_file, request):
+    """Check that all test files pass validation."""
+    vis_file = request.getfixturevalue(vis_file)
+    assert False is validate_visualization_df(
+        petab.Problem(visualization_df=petab.get_visualization_df(vis_file))
+    )

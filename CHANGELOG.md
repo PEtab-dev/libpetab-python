@@ -1,5 +1,41 @@
 # PEtab changelog
 
+## 0.2 series
+
+### 0.2.0
+
+Note: petab 0.2.0 requires Python>=3.9
+
+Features:
+* Plot measurements for t = 'inf'
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/149
+* Added validation for visualization files
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/184
+  https://github.com/PEtab-dev/libpetab-python/pull/189
+* Startpoints as dict
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/188
+* Residuals plot
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/187
+  https://github.com/PEtab-dev/libpetab-python/pull/191
+* add goodness of fit plot
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/192
+* Add PySBModel for handling of PySB models
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/145
+
+Fixes
+* Vis: Don't fail on missing simulations
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/185
+* prevent strings being parsed as nan in get_visualization_df
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/193
+* Fix get_model_for_condition
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/194
+* Simulator: rename measurement column to simulation
+  by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/199
+* Fix sympy symbol name clashes
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/202
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.1.30...v0.2.0
+
 ## 0.1 series
 
 ### 0.1.30

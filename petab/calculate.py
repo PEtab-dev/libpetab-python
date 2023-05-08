@@ -6,9 +6,10 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
-import petab
 import sympy
+from sympy.abc import _clash
 
+import petab
 from .C import *
 
 __all__ = ['calculate_residuals', 'calculate_residuals_for_table',
@@ -138,7 +139,7 @@ def get_symbolic_noise_formulas(observable_df) -> Dict[str, sympy.Expr]:
         if NOISE_FORMULA not in observable_df.columns:
             noise_formula = None
         else:
-            noise_formula = sympy.sympify(row.noiseFormula)
+            noise_formula = sympy.sympify(row.noiseFormula, locals=_clash)
         noise_formulas[observable_id] = noise_formula
     return noise_formulas
 

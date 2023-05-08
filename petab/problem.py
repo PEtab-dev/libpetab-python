@@ -11,7 +11,7 @@ from warnings import warn
 import pandas as pd
 
 from . import (conditions, core, format_version, measurements, observables,
-               parameter_mapping, parameters, sampling, sbml, yaml)
+               parameter_mapping, parameters, sampling, sbml, yaml, mapping)
 from .C import *  # noqa: F403
 from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
@@ -33,6 +33,7 @@ class Problem:
     - measurement table
     - parameter table
     - observables table
+    - mapping table
 
     Optionally it may contain visualization tables.
 
@@ -42,6 +43,7 @@ class Problem:
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
         visualization_df: PEtab visualization table
+        mapping_df: PEtab mapping table
         model: The underlying model
         sbml_reader: Stored to keep object alive (deprecated).
         sbml_document: Stored to keep object alive (deprecated).
@@ -55,11 +57,13 @@ class Problem:
             sbml_reader: libsbml.SBMLReader = None,
             sbml_document: libsbml.SBMLDocument = None,
             model: Model = None,
+            model_id: str = None,
             condition_df: pd.DataFrame = None,
             measurement_df: pd.DataFrame = None,
             parameter_df: pd.DataFrame = None,
             visualization_df: pd.DataFrame = None,
             observable_df: pd.DataFrame = None,
+            mapping_df: pd.DataFrame = None,
             extensions_config: Dict = None,
     ):
         self.condition_df: Optional[pd.DataFrame] = condition_df
@@ -67,6 +71,7 @@ class Problem:
         self.parameter_df: Optional[pd.DataFrame] = parameter_df
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
         self.observable_df: Optional[pd.DataFrame] = observable_df
+        self.mapping_df: Optional[pd.DataFrame] = mapping_df
 
         if any((sbml_model, sbml_document, sbml_reader),):
             warn("Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
@@ -80,7 +85,9 @@ class Problem:
             model = SbmlModel(
                 sbml_model=sbml_model,
                 sbml_reader=sbml_reader,
-                sbml_document=sbml_document)
+                sbml_document=sbml_document,
+                model_id=model_id
+            )
 
         self.model: Optional[Model] = model
         self.extensions_config = extensions_config or {}
@@ -142,6 +149,7 @@ class Problem:
                                        Iterable[Union[str, Path]]] = None,
             observable_files: Union[str, Path,
                                     Iterable[Union[str, Path]]] = None,
+            model_id: str = None,
             extensions_config: Dict = None,
     ) -> 'Problem':
         """
@@ -161,7 +169,7 @@ class Problem:
              "future version. Use `petab.Problem.from_yaml instead.",
              DeprecationWarning, stacklevel=2)
 
-        model = model_factory(sbml_file, MODEL_TYPE_SBML) \
+        model = model_factory(sbml_file, MODEL_TYPE_SBML, model_id=model_id) \
             if sbml_file else None
 
         condition_df = core.concat_tables(
@@ -239,17 +247,14 @@ class Problem:
                              'Consider using '
                              'petab.CompositeProblem.from_yaml() instead.')
 
-        if yaml_config[FORMAT_VERSION] != format_version.__format_version__:
-            raise ValueError("Provided PEtab files are of unsupported version"
+        if yaml_config[FORMAT_VERSION] not in {"1", 1, "1.0.0", "2.0.0"}:
+            raise ValueError("Provided PEtab files are of unsupported version "
                              f"{yaml_config[FORMAT_VERSION]}. Expected "
                              f"{format_version.__format_version__}.")
+        if yaml_config[FORMAT_VERSION] == "2.0.0":
+            warn("Support for PEtab2.0 is experimental!")
 
         problem0 = yaml_config['problems'][0]
-
-        if len(problem0[SBML_FILES]) > 1:
-            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-            raise NotImplementedError(
-                'Support for multiple models is not yet implemented.')
 
         if isinstance(yaml_config[PARAMETER_FILE], list):
             parameter_df = parameters.get_parameter_df([
@@ -261,9 +266,28 @@ class Problem:
                 get_path(yaml_config[PARAMETER_FILE])) \
                 if yaml_config[PARAMETER_FILE] else None
 
-        model = model_factory(get_path(problem0[SBML_FILES][0]),
-                              MODEL_TYPE_SBML) \
-            if problem0[SBML_FILES] else None
+        if yaml_config[FORMAT_VERSION] in [1, "1", "1.0.0"]:
+            if len(problem0[SBML_FILES]) > 1:
+                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+                raise NotImplementedError(
+                    'Support for multiple models is not yet implemented.')
+
+            model = model_factory(get_path(problem0[SBML_FILES][0]),
+                                  MODEL_TYPE_SBML, model_id=None) \
+                if problem0[SBML_FILES] else None
+        else:
+            if len(problem0[MODEL_FILES]) > 1:
+                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+                raise NotImplementedError(
+                    'Support for multiple models is not yet implemented.')
+            if not problem0[MODEL_FILES]:
+                model = None
+            else:
+                model_id, model_info = \
+                    next(iter(problem0[MODEL_FILES].items()))
+                model = model_factory(get_path(model_info[MODEL_LOCATION]),
+                                      model_info[MODEL_LANGUAGE],
+                                      model_id=model_id)
 
         measurement_files = [
             get_path(f) for f in problem0.get(MEASUREMENT_FILES, [])]
@@ -293,6 +317,13 @@ class Problem:
             observable_files, observables.get_observable_df) \
             if observable_files else None
 
+        mapping_files = [
+            get_path(f) for f in problem0.get(MAPPING_FILES, [])]
+        # If there are multiple tables, we will merge them
+        mapping_df = core.concat_tables(
+            mapping_files, mapping.get_mapping_df) \
+            if mapping_files else None
+
         return Problem(
             condition_df=condition_df,
             measurement_df=measurement_df,
@@ -300,6 +331,7 @@ class Problem:
             observable_df=observable_df,
             model=model,
             visualization_df=visualization_df,
+            mapping_df=mapping_df,
             extensions_config=yaml_config.get(EXTENSIONS, {})
         )
 
@@ -370,6 +402,7 @@ class Problem:
             'parameter',
             'observable',
             'visualization',
+            'mapping',
         ]:
             if getattr(self, f'{table_name}_df') is not None:
                 filenames[f'{table_name}_file'] = f'{table_name}s.tsv'
@@ -400,6 +433,7 @@ class Problem:
             prefix_path: Union[None, str, Path] = None,
             relative_paths: bool = True,
             model_file: Union[None, str, Path] = None,
+            mapping_file: Union[None, str, Path] = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -418,6 +452,7 @@ class Problem:
             parameter_file: Parameter table destination
             visualization_file: Visualization table destination
             observable_file: Observables table destination
+            mapping_file: Mapping table destination
             yaml_file: YAML file destination
             prefix_path:
                 Specify a prefix to all paths, to avoid specifying the
@@ -455,6 +490,7 @@ class Problem:
             parameter_file = add_prefix(parameter_file)
             observable_file = add_prefix(observable_file)
             visualization_file = add_prefix(visualization_file)
+            mapping_file = add_prefix(mapping_file)
             yaml_file = add_prefix(yaml_file)
 
         if model_file:
@@ -498,12 +534,24 @@ class Problem:
             else:
                 raise error("visualization")
 
+        if mapping_file:
+            if self.mapping_df is not None:
+                mapping.write_mapping_df(self.mapping_df, mapping_file)
+            else:
+                raise error("mapping")
+
         if yaml_file:
-            yaml.create_problem_yaml(model_file, condition_file,
-                                     measurement_file, parameter_file,
-                                     observable_file, yaml_file,
-                                     visualization_file,
-                                     relative_paths=relative_paths,)
+            yaml.create_problem_yaml(
+                sbml_files=sbml_file,
+                condition_files=condition_file,
+                measurement_files=measurement_file,
+                parameter_file=parameter_file,
+                observable_files=observable_file,
+                yaml_file=yaml_file,
+                visualization_files=visualization_file,
+                relative_paths=relative_paths,
+                mapping_files=mapping_file,
+            )
 
     def get_optimization_parameters(self):
         """
@@ -764,15 +812,35 @@ class Problem:
             condition_df=self.condition_df,
             observable_df=self.observable_df,
             measurement_df=self.measurement_df,
+            mapping_df=self.mapping_df,
             *args, **kwargs)
 
     def sample_parameter_startpoints(self, n_starts: int = 100):
-        """Create starting points for optimization
+        """Create 2D array with starting points for optimization
 
         See :py:func:`petab.sample_parameter_startpoints`.
         """
         return sampling.sample_parameter_startpoints(
             self.parameter_df, n_starts=n_starts)
+
+    def sample_parameter_startpoints_dict(
+            self,
+            n_starts: int = 100
+    ) -> List[Dict[str, float]]:
+        """Create dictionaries with starting points for optimization
+
+        See also :py:func:`petab.sample_parameter_startpoints`.
+
+        Returns:
+            A list of dictionaries with parameter IDs mapping to samples
+            parameter values.
+        """
+        return [
+            dict(zip(self.x_free_ids, parameter_values))
+            for parameter_values in self.sample_parameter_startpoints(
+                n_starts=n_starts
+            )
+        ]
 
     def unscale_parameters(
         self,

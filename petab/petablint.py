@@ -50,6 +50,9 @@ def parse_cli_args():
                         help='Conditions table')
     parser.add_argument('-p', '--parameters', dest='parameter_file_name',
                         help='Parameter table')
+    parser.add_argument('--vis', '--visualizations',
+                        dest='visualization_file_name',
+                        help='Visualization table')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-y', '--yaml', dest='yaml_file_name',
@@ -109,6 +112,9 @@ def main():
             logger.debug(f'\tMeasurement table: {args.measurement_file_name}')
         if args.parameter_file_name:
             logger.debug(f'\tParameter table: {args.parameter_file_name}')
+        if args.visualization_file_name:
+            logger.debug('\tVisualization table: '
+                         f'{args.visualization_file_name}')
 
         try:
             problem = petab.Problem.from_files(
@@ -116,7 +122,8 @@ def main():
                 condition_file=args.condition_file_name,
                 measurement_file=args.measurement_file_name,
                 parameter_file=args.parameter_file_name,
-                observable_files=args.observable_file_name
+                observable_files=args.observable_file_name,
+                visualization_files=args.visualization_file_name,
             )
         except FileNotFoundError as e:
             logger.error(e)

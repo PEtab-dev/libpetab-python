@@ -3,10 +3,11 @@
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Union, Literal
+from typing import List, Literal, Union
 
 import pandas as pd
 import sympy as sp
+from sympy.abc import _clash
 
 from . import core, lint
 from .C import *  # noqa: F403
@@ -72,6 +73,7 @@ def get_output_parameters(
         model: Model,
         observables: bool = True,
         noise: bool = True,
+        mapping_df: pd.DataFrame = None
 ) -> List[str]:
     """Get output parameters
 
@@ -83,6 +85,7 @@ def get_output_parameters(
         model: The underlying model
         observables: Include parameters from observableFormulas
         noise: Include parameters from noiseFormulas
+        mapping_df: PEtab mapping table
 
     Returns:
         List of output parameter IDs
@@ -95,12 +98,21 @@ def get_output_parameters(
     output_parameters = OrderedDict()
 
     for formula in formulas:
-        free_syms = sorted(sp.sympify(formula).free_symbols,
+        free_syms = sorted(sp.sympify(formula, locals=_clash).free_symbols,
                            key=lambda symbol: symbol.name)
         for free_sym in free_syms:
             sym = str(free_sym)
-            if not model.symbol_allowed_in_observable_formula(sym):
-                output_parameters[sym] = None
+            if model.symbol_allowed_in_observable_formula(sym):
+                continue
+
+            # does it mapping to a model entity?
+            if mapping_df is not None \
+                    and sym in mapping_df.index \
+                    and model.symbol_allowed_in_observable_formula(
+                    mapping_df.loc[sym, MODEL_ENTITY_ID]):
+                continue
+
+            output_parameters[sym] = None
 
     return list(output_parameters.keys())
 

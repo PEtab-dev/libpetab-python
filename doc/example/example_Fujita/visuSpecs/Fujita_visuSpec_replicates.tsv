@@ -1,0 +1,2 @@
+plotId	xValues	yValues	yOffset	yScale	plotName	plotTypeSimulation	plotTypeData
+plot1	time	pS6_tot	0	lin	pS6 total	LinePlot	replicate

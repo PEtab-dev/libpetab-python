@@ -234,6 +234,12 @@ SCATTER_PLOT = 'ScatterPlot'
 #: Supported plot types
 PLOT_TYPES_SIMULATION = [LINE_PLOT, BAR_PLOT, SCATTER_PLOT]
 
+#: Supported xScales
+X_SCALES = [LIN, LOG, LOG10]
+
+#: Supported yScales
+Y_SCALES = [LIN, LOG, LOG10]
+
 
 #:
 MEAN_AND_SD = 'MeanAndSD'
@@ -257,6 +263,12 @@ PROBLEMS = 'problems'
 #:
 SBML_FILES = 'sbml_files'
 #:
+MODEL_FILES = 'model_files'
+#:
+MODEL_LOCATION = 'location'
+#:
+MODEL_LANGUAGE = 'language'
+#:
 CONDITION_FILES = 'condition_files'
 #:
 MEASUREMENT_FILES = 'measurement_files'
@@ -265,8 +277,18 @@ OBSERVABLE_FILES = 'observable_files'
 #:
 VISUALIZATION_FILES = 'visualization_files'
 #:
+MAPPING_FILES = 'mapping_files'
+#:
 EXTENSIONS = 'extensions'
 
+
+# MAPPING
+#:
+PETAB_ENTITY_ID = 'petabEntityId'
+#:
+MODEL_ENTITY_ID = 'modelEntityId'
+#:
+MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
 # MORE
 

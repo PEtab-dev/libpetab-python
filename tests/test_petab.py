@@ -9,9 +9,8 @@ from pathlib import Path
 import libsbml
 import numpy as np
 import pandas as pd
-import pytest
-
 import petab
+import pytest
 from petab.C import *
 from petab.models.sbml_model import SbmlModel
 from yaml import safe_load
@@ -200,6 +199,15 @@ def test_startpoint_sampling(fujita_model_scaling):
     for sp in startpoints:
         assert np.log10(31.62) <= sp[0] <= np.log10(316.23)
         assert -3 <= sp[1] <= 3
+
+
+def test_startpoint_sampling_dict(fujita_model_scaling):
+    n_starts = 10
+    startpoints = fujita_model_scaling.sample_parameter_startpoints_dict(
+        n_starts)
+    assert len(startpoints) == n_starts
+    for startpoint in startpoints:
+        assert set(startpoint.keys()) == set(fujita_model_scaling.x_free_ids)
 
 
 def test_create_parameter_df(
@@ -593,7 +601,7 @@ def test_load_remote():
     """Test loading remote files"""
 
     yaml_url = "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite" \
-               "/master/petabtests/cases/0001/_0001.yaml"
+               "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     petab_problem = petab.Problem.from_yaml(yaml_url)
 
     assert petab_problem.sbml_model is not None
