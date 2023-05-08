@@ -83,6 +83,20 @@ def test_get_output_parameters():
 
     assert output_parameters == ['offset', 'scaling']
 
+    # test sympy-special symbols (e.g. N, beta, ...)
+    # see https://github.com/ICB-DCM/pyPESTO/issues/1048
+    observable_df = pd.DataFrame(data={
+        OBSERVABLE_ID: ['observable_1'],
+        OBSERVABLE_NAME: ['observable name 1'],
+        OBSERVABLE_FORMULA: ['observable_1 * N + beta'],
+        NOISE_FORMULA: [1],
+    }).set_index(OBSERVABLE_ID)
+
+    output_parameters = petab.get_output_parameters(
+        observable_df, SbmlModel(sbml_model=ss_model.model))
+
+    assert output_parameters == ['N', 'beta']
+
 
 def test_get_formula_placeholders():
     """Test get_formula_placeholders"""
