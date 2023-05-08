@@ -3,10 +3,11 @@
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Union, Literal
+from typing import List, Literal, Union
 
 import pandas as pd
 import sympy as sp
+from sympy.abc import _clash
 
 from . import core, lint
 from .C import *  # noqa: F403
@@ -97,7 +98,7 @@ def get_output_parameters(
     output_parameters = OrderedDict()
 
     for formula in formulas:
-        free_syms = sorted(sp.sympify(formula).free_symbols,
+        free_syms = sorted(sp.sympify(formula, locals=_clash).free_symbols,
                            key=lambda symbol: symbol.name)
         for free_sym in free_syms:
             sym = str(free_sym)
