@@ -83,7 +83,7 @@ class PySBModel(Model):
 
     def get_parameter_value(self, id_: str) -> float:
         try:
-            return self.model.parameters[id_].name
+            return self.model.parameters[id_].value
         except KeyError as e:
             raise ValueError(f"Parameter {id_} does not exist.") from e
 
