@@ -411,7 +411,7 @@ class Problem:
             if not isinstance(self.model, SbmlModel):
                 raise NotImplementedError("Saving non-SBML models is "
                                           "currently not supported.")
-            filenames['sbml_file'] = 'model.xml'
+            filenames['model_file'] = 'model.xml'
 
         filenames['yaml_file'] = 'problem.yaml'
 
@@ -542,7 +542,7 @@ class Problem:
 
         if yaml_file:
             yaml.create_problem_yaml(
-                sbml_files=sbml_file,
+                sbml_files=model_file,
                 condition_files=condition_file,
                 measurement_files=measurement_file,
                 parameter_file=parameter_file,
