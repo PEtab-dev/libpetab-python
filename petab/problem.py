@@ -542,7 +542,7 @@ class Problem:
 
         if yaml_file:
             yaml.create_problem_yaml(
-                sbml_files=sbml_file,
+                sbml_files=model_file,
                 condition_files=condition_file,
                 measurement_files=measurement_file,
                 parameter_file=parameter_file,
