@@ -411,7 +411,7 @@ class Problem:
             if not isinstance(self.model, SbmlModel):
                 raise NotImplementedError("Saving non-SBML models is "
                                           "currently not supported.")
-            filenames['sbml_file'] = 'model.xml'
+            filenames['model_file'] = 'model.xml'
 
         filenames['yaml_file'] = 'problem.yaml'
 
