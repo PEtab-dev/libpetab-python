@@ -2,6 +2,12 @@
 
 ## 0.2 series
 
+### 0.2.1
+
+Fixes:
+* Fixed an issue in `Problem.to_files(model_file=...)` (#204)
+* Fixed `PySBModel.get_parameter_value`, which incorrectly returned the parameter name instead of its value (#203)
+
 ### 0.2.0
 
 Note: petab 0.2.0 requires Python>=3.9
