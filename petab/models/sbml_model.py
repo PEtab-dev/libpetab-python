@@ -59,7 +59,7 @@ class SbmlModel(Model):
         self.__dict__.update(state)
 
     @staticmethod
-    def from_file(filepath_or_buffer, model_id: str):
+    def from_file(filepath_or_buffer, model_id: str = None):
         sbml_reader, sbml_document, sbml_model = get_sbml_model(
             filepath_or_buffer)
         return SbmlModel(
