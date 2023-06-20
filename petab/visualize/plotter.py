@@ -546,8 +546,8 @@ class MPLPlotter(Plotter):
                 p = None
                 if plotTypeData == REPLICATE:
                     replicates = measurements_data_to_plot_inf.repl
-                    if replicates.ndim == 1:
-                        replicates = np.expand_dims(replicates, axis=1)
+                    if replicates.ndim == 0:
+                        replicates = np.expand_dims(replicates, axis=0)
 
                     # plot first replicate
                     p = ax_inf.plot(
@@ -591,6 +591,8 @@ class MPLPlotter(Plotter):
 
             if plotTypeData == REPLICATE:
                 replicates = simulations_data_to_plot_inf.repl
+                if replicates.ndim == 0:
+                    replicates = np.expand_dims(replicates, axis=0)
 
                 # plot first replicate
                 p = ax_inf.plot(
