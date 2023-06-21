@@ -1,7 +1,17 @@
 """Test related to petab.models.model_pysb"""
 import pysb
+import pytest
+
 from petab.models.pysb_model import PySBModel, parse_species_name, \
     pattern_from_string
+
+
+@pytest.fixture(scope="function")
+def uses_pysb():
+    """Cleanup PySB auto-exported symbols before and after test"""
+    pysb.SelfExporter.cleanup()
+    yield ()
+    pysb.SelfExporter.cleanup()
 
 
 def test_parse_species_name():
@@ -32,7 +42,7 @@ def test_parse_species_name():
     # TODO: MultiState
 
 
-def test_pysb_model():
+def test_pysb_model(uses_pysb):
     model = pysb.Model()
     pysb.Compartment("c1")
     pysb.Monomer("A")
@@ -58,7 +68,7 @@ def test_pysb_model():
     assert petab_model.is_state_variable("A(s='a')") is False
 
 
-def test_pattern_parsing():
+def test_pattern_parsing(uses_pysb):
     model = pysb.Model()
     c1 = pysb.Compartment("c1")
     A = pysb.Monomer("A")

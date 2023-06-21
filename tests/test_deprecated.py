@@ -23,8 +23,11 @@ def test_problem_with_sbml_model():
             parameter_df=parameter_df,
         )
 
-    _, condition_model = petab.get_model_for_condition(
-        petab_problem, "condition_1")
+    with pytest.warns(UserWarning,
+                      match="An SBML rule was removed to set the component "
+                            "species_2 to a constant value."):
+        _, condition_model = petab.get_model_for_condition(
+            petab_problem, "condition_1")
 
     check_model(condition_model)
 
