@@ -2,6 +2,11 @@
 
 ## 0.2 series
 
+### 0.2.2
+
+* Fixed IndexError with numpy 1.25.0 by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/209
+* Made `SbmlModel.from_file(..., model_id)` optional by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/207
+
 ### 0.2.1
 
 Fixes:
