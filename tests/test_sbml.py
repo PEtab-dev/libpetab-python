@@ -1,7 +1,8 @@
-import sys
 import os
+import sys
 
 import pandas as pd
+import pytest
 
 sys.path.append(os.getcwd())
 import petab  # noqa: E402
@@ -88,7 +89,12 @@ def test_get_condition_specific_models():
     )
 
     # create SBML model for condition with parameters updated from problem
-    _, condition_model = petab.get_model_for_condition(
-        petab_problem, "condition_1")
+    with pytest.warns(
+            UserWarning,
+            match="An SBML rule was removed to set the "
+                  "component species_2 to a constant value."
+    ):
+        _, condition_model = petab.get_model_for_condition(
+            petab_problem, "condition_1")
 
     check_model(condition_model)
