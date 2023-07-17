@@ -124,7 +124,7 @@ def _apply_defaults(vis_df: pd.DataFrame):
         if column not in vis_df:
             vis_df[column] = value
         elif value is not None:
-            vis_df[column].fillna(value)
+            vis_df[column].fillna(value, inplace=True)
 
     set_default(C.PLOT_NAME, "")
     set_default(C.PLOT_TYPE_SIMULATION, C.LINE_PLOT)
