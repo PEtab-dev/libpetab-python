@@ -34,6 +34,4 @@ if mpl_spec is not None:
         "plot_goodness_of_fit",
         "plot_residuals_vs_simulation",
         "MPLPlotter",
-        "DataProvider",
-        "Figure"
     ])
