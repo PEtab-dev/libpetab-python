@@ -2,16 +2,29 @@
 
 ## 0.2 series
 
+### 0.2.3
+
+* Fixed validation failures in case of missing optional fields in visualization tables
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/214
+* Make validate_visualization_df work without matplotlib installation
+  by @dweindl @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/215
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.2...v0.2.3
+
 ### 0.2.2
 
 * Fixed IndexError with numpy 1.25.0 by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/209
 * Made `SbmlModel.from_file(..., model_id)` optional by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/207
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.1...v0.2.2
 
 ### 0.2.1
 
 Fixes:
 * Fixed an issue in `Problem.to_files(model_file=...)` (#204)
 * Fixed `PySBModel.get_parameter_value`, which incorrectly returned the parameter name instead of its value (#203)
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.0...v0.2.1
 
 ### 0.2.0
 
