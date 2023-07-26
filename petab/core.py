@@ -54,15 +54,25 @@ def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     df.to_csv(filename, sep='\t', index=False)
 
 
-def get_visualization_df(visualization_file: Union[str, Path]) -> pd.DataFrame:
+def get_visualization_df(
+        visualization_file: Union[str, Path, pd.DataFrame, None]
+) -> Union[pd.DataFrame, None]:
     """Read PEtab visualization table
 
     Arguments:
-        visualization_file: URL or filename of PEtab visualization table
+        visualization_file:
+            URL or filename of PEtab visualization table to read from,
+            or a DataFrame or None that will be returned as is.
 
     Returns:
         Visualization DataFrame
     """
+    if visualization_file is None:
+        return None
+
+    if isinstance(visualization_file, pd.DataFrame):
+        return visualization_file
+
     try:
         types = {PLOT_NAME: str}
         vis_spec = pd.read_csv(visualization_file, sep="\t", index_col=None,
