@@ -20,6 +20,8 @@ __all__ = ['DataSeries', 'DataPlot', 'Subplot', 'Figure', 'DataProvider',
 IdsList = List[str]
 NumList = List[int]
 
+# The default figure size
+DEFAULT_FIGSIZE = (20, 15)
 
 # also for type hints
 # TODO: split into dataplot and subplot level dicts?
@@ -262,7 +264,7 @@ class Figure:
     Contains information regarding how data should be visualized.
     """
     def __init__(self, subplots: Optional[List[Subplot]] = None,
-                 size: Tuple = (20, 15),
+                 size: Tuple = DEFAULT_FIGSIZE,
                  title: Optional[Tuple] = None):
         """
         Constructor.
