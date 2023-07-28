@@ -557,6 +557,11 @@ def test_parameter_properties(petab_problem):  # pylint: disable=W0621
     assert petab_problem.x_nominal_free_scaled == [7, np.log(8)]
     assert petab_problem.x_nominal_fixed_scaled == [np.log10(9)]
 
+    # Check that a missing nominalValues column is handled correctly
+    del petab_problem.parameter_df[NOMINAL_VALUE]
+    assert len(petab_problem.x_nominal) == 3
+    assert np.isnan(petab_problem.x_nominal).all()
+
 
 def test_to_float_if_float():
     to_float_if_float = petab.core.to_float_if_float

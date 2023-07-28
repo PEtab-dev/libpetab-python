@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from math import nan
 from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Union, TYPE_CHECKING
 from urllib.parse import unquote, urlparse, urlunparse
@@ -660,7 +661,11 @@ class Problem:
         -------
         The parameter nominal values.
         """
-        v = list(self.parameter_df[NOMINAL_VALUE])
+        if NOMINAL_VALUE in self.parameter_df:
+            v = list(self.parameter_df[NOMINAL_VALUE])
+        else:
+            v = [nan] * len(self.parameter_df)
+
         if scaled:
             v = list(parameters.map_scale(
                 v, self.parameter_df[PARAMETER_SCALE]))
