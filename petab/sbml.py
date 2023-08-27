@@ -14,21 +14,21 @@ import petab
 
 logger = logging.getLogger(__name__)
 __all__ = [
-    'get_model_for_condition',
-    'get_model_parameters',
-    'get_sbml_model',
-    'globalize_parameters',
-    'is_sbml_consistent',
-    'load_sbml_from_file',
-    'load_sbml_from_string',
-    'log_sbml_errors',
-    'write_sbml'
+    "get_model_for_condition",
+    "get_model_parameters",
+    "get_sbml_model",
+    "globalize_parameters",
+    "is_sbml_consistent",
+    "load_sbml_from_file",
+    "load_sbml_from_string",
+    "log_sbml_errors",
+    "write_sbml",
 ]
 
 
 def is_sbml_consistent(
-        sbml_document: libsbml.SBMLDocument,
-        check_units: bool = False,
+    sbml_document: libsbml.SBMLDocument,
+    check_units: bool = False,
 ) -> bool:
     """Check for SBML validity / consistency
 
@@ -42,20 +42,22 @@ def is_sbml_consistent(
 
     if not check_units:
         sbml_document.setConsistencyChecks(
-            libsbml.LIBSBML_CAT_UNITS_CONSISTENCY, False)
+            libsbml.LIBSBML_CAT_UNITS_CONSISTENCY, False
+        )
 
     has_problems = sbml_document.checkConsistency()
     if has_problems:
         log_sbml_errors(sbml_document)
         logger.warning(
-            'WARNING: Generated invalid SBML model. Check messages above.')
+            "WARNING: Generated invalid SBML model. Check messages above."
+        )
 
     return not has_problems
 
 
 def log_sbml_errors(
-        sbml_document: libsbml.SBMLDocument,
-        minimum_severity=libsbml.LIBSBML_SEV_WARNING,
+    sbml_document: libsbml.SBMLDocument,
+    minimum_severity=libsbml.LIBSBML_SEV_WARNING,
 ) -> None:
     """Log libsbml errors
 
@@ -74,13 +76,15 @@ def log_sbml_errors(
             category = error.getCategoryAsString()
             severity_str = error.getSeverityAsString()
             message = error.getMessage()
-            logger.log(severity_to_log_level.get(severity, logging.ERROR),
-                       f'libSBML {severity_str} ({category}): {message}')
+            logger.log(
+                severity_to_log_level.get(severity, logging.ERROR),
+                f"libSBML {severity_str} ({category}): {message}",
+            )
 
 
 def globalize_parameters(
-        sbml_model: libsbml.Model,
-        prepend_reaction_id: bool = False,
+    sbml_model: libsbml.Model,
+    prepend_reaction_id: bool = False,
 ) -> None:
     """Turn all local parameters into global parameters with the same
     properties
@@ -99,17 +103,19 @@ def globalize_parameters(
             Prepend reaction id of local parameter when
             creating global parameters
     """
-    warn("This function will be removed in future releases.",
-         DeprecationWarning)
+    warn(
+        "This function will be removed in future releases.", DeprecationWarning
+    )
 
     for reaction in sbml_model.getListOfReactions():
         law = reaction.getKineticLaw()
         # copy first so we can delete in the following loop
-        local_parameters = list(local_parameter for local_parameter
-                                in law.getListOfParameters())
+        local_parameters = list(
+            local_parameter for local_parameter in law.getListOfParameters()
+        )
         for lp in local_parameters:
             if prepend_reaction_id:
-                parameter_id = f'{reaction.getId()}_{lp.getId()}'
+                parameter_id = f"{reaction.getId()}_{lp.getId()}"
             else:
                 parameter_id = lp.getId()
 
@@ -126,7 +132,7 @@ def globalize_parameters(
 
 
 def get_model_parameters(
-        sbml_model: libsbml.Model, with_values=False
+    sbml_model: libsbml.Model, with_values=False
 ) -> Union[List[str], Dict[str, float]]:
     """Return SBML model parameters which are not Rule targets
 
@@ -139,17 +145,21 @@ def get_model_parameters(
             values.
     """
     if not with_values:
-        return [p.getId() for p in sbml_model.getListOfParameters()
-                if sbml_model.getRuleByVariable(p.getId()) is None]
-
-    return {p.getId(): p.getValue()
+        return [
+            p.getId()
             for p in sbml_model.getListOfParameters()
-            if sbml_model.getRuleByVariable(p.getId()) is None}
+            if sbml_model.getRuleByVariable(p.getId()) is None
+        ]
+
+    return {
+        p.getId(): p.getValue()
+        for p in sbml_model.getListOfParameters()
+        if sbml_model.getRuleByVariable(p.getId()) is None
+    }
 
 
 def write_sbml(
-        sbml_doc: libsbml.SBMLDocument,
-        filename: Union[Path, str]
+    sbml_doc: libsbml.SBMLDocument, filename: Union[Path, str]
 ) -> None:
     """Write PEtab visualization table
 
@@ -160,12 +170,14 @@ def write_sbml(
     sbml_writer = libsbml.SBMLWriter()
     ret = sbml_writer.writeSBMLToFile(sbml_doc, str(filename))
     if not ret:
-        raise RuntimeError(f"libSBML reported error {ret} when trying to "
-                           f"create SBML file {filename}.")
+        raise RuntimeError(
+            f"libSBML reported error {ret} when trying to "
+            f"create SBML file {filename}."
+        )
 
 
 def get_sbml_model(
-        filepath_or_buffer
+    filepath_or_buffer,
 ) -> Tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
     """Get an SBML model from file or URL or file handle
 
@@ -174,8 +186,8 @@ def get_sbml_model(
     :return: The SBML document, model and reader
     """
     if is_file_like(filepath_or_buffer) or is_url(filepath_or_buffer):
-        with get_handle(filepath_or_buffer, mode='r') as io_handle:
-            data = load_sbml_from_string(''.join(io_handle.handle))
+        with get_handle(filepath_or_buffer, mode="r") as io_handle:
+            data = load_sbml_from_string("".join(io_handle.handle))
         # URL or already opened file, we will load the model from a string
         return data
 
@@ -183,7 +195,7 @@ def get_sbml_model(
 
 
 def load_sbml_from_string(
-        sbml_string: str
+    sbml_string: str,
 ) -> Tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
     """Load SBML model from string
 
@@ -192,15 +204,14 @@ def load_sbml_from_string(
     """
 
     sbml_reader = libsbml.SBMLReader()
-    sbml_document = \
-        sbml_reader.readSBMLFromString(sbml_string)
+    sbml_document = sbml_reader.readSBMLFromString(sbml_string)
     sbml_model = sbml_document.getModel()
 
     return sbml_reader, sbml_document, sbml_model
 
 
 def load_sbml_from_file(
-        sbml_file: str
+    sbml_file: str,
 ) -> Tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
     """Load SBML model from file
 
@@ -215,9 +226,9 @@ def load_sbml_from_file(
 
 
 def get_model_for_condition(
-        petab_problem: "petab.Problem",
-        sim_condition_id: str = None,
-        preeq_condition_id: Optional[str] = None,
+    petab_problem: "petab.Problem",
+    sim_condition_id: str = None,
+    preeq_condition_id: Optional[str] = None,
 ) -> Tuple[libsbml.SBMLDocument, libsbml.Model]:
     """Create an SBML model for the given condition.
 
@@ -235,31 +246,35 @@ def get_model_for_condition(
     :return: The generated SBML document, and SBML model
     """
     from .models.sbml_model import SbmlModel
+
     assert isinstance(petab_problem.model, SbmlModel)
 
     condition_dict = {petab.SIMULATION_CONDITION_ID: sim_condition_id}
     if preeq_condition_id:
-        condition_dict[petab.PREEQUILIBRATION_CONDITION_ID] = \
-            preeq_condition_id
+        condition_dict[
+            petab.PREEQUILIBRATION_CONDITION_ID
+        ] = preeq_condition_id
     cur_measurement_df = petab.measurements.get_rows_for_condition(
         measurement_df=petab_problem.measurement_df,
         condition=condition_dict,
     )
-    parameter_map, scale_map = \
-        petab.parameter_mapping.get_parameter_mapping_for_condition(
-            condition_id=sim_condition_id,
-            is_preeq=False,
-            cur_measurement_df=cur_measurement_df,
-            model=petab_problem.model,
-            condition_df=petab_problem.condition_df,
-            parameter_df=petab_problem.parameter_df,
-            warn_unmapped=True,
-            scaled_parameters=False,
-            fill_fixed_parameters=True,
-            # will only become problematic once the observable and noise terms
-            #  are added to the model
-            allow_timepoint_specific_numeric_noise_parameters=True,
-        )
+    (
+        parameter_map,
+        scale_map,
+    ) = petab.parameter_mapping.get_parameter_mapping_for_condition(
+        condition_id=sim_condition_id,
+        is_preeq=False,
+        cur_measurement_df=cur_measurement_df,
+        model=petab_problem.model,
+        condition_df=petab_problem.condition_df,
+        parameter_df=petab_problem.parameter_df,
+        warn_unmapped=True,
+        scaled_parameters=False,
+        fill_fixed_parameters=True,
+        # will only become problematic once the observable and noise terms
+        #  are added to the model
+        allow_timepoint_specific_numeric_noise_parameters=True,
+    )
     # create a copy of the model
     sbml_doc = petab_problem.model.sbml_model.getSBMLDocument().clone()
     sbml_model = sbml_doc.getModel()
@@ -272,19 +287,23 @@ def get_model_for_condition(
             # Handle parametric initial concentrations
             with contextlib.suppress(KeyError):
                 return petab_problem.parameter_df.loc[
-                    parameter_id, petab.NOMINAL_VALUE]
+                    parameter_id, petab.NOMINAL_VALUE
+                ]
 
         if not isinstance(mapped_value, str):
             return mapped_value
 
         # estimated parameter, look up in nominal parameters
-        return petab_problem.parameter_df.loc[mapped_value,
-                                              petab.NOMINAL_VALUE]
+        return petab_problem.parameter_df.loc[
+            mapped_value, petab.NOMINAL_VALUE
+        ]
 
     def remove_rules(target_id: str):
         if sbml_model.removeRuleByVariable(target_id):
-            warn("An SBML rule was removed to set the component "
-                 f"{target_id} to a constant value.")
+            warn(
+                "An SBML rule was removed to set the component "
+                f"{target_id} to a constant value."
+            )
         sbml_model.removeInitialAssignment(target_id)
 
     for parameter in sbml_model.getListOfParameters():
@@ -305,14 +324,16 @@ def get_model_for_condition(
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
-            petab_problem.condition_df.loc[sim_condition_id, component_id])
+            petab_problem.condition_df.loc[sim_condition_id, component_id]
+        )
         if not isinstance(new_value, Number):
             # parameter reference in condition table
             new_value = get_param_value(new_value)
 
-        if sbml_species.isSetInitialAmount() \
-            or (sbml_species.getHasOnlySubstanceUnits()
-                and not sbml_species.isSetInitialConcentration()):
+        if sbml_species.isSetInitialAmount() or (
+            sbml_species.getHasOnlySubstanceUnits()
+            and not sbml_species.isSetInitialConcentration()
+        ):
             sbml_species.setInitialAmount(new_value)
         else:
             sbml_species.setInitialConcentration(new_value)
@@ -328,7 +349,8 @@ def get_model_for_condition(
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
-            petab_problem.condition_df.loc[sim_condition_id, component_id])
+            petab_problem.condition_df.loc[sim_condition_id, component_id]
+        )
         if not isinstance(new_value, Number):
             # parameter reference in condition table
             new_value = get_param_value(new_value)

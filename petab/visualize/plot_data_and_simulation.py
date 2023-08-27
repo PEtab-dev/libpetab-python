@@ -6,30 +6,26 @@ from typing import Dict, List, Optional, Union
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from .plotter import MPLPlotter
-from .plotting import VisSpecParser
 from .. import problem
 from ..C import *
+from .plotter import MPLPlotter
+from .plotting import VisSpecParser
 
 # for typehints
 IdsList = List[str]
 NumList = List[int]
 
-__all__ = [
-    "plot_with_vis_spec",
-    "plot_without_vis_spec",
-    "plot_problem"
-]
+__all__ = ["plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
 
 
 def plot_with_vis_spec(
-        vis_spec_df: Union[str, pd.DataFrame],
-        conditions_df: Union[str, pd.DataFrame],
-        measurements_df: Optional[Union[str, pd.DataFrame]] = None,
-        simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-        subplot_dir: Optional[str] = None,
-        plotter_type: str = 'mpl',
-        format_: str = 'png',
+    vis_spec_df: Union[str, pd.DataFrame],
+    conditions_df: Union[str, pd.DataFrame],
+    measurements_df: Optional[Union[str, pd.DataFrame]] = None,
+    simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+    subplot_dir: Optional[str] = None,
+    plotter_type: str = "mpl",
+    format_: str = "png",
 ) -> Optional[Dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. Specification of the visualization
@@ -64,32 +60,36 @@ def plot_with_vis_spec(
     """
 
     if measurements_df is None and simulations_df is None:
-        raise TypeError('Not enough arguments. Either measurements_data '
-                        'or simulations_data should be provided.')
+        raise TypeError(
+            "Not enough arguments. Either measurements_data "
+            "or simulations_data should be provided."
+        )
 
-    vis_spec_parser = VisSpecParser(conditions_df, measurements_df,
-                                    simulations_df)
+    vis_spec_parser = VisSpecParser(
+        conditions_df, measurements_df, simulations_df
+    )
     figure, dataprovider = vis_spec_parser.parse_from_vis_spec(vis_spec_df)
 
-    if plotter_type == 'mpl':
+    if plotter_type == "mpl":
         plotter = MPLPlotter(figure, dataprovider)
     else:
-        raise NotImplementedError('Currently, only visualization with '
-                                  'matplotlib is possible.')
+        raise NotImplementedError(
+            "Currently, only visualization with " "matplotlib is possible."
+        )
 
     return plotter.generate_figure(subplot_dir, format_=format_)
 
 
 def plot_without_vis_spec(
-        conditions_df: Union[str, pd.DataFrame],
-        grouping_list: Optional[List[IdsList]] = None,
-        group_by: str = 'observable',
-        measurements_df: Optional[Union[str, pd.DataFrame]] = None,
-        simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-        plotted_noise: str = MEAN_AND_SD,
-        subplot_dir: Optional[str] = None,
-        plotter_type: str = 'mpl',
-        format_: str = 'png',
+    conditions_df: Union[str, pd.DataFrame],
+    grouping_list: Optional[List[IdsList]] = None,
+    group_by: str = "observable",
+    measurements_df: Optional[Union[str, pd.DataFrame]] = None,
+    simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+    plotted_noise: str = MEAN_AND_SD,
+    subplot_dir: Optional[str] = None,
+    plotter_type: str = "mpl",
+    format_: str = "png",
 ) -> Optional[Dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. What exactly should be plotted is
@@ -135,32 +135,37 @@ def plot_without_vis_spec(
     """
 
     if measurements_df is None and simulations_df is None:
-        raise TypeError('Not enough arguments. Either measurements_data '
-                        'or simulations_data should be provided.')
+        raise TypeError(
+            "Not enough arguments. Either measurements_data "
+            "or simulations_data should be provided."
+        )
 
-    vis_spec_parser = VisSpecParser(conditions_df, measurements_df,
-                                    simulations_df)
+    vis_spec_parser = VisSpecParser(
+        conditions_df, measurements_df, simulations_df
+    )
 
     figure, dataprovider = vis_spec_parser.parse_from_id_list(
-        grouping_list, group_by, plotted_noise)
+        grouping_list, group_by, plotted_noise
+    )
 
-    if plotter_type == 'mpl':
+    if plotter_type == "mpl":
         plotter = MPLPlotter(figure, dataprovider)
     else:
-        raise NotImplementedError('Currently, only visualization with '
-                                  'matplotlib is possible.')
+        raise NotImplementedError(
+            "Currently, only visualization with " "matplotlib is possible."
+        )
 
     return plotter.generate_figure(subplot_dir, format_=format_)
 
 
 def plot_problem(
-        petab_problem: problem.Problem,
-        simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-        grouping_list: Optional[List[IdsList]] = None,
-        group_by: str = 'observable',
-        plotted_noise: str = MEAN_AND_SD,
-        subplot_dir: Optional[str] = None,
-        plotter_type: str = 'mpl'
+    petab_problem: problem.Problem,
+    simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+    grouping_list: Optional[List[IdsList]] = None,
+    group_by: str = "observable",
+    plotted_noise: str = MEAN_AND_SD,
+    subplot_dir: Optional[str] = None,
+    plotter_type: str = "mpl",
 ) -> Optional[Dict[str, plt.Subplot]]:
     """
     Visualization using petab problem.
@@ -200,17 +205,21 @@ def plot_problem(
     """
 
     if petab_problem.visualization_df is not None:
-        return plot_with_vis_spec(petab_problem.visualization_df,
-                                  petab_problem.condition_df,
-                                  petab_problem.measurement_df,
-                                  simulations_df,
-                                  subplot_dir,
-                                  plotter_type)
-    return plot_without_vis_spec(petab_problem.condition_df,
-                                 grouping_list,
-                                 group_by,
-                                 petab_problem.measurement_df,
-                                 simulations_df,
-                                 plotted_noise,
-                                 subplot_dir,
-                                 plotter_type)
+        return plot_with_vis_spec(
+            petab_problem.visualization_df,
+            petab_problem.condition_df,
+            petab_problem.measurement_df,
+            simulations_df,
+            subplot_dir,
+            plotter_type,
+        )
+    return plot_without_vis_spec(
+        petab_problem.condition_df,
+        grouping_list,
+        group_by,
+        petab_problem.measurement_df,
+        simulations_df,
+        plotted_noise,
+        subplot_dir,
+        plotter_type,
+    )

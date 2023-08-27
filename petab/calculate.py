@@ -10,21 +10,29 @@ import sympy
 from sympy.abc import _clash
 
 import petab
+
 from .C import *
 
-__all__ = ['calculate_residuals', 'calculate_residuals_for_table',
-           'get_symbolic_noise_formulas', 'evaluate_noise_formula',
-           'calculate_chi2', 'calculate_chi2_for_table_from_residuals',
-           'calculate_llh', 'calculate_llh_for_table', 'calculate_single_llh']
+__all__ = [
+    "calculate_residuals",
+    "calculate_residuals_for_table",
+    "get_symbolic_noise_formulas",
+    "evaluate_noise_formula",
+    "calculate_chi2",
+    "calculate_chi2_for_table_from_residuals",
+    "calculate_llh",
+    "calculate_llh_for_table",
+    "calculate_single_llh",
+]
 
 
 def calculate_residuals(
-        measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        normalize: bool = True,
-        scale: bool = True
+    measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    normalize: bool = True,
+    scale: bool = True,
 ) -> List[pd.DataFrame]:
     """Calculate residuals.
 
@@ -59,22 +67,28 @@ def calculate_residuals(
 
     # iterate over data frames
     residual_dfs = []
-    for (measurement_df, simulation_df, observable_df, parameter_df) in zip(
-            measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs):
+    for measurement_df, simulation_df, observable_df, parameter_df in zip(
+        measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs
+    ):
         residual_df = calculate_residuals_for_table(
-            measurement_df, simulation_df, observable_df, parameter_df,
-            normalize, scale)
+            measurement_df,
+            simulation_df,
+            observable_df,
+            parameter_df,
+            normalize,
+            scale,
+        )
         residual_dfs.append(residual_df)
     return residual_dfs
 
 
 def calculate_residuals_for_table(
-        measurement_df: pd.DataFrame,
-        simulation_df: pd.DataFrame,
-        observable_df: pd.DataFrame,
-        parameter_df: pd.DataFrame,
-        normalize: bool = True,
-        scale: bool = True
+    measurement_df: pd.DataFrame,
+    simulation_df: pd.DataFrame,
+    observable_df: pd.DataFrame,
+    parameter_df: pd.DataFrame,
+    normalize: bool = True,
+    scale: bool = True,
 ) -> pd.DataFrame:
     """
     Calculate residuals for a single measurement table.
@@ -82,7 +96,8 @@ def calculate_residuals_for_table(
     """
     # create residual df as copy of measurement df, change column
     residual_df = measurement_df.copy(deep=True).rename(
-        columns={MEASUREMENT: RESIDUAL})
+        columns={MEASUREMENT: RESIDUAL}
+    )
 
     # matching columns
     compared_cols = set(MEASUREMENT_DF_COLS)
@@ -97,8 +112,10 @@ def calculate_residuals_for_table(
     for irow, row in measurement_df.iterrows():
         measurement = row[MEASUREMENT]
         # look up in simulation df
-        masks = [(simulation_df[col] == row[col]) | petab.is_empty(row[col])
-                 for col in compared_cols]
+        masks = [
+            (simulation_df[col] == row[col]) | petab.is_empty(row[col])
+            for col in compared_cols
+        ]
         mask = reduce(lambda x, y: x & y, masks)
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
         if scale:
@@ -115,7 +132,8 @@ def calculate_residuals_for_table(
         if normalize:
             # look up noise standard deviation
             noise_value = evaluate_noise_formula(
-                row, noise_formulas, parameter_df, simulation)
+                row, noise_formulas, parameter_df, simulation
+            )
         residual /= noise_value
 
         # fill in value
@@ -145,10 +163,10 @@ def get_symbolic_noise_formulas(observable_df) -> Dict[str, sympy.Expr]:
 
 
 def evaluate_noise_formula(
-        measurement: pd.Series,
-        noise_formulas: Dict[str, sympy.Expr],
-        parameter_df: pd.DataFrame,
-        simulation: numbers.Number,
+    measurement: pd.Series,
+    noise_formulas: Dict[str, sympy.Expr],
+    parameter_df: pd.DataFrame,
+    simulation: numbers.Number,
 ) -> float:
     """Fill in parameters for `measurement` and evaluate noise_formula.
 
@@ -167,7 +185,8 @@ def evaluate_noise_formula(
 
     # extract measurement specific overrides
     observable_parameter_overrides = petab.split_parameter_replacement_list(
-        measurement.get(NOISE_PARAMETERS, None))
+        measurement.get(NOISE_PARAMETERS, None)
+    )
     # fill in measurement specific parameters
     overrides = {
         f"noiseParameter{i_obs_par + 1}_{observable_id}": obs_par
@@ -199,17 +218,18 @@ def evaluate_noise_formula(
             f"Cannot replace all parameters in noise formula {noise_value} "
             f"for observable {observable_id}. "
             f"Missing {noise_formula.free_symbols}. Note that model states "
-            "are currently not supported.") from e
+            "are currently not supported."
+        ) from e
     return noise_value
 
 
 def calculate_chi2(
-        measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        normalize: bool = True,
-        scale: bool = True
+    measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    normalize: bool = True,
+    scale: bool = True,
 ) -> float:
     """Calculate the chi2 value.
 
@@ -232,25 +252,31 @@ def calculate_chi2(
         The aggregated chi2 value.
     """
     residual_dfs = calculate_residuals(
-        measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs,
-        normalize, scale)
-    chi2s = [calculate_chi2_for_table_from_residuals(df)
-             for df in residual_dfs]
+        measurement_dfs,
+        simulation_dfs,
+        observable_dfs,
+        parameter_dfs,
+        normalize,
+        scale,
+    )
+    chi2s = [
+        calculate_chi2_for_table_from_residuals(df) for df in residual_dfs
+    ]
     return sum(chi2s)
 
 
 def calculate_chi2_for_table_from_residuals(
-        residual_df: pd.DataFrame,
+    residual_df: pd.DataFrame,
 ) -> float:
     """Compute chi2 value for a single residual table."""
-    return (np.array(residual_df[RESIDUAL])**2).sum()
+    return (np.array(residual_df[RESIDUAL]) ** 2).sum()
 
 
 def calculate_llh(
-        measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-        parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
 ) -> float:
     """Calculate total log likelihood.
 
@@ -279,19 +305,22 @@ def calculate_llh(
 
     # iterate over data frames
     llhs = []
-    for (measurement_df, simulation_df, observable_df, parameter_df) in zip(
-            measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs):
+    for measurement_df, simulation_df, observable_df, parameter_df in zip(
+        measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs
+    ):
         _llh = calculate_llh_for_table(
-            measurement_df, simulation_df, observable_df, parameter_df)
+            measurement_df, simulation_df, observable_df, parameter_df
+        )
         llhs.append(_llh)
     return sum(llhs)
 
 
 def calculate_llh_for_table(
-        measurement_df: pd.DataFrame,
-        simulation_df: pd.DataFrame,
-        observable_df: pd.DataFrame,
-        parameter_df: pd.DataFrame) -> float:
+    measurement_df: pd.DataFrame,
+    simulation_df: pd.DataFrame,
+    observable_df: pd.DataFrame,
+    parameter_df: pd.DataFrame,
+) -> float:
     """Calculate log-likelihood for one set of tables. For the arguments, see
     `calculate_llh`."""
     llhs = []
@@ -310,8 +339,10 @@ def calculate_llh_for_table(
         measurement = row[MEASUREMENT]
 
         # look up in simulation df
-        masks = [(simulation_df[col] == row[col]) | petab.is_empty(row[col])
-                 for col in compared_cols]
+        masks = [
+            (simulation_df[col] == row[col]) | petab.is_empty(row[col])
+            for col in compared_cols
+        ]
         mask = reduce(lambda x, y: x & y, masks)
 
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
@@ -323,23 +354,26 @@ def calculate_llh_for_table(
 
         # get noise standard deviation
         noise_value = evaluate_noise_formula(
-            row, noise_formulas, parameter_df, petab.scale(simulation, scale))
+            row, noise_formulas, parameter_df, petab.scale(simulation, scale)
+        )
 
         # get noise distribution
         noise_distribution = observable.get(NOISE_DISTRIBUTION, NORMAL)
 
         llh = calculate_single_llh(
-            measurement, simulation, scale, noise_distribution, noise_value)
+            measurement, simulation, scale, noise_distribution, noise_value
+        )
         llhs.append(llh)
     return sum(llhs)
 
 
 def calculate_single_llh(
-        measurement: float,
-        simulation: float,
-        scale: str,
-        noise_distribution: str,
-        noise_value: float) -> float:
+    measurement: float,
+    simulation: float,
+    scale: str,
+    noise_distribution: str,
+    noise_value: float,
+) -> float:
     """Calculate a single log likelihood.
 
     Arguments:
@@ -359,20 +393,28 @@ def calculate_single_llh(
 
     # go over the possible cases
     if noise_distribution == NORMAL and scale == LIN:
-        nllh = 0.5*log(2*pi*sigma**2) + 0.5*((s-m)/sigma)**2
+        nllh = 0.5 * log(2 * pi * sigma**2) + 0.5 * ((s - m) / sigma) ** 2
     elif noise_distribution == NORMAL and scale == LOG:
-        nllh = 0.5*log(2*pi*sigma**2*m**2) + 0.5*((log(s)-log(m))/sigma)**2
+        nllh = (
+            0.5 * log(2 * pi * sigma**2 * m**2)
+            + 0.5 * ((log(s) - log(m)) / sigma) ** 2
+        )
     elif noise_distribution == NORMAL and scale == LOG10:
-        nllh = 0.5*log(2*pi*sigma**2*m**2*log(10)**2) + \
-            0.5*((log10(s)-log10(m))/sigma)**2
+        nllh = (
+            0.5 * log(2 * pi * sigma**2 * m**2 * log(10) ** 2)
+            + 0.5 * ((log10(s) - log10(m)) / sigma) ** 2
+        )
     elif noise_distribution == LAPLACE and scale == LIN:
-        nllh = log(2*sigma) + abs((s-m)/sigma)
+        nllh = log(2 * sigma) + abs((s - m) / sigma)
     elif noise_distribution == LAPLACE and scale == LOG:
-        nllh = log(2*sigma*m) + abs((log(s)-log(m))/sigma)
+        nllh = log(2 * sigma * m) + abs((log(s) - log(m)) / sigma)
     elif noise_distribution == LAPLACE and scale == LOG10:
-        nllh = log(2*sigma*m*log(10)) + abs((log10(s)-log10(m))/sigma)
+        nllh = log(2 * sigma * m * log(10)) + abs(
+            (log10(s) - log10(m)) / sigma
+        )
     else:
         raise NotImplementedError(
             "Unsupported combination of noise_distribution and scale "
-            f"specified: {noise_distribution}, {scale}.")
+            f"specified: {noise_distribution}, {scale}."
+        )
     return -nllh

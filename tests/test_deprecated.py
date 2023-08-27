@@ -1,19 +1,25 @@
 """Check that deprecated functionality raises but still works."""
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
+
 import petab
 
-from .test_sbml import create_test_data, check_model
 from .test_petab import petab_problem  # noqa: F401
+from .test_sbml import check_model, create_test_data
 
 
 def test_problem_with_sbml_model():
     """Test that a problem can be correctly created from sbml model."""
     # retrieve test data
-    ss_model, condition_df, observable_df, measurement_df, parameter_df = \
-        create_test_data()
+    (
+        ss_model,
+        condition_df,
+        observable_df,
+        measurement_df,
+        parameter_df,
+    ) = create_test_data()
 
     with pytest.deprecated_call():
         petab_problem = petab.Problem(  # noqa: F811
@@ -23,11 +29,14 @@ def test_problem_with_sbml_model():
             parameter_df=parameter_df,
         )
 
-    with pytest.warns(UserWarning,
-                      match="An SBML rule was removed to set the component "
-                            "species_2 to a constant value."):
+    with pytest.warns(
+        UserWarning,
+        match="An SBML rule was removed to set the component "
+        "species_2 to a constant value.",
+    ):
         _, condition_model = petab.get_model_for_condition(
-            petab_problem, "condition_1")
+            petab_problem, "condition_1"
+        )
 
     check_model(condition_model)
 
@@ -57,5 +66,8 @@ def test_to_files_with_sbml_model(petab_problem):  # noqa: F811
         # exemplarily load some
         parameter_df = petab.get_parameter_df(parameter_file)
         same_nans = parameter_df.isna() == petab_problem.parameter_df.isna()
-        assert ((parameter_df == petab_problem.parameter_df) | same_nans) \
-            .all().all()
+        assert (
+            ((parameter_df == petab_problem.parameter_df) | same_nans)
+            .all()
+            .all()
+        )

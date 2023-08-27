@@ -1,10 +1,17 @@
 """PEtab core functions (or functions that don't fit anywhere else)"""
-from pathlib import Path
 import logging
 import os
 import re
+from pathlib import Path
 from typing import (
-    Iterable, Optional, Callable, Union, Any, Sequence, List, Dict,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Union,
 )
 from warnings import warn
 
@@ -15,12 +22,20 @@ from . import yaml
 from .C import *  # noqa: F403
 
 logger = logging.getLogger(__name__)
-__all__ = ['get_simulation_df', 'write_simulation_df', 'get_visualization_df',
-           'write_visualization_df', 'get_notnull_columns',
-           'flatten_timepoint_specific_output_overrides',
-           'concat_tables', 'to_float_if_float', 'is_empty',
-           'create_combine_archive', 'unique_preserve_order',
-           'unflatten_simulation_df']
+__all__ = [
+    "get_simulation_df",
+    "write_simulation_df",
+    "get_visualization_df",
+    "write_visualization_df",
+    "get_notnull_columns",
+    "flatten_timepoint_specific_output_overrides",
+    "concat_tables",
+    "to_float_if_float",
+    "is_empty",
+    "create_combine_archive",
+    "unique_preserve_order",
+    "unflatten_simulation_df",
+]
 
 POSSIBLE_GROUPVARS_FLATTENED_PROBLEM = [
     OBSERVABLE_ID,
@@ -40,8 +55,9 @@ def get_simulation_df(simulation_file: Union[str, Path]) -> pd.DataFrame:
     Returns:
         Simulation DataFrame
     """
-    return pd.read_csv(simulation_file, sep="\t", index_col=None,
-                       float_precision='round_trip')
+    return pd.read_csv(
+        simulation_file, sep="\t", index_col=None, float_precision="round_trip"
+    )
 
 
 def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
@@ -51,7 +67,7 @@ def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         df: PEtab simulation table
         filename: Destination file name
     """
-    df.to_csv(filename, sep='\t', index=False)
+    df.to_csv(filename, sep="\t", index=False)
 
 
 def get_visualization_df(visualization_file: Union[str, Path]) -> pd.DataFrame:
@@ -65,18 +81,24 @@ def get_visualization_df(visualization_file: Union[str, Path]) -> pd.DataFrame:
     """
     try:
         types = {PLOT_NAME: str}
-        vis_spec = pd.read_csv(visualization_file, sep="\t", index_col=None,
-                               converters=types,
-                               float_precision='round_trip')
+        vis_spec = pd.read_csv(
+            visualization_file,
+            sep="\t",
+            index_col=None,
+            converters=types,
+            float_precision="round_trip",
+        )
     except pd.errors.EmptyDataError:
-        warn("Visualization table is empty. Defaults will be used. "
-             "Refer to the documentation for details.")
+        warn(
+            "Visualization table is empty. Defaults will be used. "
+            "Refer to the documentation for details."
+        )
         vis_spec = pd.DataFrame()
     return vis_spec
 
 
 def write_visualization_df(
-        df: pd.DataFrame, filename: Union[str, Path]
+    df: pd.DataFrame, filename: Union[str, Path]
 ) -> None:
     """Write PEtab visualization table
 
@@ -84,7 +106,7 @@ def write_visualization_df(
         df: PEtab visualization table
         filename: Destination file name
     """
-    df.to_csv(filename, sep='\t', index=False)
+    df.to_csv(filename, sep="\t", index=False)
 
 
 def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
@@ -99,8 +121,9 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
         candidates:
             Columns of ``df`` to consider
     """
-    return [col for col in candidates
-            if col in df and not np.all(df[col].isnull())]
+    return [
+        col for col in candidates if col in df and not np.all(df[col].isnull())
+    ]
 
 
 def get_observable_replacement_id(groupvars, groupvar) -> str:
@@ -116,21 +139,24 @@ def get_observable_replacement_id(groupvars, groupvar) -> str:
     Returns:
         The observable replacement ID.
     """
-    replacement_id = ''
+    replacement_id = ""
     for field in POSSIBLE_GROUPVARS_FLATTENED_PROBLEM:
         if field in groupvars:
-            val = str(groupvar[groupvars.index(field)])\
-                .replace(PARAMETER_SEPARATOR, '_').replace('.', '_')
-            if replacement_id == '':
+            val = (
+                str(groupvar[groupvars.index(field)])
+                .replace(PARAMETER_SEPARATOR, "_")
+                .replace(".", "_")
+            )
+            if replacement_id == "":
                 replacement_id = val
-            elif val != '':
-                replacement_id += f'__{val}'
+            elif val != "":
+                replacement_id += f"__{val}"
     return replacement_id
 
 
 def get_hyperparameter_replacement_id(
-        hyperparameter_type,
-        observable_replacement_id,
+    hyperparameter_type,
+    observable_replacement_id,
 ):
     """Get the full ID for a replaced hyperparameter.
 
@@ -145,11 +171,11 @@ def get_hyperparameter_replacement_id(
         The hyperparameter replacement ID, with a field that will be replaced
         by the first matched substring in a regex substitution.
     """
-    return f'{hyperparameter_type}\\1_{observable_replacement_id}'
+    return f"{hyperparameter_type}\\1_{observable_replacement_id}"
 
 
 def get_flattened_id_mappings(
-    petab_problem: 'petab.problem.Problem',
+    petab_problem: "petab.problem.Problem",
 ) -> Dict[str, Dict[str, str]]:
     """Get mapping from unflattened to flattened observable IDs.
 
@@ -163,41 +189,48 @@ def get_flattened_id_mappings(
         for either: observable IDs; noise parameter IDs; or, observable
         parameter IDs.
     """
-    groupvars = get_notnull_columns(petab_problem.measurement_df,
-                                    POSSIBLE_GROUPVARS_FLATTENED_PROBLEM)
+    groupvars = get_notnull_columns(
+        petab_problem.measurement_df, POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
+    )
     mappings = {
         OBSERVABLE_ID: {},
         NOISE_PARAMETERS: {},
         OBSERVABLE_PARAMETERS: {},
     }
-    for groupvar, measurements in \
-            petab_problem.measurement_df.groupby(groupvars, dropna=False):
+    for groupvar, measurements in petab_problem.measurement_df.groupby(
+        groupvars, dropna=False
+    ):
         observable_id = groupvar[groupvars.index(OBSERVABLE_ID)]
-        observable_replacement_id = \
-            get_observable_replacement_id(groupvars, groupvar)
+        observable_replacement_id = get_observable_replacement_id(
+            groupvars, groupvar
+        )
 
-        logger.debug(f'Creating synthetic observable {observable_id}')
+        logger.debug(f"Creating synthetic observable {observable_id}")
         if observable_replacement_id in petab_problem.observable_df.index:
-            raise RuntimeError('could not create synthetic observables '
-                               f'since {observable_replacement_id} was '
-                               'already present in observable table')
+            raise RuntimeError(
+                "could not create synthetic observables "
+                f"since {observable_replacement_id} was "
+                "already present in observable table"
+            )
 
         mappings[OBSERVABLE_ID][observable_replacement_id] = observable_id
 
         for field, hyperparameter_type, target in [
-            (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
-            (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
+            (NOISE_PARAMETERS, "noiseParameter", NOISE_FORMULA),
+            (OBSERVABLE_PARAMETERS, "observableParameter", OBSERVABLE_FORMULA),
         ]:
             if field in measurements:
-                mappings[field][get_hyperparameter_replacement_id(
-                    hyperparameter_type=hyperparameter_type,
-                    observable_replacement_id=observable_replacement_id,
-                )] = fr'{hyperparameter_type}([0-9]+)_{observable_id}'
+                mappings[field][
+                    get_hyperparameter_replacement_id(
+                        hyperparameter_type=hyperparameter_type,
+                        observable_replacement_id=observable_replacement_id,
+                    )
+                ] = rf"{hyperparameter_type}([0-9]+)_{observable_id}"
     return mappings
 
 
 def flatten_timepoint_specific_output_overrides(
-        petab_problem: 'petab.problem.Problem',
+    petab_problem: "petab.problem.Problem",
 ) -> None:
     """Flatten timepoint-specific output parameter overrides.
 
@@ -215,31 +248,36 @@ def flatten_timepoint_specific_output_overrides(
     """
     new_measurement_dfs = []
     new_observable_dfs = []
-    groupvars = get_notnull_columns(petab_problem.measurement_df,
-                                    POSSIBLE_GROUPVARS_FLATTENED_PROBLEM)
+    groupvars = get_notnull_columns(
+        petab_problem.measurement_df, POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
+    )
 
     mappings = get_flattened_id_mappings(petab_problem)
 
-    for groupvar, measurements in \
-            petab_problem.measurement_df.groupby(groupvars, dropna=False):
+    for groupvar, measurements in petab_problem.measurement_df.groupby(
+        groupvars, dropna=False
+    ):
         obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
-        observable_replacement_id = \
-            get_observable_replacement_id(groupvars, groupvar)
+        observable_replacement_id = get_observable_replacement_id(
+            groupvars, groupvar
+        )
 
         observable = petab_problem.observable_df.loc[obs_id].copy()
         observable.name = observable_replacement_id
         for field, hyperparameter_type, target in [
-            (NOISE_PARAMETERS, 'noiseParameter', NOISE_FORMULA),
-            (OBSERVABLE_PARAMETERS, 'observableParameter', OBSERVABLE_FORMULA)
+            (NOISE_PARAMETERS, "noiseParameter", NOISE_FORMULA),
+            (OBSERVABLE_PARAMETERS, "observableParameter", OBSERVABLE_FORMULA),
         ]:
             if field in measurements:
-                hyperparameter_replacement_id = \
+                hyperparameter_replacement_id = (
                     get_hyperparameter_replacement_id(
                         hyperparameter_type=hyperparameter_type,
                         observable_replacement_id=observable_replacement_id,
                     )
-                hyperparameter_id = \
-                    mappings[field][hyperparameter_replacement_id]
+                )
+                hyperparameter_id = mappings[field][
+                    hyperparameter_replacement_id
+                ]
                 observable[target] = re.sub(
                     hyperparameter_id,
                     hyperparameter_replacement_id,
@@ -257,7 +295,7 @@ def flatten_timepoint_specific_output_overrides(
 
 def unflatten_simulation_df(
     simulation_df: pd.DataFrame,
-    petab_problem: 'petab.problem.Problem',
+    petab_problem: "petab.problem.Problem",
 ) -> None:
     """Unflatten simulations from a flattened PEtab problem.
 
@@ -276,20 +314,22 @@ def unflatten_simulation_df(
         The simulation dataframe for the unflattened PEtab problem.
     """
     mappings = get_flattened_id_mappings(petab_problem)
-    original_observable_ids = (
-        simulation_df[OBSERVABLE_ID]
-        .replace(mappings[OBSERVABLE_ID])
+    original_observable_ids = simulation_df[OBSERVABLE_ID].replace(
+        mappings[OBSERVABLE_ID]
     )
-    unflattened_simulation_df = simulation_df.assign(**{
-        OBSERVABLE_ID: original_observable_ids,
-    })
+    unflattened_simulation_df = simulation_df.assign(
+        **{
+            OBSERVABLE_ID: original_observable_ids,
+        }
+    )
     return unflattened_simulation_df
 
 
 def concat_tables(
-        tables: Union[str, Path, pd.DataFrame,
-                      Iterable[Union[pd.DataFrame, str, Path]]],
-        file_parser: Optional[Callable] = None
+    tables: Union[
+        str, Path, pd.DataFrame, Iterable[Union[pd.DataFrame, str, Path]]
+    ],
+    file_parser: Optional[Callable] = None,
 ) -> pd.DataFrame:
     """Concatenate DataFrames provided as DataFrames or filenames, and a parser
 
@@ -317,8 +357,11 @@ def concat_tables(
         if isinstance(tmp_df, (str, Path)):
             tmp_df = file_parser(tmp_df)
 
-        df = pd.concat([df, tmp_df], sort=False,
-                       ignore_index=isinstance(tmp_df.index, pd.RangeIndex))
+        df = pd.concat(
+            [df, tmp_df],
+            sort=False,
+            ignore_index=isinstance(tmp_df.index, pd.RangeIndex),
+        )
 
     return df
 
@@ -348,16 +391,16 @@ def is_empty(val) -> bool:
     Returns:
         Whether the field is to be considered empty.
     """
-    return val == '' or pd.isnull(val)
+    return val == "" or pd.isnull(val)
 
 
 def create_combine_archive(
-        yaml_file: Union[str, Path],
-        filename: Union[str, Path],
-        family_name: Optional[str] = None,
-        given_name: Optional[str] = None,
-        email: Optional[str] = None,
-        organization: Optional[str] = None,
+    yaml_file: Union[str, Path],
+    filename: Union[str, Path],
+    family_name: Optional[str] = None,
+    given_name: Optional[str] = None,
+    email: Optional[str] = None,
+    organization: Optional[str] = None,
 ) -> None:
     """Create COMBINE archive (https://co.mbine.org/documents/archive) based
     on PEtab YAML file.
@@ -381,7 +424,8 @@ def create_combine_archive(
     except ImportError:
         raise ImportError(
             "To use PEtab's COMBINE functionality, libcombine "
-            "(python-libcombine) must be installed.")
+            "(python-libcombine) must be installed."
+        )
 
     def _add_file_metadata(location: str, description: str = ""):
         """Add metadata to the added file"""
@@ -389,7 +433,8 @@ def create_combine_archive(
         omex_description.setAbout(location)
         omex_description.setDescription(description)
         omex_description.setCreated(
-            libcombine.OmexDescription.getCurrentDateAndTime())
+            libcombine.OmexDescription.getCurrentDateAndTime()
+        )
         archive.addMetadata(location, omex_description)
 
     archive = libcombine.CombineArchive()
@@ -399,24 +444,25 @@ def create_combine_archive(
         str(yaml_file),
         os.path.basename(yaml_file),
         "http://identifiers.org/combine.specifications/petab.version-1",
-        True
+        True,
     )
-    _add_file_metadata(location=os.path.basename(yaml_file),
-                       description="PEtab YAML file")
+    _add_file_metadata(
+        location=os.path.basename(yaml_file), description="PEtab YAML file"
+    )
 
     # Add parameter file(s) that describe a single parameter table.
     # Works for a single file name, or a list of file names.
-    for parameter_subset_file in (
-            list(np.array(yaml_config[PARAMETER_FILE]).flat)):
+    for parameter_subset_file in list(
+        np.array(yaml_config[PARAMETER_FILE]).flat
+    ):
         archive.addFile(
             os.path.join(path_prefix, parameter_subset_file),
             parameter_subset_file,
             libcombine.KnownFormats.lookupFormat("tsv"),
-            False
+            False,
         )
         _add_file_metadata(
-            location=parameter_subset_file,
-            description="PEtab parameter file"
+            location=parameter_subset_file, description="PEtab parameter file"
         )
 
     for problem in yaml_config[PROBLEMS]:
@@ -425,12 +471,16 @@ def create_combine_archive(
                 os.path.join(path_prefix, sbml_file),
                 sbml_file,
                 libcombine.KnownFormats.lookupFormat("sbml"),
-                False
+                False,
             )
             _add_file_metadata(location=sbml_file, description="SBML model")
 
-        for field in [MEASUREMENT_FILES, OBSERVABLE_FILES,
-                      VISUALIZATION_FILES, CONDITION_FILES]:
+        for field in [
+            MEASUREMENT_FILES,
+            OBSERVABLE_FILES,
+            VISUALIZATION_FILES,
+            CONDITION_FILES,
+        ]:
             if field not in problem:
                 continue
 
@@ -439,11 +489,12 @@ def create_combine_archive(
                     os.path.join(path_prefix, file),
                     file,
                     libcombine.KnownFormats.lookupFormat("tsv"),
-                    False
+                    False,
                 )
                 desc = field.split("_")[0]
-                _add_file_metadata(location=file,
-                                   description=f"PEtab {desc} file")
+                _add_file_metadata(
+                    location=file, description=f"PEtab {desc} file"
+                )
 
     # Add archive metadata
     description = libcombine.OmexDescription()
