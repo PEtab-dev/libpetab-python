@@ -26,6 +26,7 @@ def test_get_parametric_overrides():
 
     assert conditions.get_parametric_overrides(condition_df) == []
 
+    condition_df['fixedParameter1'] = condition_df['fixedParameter1'].astype("object")
     condition_df.loc[0, 'fixedParameter1'] = 'parameterId'
 
     assert conditions.get_parametric_overrides(condition_df) == ['parameterId']
