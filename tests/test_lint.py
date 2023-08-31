@@ -469,7 +469,7 @@ def test_check_parameter_df():
         LOWER_BOUND: [1e-5, 1e-6, 1e-7],
         UPPER_BOUND: [1e5, 1e6, 1e7]
     }).set_index(PARAMETER_ID)
-
+    parameter_df[NOMINAL_VALUE] = parameter_df[NOMINAL_VALUE].astype("object")
     lint.check_parameter_df(df=parameter_df)
 
     # NOMINAL_VALUE empty, for non-estimated parameter

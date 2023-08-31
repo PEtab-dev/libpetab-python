@@ -73,11 +73,11 @@ def condition_parameters_to_parameter_table(problem: Problem):
             continue
 
         series = problem.condition_df[parameter_id]
-        value = petab.to_float_if_float(series[0])
+        value = petab.to_float_if_float(series.iloc[0])
 
         # same value for all conditions and no parametric overrides (str)?
         if isinstance(value, float) and len(series.unique()) == 1:
-            replacements[parameter_id] = series[0]
+            replacements[parameter_id] = series.iloc[0]
 
     if not replacements:
         return
