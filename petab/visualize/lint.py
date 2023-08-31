@@ -142,6 +142,8 @@ def _apply_defaults(vis_df: pd.DataFrame):
         if column not in vis_df:
             vis_df[column] = value
         elif value is not None:
+            if isinstance(value, str):
+                vis_df[column] = vis_df[column].astype("object")
             vis_df[column].fillna(value, inplace=True)
 
     set_default(C.PLOT_NAME, "")

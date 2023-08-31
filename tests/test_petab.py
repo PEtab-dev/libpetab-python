@@ -27,6 +27,9 @@ def condition_df_2_conditions():
         }
     )
     condition_df.set_index("conditionId", inplace=True)
+    condition_df.fixedParameter1 = condition_df.fixedParameter1.astype(
+        "object"
+    )
     return condition_df
 
 

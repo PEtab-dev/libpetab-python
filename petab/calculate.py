@@ -98,7 +98,7 @@ def calculate_residuals_for_table(
     residual_df = measurement_df.copy(deep=True).rename(
         columns={MEASUREMENT: RESIDUAL}
     )
-
+    residual_df[RESIDUAL] = residual_df[RESIDUAL].astype("float64")
     # matching columns
     compared_cols = set(MEASUREMENT_DF_COLS)
     compared_cols -= {MEASUREMENT}
