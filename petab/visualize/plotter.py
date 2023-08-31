@@ -1,20 +1,19 @@
 """PEtab visualization plotter classes"""
 import os
-
-import matplotlib.axes
-import numpy as np
-import pandas as pd
-
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
+
+import matplotlib.axes
+import matplotlib.ticker as mtick
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.ticker as mtick
 
-from .plotting import (Figure, DataProvider, Subplot, DataPlot, DataSeries)
 from ..C import *
+from .plotting import DataPlot, DataProvider, DataSeries, Figure, Subplot
 
-__all__ = ['Plotter', 'MPLPlotter', 'SeabornPlotter']
+__all__ = ["Plotter", "MPLPlotter", "SeabornPlotter"]
 
 
 class Plotter(ABC):
@@ -30,14 +29,14 @@ class Plotter(ABC):
     data_provider:
         Data provider
     """
+
     def __init__(self, figure: Figure, data_provider: DataProvider):
         self.figure = figure
         self.data_provider = data_provider
 
     @abstractmethod
     def generate_figure(
-            self,
-            subplot_dir: Optional[str] = None
+        self, subplot_dir: Optional[str] = None
     ) -> Optional[Dict[str, plt.Subplot]]:
         pass
 
@@ -46,6 +45,7 @@ class MPLPlotter(Plotter):
     """
     Matplotlib wrapper
     """
+
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
@@ -63,19 +63,19 @@ class MPLPlotter(Plotter):
             Name of corresponding column
         """
         if plot_type_data == MEAN_AND_SD:
-            return 'sd'
+            return "sd"
         if plot_type_data == MEAN_AND_SEM:
-            return 'sem'
+            return "sem"
         if plot_type_data == PROVIDED:
-            return 'noise_model'
+            return "noise_model"
         return None
 
     def generate_lineplot(
-            self,
-            ax: matplotlib.axes.Axes,
-            dataplot: DataPlot,
-            plotTypeData: str,
-            splitaxes_params: dict
+        self,
+        ax: matplotlib.axes.Axes,
+        dataplot: DataPlot,
+        plotTypeData: str,
+        splitaxes_params: dict,
     ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Generate lineplot.
@@ -94,28 +94,35 @@ class MPLPlotter(Plotter):
 
         """
         simu_color = None
-        measurements_to_plot, simulations_to_plot = \
-            self.data_provider.get_data_to_plot(dataplot,
-                                                plotTypeData == PROVIDED)
+        (
+            measurements_to_plot,
+            simulations_to_plot,
+        ) = self.data_provider.get_data_to_plot(
+            dataplot, plotTypeData == PROVIDED
+        )
         noise_col = self._error_column_for_plot_type_data(plotTypeData)
 
         label_base = dataplot.legendEntry
 
         # check if t_inf is there
         # todo: if only t_inf, adjust appearance for that case
-        plot_at_t_inf = (measurements_to_plot is not None and
-                         measurements_to_plot.inf_point) or (
-                simulations_to_plot is not None and
-                simulations_to_plot.inf_point)
+        plot_at_t_inf = (
+            measurements_to_plot is not None and measurements_to_plot.inf_point
+        ) or (
+            simulations_to_plot is not None and simulations_to_plot.inf_point
+        )
 
-        if measurements_to_plot is not None \
-                and not measurements_to_plot.data_to_plot.empty:
+        if (
+            measurements_to_plot is not None
+            and not measurements_to_plot.data_to_plot.empty
+        ):
             # plotting all measurement data
 
             p = None
             if plotTypeData == REPLICATE:
                 replicates = np.stack(
-                    measurements_to_plot.data_to_plot.repl.values)
+                    measurements_to_plot.data_to_plot.repl.values
+                )
                 if replicates.ndim == 1:
                     replicates = np.expand_dims(replicates, axis=1)
 
@@ -123,26 +130,34 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     measurements_to_plot.conditions,
                     replicates[:, 0],
-                    linestyle='-.',
-                    marker='x', markersize=10, label=label_base
+                    linestyle="-.",
+                    marker="x",
+                    markersize=10,
+                    label=label_base,
                 )
 
                 # plot other replicates with the same color
                 ax.plot(
                     measurements_to_plot.conditions,
                     replicates[:, 1:],
-                    linestyle='-.',
-                    marker='x', markersize=10, color=p[0].get_color()
+                    linestyle="-.",
+                    marker="x",
+                    markersize=10,
+                    color=p[0].get_color(),
                 )
 
             # construct errorbar-plots: noise specified above
             else:
                 # sorts according to ascending order of conditions
-                scond, smean, snoise = \
-                    zip(*sorted(zip(
-                        measurements_to_plot.conditions,
-                        measurements_to_plot.data_to_plot['mean'],
-                        measurements_to_plot.data_to_plot[noise_col])))
+                scond, smean, snoise = zip(
+                    *sorted(
+                        zip(
+                            measurements_to_plot.conditions,
+                            measurements_to_plot.data_to_plot["mean"],
+                            measurements_to_plot.data_to_plot[noise_col],
+                        )
+                    )
+                )
 
                 if np.inf in scond:
                     # remove inf point
@@ -153,8 +168,12 @@ class MPLPlotter(Plotter):
                 if len(scond) > 0 and len(smean) > 0 and len(snoise) > 0:
                     # if only t=inf there will be nothing to plot
                     p = ax.errorbar(
-                        scond, smean, snoise,
-                        linestyle='-.', marker='.', label=label_base
+                        scond,
+                        smean,
+                        snoise,
+                        linestyle="-.",
+                        marker=".",
+                        label=label_base,
                     )
 
             # simulations should have the same colors if both measurements
@@ -162,23 +181,37 @@ class MPLPlotter(Plotter):
             simu_color = p[0].get_color() if p else None
 
         # construct simulation plot
-        if simulations_to_plot is not None \
-                and not simulations_to_plot.data_to_plot.empty:
+        if (
+            simulations_to_plot is not None
+            and not simulations_to_plot.data_to_plot.empty
+        ):
             # markers will be displayed only for points that have measurement
             # counterpart
             if measurements_to_plot is not None:
-                meas_conditions = measurements_to_plot.conditions.to_numpy() \
-                    if isinstance(measurements_to_plot.conditions, pd.Series) \
+                meas_conditions = (
+                    measurements_to_plot.conditions.to_numpy()
+                    if isinstance(measurements_to_plot.conditions, pd.Series)
                     else measurements_to_plot.conditions
-                every = [condition in meas_conditions
-                         for condition in simulations_to_plot.conditions]
+                )
+                every = [
+                    condition in meas_conditions
+                    for condition in simulations_to_plot.conditions
+                ]
             else:
                 every = None
 
             # sorts according to ascending order of conditions
-            xs, ys = map(list, zip(*sorted(zip(
-                simulations_to_plot.conditions,
-                simulations_to_plot.data_to_plot['mean']))))
+            xs, ys = map(
+                list,
+                zip(
+                    *sorted(
+                        zip(
+                            simulations_to_plot.conditions,
+                            simulations_to_plot.data_to_plot["mean"],
+                        )
+                    )
+                ),
+            )
 
             if np.inf in xs:
                 # remove inf point
@@ -188,8 +221,13 @@ class MPLPlotter(Plotter):
 
             if len(xs) > 0 and len(ys) > 0:
                 p = ax.plot(
-                    xs, ys, linestyle='-', marker='o', markevery=every,
-                    label=label_base + " simulation", color=simu_color
+                    xs,
+                    ys,
+                    linestyle="-",
+                    marker="o",
+                    markevery=every,
+                    label=label_base + " simulation",
+                    color=simu_color,
                 )
                 # lines at t=inf should have the same colors also in case
                 # only simulations are plotted
@@ -197,23 +235,24 @@ class MPLPlotter(Plotter):
 
         # plot inf points
         if plot_at_t_inf:
-            ax, splitaxes_params['ax_inf'] = self._line_plot_at_t_inf(
-                ax, plotTypeData,
+            ax, splitaxes_params["ax_inf"] = self._line_plot_at_t_inf(
+                ax,
+                plotTypeData,
                 measurements_to_plot,
                 simulations_to_plot,
                 noise_col,
                 label_base,
                 splitaxes_params,
-                color=simu_color
+                color=simu_color,
             )
 
-        return ax, splitaxes_params['ax_inf']
+        return ax, splitaxes_params["ax_inf"]
 
     def generate_barplot(
-            self,
-            ax: 'matplotlib.pyplot.Axes',
-            dataplot: DataPlot,
-            plotTypeData: str
+        self,
+        ax: "matplotlib.pyplot.Axes",
+        dataplot: DataPlot,
+        plotTypeData: str,
     ) -> None:
         """
         Generate barplot.
@@ -230,41 +269,54 @@ class MPLPlotter(Plotter):
         # TODO: plotTypeData == REPLICATE?
         noise_col = self._error_column_for_plot_type_data(plotTypeData)
 
-        measurements_to_plot, simulations_to_plot = \
-            self.data_provider.get_data_to_plot(dataplot,
-                                                plotTypeData == PROVIDED)
+        (
+            measurements_to_plot,
+            simulations_to_plot,
+        ) = self.data_provider.get_data_to_plot(
+            dataplot, plotTypeData == PROVIDED
+        )
 
         x_name = dataplot.legendEntry
 
         if simulations_to_plot:
             bar_kwargs = {
-                'align': 'edge',
-                'width': -1/3,
+                "align": "edge",
+                "width": -1 / 3,
             }
         else:
             bar_kwargs = {
-                'align': 'center',
-                'width': 2/3,
+                "align": "center",
+                "width": 2 / 3,
             }
 
         color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
 
         if measurements_to_plot is not None:
-            ax.bar(x_name, measurements_to_plot.data_to_plot['mean'],
-                   yerr=measurements_to_plot.data_to_plot[noise_col],
-                   color=color, **bar_kwargs, label='measurement')
+            ax.bar(
+                x_name,
+                measurements_to_plot.data_to_plot["mean"],
+                yerr=measurements_to_plot.data_to_plot[noise_col],
+                color=color,
+                **bar_kwargs,
+                label="measurement",
+            )
 
         if simulations_to_plot is not None:
-            bar_kwargs['width'] = -bar_kwargs['width']
-            ax.bar(x_name, simulations_to_plot.data_to_plot['mean'],
-                   color='white', edgecolor=color, **bar_kwargs,
-                   label='simulation')
+            bar_kwargs["width"] = -bar_kwargs["width"]
+            ax.bar(
+                x_name,
+                simulations_to_plot.data_to_plot["mean"],
+                color="white",
+                edgecolor=color,
+                **bar_kwargs,
+                label="simulation",
+            )
 
     def generate_scatterplot(
-            self,
-            ax: 'matplotlib.pyplot.Axes',
-            dataplot: DataPlot,
-            plotTypeData: str
+        self,
+        ax: "matplotlib.pyplot.Axes",
+        dataplot: DataPlot,
+        plotTypeData: str,
     ) -> None:
         """
         Generate scatterplot.
@@ -278,23 +330,30 @@ class MPLPlotter(Plotter):
         plotTypeData:
             Specifies how replicates should be handled.
         """
-        measurements_to_plot, simulations_to_plot = \
-            self.data_provider.get_data_to_plot(dataplot,
-                                                plotTypeData == PROVIDED)
+        (
+            measurements_to_plot,
+            simulations_to_plot,
+        ) = self.data_provider.get_data_to_plot(
+            dataplot, plotTypeData == PROVIDED
+        )
 
         if simulations_to_plot is None or measurements_to_plot is None:
-            raise NotImplementedError('Both measurements and simulation data '
-                                      'are needed for scatter plots')
-        ax.scatter(measurements_to_plot.data_to_plot['mean'],
-                   simulations_to_plot.data_to_plot['mean'],
-                   label=getattr(dataplot, LEGEND_ENTRY))
+            raise NotImplementedError(
+                "Both measurements and simulation data "
+                "are needed for scatter plots"
+            )
+        ax.scatter(
+            measurements_to_plot.data_to_plot["mean"],
+            simulations_to_plot.data_to_plot["mean"],
+            label=getattr(dataplot, LEGEND_ENTRY),
+        )
         self._square_plot_equal_ranges(ax)
 
     def generate_subplot(
-            self,
-            fig: matplotlib.figure.Figure,
-            ax: matplotlib.axes.Axes,
-            subplot: Subplot
+        self,
+        fig: matplotlib.figure.Figure,
+        ax: matplotlib.axes.Axes,
+        subplot: Subplot,
     ) -> None:
         """
         Generate subplot based on markup provided by subplot.
@@ -344,7 +403,7 @@ class MPLPlotter(Plotter):
             elif subplot.xScale == LOG:
                 ax.set_xscale("log", base=np.e)
             # equidistant
-            elif subplot.xScale == 'order':
+            elif subplot.xScale == "order":
                 ax.set_xscale("linear")
                 # check if conditions are monotone decreasing or increasing
                 if np.all(np.diff(subplot.conditions) < 0):
@@ -357,22 +416,28 @@ class MPLPlotter(Plotter):
                     conditions = range(len(subplot.conditions))
                     ax.set_xticks(range(len(conditions)), xlabel)
                 else:
-                    raise ValueError('Error: x-conditions do not coincide, '
-                                     'some are mon. increasing, some '
-                                     'monotonically decreasing')
+                    raise ValueError(
+                        "Error: x-conditions do not coincide, "
+                        "some are mon. increasing, some "
+                        "monotonically decreasing"
+                    )
 
             splitaxes_params = self._preprocess_splitaxes(fig, ax, subplot)
             for data_plot in subplot.data_plots:
-                ax, splitaxes_params['ax_inf'] = self.generate_lineplot(
-                    ax, data_plot, subplot.plotTypeData,
-                    splitaxes_params=splitaxes_params)
-            if splitaxes_params['ax_inf'] is not None:
-                self._postprocess_splitaxes(ax, splitaxes_params['ax_inf'],
-                                            splitaxes_params['t_inf'])
+                ax, splitaxes_params["ax_inf"] = self.generate_lineplot(
+                    ax,
+                    data_plot,
+                    subplot.plotTypeData,
+                    splitaxes_params=splitaxes_params,
+                )
+            if splitaxes_params["ax_inf"] is not None:
+                self._postprocess_splitaxes(
+                    ax, splitaxes_params["ax_inf"], splitaxes_params["t_inf"]
+                )
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
-            return r'$e^{{{:.0f}}}$'.format(np.log(y))
+            return r"$e^{{{:.0f}}}$".format(np.log(y))
 
         if subplot.xScale == LOG:
             ax.xaxis.set_major_formatter(mtick.FuncFormatter(ticks))
@@ -393,9 +458,9 @@ class MPLPlotter(Plotter):
         ax.set_ylabel(subplot.yLabel)
 
     def generate_figure(
-            self,
-            subplot_dir: Optional[str] = None,
-            format_: str = 'png',
+        self,
+        subplot_dir: Optional[str] = None,
+        format_: str = "png",
     ) -> Optional[Dict[str, plt.Subplot]]:
         """
         Generate the full figure based on the markup in the figure attribute.
@@ -421,15 +486,17 @@ class MPLPlotter(Plotter):
             num_row = int(np.round(np.sqrt(self.figure.num_subplots)))
             num_col = int(np.ceil(self.figure.num_subplots / num_row))
 
-            fig, axes = plt.subplots(num_row, num_col, squeeze=False,
-                                     figsize=self.figure.size)
+            fig, axes = plt.subplots(
+                num_row, num_col, squeeze=False, figsize=self.figure.size
+            )
             fig.set_layout_engine("tight")
 
-            for ax in axes.flat[self.figure.num_subplots:]:
+            for ax in axes.flat[self.figure.num_subplots :]:
                 ax.remove()
 
-            axes = dict(zip([plot.plotId for plot in self.figure.subplots],
-                            axes.flat))
+            axes = dict(
+                zip([plot.plotId for plot in self.figure.subplots], axes.flat)
+            )
 
         for subplot in self.figure.subplots:
             if subplot_dir is not None:
@@ -442,13 +509,15 @@ class MPLPlotter(Plotter):
                 self.generate_subplot(fig, ax, subplot)
             except Exception as e:
                 raise RuntimeError(
-                    f"Error plotting {getattr(subplot, PLOT_ID)}.") from e
+                    f"Error plotting {getattr(subplot, PLOT_ID)}."
+                ) from e
 
             if subplot_dir is not None:
                 # TODO: why this doesn't work?
                 plt.tight_layout()
-                plt.savefig(os.path.join(subplot_dir,
-                                         f'{subplot.plotId}.{format_}'))
+                plt.savefig(
+                    os.path.join(subplot_dir, f"{subplot.plotId}.{format_}")
+                )
                 plt.close()
 
         if subplot_dir is None:
@@ -458,9 +527,8 @@ class MPLPlotter(Plotter):
 
     @staticmethod
     def _square_plot_equal_ranges(
-            ax: 'matplotlib.pyplot.Axes',
-            lim: Optional[Union[List, Tuple]] = None
-    ) -> 'matplotlib.pyplot.Axes':
+        ax: "matplotlib.pyplot.Axes", lim: Optional[Union[List, Tuple]] = None
+    ) -> "matplotlib.pyplot.Axes":
         """
         Square plot with equal range for scatter plots.
 
@@ -469,13 +537,12 @@ class MPLPlotter(Plotter):
             Updated axis object.
         """
 
-        ax.axis('square')
+        ax.axis("square")
 
         if lim is None:
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
-            lim = [np.min([xlim[0], ylim[0]]),
-                   np.max([xlim[1], ylim[1]])]
+            lim = [np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]])]
 
         ax.set_xlim(lim)
         ax.set_ylim(lim)
@@ -494,7 +561,7 @@ class MPLPlotter(Plotter):
         noise_col: str,
         label_base: str,
         split_axes_params: dict,
-        color=None
+        color=None,
     ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Plot data at t=inf.
@@ -527,20 +594,23 @@ class MPLPlotter(Plotter):
         Two axis objects: for the data corresponding to the finite timepoints
         and for the data corresponding to t=inf
         """
-        ax_inf = split_axes_params['ax_inf']
-        t_inf = split_axes_params['t_inf']
-        ax_finite_right_limit = split_axes_params['ax_finite_right_limit']
-        ax_left_limit = split_axes_params['ax_left_limit']
+        ax_inf = split_axes_params["ax_inf"]
+        t_inf = split_axes_params["t_inf"]
+        ax_finite_right_limit = split_axes_params["ax_finite_right_limit"]
+        ax_left_limit = split_axes_params["ax_left_limit"]
 
-        timepoints_inf = [ax_finite_right_limit,
-                          t_inf,
-                          ax_finite_right_limit +
-                          (ax_finite_right_limit - ax_left_limit) * 0.2]
+        timepoints_inf = [
+            ax_finite_right_limit,
+            t_inf,
+            ax_finite_right_limit
+            + (ax_finite_right_limit - ax_left_limit) * 0.2,
+        ]
 
         # plot measurements
         if measurements_to_plot is not None and measurements_to_plot.inf_point:
-            measurements_data_to_plot_inf = \
+            measurements_data_to_plot_inf = (
                 measurements_to_plot.data_to_plot.loc[np.inf]
+            )
 
             if plotTypeData == REPLICATE:
                 p = None
@@ -552,30 +622,43 @@ class MPLPlotter(Plotter):
                     # plot first replicate
                     p = ax_inf.plot(
                         timepoints_inf,
-                        [replicates[0]]*3,
-                        linestyle='-.', marker='x', markersize=10,
-                        markevery=[1], label=label_base + " simulation",
-                        color=color
+                        [replicates[0]] * 3,
+                        linestyle="-.",
+                        marker="x",
+                        markersize=10,
+                        markevery=[1],
+                        label=label_base + " simulation",
+                        color=color,
                     )
 
                     # plot other replicates with the same color
                     ax_inf.plot(
                         timepoints_inf,
-                        [replicates[1:]]*3,
-                        linestyle='-.',
-                        marker='x', markersize=10, markevery=[1],
-                        color=p[0].get_color()
+                        [replicates[1:]] * 3,
+                        linestyle="-.",
+                        marker="x",
+                        markersize=10,
+                        markevery=[1],
+                        color=p[0].get_color(),
                     )
             else:
-                p = ax_inf.plot([timepoints_inf[0], timepoints_inf[2]],
-                                [measurements_data_to_plot_inf['mean'],
-                                 measurements_data_to_plot_inf['mean']],
-                                linestyle='-.', color=color)
+                p = ax_inf.plot(
+                    [timepoints_inf[0], timepoints_inf[2]],
+                    [
+                        measurements_data_to_plot_inf["mean"],
+                        measurements_data_to_plot_inf["mean"],
+                    ],
+                    linestyle="-.",
+                    color=color,
+                )
                 ax_inf.errorbar(
-                    t_inf, measurements_data_to_plot_inf['mean'],
+                    t_inf,
+                    measurements_data_to_plot_inf["mean"],
                     measurements_data_to_plot_inf[noise_col],
-                    linestyle='-.', marker='.',
-                    label=label_base + " simulation", color=p[0].get_color()
+                    linestyle="-.",
+                    marker=".",
+                    label=label_base + " simulation",
+                    color=p[0].get_color(),
                 )
 
             if color is None:
@@ -586,8 +669,9 @@ class MPLPlotter(Plotter):
 
         # plot simulations
         if simulations_to_plot is not None and simulations_to_plot.inf_point:
-            simulations_data_to_plot_inf = \
+            simulations_data_to_plot_inf = (
                 simulations_to_plot.data_to_plot.loc[np.inf]
+            )
 
             if plotTypeData == REPLICATE:
                 replicates = simulations_data_to_plot_inf.repl
@@ -598,31 +682,38 @@ class MPLPlotter(Plotter):
                 p = ax_inf.plot(
                     timepoints_inf,
                     [replicates[0]] * 3,
-                    linestyle='-', marker='o', markevery=[1],
-                    label=label_base, color=color
+                    linestyle="-",
+                    marker="o",
+                    markevery=[1],
+                    label=label_base,
+                    color=color,
                 )
 
                 # plot other replicates with the same color
                 ax_inf.plot(
                     timepoints_inf,
                     [replicates[1:]] * 3,
-                    linestyle='-', marker='o', markevery=[1],
-                    color=p[0].get_color()
+                    linestyle="-",
+                    marker="o",
+                    markevery=[1],
+                    color=p[0].get_color(),
                 )
             else:
-                ax_inf.plot(timepoints_inf,
-                            [simulations_data_to_plot_inf['mean']]*3,
-                            linestyle='-', marker='o', markevery=[1],
-                            color=color)
+                ax_inf.plot(
+                    timepoints_inf,
+                    [simulations_data_to_plot_inf["mean"]] * 3,
+                    linestyle="-",
+                    marker="o",
+                    markevery=[1],
+                    color=color,
+                )
 
         ax.set_xlim(right=ax_finite_right_limit)
         return ax, ax_inf
 
     @staticmethod
     def _postprocess_splitaxes(
-            ax: matplotlib.axes.Axes,
-            ax_inf: matplotlib.axes.Axes,
-            t_inf: float
+        ax: matplotlib.axes.Axes, ax_inf: matplotlib.axes.Axes, t_inf: float
     ) -> None:
         """
         Postprocess the splitaxes: set axes limits, turn off unnecessary
@@ -638,27 +729,30 @@ class MPLPlotter(Plotter):
             Time value that represents t=inf
         """
         ax_inf.tick_params(left=False, labelleft=False)
-        ax_inf.spines['left'].set_visible(False)
+        ax_inf.spines["left"].set_visible(False)
         ax_inf.set_xticks([t_inf])
-        ax_inf.set_xticklabels([r'$t_{\infty}$'])
+        ax_inf.set_xticklabels([r"$t_{\infty}$"])
 
         bottom, top = ax.get_ylim()
         left, right = ax.get_xlim()
-        ax.spines['right'].set_visible(False)
-        ax_inf.set_xlim(right,
-                        right + (right - left) * 0.2)
+        ax.spines["right"].set_visible(False)
+        ax_inf.set_xlim(right, right + (right - left) * 0.2)
         d = (top - bottom) * 0.02
-        ax_inf.vlines(x=right, ymin=bottom + d, ymax=top - d, ls='--',
-                      color='gray')  # right
-        ax.vlines(x=right, ymin=bottom + d, ymax=top - d, ls='--',
-                  color='gray')  # left
+        ax_inf.vlines(
+            x=right, ymin=bottom + d, ymax=top - d, ls="--", color="gray"
+        )  # right
+        ax.vlines(
+            x=right, ymin=bottom + d, ymax=top - d, ls="--", color="gray"
+        )  # left
         ax_inf.set_ylim(bottom, top)
         ax.set_ylim(bottom, top)
 
-    def _preprocess_splitaxes(self,
-                              fig: matplotlib.figure.Figure,
-                              ax: matplotlib.axes.Axes,
-                              subplot: Subplot) -> Dict:
+    def _preprocess_splitaxes(
+        self,
+        fig: matplotlib.figure.Figure,
+        ax: matplotlib.axes.Axes,
+        subplot: Subplot,
+    ) -> Dict:
         """
         Prepare splitaxes if data at t=inf should be plotted: compute left and
         right limits for the axis where the data corresponding to the finite
@@ -667,7 +761,7 @@ class MPLPlotter(Plotter):
         """
 
         def check_data_to_plot(
-                data_to_plot: DataSeries
+            data_to_plot: DataSeries,
         ) -> Tuple[bool, Optional[float], float]:
             """
             Check if there is data available at t=inf and compute maximum and
@@ -679,9 +773,13 @@ class MPLPlotter(Plotter):
             if data_to_plot is not None and len(data_to_plot.conditions):
                 contains_inf = np.inf in data_to_plot.conditions
                 finite_conditions = data_to_plot.conditions[
-                    data_to_plot.conditions != np.inf]
-                max_finite_cond = np.max(finite_conditions) if \
-                    finite_conditions.size else None
+                    data_to_plot.conditions != np.inf
+                ]
+                max_finite_cond = (
+                    np.max(finite_conditions)
+                    if finite_conditions.size
+                    else None
+                )
                 min_cond = min(data_to_plot.conditions)
             return contains_inf, max_finite_cond, min_cond
 
@@ -689,23 +787,32 @@ class MPLPlotter(Plotter):
         ax_inf = None
         t_inf, ax_finite_right_limit, ax_left_limit = None, None, np.inf
         for dataplot in subplot.data_plots:
-            measurements_to_plot, simulations_to_plot = \
-                self.data_provider.get_data_to_plot(
-                    dataplot, subplot.plotTypeData == PROVIDED)
+            (
+                measurements_to_plot,
+                simulations_to_plot,
+            ) = self.data_provider.get_data_to_plot(
+                dataplot, subplot.plotTypeData == PROVIDED
+            )
 
             contains_inf_m, max_finite_cond_m, min_cond_m = check_data_to_plot(
-                measurements_to_plot)
+                measurements_to_plot
+            )
             contains_inf_s, max_finite_cond_s, min_cond_s = check_data_to_plot(
-                simulations_to_plot)
+                simulations_to_plot
+            )
 
             if max_finite_cond_m is not None:
-                ax_finite_right_limit = max(ax_finite_right_limit,
-                                            max_finite_cond_m) if \
-                    ax_finite_right_limit is not None else max_finite_cond_m
+                ax_finite_right_limit = (
+                    max(ax_finite_right_limit, max_finite_cond_m)
+                    if ax_finite_right_limit is not None
+                    else max_finite_cond_m
+                )
             if max_finite_cond_s is not None:
-                ax_finite_right_limit = max(ax_finite_right_limit,
-                                            max_finite_cond_s) if \
-                    ax_finite_right_limit is not None else max_finite_cond_s
+                ax_finite_right_limit = (
+                    max(ax_finite_right_limit, max_finite_cond_s)
+                    if ax_finite_right_limit is not None
+                    else max_finite_cond_s
+                )
 
             ax_left_limit = min(ax_left_limit, min(min_cond_m, min_cond_s))
             # check if t=inf is contained in any data to be plotted on the
@@ -720,28 +827,32 @@ class MPLPlotter(Plotter):
             if ax_finite_right_limit is None and ax_left_limit == np.inf:
                 ax_finite_right_limit = 10
                 ax_left_limit = 0
-            t_inf = ax_finite_right_limit + (ax_finite_right_limit -
-                                             ax_left_limit)*0.1
+            t_inf = (
+                ax_finite_right_limit
+                + (ax_finite_right_limit - ax_left_limit) * 0.1
+            )
             # create axes for t=inf
             divider = make_axes_locatable(ax)
             ax_inf = divider.new_horizontal(size="10%", pad=0.3)
             fig.add_axes(ax_inf)
 
-        return {'ax_inf': ax_inf,
-                't_inf': t_inf,
-                'ax_finite_right_limit': ax_finite_right_limit,
-                'ax_left_limit': ax_left_limit}
+        return {
+            "ax_inf": ax_inf,
+            "t_inf": t_inf,
+            "ax_finite_right_limit": ax_finite_right_limit,
+            "ax_left_limit": ax_left_limit,
+        }
 
 
 class SeabornPlotter(Plotter):
     """
     Seaborn wrapper.
     """
+
     def __init__(self, figure: Figure, data_provider: DataProvider):
         super().__init__(figure, data_provider)
 
     def generate_figure(
-            self,
-            subplot_dir: Optional[str] = None
+        self, subplot_dir: Optional[str] = None
     ) -> Optional[Dict[str, plt.Subplot]]:
         pass

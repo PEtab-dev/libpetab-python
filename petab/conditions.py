@@ -9,12 +9,16 @@ import pandas as pd
 from . import core, lint
 from .C import *
 
-__all__ = ['get_condition_df', 'write_condition_df', 'create_condition_df',
-           'get_parametric_overrides']
+__all__ = [
+    "get_condition_df",
+    "write_condition_df",
+    "create_condition_df",
+    "get_parametric_overrides",
+]
 
 
 def get_condition_df(
-        condition_file: Union[str, pd.DataFrame, Path, None]
+    condition_file: Union[str, pd.DataFrame, Path, None]
 ) -> pd.DataFrame:
     """Read the provided condition file into a ``pandas.Dataframe``
 
@@ -27,11 +31,13 @@ def get_condition_df(
         return condition_file
 
     if isinstance(condition_file, (str, Path)):
-        condition_file = pd.read_csv(condition_file, sep='\t',
-                                     float_precision='round_trip')
+        condition_file = pd.read_csv(
+            condition_file, sep="\t", float_precision="round_trip"
+        )
 
     lint.assert_no_leading_trailing_whitespace(
-        condition_file.columns.values, "condition")
+        condition_file.columns.values, "condition"
+    )
 
     if not isinstance(condition_file.index, pd.RangeIndex):
         condition_file.reset_index(inplace=True)
@@ -40,7 +46,8 @@ def get_condition_df(
         condition_file.set_index([CONDITION_ID], inplace=True)
     except KeyError:
         raise KeyError(
-            f'Condition table missing mandatory field {CONDITION_ID}.')
+            f"Condition table missing mandatory field {CONDITION_ID}."
+        )
 
     return condition_file
 
@@ -53,12 +60,12 @@ def write_condition_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         filename: Destination file name
     """
     df = get_condition_df(df)
-    df.to_csv(filename, sep='\t', index=True)
+    df.to_csv(filename, sep="\t", index=True)
 
 
-def create_condition_df(parameter_ids: Iterable[str],
-                        condition_ids: Optional[Iterable[str]] = None
-                        ) -> pd.DataFrame:
+def create_condition_df(
+    parameter_ids: Iterable[str], condition_ids: Optional[Iterable[str]] = None
+) -> pd.DataFrame:
     """Create empty condition DataFrame
 
     Arguments:
@@ -93,8 +100,10 @@ def get_parametric_overrides(condition_df: pd.DataFrame) -> List[str]:
     Returns:
         List of parameter IDs that are mapped in a condition-specific way
     """
-    constant_parameters = (set(condition_df.columns.values.tolist())
-                           - {CONDITION_ID, CONDITION_NAME})
+    constant_parameters = set(condition_df.columns.values.tolist()) - {
+        CONDITION_ID,
+        CONDITION_NAME,
+    }
     result = []
 
     for column in constant_parameters:

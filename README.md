@@ -21,7 +21,7 @@ The PEtab library is available on [pypi](https://pypi.org/project/petab/)
 and the easiest way to install it is running
 
     pip3 install petab
-    
+
 It will require Python>=3.9 to run. (We are following the
 [numpy Python support policy](https://numpy.org/neps/nep-0029-deprecation_policy.html)).
 
@@ -40,7 +40,7 @@ be:
     `petablint`
 
   - [`petab.create_parameter_df`](https://petab.readthedocs.io/projects/libpetab-python/en/latest/build/_autosummary/petab.parameters.html#petab.parameters.create_parameter_df)
-    to create the parameter table, once you have set up the model, 
+    to create the parameter table, once you have set up the model,
     condition table, observable table and measurement table
 
   - [`petab.create_combine_archive`](https://petab.readthedocs.io/projects/libpetab-python/en/latest/build/_autosummary/petab.core.html#petab.core.create_combine_archive)

@@ -1,21 +1,22 @@
 """Functionality related to the PEtab entity mapping table"""
 from pathlib import Path
-from typing import Union, Optional
-from .models import Model
+from typing import Optional, Union
+
 import pandas as pd
 
 from . import lint
 from .C import *  # noqa: F403
+from .models import Model
 
 __all__ = [
-    'get_mapping_df',
-    'write_mapping_df',
-    'check_mapping_df',
+    "get_mapping_df",
+    "write_mapping_df",
+    "check_mapping_df",
 ]
 
 
 def get_mapping_df(
-        mapping_file: Union[None, str, Path, pd.DataFrame]
+    mapping_file: Union[None, str, Path, pd.DataFrame]
 ) -> pd.DataFrame:
     """
     Read the provided mapping file into a ``pandas.Dataframe``.
@@ -30,8 +31,9 @@ def get_mapping_df(
         return mapping_file
 
     if isinstance(mapping_file, (str, Path)):
-        mapping_file = pd.read_csv(mapping_file, sep='\t',
-                                   float_precision='round_trip')
+        mapping_file = pd.read_csv(
+            mapping_file, sep="\t", float_precision="round_trip"
+        )
 
     if not isinstance(mapping_file.index, pd.RangeIndex):
         mapping_file.reset_index(inplace=True)
@@ -39,10 +41,12 @@ def get_mapping_df(
     for col in MAPPING_DF_REQUIRED_COLS:
         if col not in mapping_file.columns:
             raise KeyError(
-                f"Mapping table missing mandatory field {PETAB_ENTITY_ID}.")
+                f"Mapping table missing mandatory field {PETAB_ENTITY_ID}."
+            )
 
         lint.assert_no_leading_trailing_whitespace(
-            mapping_file.reset_index()[col].values, col)
+            mapping_file.reset_index()[col].values, col
+        )
 
     mapping_file.set_index([PETAB_ENTITY_ID], inplace=True)
 
@@ -57,12 +61,12 @@ def write_mapping_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         filename: Destination file name
     """
     df = get_mapping_df(df)
-    df.to_csv(filename, sep='\t', index=True)
+    df.to_csv(filename, sep="\t", index=True)
 
 
 def check_mapping_df(
-        df: pd.DataFrame,
-        model: Optional[Model] = None,
+    df: pd.DataFrame,
+    model: Optional[Model] = None,
 ) -> None:
     """Run sanity checks on PEtab mapping table
 
@@ -78,7 +82,8 @@ def check_mapping_df(
     if df.index.name != PETAB_ENTITY_ID:
         raise AssertionError(
             f"Mapping table has wrong index {df.index.name}. "
-            f"Expected {PETAB_ENTITY_ID}.")
+            f"Expected {PETAB_ENTITY_ID}."
+        )
 
     lint.check_ids(df.index.values, kind=PETAB_ENTITY_ID)
 
@@ -91,8 +96,7 @@ def check_mapping_df(
                 )
 
 
-def resolve_mapping(mapping_df: Optional[pd.DataFrame],
-                    element: str) -> str:
+def resolve_mapping(mapping_df: Optional[pd.DataFrame], element: str) -> str:
     """Resolve mapping for a given element.
 
     :param element:

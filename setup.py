@@ -1,7 +1,8 @@
-from setuptools import setup, find_namespace_packages
-import sys
 import os
 import re
+import sys
+
+from setuptools import find_namespace_packages, setup
 
 
 def read(fname):
@@ -12,10 +13,12 @@ def read(fname):
 def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
 
-    raw_base = \
+    raw_base = (
         "(https://raw.githubusercontent.com/petab-dev/libpetab-python/master/"
-    embedded_base = \
+    )
+    embedded_base = (
         "(https://github.com/petab-dev/libpetab-python/tree/master/"
+    )
     # iterate over links
     for var in re.findall(r"\[.*?\]\((?!http).*?\)", txt):
         if re.match(r".*?.(png|svg)\)", var):
@@ -97,10 +100,6 @@ setup(
             # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
             "ipython>=7.21.0, !=8.7.0",
         ],
-        "vis": [
-            "matplotlib>=3.6.0",
-            "seaborn",
-            "scipy"
-        ]
+        "vis": ["matplotlib>=3.6.0", "seaborn", "scipy"],
     },
 )
