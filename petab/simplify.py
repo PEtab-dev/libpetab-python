@@ -4,6 +4,7 @@ from math import nan
 import pandas as pd
 
 import petab
+
 from . import Problem
 from .C import *  # noqa: F403
 from .lint import lint_problem
@@ -29,19 +30,23 @@ def remove_unused_observables(problem: Problem):
     """Remove observables that have no measurements"""
     measured_observables = set(problem.measurement_df[OBSERVABLE_ID].unique())
     problem.observable_df = problem.observable_df[
-        problem.observable_df.index.isin(measured_observables)]
+        problem.observable_df.index.isin(measured_observables)
+    ]
 
 
 def remove_unused_conditions(problem: Problem):
     """Remove conditions that have no measurements"""
-    measured_conditions = \
-        set(problem.measurement_df[SIMULATION_CONDITION_ID].unique())
+    measured_conditions = set(
+        problem.measurement_df[SIMULATION_CONDITION_ID].unique()
+    )
     if PREEQUILIBRATION_CONDITION_ID in problem.measurement_df:
-        measured_conditions |= \
-            set(problem.measurement_df[PREEQUILIBRATION_CONDITION_ID].unique())
+        measured_conditions |= set(
+            problem.measurement_df[PREEQUILIBRATION_CONDITION_ID].unique()
+        )
 
     problem.condition_df = problem.condition_df[
-        problem.condition_df.index.isin(measured_conditions)]
+        problem.condition_df.index.isin(measured_conditions)
+    ]
 
 
 def simplify_problem(problem: Problem):
@@ -59,8 +64,11 @@ def simplify_problem(problem: Problem):
 def condition_parameters_to_parameter_table(problem: Problem):
     """Move parameters from the condition table to the parameters table, if
     the same parameter value is used for all conditions."""
-    if problem.condition_df is None or problem.condition_df.empty \
-            or problem.model is None:
+    if (
+        problem.condition_df is None
+        or problem.condition_df.empty
+        or problem.model is None
+    ):
         return
 
     replacements = {}
@@ -89,7 +97,7 @@ def condition_parameters_to_parameter_table(problem: Problem):
             LOWER_BOUND: nan,
             UPPER_BOUND: nan,
             NOMINAL_VALUE: value,
-            ESTIMATE: 0
+            ESTIMATE: 0,
         }
         for parameter_id, value in replacements.items()
     ]
@@ -101,5 +109,6 @@ def condition_parameters_to_parameter_table(problem: Problem):
     else:
         problem.parameter_df = pd.concat([problem.parameter_df, rows])
 
-    problem.condition_df = \
-        problem.condition_df.drop(columns=replacements.keys())
+    problem.condition_df = problem.condition_df.drop(
+        columns=replacements.keys()
+    )

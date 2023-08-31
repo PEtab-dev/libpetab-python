@@ -1,16 +1,18 @@
 """PEtab simulator base class and related functions."""
 
 import abc
-import numpy as np
 import pathlib
-import pandas as pd
-import petab
 import shutil
-import sympy as sp
 import tempfile
 from typing import Dict, Optional, Union
 
-__all__ = ['Simulator', 'sample_noise']
+import numpy as np
+import pandas as pd
+import sympy as sp
+
+import petab
+
+__all__ = ["Simulator", "sample_noise"]
 
 
 class Simulator(abc.ABC):
@@ -68,7 +70,8 @@ class Simulator(abc.ABC):
         self.working_dir.mkdir(parents=True, exist_ok=True)
 
         self.noise_formulas = petab.calculate.get_symbolic_noise_formulas(
-            self.petab_problem.observable_df)
+            self.petab_problem.observable_df
+        )
         self.rng = np.random.default_rng()
 
     def remove_working_dir(self, force: bool = False, **kwargs) -> None:
@@ -87,12 +90,16 @@ class Simulator(abc.ABC):
         if force or self.temporary_working_dir:
             shutil.rmtree(self.working_dir, **kwargs)
             if self.working_dir.is_dir():
-                print('Failed to remove the working directory: '
-                      + str(self.working_dir))
+                print(
+                    "Failed to remove the working directory: "
+                    + str(self.working_dir)
+                )
         else:
-            print('By default, specified working directories are not removed. '
-                  'Please call this method with `force=True`, or manually '
-                  f'delete the working directory: {self.working_dir}')
+            print(
+                "By default, specified working directories are not removed. "
+                "Please call this method with `force=True`, or manually "
+                f"delete the working directory: {self.working_dir}"
+            )
 
     @abc.abstractmethod
     def simulate_without_noise(self) -> pd.DataFrame:
@@ -112,11 +119,11 @@ class Simulator(abc.ABC):
         raise NotImplementedError()
 
     def simulate(
-            self,
-            noise: bool = False,
-            noise_scaling_factor: float = 1,
-            as_measurement: bool = False,
-            **kwargs
+        self,
+        noise: bool = False,
+        noise_scaling_factor: float = 1,
+        as_measurement: bool = False,
+        **kwargs,
     ) -> pd.DataFrame:
         """Simulate a PEtab problem, optionally with noise.
 
@@ -146,10 +153,10 @@ class Simulator(abc.ABC):
         return simulation_df
 
     def add_noise(
-            self,
-            simulation_df: pd.DataFrame,
-            noise_scaling_factor: float = 1,
-            **kwargs
+        self,
+        simulation_df: pd.DataFrame,
+        noise_scaling_factor: float = 1,
+        **kwargs,
     ) -> pd.DataFrame:
         """Add noise to simulated data.
 
@@ -182,13 +189,13 @@ class Simulator(abc.ABC):
 
 
 def sample_noise(
-        petab_problem: petab.Problem,
-        measurement_row: pd.Series,
-        simulated_value: float,
-        noise_formulas: Optional[Dict[str, sp.Expr]] = None,
-        rng: Optional[np.random.Generator] = None,
-        noise_scaling_factor: float = 1,
-        zero_bounded: bool = False,
+    petab_problem: petab.Problem,
+    measurement_row: pd.Series,
+    simulated_value: float,
+    noise_formulas: Optional[Dict[str, sp.Expr]] = None,
+    rng: Optional[np.random.Generator] = None,
+    noise_scaling_factor: float = 1,
+    zero_bounded: bool = False,
 ) -> float:
     """Generate a sample from a PEtab noise distribution.
 
@@ -218,7 +225,8 @@ def sample_noise(
     """
     if noise_formulas is None:
         noise_formulas = petab.calculate.get_symbolic_noise_formulas(
-            petab_problem.observable_df)
+            petab_problem.observable_df
+        )
     if rng is None:
         rng = np.random.default_rng()
 
@@ -226,16 +234,13 @@ def sample_noise(
         measurement_row,
         noise_formulas,
         petab_problem.parameter_df,
-        simulated_value
+        simulated_value,
     )
 
     # default noise distribution is petab.C.NORMAL
-    noise_distribution = (
-        petab_problem
-        .observable_df
-        .loc[measurement_row[petab.C.OBSERVABLE_ID]]
-        .get(petab.C.NOISE_DISTRIBUTION, petab.C.NORMAL)
-    )
+    noise_distribution = petab_problem.observable_df.loc[
+        measurement_row[petab.C.OBSERVABLE_ID]
+    ].get(petab.C.NOISE_DISTRIBUTION, petab.C.NORMAL)
     # an empty noise distribution column in an observables table can result in
     # `noise_distribution == float('nan')`
     if pd.isna(noise_distribution):
@@ -243,13 +248,11 @@ def sample_noise(
 
     # below is e.g.: `np.random.normal(loc=simulation, scale=noise_value)`
     simulated_value_with_noise = getattr(rng, noise_distribution)(
-        loc=simulated_value,
-        scale=noise_value * noise_scaling_factor
+        loc=simulated_value, scale=noise_value * noise_scaling_factor
     )
 
-    if (
-            zero_bounded and
-            np.sign(simulated_value) != np.sign(simulated_value_with_noise)
+    if zero_bounded and np.sign(simulated_value) != np.sign(
+        simulated_value_with_noise
     ):
         return 0.0
     return simulated_value_with_noise

@@ -15,21 +15,21 @@ import warnings
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = 'libpetab-python'
-copyright = '2018, the PEtab developers'
-author = 'PEtab developers'
+project = "libpetab-python"
+copyright = "2018, the PEtab developers"
+author = "PEtab developers"
 
 # The full version, including alpha/beta/rc tags
-release = 'latest'
+release = "latest"
 
 # -- Custom pre-build --------------------------------------------------------
 
 
-subprocess.run(['python', 'md2rst.py'])
+subprocess.run(["python", "md2rst.py"])
 
 # -- General configuration ---------------------------------------------------
 
@@ -37,49 +37,49 @@ subprocess.run(['python', 'md2rst.py'])
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.napoleon',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.viewcode',
-    'sphinx_markdown_tables',
-    'myst_nb',
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
+    "sphinx_markdown_tables",
+    "myst_nb",
 ]
 
 intersphinx_mapping = {
-    'pandas': ('https://pandas.pydata.org/docs/', None),
-    'numpy': ('https://numpy.org/devdocs/', None),
-    'sympy': ('https://docs.sympy.org/latest/', None),
-    'python': ('https://docs.python.org/3', None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "numpy": ("https://numpy.org/devdocs/", None),
+    "sympy": ("https://docs.sympy.org/latest/", None),
+    "python": ("https://docs.python.org/3", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = [
-    'build/doctrees',
-    'build/html',
-    '**.ipynb_checkpoints',
-    'logo/LICENSE.md',
+    "build/doctrees",
+    "build/html",
+    "**.ipynb_checkpoints",
+    "logo/LICENSE.md",
 ]
 
-master_doc = 'index'
+master_doc = "index"
 
 autosummary_generate = True
 
 autodoc_default_options = {
     "members": None,
-    "imported-members": ['petab'],
+    "imported-members": ["petab"],
     "inherited-members": None,
     "private-members": None,
     "show-inheritance": None,
 }
 
 # For some reason causes sphinx import errors otherwise
-autodoc_mock_imports = ['yaml']
+autodoc_mock_imports = ["yaml"]
 
 # myst_nb options
 #  https://myst-nb.readthedocs.io/en/latest/configuration.html
@@ -87,8 +87,8 @@ nb_execution_mode = "force"
 
 
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.txt': 'restructuredtext',
+    ".rst": "restructuredtext",
+    ".txt": "restructuredtext",
 }
 
 # ignore numpy warnings
@@ -100,12 +100,12 @@ warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 html_context = {
     "display_github": True,
@@ -115,15 +115,15 @@ html_context = {
     "conf_py_path": "/doc",
 }
 
-html_logo = 'logo/PEtab.png'
+html_logo = "logo/PEtab.png"
 
 
 def skip_some_objects(app, what, name, obj, skip, options):
     """Exclude some objects from the documentation"""
-    if getattr(obj, '__module__', None) == 'collections':
+    if getattr(obj, "__module__", None) == "collections":
         return True
 
 
 def setup(app):
     """Sphinx setup"""
-    app.connect('autodoc-skip-member', skip_some_objects)
+    app.connect("autodoc-skip-member", skip_some_objects)

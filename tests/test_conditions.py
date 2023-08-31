@@ -5,44 +5,51 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import petab
 import pytest
+
+import petab
 from petab import conditions
 from petab.C import *
 
 
 def test_get_parametric_overrides():
-
-    condition_df = pd.DataFrame(data={
-        CONDITION_ID: ['condition1', 'condition2'],
-        CONDITION_NAME: ['', 'Condition 2'],
-        'fixedParameter1': [1.0, 2.0]
-    })
-
-    assert conditions.get_parametric_overrides(condition_df) == []
-
-    condition_df.fixedParameter1 = \
-        condition_df.fixedParameter1.values.astype(int)
+    condition_df = pd.DataFrame(
+        data={
+            CONDITION_ID: ["condition1", "condition2"],
+            CONDITION_NAME: ["", "Condition 2"],
+            "fixedParameter1": [1.0, 2.0],
+        }
+    )
 
     assert conditions.get_parametric_overrides(condition_df) == []
 
-    condition_df['fixedParameter1'] = condition_df['fixedParameter1'].astype("object")
-    condition_df.loc[0, 'fixedParameter1'] = 'parameterId'
+    condition_df.fixedParameter1 = condition_df.fixedParameter1.values.astype(
+        int
+    )
 
-    assert conditions.get_parametric_overrides(condition_df) == ['parameterId']
+    assert conditions.get_parametric_overrides(condition_df) == []
+
+    condition_df["fixedParameter1"] = condition_df["fixedParameter1"].astype(
+        "object"
+    )
+    condition_df.loc[0, "fixedParameter1"] = "parameterId"
+
+    assert conditions.get_parametric_overrides(condition_df) == ["parameterId"]
 
 
 def test_get_condition_df():
     """Test conditions.get_condition_df."""
     # condition df missing ids
-    condition_df = pd.DataFrame(data={
-        CONDITION_NAME: ['Condition 1', 'Condition 2'],
-        'fixedParameter1': [1.0, 2.0]
-    })
+    condition_df = pd.DataFrame(
+        data={
+            CONDITION_NAME: ["Condition 1", "Condition 2"],
+            "fixedParameter1": [1.0, 2.0],
+        }
+    )
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False) as fh:
         file_name = fh.name
-        condition_df.to_csv(fh, sep='\t', index=False)
+        condition_df.to_csv(fh, sep="\t", index=False)
 
     with pytest.raises(KeyError):
         petab.get_condition_df(file_name)
@@ -50,17 +57,19 @@ def test_get_condition_df():
     os.remove(file_name)
 
     # with ids
-    condition_df = pd.DataFrame(data={
-        CONDITION_ID: ['condition1', 'condition2'],
-        CONDITION_NAME: ['', 'Condition 2'],
-        'fixedParameter1': [1.0, 2.0]
-    })
+    condition_df = pd.DataFrame(
+        data={
+            CONDITION_ID: ["condition1", "condition2"],
+            CONDITION_NAME: ["", "Condition 2"],
+            "fixedParameter1": [1.0, 2.0],
+        }
+    )
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False) as fh:
         file_name = fh.name
-        condition_df.to_csv(fh, sep='\t', index=False)
+        condition_df.to_csv(fh, sep="\t", index=False)
 
-    df = petab.get_condition_df(file_name).replace(np.nan, '')
+    df = petab.get_condition_df(file_name).replace(np.nan, "")
     assert (df == condition_df.set_index(CONDITION_ID)).all().all()
 
     os.remove(file_name)
@@ -72,11 +81,13 @@ def test_get_condition_df():
 
 def test_write_condition_df():
     """Test conditions.write_condition_df."""
-    condition_df = pd.DataFrame(data={
-        CONDITION_ID: ['condition1', 'condition2'],
-        CONDITION_NAME: ['Condition 1', 'Condition 2'],
-        'fixedParameter1': [1.0, 2.0]
-    }).set_index(CONDITION_ID)
+    condition_df = pd.DataFrame(
+        data={
+            CONDITION_ID: ["condition1", "condition2"],
+            CONDITION_NAME: ["Condition 1", "Condition 2"],
+            "fixedParameter1": [1.0, 2.0],
+        }
+    ).set_index(CONDITION_ID)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         file_name = Path(temp_dir) / "conditions.tsv"
@@ -87,16 +98,18 @@ def test_write_condition_df():
 
 def test_create_condition_df():
     """Test conditions.create_condition_df."""
-    parameter_ids = ['par1', 'par2', 'par3']
-    condition_ids = ['condition1', 'condition2']
+    parameter_ids = ["par1", "par2", "par3"]
+    condition_ids = ["condition1", "condition2"]
 
     df = petab.create_condition_df(parameter_ids, condition_ids)
 
-    expected = pd.DataFrame(data={
-        CONDITION_ID: ['condition1', 'condition2'],
-        'par1': [np.nan, np.nan],
-        'par2': [np.nan, np.nan],
-        'par3': [np.nan, np.nan]
-    }).set_index(CONDITION_ID)
+    expected = pd.DataFrame(
+        data={
+            CONDITION_ID: ["condition1", "condition2"],
+            "par1": [np.nan, np.nan],
+            "par2": [np.nan, np.nan],
+            "par3": [np.nan, np.nan],
+        }
+    ).set_index(CONDITION_ID)
 
     assert ((df == expected) | df.isna() == expected.isna()).all().all()

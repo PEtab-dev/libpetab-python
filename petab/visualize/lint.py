@@ -6,13 +6,10 @@ import pandas as pd
 from .. import C, Problem
 from ..C import VISUALIZATION_DF_REQUIRED_COLS
 
-
 logger = logging.getLogger(__name__)
 
 
-def validate_visualization_df(
-        problem: Problem
-) -> bool:
+def validate_visualization_df(problem: Problem) -> bool:
     """Validate visualization table
 
     Arguments:
@@ -27,10 +24,13 @@ def validate_visualization_df(
 
     errors = False
 
-    if missing_req_cols := (set(VISUALIZATION_DF_REQUIRED_COLS)
-                            - set(vis_df.columns)):
-        logger.error(f"Missing required columns {missing_req_cols} "
-                     "in visualization table.")
+    if missing_req_cols := (
+        set(VISUALIZATION_DF_REQUIRED_COLS) - set(vis_df.columns)
+    ):
+        logger.error(
+            f"Missing required columns {missing_req_cols} "
+            "in visualization table."
+        )
         errors = True
 
     # Set all unspecified optional values to their defaults to simplify
@@ -38,55 +38,72 @@ def validate_visualization_df(
     vis_df = vis_df.copy()
     _apply_defaults(vis_df)
 
-    if unknown_types := (set(vis_df[C.PLOT_TYPE_SIMULATION].unique())
-                         - set(C.PLOT_TYPES_SIMULATION)):
-        logger.error(f"Unknown {C.PLOT_TYPE_SIMULATION}: {unknown_types}. "
-                     f"Must be one of {C.PLOT_TYPES_SIMULATION}")
+    if unknown_types := (
+        set(vis_df[C.PLOT_TYPE_SIMULATION].unique())
+        - set(C.PLOT_TYPES_SIMULATION)
+    ):
+        logger.error(
+            f"Unknown {C.PLOT_TYPE_SIMULATION}: {unknown_types}. "
+            f"Must be one of {C.PLOT_TYPES_SIMULATION}"
+        )
         errors = True
 
-    if unknown_types := (set(vis_df[C.PLOT_TYPE_DATA].unique())
-                         - set(C.PLOT_TYPES_DATA)):
-        logger.error(f"Unknown {C.PLOT_TYPE_DATA}: {unknown_types}. "
-                     f"Must be one of {C.PLOT_TYPES_DATA}")
+    if unknown_types := (
+        set(vis_df[C.PLOT_TYPE_DATA].unique()) - set(C.PLOT_TYPES_DATA)
+    ):
+        logger.error(
+            f"Unknown {C.PLOT_TYPE_DATA}: {unknown_types}. "
+            f"Must be one of {C.PLOT_TYPES_DATA}"
+        )
         errors = True
 
-    if unknown_scale := (set(vis_df[C.X_SCALE].unique())
-                         - set(C.X_SCALES)):
-        logger.error(f"Unknown {C.X_SCALE}: {unknown_scale}. "
-                     f"Must be one of {C.X_SCALES}")
+    if unknown_scale := (set(vis_df[C.X_SCALE].unique()) - set(C.X_SCALES)):
+        logger.error(
+            f"Unknown {C.X_SCALE}: {unknown_scale}. "
+            f"Must be one of {C.X_SCALES}"
+        )
         errors = True
 
     if any(
-            (vis_df[C.X_SCALE] == 'order')
-            & (vis_df[C.PLOT_TYPE_SIMULATION] != C.LINE_PLOT)
+        (vis_df[C.X_SCALE] == "order")
+        & (vis_df[C.PLOT_TYPE_SIMULATION] != C.LINE_PLOT)
     ):
-        logger.error(f"{C.X_SCALE}=order is only allowed with "
-                     f"{C.PLOT_TYPE_SIMULATION}={C.LINE_PLOT}.")
+        logger.error(
+            f"{C.X_SCALE}=order is only allowed with "
+            f"{C.PLOT_TYPE_SIMULATION}={C.LINE_PLOT}."
+        )
         errors = True
 
-    if unknown_scale := (set(vis_df[C.Y_SCALE].unique())
-                         - set(C.Y_SCALES)):
-        logger.error(f"Unknown {C.Y_SCALE}: {unknown_scale}. "
-                     f"Must be one of {C.Y_SCALES}")
+    if unknown_scale := (set(vis_df[C.Y_SCALE].unique()) - set(C.Y_SCALES)):
+        logger.error(
+            f"Unknown {C.Y_SCALE}: {unknown_scale}. "
+            f"Must be one of {C.Y_SCALES}"
+        )
         errors = True
 
     if problem.condition_df is not None:
         # check for ambiguous values
         reserved_names = {C.TIME, "condition"}
         for reserved_name in reserved_names:
-            if reserved_name in problem.condition_df \
-                    and reserved_name in vis_df[C.X_VALUES]:
-                logger.error(f"Ambiguous value for `{C.X_VALUES}`: "
-                             f"`{reserved_name}` has a special meaning as "
-                             f"`{C.X_VALUES}`, but there exists also a model "
-                             "entity with that name.")
+            if (
+                reserved_name in problem.condition_df
+                and reserved_name in vis_df[C.X_VALUES]
+            ):
+                logger.error(
+                    f"Ambiguous value for `{C.X_VALUES}`: "
+                    f"`{reserved_name}` has a special meaning as "
+                    f"`{C.X_VALUES}`, but there exists also a model "
+                    "entity with that name."
+                )
                 errors = True
 
         # check xValues exist in condition table
         for xvalue in set(vis_df[C.X_VALUES].unique()) - reserved_names:
             if xvalue not in problem.condition_df:
-                logger.error(f"{C.X_VALUES} was set to `{xvalue}`, but no "
-                             "such column exists in the conditions table.")
+                logger.error(
+                    f"{C.X_VALUES} was set to `{xvalue}`, but no "
+                    "such column exists in the conditions table."
+                )
                 errors = True
 
         if problem.observable_df is not None:
@@ -98,8 +115,8 @@ def validate_visualization_df(
                         continue
 
                     logger.error(
-                        f'{C.Y_VALUES} must be specified if there is more '
-                        'than one observable.'
+                        f"{C.Y_VALUES} must be specified if there is more "
+                        "than one observable."
                     )
                     errors = True
 
@@ -120,12 +137,13 @@ def _apply_defaults(vis_df: pd.DataFrame):
     Adds default values to the given visualization table where no value was
     specified.
     """
+
     def set_default(column: str, value):
         if column not in vis_df:
             vis_df[column] = value
         elif value is not None:
             if isinstance(value, str):
-                vis_df[column] = vis_df[column].astype('object')
+                vis_df[column] = vis_df[column].astype("object")
             vis_df[column].fillna(value, inplace=True)
 
     set_default(C.PLOT_NAME, "")

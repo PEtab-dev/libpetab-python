@@ -5,7 +5,15 @@ import warnings
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
-    Dict, Iterable, List, Set, Tuple, Union, Optional, Literal, Sequence
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
 )
 
 import libsbml
@@ -16,25 +24,28 @@ from . import conditions, core, lint, measurements, observables
 from .C import *  # noqa: F403
 from .models import Model
 
-__all__ = ['create_parameter_df',
-           'get_optimization_parameter_scaling',
-           'get_optimization_parameters',
-           'get_parameter_df',
-           'get_priors_from_df',
-           'get_valid_parameters_for_parameter_table',
-           'map_scale',
-           'map_unscale',
-           'normalize_parameter_df',
-           'scale',
-           'unscale',
-           'write_parameter_df']
+__all__ = [
+    "create_parameter_df",
+    "get_optimization_parameter_scaling",
+    "get_optimization_parameters",
+    "get_parameter_df",
+    "get_priors_from_df",
+    "get_valid_parameters_for_parameter_table",
+    "map_scale",
+    "map_unscale",
+    "normalize_parameter_df",
+    "scale",
+    "unscale",
+    "write_parameter_df",
+]
 
-PARAMETER_SCALE_ARGS = Literal['', 'lin', 'log', 'log10']
+PARAMETER_SCALE_ARGS = Literal["", "lin", "log", "log10"]
 
 
 def get_parameter_df(
-        parameter_file: Union[str, Path, pd.DataFrame,
-                              Iterable[Union[str, Path, pd.DataFrame]], None]
+    parameter_file: Union[
+        str, Path, pd.DataFrame, Iterable[Union[str, Path, pd.DataFrame]], None
+    ]
 ) -> Union[pd.DataFrame, None]:
     """
     Read the provided parameter file into a ``pandas.Dataframe``.
@@ -51,8 +62,9 @@ def get_parameter_df(
     if isinstance(parameter_file, pd.DataFrame):
         parameter_df = parameter_file
     elif isinstance(parameter_file, (str, Path)):
-        parameter_df = pd.read_csv(parameter_file, sep='\t',
-                                   float_precision='round_trip')
+        parameter_df = pd.read_csv(
+            parameter_file, sep="\t", float_precision="round_trip"
+        )
     elif isinstance(parameter_file, Iterable):
         dfs = [get_parameter_df(x) for x in parameter_file if x]
 
@@ -66,7 +78,8 @@ def get_parameter_df(
         return parameter_df
 
     lint.assert_no_leading_trailing_whitespace(
-        parameter_df.columns.values, "parameter")
+        parameter_df.columns.values, "parameter"
+    )
 
     if not isinstance(parameter_df.index, pd.RangeIndex):
         parameter_df.reset_index(inplace=True)
@@ -75,7 +88,8 @@ def get_parameter_df(
         parameter_df.set_index([PARAMETER_ID], inplace=True)
     except KeyError as e:
         raise KeyError(
-            f"Parameter table missing mandatory field {PARAMETER_ID}.") from e
+            f"Parameter table missing mandatory field {PARAMETER_ID}."
+        ) from e
     _check_for_contradicting_parameter_definitions(parameter_df)
 
     return parameter_df
@@ -85,12 +99,13 @@ def _check_for_contradicting_parameter_definitions(parameter_df: pd.DataFrame):
     """
     Raises a ValueError for non-unique parameter IDs
     """
-    parameter_duplicates = set(parameter_df.index.values[
-                                    parameter_df.index.duplicated()])
+    parameter_duplicates = set(
+        parameter_df.index.values[parameter_df.index.duplicated()]
+    )
     if parameter_duplicates:
         raise ValueError(
-            f'The values of `{PARAMETER_ID}` must be unique. The '
-            f'following duplicates were found:\n{parameter_duplicates}'
+            f"The values of `{PARAMETER_ID}` must be unique. The "
+            f"following duplicates were found:\n{parameter_duplicates}"
         )
 
 
@@ -102,7 +117,7 @@ def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         filename: Destination file name
     """
     df = get_parameter_df(df)
-    df.to_csv(filename, sep='\t', index=True)
+    df.to_csv(filename, sep="\t", index=True)
 
 
 def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:
@@ -119,7 +134,8 @@ def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:
 
 
 def get_optimization_parameter_scaling(
-        parameter_df: pd.DataFrame) -> Dict[str, str]:
+    parameter_df: pd.DataFrame,
+) -> Dict[str, str]:
     """
     Get Dictionary with optimization parameter IDs mapped to parameter scaling
     strings.
@@ -136,16 +152,16 @@ def get_optimization_parameter_scaling(
 
 
 def create_parameter_df(
-        sbml_model: Optional[libsbml.Model] = None,
-        condition_df: Optional[pd.DataFrame] = None,
-        observable_df: Optional[pd.DataFrame] = None,
-        measurement_df: Optional[pd.DataFrame] = None,
-        model: Optional[Model] = None,
-        include_optional: bool = False,
-        parameter_scale: str = LOG10,
-        lower_bound: Iterable = None,
-        upper_bound: Iterable = None,
-        mapping_df: Optional[pd.DataFrame] = None,
+    sbml_model: Optional[libsbml.Model] = None,
+    condition_df: Optional[pd.DataFrame] = None,
+    observable_df: Optional[pd.DataFrame] = None,
+    measurement_df: Optional[pd.DataFrame] = None,
+    model: Optional[Model] = None,
+    include_optional: bool = False,
+    parameter_scale: str = LOG10,
+    lower_bound: Iterable = None,
+    upper_bound: Iterable = None,
+    mapping_df: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Create a new PEtab parameter table
 
@@ -172,25 +188,39 @@ def create_parameter_df(
         The created parameter DataFrame
     """
     if sbml_model:
-        warnings.warn("Passing a model via the `sbml_model` argument is "
-                      "deprecated, use `model=petab.models.sbml_model."
-                      "SbmlModel(...)` instead.", DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            "Passing a model via the `sbml_model` argument is "
+            "deprecated, use `model=petab.models.sbml_model."
+            "SbmlModel(...)` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from petab.models.sbml_model import SbmlModel
+
         if model:
-            raise ValueError("Arguments `model` and `sbml_model` are "
-                             "mutually exclusive.")
+            raise ValueError(
+                "Arguments `model` and `sbml_model` are " "mutually exclusive."
+            )
         model = SbmlModel(sbml_model=sbml_model)
     if include_optional:
-        parameter_ids = list(get_valid_parameters_for_parameter_table(
-            model=model, condition_df=condition_df,
-            observable_df=observable_df, measurement_df=measurement_df))
+        parameter_ids = list(
+            get_valid_parameters_for_parameter_table(
+                model=model,
+                condition_df=condition_df,
+                observable_df=observable_df,
+                measurement_df=measurement_df,
+            )
+        )
     else:
-        parameter_ids = list(get_required_parameters_for_parameter_table(
-            model=model, condition_df=condition_df,
-            observable_df=observable_df, measurement_df=measurement_df,
-            mapping_df=mapping_df
-        ))
+        parameter_ids = list(
+            get_required_parameters_for_parameter_table(
+                model=model,
+                condition_df=condition_df,
+                observable_df=observable_df,
+                measurement_df=measurement_df,
+                mapping_df=mapping_df,
+            )
+        )
 
     df = pd.DataFrame(
         data={
@@ -201,18 +231,20 @@ def create_parameter_df(
             UPPER_BOUND: upper_bound,
             NOMINAL_VALUE: np.nan,
             ESTIMATE: 1,
-            INITIALIZATION_PRIOR_TYPE: '',
-            INITIALIZATION_PRIOR_PARAMETERS: '',
-            OBJECTIVE_PRIOR_TYPE: '',
-            OBJECTIVE_PRIOR_PARAMETERS: '',
-        })
+            INITIALIZATION_PRIOR_TYPE: "",
+            INITIALIZATION_PRIOR_PARAMETERS: "",
+            OBJECTIVE_PRIOR_TYPE: "",
+            OBJECTIVE_PRIOR_PARAMETERS: "",
+        }
+    )
     df.set_index([PARAMETER_ID], inplace=True)
 
     # For model parameters, set nominal values as defined in the model
     for parameter_id in df.index:
         try:
-            df.loc[parameter_id, NOMINAL_VALUE] = \
-                model.get_parameter_value(parameter_id)
+            df.loc[parameter_id, NOMINAL_VALUE] = model.get_parameter_value(
+                parameter_id
+            )
         except ValueError:
             # parameter was introduced as condition-specific override and
             # is potentially not present in the model
@@ -221,11 +253,11 @@ def create_parameter_df(
 
 
 def get_required_parameters_for_parameter_table(
-        model: Model,
-        condition_df: pd.DataFrame,
-        observable_df: pd.DataFrame,
-        measurement_df: pd.DataFrame,
-        mapping_df: pd.DataFrame = None
+    model: Model,
+    condition_df: pd.DataFrame,
+    observable_df: pd.DataFrame,
+    measurement_df: pd.DataFrame,
+    mapping_df: pd.DataFrame = None,
 ) -> Set[str]:
     """
     Get set of parameters which need to go into the parameter table
@@ -254,18 +286,26 @@ def get_required_parameters_for_parameter_table(
 
     for _, row in measurement_df.iterrows():
         # we trust that the number of overrides matches
-        append_overrides(measurements.split_parameter_replacement_list(
-            row.get(OBSERVABLE_PARAMETERS, None)))
-        append_overrides(measurements.split_parameter_replacement_list(
-            row.get(NOISE_PARAMETERS, None)))
+        append_overrides(
+            measurements.split_parameter_replacement_list(
+                row.get(OBSERVABLE_PARAMETERS, None)
+            )
+        )
+        append_overrides(
+            measurements.split_parameter_replacement_list(
+                row.get(NOISE_PARAMETERS, None)
+            )
+        )
 
     # Add output parameters except for placeholders
-    for kwargs in [dict(observables=True, noise=False),
-                   dict(observables=False, noise=True)]:
+    for kwargs in [
+        dict(observables=True, noise=False),
+        dict(observables=False, noise=True),
+    ]:
         output_parameters = observables.get_output_parameters(
-            observable_df, model, mapping_df=mapping_df, **kwargs)
-        placeholders = observables.get_placeholders(
-            observable_df, **kwargs)
+            observable_df, model, mapping_df=mapping_df, **kwargs
+        )
+        placeholders = observables.get_placeholders(observable_df, **kwargs)
         for p in output_parameters:
             if p not in placeholders:
                 parameter_ids[p] = None
@@ -287,11 +327,11 @@ def get_required_parameters_for_parameter_table(
 
 
 def get_valid_parameters_for_parameter_table(
-        model: Model,
-        condition_df: pd.DataFrame,
-        observable_df: pd.DataFrame,
-        measurement_df: pd.DataFrame,
-        mapping_df: pd.DataFrame = None,
+    model: Model,
+    condition_df: pd.DataFrame,
+    observable_df: pd.DataFrame,
+    measurement_df: pd.DataFrame,
+    mapping_df: pd.DataFrame = None,
 ) -> Set[str]:
     """
     Get set of parameters which may be present inside the parameter table
@@ -331,20 +371,23 @@ def get_valid_parameters_for_parameter_table(
     # don't use sets here, to have deterministic ordering,
     #  e.g. for creating parameter tables
     parameter_ids = OrderedDict.fromkeys(
-        p for p in model.get_valid_parameters_for_parameter_table()
+        p
+        for p in model.get_valid_parameters_for_parameter_table()
         if p not in blackset
     )
 
     if mapping_df is not None:
-        for from_id, to_id in zip(mapping_df.index.values,
-                                  mapping_df[MODEL_ENTITY_ID]):
+        for from_id, to_id in zip(
+            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID]
+        ):
             if to_id in parameter_ids.keys():
                 parameter_ids[from_id] = None
 
     if observable_df is not None:
         # add output parameters from observables table
         output_parameters = observables.get_output_parameters(
-            observable_df=observable_df, model=model)
+            observable_df=observable_df, model=model
+        )
         for p in output_parameters:
             if p not in blackset:
                 parameter_ids[p] = None
@@ -359,10 +402,16 @@ def get_valid_parameters_for_parameter_table(
     if measurement_df is not None:
         for _, row in measurement_df.iterrows():
             # we trust that the number of overrides matches
-            append_overrides(measurements.split_parameter_replacement_list(
-                row.get(OBSERVABLE_PARAMETERS, None)))
-            append_overrides(measurements.split_parameter_replacement_list(
-                row.get(NOISE_PARAMETERS, None)))
+            append_overrides(
+                measurements.split_parameter_replacement_list(
+                    row.get(OBSERVABLE_PARAMETERS, None)
+                )
+            )
+            append_overrides(
+                measurements.split_parameter_replacement_list(
+                    row.get(NOISE_PARAMETERS, None)
+                )
+            )
 
     # Append parameter overrides from condition table
     if condition_df is not None:
@@ -373,8 +422,8 @@ def get_valid_parameters_for_parameter_table(
 
 
 def get_priors_from_df(
-        parameter_df: pd.DataFrame,
-        mode: Literal['initialization', 'objective'],
+    parameter_df: pd.DataFrame,
+    mode: Literal["initialization", "objective"],
 ) -> List[Tuple]:
     """Create list with information about the parameter priors
 
@@ -392,16 +441,18 @@ def get_priors_from_df(
     prior_list = []
     for _, row in par_to_estimate.iterrows():
         # retrieve info about type
-        prior_type = str(row.get(f'{mode}PriorType', ''))
+        prior_type = str(row.get(f"{mode}PriorType", ""))
         if core.is_empty(prior_type):
             prior_type = PARAMETER_SCALE_UNIFORM
 
         # retrieve info about parameters of priors, make it a tuple of floats
-        pars_str = str(row.get(f'{mode}PriorParameters', ''))
+        pars_str = str(row.get(f"{mode}PriorParameters", ""))
         if core.is_empty(pars_str):
-            lb, ub = map_scale([row[LOWER_BOUND], row[UPPER_BOUND]],
-                               [row[PARAMETER_SCALE]] * 2)
-            pars_str = f'{lb}{PARAMETER_SEPARATOR}{ub}'
+            lb, ub = map_scale(
+                [row[LOWER_BOUND], row[UPPER_BOUND]],
+                [row[PARAMETER_SCALE]] * 2,
+            )
+            pars_str = f"{lb}{PARAMETER_SEPARATOR}{ub}"
         prior_pars = tuple(
             float(entry) for entry in pars_str.split(PARAMETER_SEPARATOR)
         )
@@ -411,10 +462,12 @@ def get_priors_from_df(
         par_bounds = (row[LOWER_BOUND], row[UPPER_BOUND])
 
         # if no prior is specified, we assume a non-informative (uniform) one
-        if prior_type == 'nan':
+        if prior_type == "nan":
             prior_type = PARAMETER_SCALE_UNIFORM
-            prior_pars = (scale(row[LOWER_BOUND], par_scale),
-                          scale(row[UPPER_BOUND], par_scale))
+            prior_pars = (
+                scale(row[LOWER_BOUND], par_scale),
+                scale(row[UPPER_BOUND], par_scale),
+            )
 
         prior_list.append((prior_type, prior_pars, par_scale, par_bounds))
 
@@ -422,8 +475,8 @@ def get_priors_from_df(
 
 
 def scale(
-        parameter: numbers.Number,
-        scale_str: PARAMETER_SCALE_ARGS,
+    parameter: numbers.Number,
+    scale_str: PARAMETER_SCALE_ARGS,
 ) -> numbers.Number:
     """Scale parameter according to ``scale_str``.
 
@@ -446,8 +499,8 @@ def scale(
 
 
 def unscale(
-        parameter: numbers.Number,
-        scale_str: PARAMETER_SCALE_ARGS,
+    parameter: numbers.Number,
+    scale_str: PARAMETER_SCALE_ARGS,
 ) -> numbers.Number:
     """Unscale parameter according to ``scale_str``.
 
@@ -517,10 +570,11 @@ def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:
     if PARAMETER_NAME not in df:
         df[PARAMETER_NAME] = df.reset_index()[PARAMETER_ID]
 
-    prior_type_cols = [INITIALIZATION_PRIOR_TYPE,
-                       OBJECTIVE_PRIOR_TYPE]
-    prior_par_cols = [INITIALIZATION_PRIOR_PARAMETERS,
-                      OBJECTIVE_PRIOR_PARAMETERS]
+    prior_type_cols = [INITIALIZATION_PRIOR_TYPE, OBJECTIVE_PRIOR_TYPE]
+    prior_par_cols = [
+        INITIALIZATION_PRIOR_PARAMETERS,
+        OBJECTIVE_PRIOR_PARAMETERS,
+    ]
     # iterate over initialization and objective priors
     for prior_type_col, prior_par_col in zip(prior_type_cols, prior_par_cols):
         # fill in default values for prior type
@@ -533,10 +587,14 @@ def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:
         if prior_par_col not in df:
             df[prior_par_col] = None
         for irow, row in df.iterrows():
-            if core.is_empty(row[prior_par_col]) \
-                    and row[prior_type_col] == PARAMETER_SCALE_UNIFORM:
-                lb, ub = map_scale([row[LOWER_BOUND], row[UPPER_BOUND]],
-                                   [row[PARAMETER_SCALE]] * 2)
-                df.loc[irow, prior_par_col] = f'{lb}{PARAMETER_SEPARATOR}{ub}'
+            if (
+                core.is_empty(row[prior_par_col])
+                and row[prior_type_col] == PARAMETER_SCALE_UNIFORM
+            ):
+                lb, ub = map_scale(
+                    [row[LOWER_BOUND], row[UPPER_BOUND]],
+                    [row[PARAMETER_SCALE]] * 2,
+                )
+                df.loc[irow, prior_par_col] = f"{lb}{PARAMETER_SEPARATOR}{ub}"
 
     return df
