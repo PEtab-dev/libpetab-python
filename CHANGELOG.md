@@ -2,6 +2,19 @@
 
 ## 0.2 series
 
+### 0.2.4
+
+* Made figure sizes for visualization functions customizable via `petab.visualize.plotting.DEFAULT_FIGSIZE`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/222
+* Fixed Handling missing `nominalValue` in `Problem.get_x_nominal`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/223
+* Fixed pandas 2.1.0 `FutureWarnings`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/226
+* Added pre-commit-config, ran black, isort, ...
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/225
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.3...v0.2.4
+
 ### 0.2.3
 
 * Fixed validation failures in case of missing optional fields in visualization tables
