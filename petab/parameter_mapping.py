@@ -6,27 +6,37 @@ import numbers
 import os
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Literal
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import libsbml
 import numpy as np
 import pandas as pd
 
-from . import ENV_NUM_THREADS, core, lint, measurements, observables, \
-    parameters
+from . import (
+    ENV_NUM_THREADS,
+    core,
+    lint,
+    measurements,
+    observables,
+    parameters,
+)
 from .C import *  # noqa: F403
-from .models import Model
 from .mapping import resolve_mapping
+from .models import Model
 
 logger = logging.getLogger(__name__)
-__all__ = ['get_optimization_to_simulation_parameter_mapping',
-           'get_parameter_mapping_for_condition',
-           'handle_missing_overrides',
-           'merge_preeq_and_sim_pars',
-           'merge_preeq_and_sim_pars_condition',
-           'ParMappingDict', 'ParMappingDictTuple',
-           'ScaleMappingDict', 'ScaleMappingDictTuple',
-           'ParMappingDictQuadruple']
+__all__ = [
+    "get_optimization_to_simulation_parameter_mapping",
+    "get_parameter_mapping_for_condition",
+    "handle_missing_overrides",
+    "merge_preeq_and_sim_pars",
+    "merge_preeq_and_sim_pars_condition",
+    "ParMappingDict",
+    "ParMappingDictTuple",
+    "ScaleMappingDict",
+    "ScaleMappingDictTuple",
+    "ParMappingDictQuadruple",
+]
 
 
 # Parameter mapping for condition
@@ -39,23 +49,24 @@ ScaleMappingDict = Dict[str, str]
 ScaleMappingDictTuple = Tuple[ScaleMappingDict, ScaleMappingDict]
 # Parameter mapping for combination of preequilibration and simulation
 # conditions, for parameter and scale mapping
-ParMappingDictQuadruple = Tuple[ParMappingDict, ParMappingDict,
-                                ScaleMappingDict, ScaleMappingDict]
+ParMappingDictQuadruple = Tuple[
+    ParMappingDict, ParMappingDict, ScaleMappingDict, ScaleMappingDict
+]
 
 
 def get_optimization_to_simulation_parameter_mapping(
-        condition_df: pd.DataFrame,
-        measurement_df: pd.DataFrame,
-        parameter_df: Optional[pd.DataFrame] = None,
-        observable_df: Optional[pd.DataFrame] = None,
-        mapping_df: Optional[pd.DataFrame] = None,
-        sbml_model: libsbml.Model = None,
-        simulation_conditions: Optional[pd.DataFrame] = None,
-        warn_unmapped: Optional[bool] = True,
-        scaled_parameters: bool = False,
-        fill_fixed_parameters: bool = True,
-        allow_timepoint_specific_numeric_noise_parameters: bool = False,
-        model: Model = None,
+    condition_df: pd.DataFrame,
+    measurement_df: pd.DataFrame,
+    parameter_df: Optional[pd.DataFrame] = None,
+    observable_df: Optional[pd.DataFrame] = None,
+    mapping_df: Optional[pd.DataFrame] = None,
+    sbml_model: libsbml.Model = None,
+    simulation_conditions: Optional[pd.DataFrame] = None,
+    warn_unmapped: Optional[bool] = True,
+    scaled_parameters: bool = False,
+    fill_fixed_parameters: bool = True,
+    allow_timepoint_specific_numeric_noise_parameters: bool = False,
+    model: Model = None,
 ) -> List[ParMappingDictQuadruple]:
     """
     Create list of mapping dicts from PEtab-problem to model parameters.
@@ -106,25 +117,31 @@ def get_optimization_to_simulation_parameter_mapping(
         be empty. ``NaN`` is used where no mapping exists.
     """
     if sbml_model:
-        warnings.warn("Passing a model via the `sbml_model` argument is "
-                      "deprecated, use `model=petab.models.sbml_model."
-                      "SbmlModel(...)` instead.", DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            "Passing a model via the `sbml_model` argument is "
+            "deprecated, use `model=petab.models.sbml_model."
+            "SbmlModel(...)` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from petab.models.sbml_model import SbmlModel
+
         if model:
-            raise ValueError("Arguments `model` and `sbml_model` are "
-                             "mutually exclusive.")
+            raise ValueError(
+                "Arguments `model` and `sbml_model` are " "mutually exclusive."
+            )
         model = SbmlModel(sbml_model=sbml_model)
 
     # Ensure inputs are okay
     _perform_mapping_checks(
         measurement_df,
-        allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-        allow_timepoint_specific_numeric_noise_parameters)
+        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+    )
 
     if simulation_conditions is None:
         simulation_conditions = measurements.get_simulation_conditions(
-            measurement_df)
+            measurement_df
+        )
 
     simulation_parameters = dict(model.get_free_parameter_ids_with_values())
     # Add output parameters that are not already defined in the model
@@ -143,46 +160,71 @@ def get_optimization_to_simulation_parameter_mapping(
         mapping = map(
             _map_condition,
             _map_condition_arg_packer(
-                simulation_conditions, measurement_df, condition_df,
-                parameter_df, mapping_df,
-                model, simulation_parameters, warn_unmapped, scaled_parameters,
+                simulation_conditions,
+                measurement_df,
+                condition_df,
+                parameter_df,
+                mapping_df,
+                model,
+                simulation_parameters,
+                warn_unmapped,
+                scaled_parameters,
                 fill_fixed_parameters,
-                allow_timepoint_specific_numeric_noise_parameters))
+                allow_timepoint_specific_numeric_noise_parameters,
+            ),
+        )
         return list(mapping)
 
     # Run multi-threaded
     from concurrent.futures import ThreadPoolExecutor
+
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         mapping = executor.map(
             _map_condition,
             _map_condition_arg_packer(
-                simulation_conditions, measurement_df, condition_df,
-                parameter_df, mapping_df, model, simulation_parameters,
-                warn_unmapped, scaled_parameters, fill_fixed_parameters,
-                allow_timepoint_specific_numeric_noise_parameters))
+                simulation_conditions,
+                measurement_df,
+                condition_df,
+                parameter_df,
+                mapping_df,
+                model,
+                simulation_parameters,
+                warn_unmapped,
+                scaled_parameters,
+                fill_fixed_parameters,
+                allow_timepoint_specific_numeric_noise_parameters,
+            ),
+        )
     return list(mapping)
 
 
 def _map_condition_arg_packer(
-        simulation_conditions,
-        measurement_df,
-        condition_df,
-        parameter_df,
-        mapping_df,
-        model,
-        simulation_parameters,
-        warn_unmapped,
-        scaled_parameters,
-        fill_fixed_parameters,
-        allow_timepoint_specific_numeric_noise_parameters
+    simulation_conditions,
+    measurement_df,
+    condition_df,
+    parameter_df,
+    mapping_df,
+    model,
+    simulation_parameters,
+    warn_unmapped,
+    scaled_parameters,
+    fill_fixed_parameters,
+    allow_timepoint_specific_numeric_noise_parameters,
 ):
     """Helper function to pack extra arguments for _map_condition"""
     for _, condition in simulation_conditions.iterrows():
         yield (
-            condition, measurement_df, condition_df, parameter_df, mapping_df,
-            model, simulation_parameters, warn_unmapped, scaled_parameters,
+            condition,
+            measurement_df,
+            condition_df,
+            parameter_df,
+            mapping_df,
+            model,
+            simulation_parameters,
+            warn_unmapped,
+            scaled_parameters,
             fill_fixed_parameters,
-            allow_timepoint_specific_numeric_noise_parameters
+            allow_timepoint_specific_numeric_noise_parameters,
         )
 
 
@@ -193,24 +235,39 @@ def _map_condition(packed_args):
     :py:func:`get_optimization_to_simulation_parameter_mapping`.
     """
 
-    (condition, measurement_df, condition_df, parameter_df, mapping_df, model,
-     simulation_parameters, warn_unmapped, scaled_parameters,
-     fill_fixed_parameters,
-     allow_timepoint_specific_numeric_noise_parameters) = packed_args
+    (
+        condition,
+        measurement_df,
+        condition_df,
+        parameter_df,
+        mapping_df,
+        model,
+        simulation_parameters,
+        warn_unmapped,
+        scaled_parameters,
+        fill_fixed_parameters,
+        allow_timepoint_specific_numeric_noise_parameters,
+    ) = packed_args
 
     cur_measurement_df = None
     # Get the condition specific measurements for the current condition, but
     # only if relevant for parameter mapping
-    if (OBSERVABLE_PARAMETERS in measurement_df
-        and measurement_df[OBSERVABLE_PARAMETERS].notna().any()) \
-        or (NOISE_PARAMETERS in measurement_df
-            and measurement_df[NOISE_PARAMETERS].notna().any()):
+    if (
+        OBSERVABLE_PARAMETERS in measurement_df
+        and measurement_df[OBSERVABLE_PARAMETERS].notna().any()
+    ) or (
+        NOISE_PARAMETERS in measurement_df
+        and measurement_df[NOISE_PARAMETERS].notna().any()
+    ):
         cur_measurement_df = measurements.get_rows_for_condition(
-            measurement_df, condition)
+            measurement_df, condition
+        )
 
-    if PREEQUILIBRATION_CONDITION_ID not in condition \
-            or not isinstance(condition[PREEQUILIBRATION_CONDITION_ID], str) \
-            or not condition[PREEQUILIBRATION_CONDITION_ID]:
+    if (
+        PREEQUILIBRATION_CONDITION_ID not in condition
+        or not isinstance(condition[PREEQUILIBRATION_CONDITION_ID], str)
+        or not condition[PREEQUILIBRATION_CONDITION_ID]
+    ):
         par_map_preeq = {}
         scale_map_preeq = {}
     else:
@@ -226,8 +283,7 @@ def _map_condition(packed_args):
             warn_unmapped=warn_unmapped,
             scaled_parameters=scaled_parameters,
             fill_fixed_parameters=fill_fixed_parameters,
-            allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-            allow_timepoint_specific_numeric_noise_parameters
+            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
         )
 
     par_map_sim, scale_map_sim = get_parameter_mapping_for_condition(
@@ -242,27 +298,26 @@ def _map_condition(packed_args):
         warn_unmapped=warn_unmapped,
         scaled_parameters=scaled_parameters,
         fill_fixed_parameters=fill_fixed_parameters,
-        allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-        allow_timepoint_specific_numeric_noise_parameters
+        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
     )
 
     return par_map_preeq, par_map_sim, scale_map_preeq, scale_map_sim
 
 
 def get_parameter_mapping_for_condition(
-        condition_id: str,
-        is_preeq: bool,
-        cur_measurement_df: Optional[pd.DataFrame],
-        sbml_model: libsbml.Model = None,
-        condition_df: pd.DataFrame = None,
-        parameter_df: pd.DataFrame = None,
-        mapping_df: Optional[pd.DataFrame] = None,
-        simulation_parameters: Optional[Dict[str, str]] = None,
-        warn_unmapped: bool = True,
-        scaled_parameters: bool = False,
-        fill_fixed_parameters: bool = True,
-        allow_timepoint_specific_numeric_noise_parameters: bool = False,
-        model: Model = None,
+    condition_id: str,
+    is_preeq: bool,
+    cur_measurement_df: Optional[pd.DataFrame],
+    sbml_model: libsbml.Model = None,
+    condition_df: pd.DataFrame = None,
+    parameter_df: pd.DataFrame = None,
+    mapping_df: Optional[pd.DataFrame] = None,
+    simulation_parameters: Optional[Dict[str, str]] = None,
+    warn_unmapped: bool = True,
+    scaled_parameters: bool = False,
+    fill_fixed_parameters: bool = True,
+    allow_timepoint_specific_numeric_noise_parameters: bool = False,
+    model: Model = None,
 ) -> Tuple[ParMappingDict, ScaleMappingDict]:
     """
     Create dictionary of parameter value and parameter scale mappings from
@@ -313,25 +368,31 @@ def get_parameter_mapping_for_condition(
         ``NaN`` is used where no mapping exists.
     """
     if sbml_model:
-        warnings.warn("Passing a model via the `sbml_model` argument is "
-                      "deprecated, use `model=petab.models.sbml_model."
-                      "SbmlModel(...)` instead.", DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            "Passing a model via the `sbml_model` argument is "
+            "deprecated, use `model=petab.models.sbml_model."
+            "SbmlModel(...)` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from petab.models.sbml_model import SbmlModel
+
         if model:
-            raise ValueError("Arguments `model` and `sbml_model` are "
-                             "mutually exclusive.")
+            raise ValueError(
+                "Arguments `model` and `sbml_model` are " "mutually exclusive."
+            )
         model = SbmlModel(sbml_model=sbml_model)
 
     if cur_measurement_df is not None:
         _perform_mapping_checks(
             cur_measurement_df,
-            allow_timepoint_specific_numeric_noise_parameters=  # noqa: E251,E501
-            allow_timepoint_specific_numeric_noise_parameters)
+            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        )
 
     if simulation_parameters is None:
         simulation_parameters = dict(
-            model.get_free_parameter_ids_with_values())
+            model.get_free_parameter_ids_with_values()
+        )
 
     # NOTE: order matters here - the former is overwritten by the latter:
     #  model < condition table < measurement < table parameter table
@@ -350,11 +411,21 @@ def get_parameter_mapping_for_condition(
     if not is_preeq:
         handle_missing_overrides(par_mapping, warn=warn_unmapped)
 
-    _apply_condition_parameters(par_mapping, scale_mapping, condition_id,
-                                condition_df, model, mapping_df)
-    _apply_parameter_table(par_mapping, scale_mapping,
-                           parameter_df, scaled_parameters,
-                           fill_fixed_parameters)
+    _apply_condition_parameters(
+        par_mapping,
+        scale_mapping,
+        condition_id,
+        condition_df,
+        model,
+        mapping_df,
+    )
+    _apply_parameter_table(
+        par_mapping,
+        scale_mapping,
+        parameter_df,
+        scaled_parameters,
+        fill_fixed_parameters,
+    )
 
     return par_mapping, scale_mapping
 
@@ -373,8 +444,7 @@ def _output_parameters_to_nan(mapping: ParMappingDict) -> None:
 
 
 def _apply_output_parameter_overrides(
-        mapping: ParMappingDict,
-        cur_measurement_df: pd.DataFrame
+    mapping: ParMappingDict, cur_measurement_df: pd.DataFrame
 ) -> None:
     """
     Apply output parameter overrides to the parameter mapping dict for a given
@@ -390,21 +460,25 @@ def _apply_output_parameter_overrides(
     for _, row in cur_measurement_df.iterrows():
         # we trust that the number of overrides matches (see above)
         overrides = measurements.split_parameter_replacement_list(
-            row.get(OBSERVABLE_PARAMETERS, None))
-        _apply_overrides_for_observable(mapping, row[OBSERVABLE_ID],
-                                        'observable', overrides)
+            row.get(OBSERVABLE_PARAMETERS, None)
+        )
+        _apply_overrides_for_observable(
+            mapping, row[OBSERVABLE_ID], "observable", overrides
+        )
 
         overrides = measurements.split_parameter_replacement_list(
-            row.get(NOISE_PARAMETERS, None))
-        _apply_overrides_for_observable(mapping, row[OBSERVABLE_ID], 'noise',
-                                        overrides)
+            row.get(NOISE_PARAMETERS, None)
+        )
+        _apply_overrides_for_observable(
+            mapping, row[OBSERVABLE_ID], "noise", overrides
+        )
 
 
 def _apply_overrides_for_observable(
-        mapping: ParMappingDict,
-        observable_id: str,
-        override_type: Literal['observable', 'noise'],
-        overrides: List[str],
+    mapping: ParMappingDict,
+    observable_id: str,
+    override_type: Literal["observable", "noise"],
+    overrides: List[str],
 ) -> None:
     """
     Apply parameter-overrides for observables and noises to mapping
@@ -417,17 +491,17 @@ def _apply_overrides_for_observable(
         overrides: list of overrides for noise or observable parameters
     """
     for i, override in enumerate(overrides):
-        overridee_id = f'{override_type}Parameter{i+1}_{observable_id}'
+        overridee_id = f"{override_type}Parameter{i+1}_{observable_id}"
         mapping[overridee_id] = override
 
 
 def _apply_condition_parameters(
-        par_mapping: ParMappingDict,
-        scale_mapping: ScaleMappingDict,
-        condition_id: str,
-        condition_df: pd.DataFrame,
-        model: Model,
-        mapping_df: Optional[pd.DataFrame] = None,
+    par_mapping: ParMappingDict,
+    scale_mapping: ScaleMappingDict,
+    condition_id: str,
+    condition_df: pd.DataFrame,
+    model: Model,
+    mapping_df: Optional[pd.DataFrame] = None,
 ) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
@@ -448,15 +522,18 @@ def _apply_condition_parameters(
             continue
 
         par_mapping[overridee_id] = core.to_float_if_float(
-            condition_df.loc[condition_id, overridee_id])
+            condition_df.loc[condition_id, overridee_id]
+        )
 
-        if isinstance(par_mapping[overridee_id], numbers.Number) \
-                and np.isnan(par_mapping[overridee_id]):
+        if isinstance(par_mapping[overridee_id], numbers.Number) and np.isnan(
+            par_mapping[overridee_id]
+        ):
             # NaN in the condition table for an entity without time derivative
             #  indicates that the model value should be used
             try:
-                par_mapping[overridee_id] = \
-                    model.get_parameter_value(overridee_id)
+                par_mapping[overridee_id] = model.get_parameter_value(
+                    overridee_id
+                )
             except ValueError as e:
                 raise NotImplementedError(
                     "Not sure how to handle NaN in condition table for "
@@ -467,11 +544,11 @@ def _apply_condition_parameters(
 
 
 def _apply_parameter_table(
-        par_mapping: ParMappingDict,
-        scale_mapping: ScaleMappingDict,
-        parameter_df: Optional[pd.DataFrame] = None,
-        scaled_parameters: bool = False,
-        fill_fixed_parameters: bool = True,
+    par_mapping: ParMappingDict,
+    scale_mapping: ScaleMappingDict,
+    parameter_df: Optional[pd.DataFrame] = None,
+    scaled_parameters: bool = False,
+    fill_fixed_parameters: bool = True,
 ) -> None:
     """Replace parameters from parameter table in mapping list for a given
     condition and set the corresponding scale.
@@ -523,12 +600,17 @@ def _apply_parameter_table(
                 raise
 
             # or the overridee is only defined in the parameter table
-            scale = parameter_df.loc[sim_par, PARAMETER_SCALE] \
-                if PARAMETER_SCALE in parameter_df else LIN
+            scale = (
+                parameter_df.loc[sim_par, PARAMETER_SCALE]
+                if PARAMETER_SCALE in parameter_df
+                else LIN
+            )
 
-            if fill_fixed_parameters \
-                    and ESTIMATE in parameter_df \
-                    and parameter_df.loc[sim_par, ESTIMATE] == 0:
+            if (
+                fill_fixed_parameters
+                and ESTIMATE in parameter_df
+                and parameter_df.loc[sim_par, ESTIMATE] == 0
+            ):
                 val = parameter_df.loc[sim_par, NOMINAL_VALUE]
                 if scaled_parameters:
                     val = parameters.scale(val, scale)
@@ -540,26 +622,27 @@ def _apply_parameter_table(
 
 
 def _perform_mapping_checks(
-        measurement_df: pd.DataFrame,
-        allow_timepoint_specific_numeric_noise_parameters: bool = False
+    measurement_df: pd.DataFrame,
+    allow_timepoint_specific_numeric_noise_parameters: bool = False,
 ) -> None:
     """Check for PEtab features which we can't account for during parameter
     mapping."""
 
     if lint.measurement_table_has_timepoint_specific_mappings(
-            measurement_df,
-            allow_scalar_numeric_noise_parameters=  # noqa: E251,E501
-            allow_timepoint_specific_numeric_noise_parameters):
+        measurement_df,
+        allow_scalar_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+    ):
         # we could allow that for floats, since they don't matter in this
         # function and would be simply ignored
         raise ValueError(
-            "Timepoint-specific parameter overrides currently unsupported.")
+            "Timepoint-specific parameter overrides currently unsupported."
+        )
 
 
 def handle_missing_overrides(
-        mapping_par_opt_to_par_sim: ParMappingDict,
-        warn: bool = True,
-        condition_id: str = None,
+    mapping_par_opt_to_par_sim: ParMappingDict,
+    warn: bool = True,
+    condition_id: str = None,
 ) -> None:
     """
     Find all observable parameters and noise parameters that were not mapped
@@ -589,18 +672,20 @@ def handle_missing_overrides(
             _missed_vals.append(key)
 
     if _missed_vals and warn:
-        logger.warning(f"Could not map the following overrides for condition "
-                       f"{condition_id}: "
-                       f"{_missed_vals}. Usually, this is just due to missing "
-                       f"data points.")
+        logger.warning(
+            f"Could not map the following overrides for condition "
+            f"{condition_id}: "
+            f"{_missed_vals}. Usually, this is just due to missing "
+            f"data points."
+        )
 
 
 def merge_preeq_and_sim_pars_condition(
-        condition_map_preeq: ParMappingDict,
-        condition_map_sim: ParMappingDict,
-        condition_scale_map_preeq: ScaleMappingDict,
-        condition_scale_map_sim: ScaleMappingDict,
-        condition: Any,
+    condition_map_preeq: ParMappingDict,
+    condition_map_sim: ParMappingDict,
+    condition_scale_map_preeq: ScaleMappingDict,
+    condition_scale_map_sim: ScaleMappingDict,
+    condition: Any,
 ) -> None:
     """Merge preequilibration and simulation parameters and scales for a single
     condition while checking for compatibility.
@@ -624,8 +709,9 @@ def merge_preeq_and_sim_pars_condition(
         # nothing to do
         return
 
-    all_par_ids = set(condition_map_sim.keys()) \
-        | set(condition_map_preeq.keys())
+    all_par_ids = set(condition_map_sim.keys()) | set(
+        condition_map_preeq.keys()
+    )
 
     for par_id in all_par_ids:
         if par_id not in condition_map_preeq:
@@ -641,8 +727,9 @@ def merge_preeq_and_sim_pars_condition(
         # present in both
         par_preeq = condition_map_preeq[par_id]
         par_sim = condition_map_sim[par_id]
-        if par_preeq != par_sim \
-                and not (core.is_empty(par_sim) and core.is_empty(par_preeq)):
+        if par_preeq != par_sim and not (
+            core.is_empty(par_sim) and core.is_empty(par_preeq)
+        ):
             # both identical or both nan is okay
             if core.is_empty(par_sim):
                 # unmapped for simulation
@@ -652,10 +739,11 @@ def merge_preeq_and_sim_pars_condition(
                 pass
             else:
                 raise ValueError(
-                    'Cannot handle different values for dynamic '
-                    f'parameters: for condition {condition} '
-                    f'parameter {par_id} is {par_preeq} for preeq '
-                    f'and {par_sim} for simulation.')
+                    "Cannot handle different values for dynamic "
+                    f"parameters: for condition {condition} "
+                    f"parameter {par_id} is {par_preeq} for preeq "
+                    f"and {par_sim} for simulation."
+                )
 
         scale_preeq = condition_scale_map_preeq[par_id]
         scale_sim = condition_scale_map_sim[par_id]
@@ -670,15 +758,16 @@ def merge_preeq_and_sim_pars_condition(
                 pass
             else:
                 raise ValueError(
-                    'Cannot handle different parameter scales '
-                    f'parameters: for condition {condition} '
-                    f'scale for parameter {par_id} is {scale_preeq} for preeq '
-                    f'and {scale_sim} for simulation.')
+                    "Cannot handle different parameter scales "
+                    f"parameters: for condition {condition} "
+                    f"scale for parameter {par_id} is {scale_preeq} for preeq "
+                    f"and {scale_sim} for simulation."
+                )
 
 
 def merge_preeq_and_sim_pars(
-        parameter_mappings: Iterable[ParMappingDictTuple],
-        scale_mappings: Iterable[ScaleMappingDictTuple]
+    parameter_mappings: Iterable[ParMappingDictTuple],
+    scale_mappings: Iterable[ScaleMappingDictTuple],
 ) -> Tuple[List[ParMappingDictTuple], List[ScaleMappingDictTuple]]:
     """Merge preequilibration and simulation parameters and scales for a list
     of conditions while checking for compatibility.
@@ -696,14 +785,17 @@ def merge_preeq_and_sim_pars(
     """
     parameter_mapping = []
     scale_mapping = []
-    for ic, ((map_preeq, map_sim), (scale_map_preeq, scale_map_sim)) in \
-            enumerate(zip(parameter_mappings, scale_mappings)):
+    for ic, (
+        (map_preeq, map_sim),
+        (scale_map_preeq, scale_map_sim),
+    ) in enumerate(zip(parameter_mappings, scale_mappings)):
         merge_preeq_and_sim_pars_condition(
             condition_map_preeq=map_preeq,
             condition_map_sim=map_sim,
             condition_scale_map_preeq=scale_map_preeq,
             condition_scale_map_sim=scale_map_sim,
-            condition=ic)
+            condition=ic,
+        )
         parameter_mapping.append(map_sim)
         scale_mapping.append(scale_map_sim)
 

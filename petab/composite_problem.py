@@ -1,15 +1,13 @@
 """PEtab problems consisting of multiple models"""
 import os
-from typing import List, Union, Dict
+from typing import Dict, List, Union
 
 import pandas as pd
 
-from . import parameters
-from . import problem
-from . import yaml
+from . import parameters, problem, yaml
 from .C import *  # noqa: F403
 
-__all__ = ['CompositeProblem']
+__all__ = ["CompositeProblem"]
 
 
 class CompositeProblem:
@@ -23,9 +21,10 @@ class CompositeProblem:
     """
 
     def __init__(
-            self,
-            parameter_df: pd.DataFrame = None,
-            problems: List[problem.Problem] = None):
+        self,
+        parameter_df: pd.DataFrame = None,
+        problems: List[problem.Problem] = None,
+    ):
         """Constructor
 
         Arguments:
@@ -38,7 +37,7 @@ class CompositeProblem:
         self.parameter_df: pd.DataFrame = parameter_df
 
     @staticmethod
-    def from_yaml(yaml_config: Union[Dict, str]) -> 'CompositeProblem':
+    def from_yaml(yaml_config: Union[Dict, str]) -> "CompositeProblem":
         """Create from YAML file
 
         Factory method to create a CompositeProblem instance from a PEtab
@@ -55,7 +54,8 @@ class CompositeProblem:
             path_prefix = ""
 
         parameter_df = parameters.get_parameter_df(
-            os.path.join(path_prefix, yaml_config[PARAMETER_FILE]))
+            os.path.join(path_prefix, yaml_config[PARAMETER_FILE])
+        )
 
         problems = []
         for problem_config in yaml_config[PROBLEMS]:
@@ -64,20 +64,24 @@ class CompositeProblem:
             # don't set parameter file if we have multiple models
             cur_problem = problem.Problem.from_files(
                 sbml_file=os.path.join(
-                    path_prefix, problem_config[SBML_FILES][0]),
+                    path_prefix, problem_config[SBML_FILES][0]
+                ),
                 measurement_file=[
                     os.path.join(path_prefix, f)
-                    for f in problem_config[MEASUREMENT_FILES]],
+                    for f in problem_config[MEASUREMENT_FILES]
+                ],
                 condition_file=os.path.join(
-                    path_prefix, problem_config[CONDITION_FILES][0]),
+                    path_prefix, problem_config[CONDITION_FILES][0]
+                ),
                 visualization_files=[
                     os.path.join(path_prefix, f)
-                    for f in problem_config[VISUALIZATION_FILES]],
+                    for f in problem_config[VISUALIZATION_FILES]
+                ],
                 observable_files=[
                     os.path.join(path_prefix, f)
-                    for f in problem_config[OBSERVABLE_FILES]]
+                    for f in problem_config[OBSERVABLE_FILES]
+                ],
             )
             problems.append(cur_problem)
 
-        return CompositeProblem(parameter_df=parameter_df,
-                                problems=problems)
+        return CompositeProblem(parameter_df=parameter_df, problems=problems)

@@ -1,8 +1,12 @@
 [flake8]
 
 extend-ignore =
+    # whitespace before ":", conflicts with black
+    E203
     F403
     F405
+    # line too long, conflicts with black in rare cases
+    E501
 exclude =
     build,
     dist,

@@ -15,20 +15,26 @@ from .C import *  # noqa: F403
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 # map of version number to validation schema
 SCHEMAS = {
-    '1': SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
-    '1.0.0': SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
-    '2.0.0': SCHEMA_DIR / "petab_schema.v2.0.0.yaml",
+    "1": SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
+    "1.0.0": SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
+    "2.0.0": SCHEMA_DIR / "petab_schema.v2.0.0.yaml",
 }
 
-__all__ = ['validate', 'validate_yaml_syntax', 'validate_yaml_semantics',
-           'load_yaml', 'is_composite_problem',
-           'assert_single_condition_and_sbml_file', 'write_yaml',
-           'create_problem_yaml']
+__all__ = [
+    "validate",
+    "validate_yaml_syntax",
+    "validate_yaml_semantics",
+    "load_yaml",
+    "is_composite_problem",
+    "assert_single_condition_and_sbml_file",
+    "write_yaml",
+    "create_problem_yaml",
+]
 
 
 def validate(
-        yaml_config: Union[Dict, str, Path],
-        path_prefix: Union[None, str, Path] = None,
+    yaml_config: Union[Dict, str, Path],
+    path_prefix: Union[None, str, Path] = None,
 ):
     """Validate syntax and semantics of PEtab config YAML
 
@@ -42,13 +48,12 @@ def validate(
     """
 
     validate_yaml_syntax(yaml_config)
-    validate_yaml_semantics(yaml_config=yaml_config,
-                            path_prefix=path_prefix)
+    validate_yaml_semantics(yaml_config=yaml_config, path_prefix=path_prefix)
 
 
 def validate_yaml_syntax(
-        yaml_config: Union[Dict, str, Path],
-        schema: Union[None, Dict, str] = None):
+    yaml_config: Union[Dict, str, Path], schema: Union[None, Dict, str] = None
+):
     """Validate PEtab YAML file syntax
 
     Arguments:
@@ -66,20 +71,23 @@ def validate_yaml_syntax(
         # try get PEtab version from yaml file
         #  if this is not the available, the file is not valid anyways,
         #  but let's still use the latest PEtab schema for full validation
-        version = yaml_config.get(FORMAT_VERSION, None) \
-                      or list(SCHEMAS.values())[-1]
+        version = (
+            yaml_config.get(FORMAT_VERSION, None) or list(SCHEMAS.values())[-1]
+        )
         try:
             schema = SCHEMAS[str(version)]
         except KeyError as e:
-            raise ValueError("Unknown PEtab version given in problem "
-                             f"specification: {version}") from e
+            raise ValueError(
+                "Unknown PEtab version given in problem "
+                f"specification: {version}"
+            ) from e
     schema = load_yaml(schema)
     jsonschema.validate(instance=yaml_config, schema=schema)
 
 
 def validate_yaml_semantics(
-        yaml_config: Union[Dict, str, Path],
-        path_prefix: Union[None, str, Path] = None
+    yaml_config: Union[Dict, str, Path],
+    path_prefix: Union[None, str, Path] = None,
 ):
     """Validate PEtab YAML file semantics
 
@@ -108,21 +116,28 @@ def validate_yaml_semantics(
 
     def _check_file(_filename: str, _field: str):
         if not os.path.isfile(_filename):
-            raise AssertionError(f"File '{_filename}' provided as '{_field}' "
-                                 "does not exist.")
+            raise AssertionError(
+                f"File '{_filename}' provided as '{_field}' " "does not exist."
+            )
 
     # Handles both a single parameter file, and a parameter file that has been
     # split into multiple subset files.
-    for parameter_subset_file in (
-            list(np.array(yaml_config[PARAMETER_FILE]).flat)):
+    for parameter_subset_file in list(
+        np.array(yaml_config[PARAMETER_FILE]).flat
+    ):
         _check_file(
             os.path.join(path_prefix, parameter_subset_file),
-            parameter_subset_file
+            parameter_subset_file,
         )
 
     for problem_config in yaml_config[PROBLEMS]:
-        for field in [SBML_FILES, CONDITION_FILES, MEASUREMENT_FILES,
-                      VISUALIZATION_FILES, OBSERVABLE_FILES]:
+        for field in [
+            SBML_FILES,
+            CONDITION_FILES,
+            MEASUREMENT_FILES,
+            VISUALIZATION_FILES,
+            OBSERVABLE_FILES,
+        ]:
             if field in problem_config:
                 for filename in problem_config[field]:
                     _check_file(os.path.join(path_prefix, filename), field)
@@ -147,7 +162,7 @@ def load_yaml(yaml_config: Union[Dict, Path, str]) -> Dict:
     if isinstance(yaml_config, dict):
         return yaml_config
 
-    with get_handle(yaml_config, mode='r') as io_handle:
+    with get_handle(yaml_config, mode="r") as io_handle:
         data = yaml.safe_load(io_handle.handle)
     return data
 
@@ -175,18 +190,20 @@ def assert_single_condition_and_sbml_file(problem_config: Dict) -> None:
         NotImplementedError:
             If multiple condition or SBML files specified.
     """
-    if (len(problem_config[SBML_FILES]) > 1
-            or len(problem_config[CONDITION_FILES]) > 1):
+    if (
+        len(problem_config[SBML_FILES]) > 1
+        or len(problem_config[CONDITION_FILES]) > 1
+    ):
         # TODO https://github.com/ICB-DCM/PEtab/issues/188
         # TODO https://github.com/ICB-DCM/PEtab/issues/189
         raise NotImplementedError(
-            'Support for multiple models or condition files is not yet '
-            'implemented.')
+            "Support for multiple models or condition files is not yet "
+            "implemented."
+        )
 
 
 def write_yaml(
-        yaml_config: Dict[str, Any],
-        filename: Union[str, Path]
+    yaml_config: Dict[str, Any], filename: Union[str, Path]
 ) -> None:
     """Write PEtab YAML file
 
@@ -194,22 +211,24 @@ def write_yaml(
         yaml_config: Data to write
         filename: File to create
     """
-    with open(filename, 'w') as outfile:
-        yaml.dump(yaml_config, outfile, default_flow_style=False,
-                  sort_keys=False)
+    with open(filename, "w") as outfile:
+        yaml.dump(
+            yaml_config, outfile, default_flow_style=False, sort_keys=False
+        )
 
 
 def create_problem_yaml(
-        sbml_files: Union[str, Path, List[Union[str, Path]]],
-        condition_files: Union[str, Path, List[Union[str, Path]]],
-        measurement_files: Union[str, Path, List[Union[str, Path]]],
-        parameter_file: Union[str, Path],
-        observable_files: Union[str, Path, List[Union[str, Path]]],
-        yaml_file: Union[str, Path],
-        visualization_files:
-        Optional[Union[str, Path, List[Union[str, Path]]]] = None,
-        relative_paths: bool = True,
-        mapping_files: Union[str, Path, List[Union[str, Path]]] = None,
+    sbml_files: Union[str, Path, List[Union[str, Path]]],
+    condition_files: Union[str, Path, List[Union[str, Path]]],
+    measurement_files: Union[str, Path, List[Union[str, Path]]],
+    parameter_file: Union[str, Path],
+    observable_files: Union[str, Path, List[Union[str, Path]]],
+    yaml_file: Union[str, Path],
+    visualization_files: Optional[
+        Union[str, Path, List[Union[str, Path]]]
+    ] = None,
+    relative_paths: bool = True,
+    mapping_files: Union[str, Path, List[Union[str, Path]]] = None,
 ) -> None:
     """Create and write default YAML file for a single PEtab problem
 
@@ -246,8 +265,7 @@ def create_problem_yaml(
             if paths is None:
                 return paths
             return [
-                os.path.relpath(path, start=yaml_file_dir)
-                for path in paths
+                os.path.relpath(path, start=yaml_file_dir) for path in paths
             ]
 
         sbml_files = get_rel_to_yaml(sbml_files)
@@ -262,7 +280,7 @@ def create_problem_yaml(
         CONDITION_FILES: condition_files,
         MEASUREMENT_FILES: measurement_files,
         SBML_FILES: sbml_files,
-        OBSERVABLE_FILES: observable_files
+        OBSERVABLE_FILES: observable_files,
     }
     if mapping_files:
         problem_dic[MAPPING_FILES] = mapping_files
@@ -272,6 +290,6 @@ def create_problem_yaml(
     yaml_dic = {
         PARAMETER_FILE: parameter_file,
         FORMAT_VERSION: 1,
-        PROBLEMS: [problem_dic]
+        PROBLEMS: [problem_dic],
     }
     write_yaml(yaml_dic, yaml_file)

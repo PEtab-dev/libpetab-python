@@ -1,5 +1,5 @@
-MODEL_TYPE_SBML = 'sbml'
-MODEL_TYPE_PYSB = 'pysb'
+MODEL_TYPE_SBML = "sbml"
+MODEL_TYPE_PYSB = "pysb"
 
 known_model_types = {
     MODEL_TYPE_SBML,

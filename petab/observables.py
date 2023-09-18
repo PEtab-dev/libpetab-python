@@ -14,17 +14,17 @@ from .C import *  # noqa: F403
 from .models import Model
 
 __all__ = [
-    'create_observable_df',
-    'get_formula_placeholders',
-    'get_observable_df',
-    'get_output_parameters',
-    'get_placeholders',
-    'write_observable_df'
+    "create_observable_df",
+    "get_formula_placeholders",
+    "get_observable_df",
+    "get_output_parameters",
+    "get_placeholders",
+    "write_observable_df",
 ]
 
 
 def get_observable_df(
-        observable_file: Union[str, pd.DataFrame, Path, None]
+    observable_file: Union[str, pd.DataFrame, Path, None]
 ) -> Union[pd.DataFrame, None]:
     """
     Read the provided observable file into a ``pandas.Dataframe``.
@@ -39,11 +39,13 @@ def get_observable_df(
         return observable_file
 
     if isinstance(observable_file, (str, Path)):
-        observable_file = pd.read_csv(observable_file, sep='\t',
-                                      float_precision='round_trip')
+        observable_file = pd.read_csv(
+            observable_file, sep="\t", float_precision="round_trip"
+        )
 
     lint.assert_no_leading_trailing_whitespace(
-        observable_file.columns.values, "observable")
+        observable_file.columns.values, "observable"
+    )
 
     if not isinstance(observable_file.index, pd.RangeIndex):
         observable_file.reset_index(inplace=True)
@@ -52,7 +54,8 @@ def get_observable_df(
         observable_file.set_index([OBSERVABLE_ID], inplace=True)
     except KeyError:
         raise KeyError(
-            f"Observable table missing mandatory field {OBSERVABLE_ID}.")
+            f"Observable table missing mandatory field {OBSERVABLE_ID}."
+        )
 
     return observable_file
 
@@ -65,15 +68,15 @@ def write_observable_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
         filename: Destination file name
     """
     df = get_observable_df(df)
-    df.to_csv(filename, sep='\t', index=True)
+    df.to_csv(filename, sep="\t", index=True)
 
 
 def get_output_parameters(
-        observable_df: pd.DataFrame,
-        model: Model,
-        observables: bool = True,
-        noise: bool = True,
-        mapping_df: pd.DataFrame = None
+    observable_df: pd.DataFrame,
+    model: Model,
+    observables: bool = True,
+    noise: bool = True,
+    mapping_df: pd.DataFrame = None,
 ) -> List[str]:
     """Get output parameters
 
@@ -98,18 +101,23 @@ def get_output_parameters(
     output_parameters = OrderedDict()
 
     for formula in formulas:
-        free_syms = sorted(sp.sympify(formula, locals=_clash).free_symbols,
-                           key=lambda symbol: symbol.name)
+        free_syms = sorted(
+            sp.sympify(formula, locals=_clash).free_symbols,
+            key=lambda symbol: symbol.name,
+        )
         for free_sym in free_syms:
             sym = str(free_sym)
             if model.symbol_allowed_in_observable_formula(sym):
                 continue
 
             # does it mapping to a model entity?
-            if mapping_df is not None \
-                    and sym in mapping_df.index \
-                    and model.symbol_allowed_in_observable_formula(
-                    mapping_df.loc[sym, MODEL_ENTITY_ID]):
+            if (
+                mapping_df is not None
+                and sym in mapping_df.index
+                and model.symbol_allowed_in_observable_formula(
+                    mapping_df.loc[sym, MODEL_ENTITY_ID]
+                )
+            ):
                 continue
 
             output_parameters[sym] = None
@@ -118,9 +126,9 @@ def get_output_parameters(
 
 
 def get_formula_placeholders(
-        formula_string: str,
-        observable_id: str,
-        override_type: Literal['observable', 'noise'],
+    formula_string: str,
+    observable_id: str,
+    override_type: Literal["observable", "noise"],
 ) -> List[str]:
     """
     Get placeholder variables in noise or observable definition for the
@@ -142,26 +150,34 @@ def get_formula_placeholders(
     if not isinstance(formula_string, str):
         return []
 
-    pattern = re.compile(r'(?:^|\W)(' + re.escape(override_type)
-                         + r'Parameter\d+_' + re.escape(observable_id)
-                         + r')(?=\W|$)')
+    pattern = re.compile(
+        r"(?:^|\W)("
+        + re.escape(override_type)
+        + r"Parameter\d+_"
+        + re.escape(observable_id)
+        + r")(?=\W|$)"
+    )
     placeholder_set = set(pattern.findall(formula_string))
 
     # need to sort and check that there are no gaps in numbering
-    placeholders = [f"{override_type}Parameter{i}_{observable_id}"
-                    for i in range(1, len(placeholder_set) + 1)]
+    placeholders = [
+        f"{override_type}Parameter{i}_{observable_id}"
+        for i in range(1, len(placeholder_set) + 1)
+    ]
 
     if placeholder_set != set(placeholders):
-        raise AssertionError("Non-consecutive numbering of placeholder "
-                             f"parameter for {placeholder_set}")
+        raise AssertionError(
+            "Non-consecutive numbering of placeholder "
+            f"parameter for {placeholder_set}"
+        )
 
     return placeholders
 
 
 def get_placeholders(
-        observable_df: pd.DataFrame,
-        observables: bool = True,
-        noise: bool = True,
+    observable_df: pd.DataFrame,
+    observables: bool = True,
+    noise: bool = True,
 ) -> List[str]:
     """Get all placeholder parameters from observable table observableFormulas
     and noiseFormulas
@@ -181,21 +197,23 @@ def get_placeholders(
     placeholder_types = []
     formula_columns = []
     if observables:
-        placeholder_types.append('observable')
+        placeholder_types.append("observable")
         formula_columns.append(OBSERVABLE_FORMULA)
     if noise:
-        placeholder_types.append('noise')
+        placeholder_types.append("noise")
         formula_columns.append(NOISE_FORMULA)
 
     placeholders = []
     for _, row in observable_df.iterrows():
-        for placeholder_type, formula_column \
-                in zip(placeholder_types, formula_columns):
+        for placeholder_type, formula_column in zip(
+            placeholder_types, formula_columns
+        ):
             if formula_column not in row:
                 continue
 
             cur_placeholders = get_formula_placeholders(
-                row[formula_column], row.name, placeholder_type)
+                row[formula_column], row.name, placeholder_type
+            )
             placeholders.extend(cur_placeholders)
     return core.unique_preserve_order(placeholders)
 

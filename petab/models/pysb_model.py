@@ -19,18 +19,20 @@ def _pysb_model_from_path(pysb_model_file: Union[str, Path]) -> pysb.Model:
     :return: The pysb Model instance
     """
     pysb_model_file = Path(pysb_model_file)
-    pysb_model_module_name = pysb_model_file.with_suffix('').name
+    pysb_model_module_name = pysb_model_file.with_suffix("").name
 
     import importlib.util
+
     spec = importlib.util.spec_from_file_location(
-        pysb_model_module_name, pysb_model_file)
+        pysb_model_module_name, pysb_model_file
+    )
     module = importlib.util.module_from_spec(spec)
     sys.modules[pysb_model_module_name] = module
     spec.loader.exec_module(module)
 
     # find a pysb.Model instance in the module
     # 1) check if module.model exists and is a pysb.Model
-    model = getattr(module, 'model', None)
+    model = getattr(module, "model", None)
     if model:
         return model
 
@@ -45,13 +47,10 @@ def _pysb_model_from_path(pysb_model_file: Union[str, Path]) -> pysb.Model:
 
 class PySBModel(Model):
     """PEtab wrapper for PySB models"""
+
     type_id = MODEL_TYPE_PYSB
 
-    def __init__(
-            self,
-            model: pysb.Model,
-            model_id: str
-    ):
+    def __init__(self, model: pysb.Model, model_id: str):
         super().__init__()
 
         self.model = model
@@ -60,14 +59,14 @@ class PySBModel(Model):
     @staticmethod
     def from_file(filepath_or_buffer, model_id: str):
         return PySBModel(
-            model=_pysb_model_from_path(filepath_or_buffer),
-            model_id=model_id
+            model=_pysb_model_from_path(filepath_or_buffer), model_id=model_id
         )
 
     def to_file(self, filename: [str, Path]):
         from pysb.export import export
-        model_source = export(self.model, 'pysb_flat')
-        with open(filename, 'w') as f:
+
+        model_source = export(self.model, "pysb_flat")
+        with open(filename, "w") as f:
             f.write(model_source)
 
     @property
@@ -88,7 +87,7 @@ class PySBModel(Model):
             raise ValueError(f"Parameter {id_} does not exist.") from e
 
     def get_free_parameter_ids_with_values(
-            self
+        self,
     ) -> Iterable[Tuple[str, float]]:
         return ((p.name, p.value) for p in self.model.parameters)
 
@@ -104,12 +103,14 @@ class PySBModel(Model):
         return self.get_parameter_ids()
 
     def get_valid_ids_for_condition_table(self) -> Iterable[str]:
-        return itertools.chain(self.get_parameter_ids(),
-                               self.get_compartment_ids())
+        return itertools.chain(
+            self.get_parameter_ids(), self.get_compartment_ids()
+        )
 
     def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
         return id_ in (
-            x.name for x in itertools.chain(
+            x.name
+            for x in itertools.chain(
                 self.model.parameters,
                 self.model.observables,
                 self.model.expressions,
@@ -156,7 +157,7 @@ class PySBModel(Model):
 
 
 def parse_species_name(
-        name: str
+    name: str,
 ) -> List[Tuple[str, Optional[str], Dict[str, Any]]]:
     """Parse a PySB species name
 
@@ -166,12 +167,12 @@ def parse_species_name(
         mapping to site states.
     :raises ValueError: In case this is not a valid ID
     """
-    if '=MultiState(' in name:
+    if "=MultiState(" in name:
         raise NotImplementedError("MultiState is not yet supported.")
 
     complex_constituent_pattern = re.compile(
-        r'^(?P<monomer>\w+)\((?P<site_config>.*)\)'
-        r'( \*\* (?P<compartment>.*))?$'
+        r"^(?P<monomer>\w+)\((?P<site_config>.*)\)"
+        r"( \*\* (?P<compartment>.*))?$"
     )
     result = []
     complex_constituents = name.split(" % ")
@@ -179,29 +180,33 @@ def parse_species_name(
     for complex_constituent in complex_constituents:
         match = complex_constituent_pattern.match(complex_constituent)
         if not match:
-            raise ValueError(f"Invalid species name: '{name}' "
-                             f"('{complex_constituent}')")
-        monomer = match.groupdict()['monomer']
-        site_config_str = match.groupdict()['site_config']
-        compartment = match.groupdict()['compartment']
+            raise ValueError(
+                f"Invalid species name: '{name}' " f"('{complex_constituent}')"
+            )
+        monomer = match.groupdict()["monomer"]
+        site_config_str = match.groupdict()["site_config"]
+        compartment = match.groupdict()["compartment"]
 
         site_config = {}
         for site_str in site_config_str.split(", "):
             if not site_str:
                 continue
             site, config = site_str.split("=")
-            if config == 'None':
+            if config == "None":
                 config = None
             elif config.startswith("'"):
                 if not config.endswith("'"):
-                    raise ValueError(f"Invalid species name: '{name}' "
-                                     f"('{config}')")
+                    raise ValueError(
+                        f"Invalid species name: '{name}' " f"('{config}')"
+                    )
                 # strip quotes
                 config = config[1:-1]
             else:
                 config = int(config)
             site_config[site] = config
-        result.append((monomer, compartment, site_config),)
+        result.append(
+            (monomer, compartment, site_config),
+        )
 
     return result
 
@@ -215,7 +220,8 @@ def pattern_from_string(string: str, model: pysb.Model) -> pysb.ComplexPattern:
             pysb.MonomerPattern(
                 monomer=model.monomers.get(part[0]),
                 compartment=model.compartments.get(part[1], None),
-                site_conditions=part[2]
-            ))
+                site_conditions=part[2],
+            )
+        )
 
     return pysb.ComplexPattern(patterns, compartment=None)
