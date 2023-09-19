@@ -61,13 +61,14 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     """
 
     my_measurements = measurement_df.copy()
-    my_measurements[PREEQUILIBRATION_CONDITION_ID] = my_measurements[
-        PREEQUILIBRATION_CONDITION_ID
-    ].astype("object")
 
     index = [SIMULATION_CONDITION_ID]
     if PREEQUILIBRATION_CONDITION_ID in my_measurements:
-        my_measurements[PREEQUILIBRATION_CONDITION_ID].fillna("", inplace=True)
+        my_measurements[PREEQUILIBRATION_CONDITION_ID] = (
+            my_measurements[PREEQUILIBRATION_CONDITION_ID]
+            .astype("object")
+            .fillna("", inplace=True)
+        )
         index.append(PREEQUILIBRATION_CONDITION_ID)
 
     data_per_observable = pd.pivot_table(
