@@ -179,6 +179,7 @@ def test_get_priors_from_df():
     """Check petab.get_priors_from_df."""
     parameter_df = pd.DataFrame(
         {
+            PARAMETER_ID: ["p1", "p2", "p3", "p4", "p5"],
             PARAMETER_SCALE: [LOG10, LOG10, LOG10, LOG10, LOG10],
             LOWER_BOUND: [1e-8, 1e-9, 1e-10, 1e-11, 1e-5],
             UPPER_BOUND: [1e8, 1e9, 1e10, 1e11, 1e5],
@@ -193,6 +194,7 @@ def test_get_priors_from_df():
             ],
         }
     )
+    parameter_df = petab.get_parameter_df(parameter_df)
 
     prior_list = petab.get_priors_from_df(parameter_df, mode=INITIALIZATION)
 
@@ -224,6 +226,18 @@ def test_get_priors_from_df():
     assert prior_pars[0] == (-8, 8)
     assert prior_pars[1] == (-5, 5)
     assert prior_pars[2] == (1e-5, 1e5)
+
+    # check subsetting / reordering works
+    prior_list_subset = petab.get_priors_from_df(
+        parameter_df, mode=INITIALIZATION, parameter_ids=["p2", "p1"]
+    )
+    assert len(prior_list_subset) == 2
+    assert prior_list_subset == [prior_list[1], prior_list[0]]
+
+    with pytest.raises(KeyError, match="Parameter table does not contain"):
+        petab.get_priors_from_df(
+            parameter_df, mode=INITIALIZATION, parameter_ids=["non_existent"]
+        )
 
 
 def test_startpoint_sampling(fujita_model_scaling):

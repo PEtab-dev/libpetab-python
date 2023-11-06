@@ -424,19 +424,31 @@ def get_valid_parameters_for_parameter_table(
 def get_priors_from_df(
     parameter_df: pd.DataFrame,
     mode: Literal["initialization", "objective"],
+    parameter_ids: Sequence[str] = None,
 ) -> List[Tuple]:
     """Create list with information about the parameter priors
 
     Arguments:
         parameter_df: PEtab parameter table
         mode: ``'initialization'`` or ``'objective'``
+        parameter_ids: A sequence of parameter IDs for which to sample starting points.
+            For subsetting or reordering the parameters.
+            Defaults to all estimated parameters.
 
     Returns:
         List with prior information.
     """
-
     # get types and parameters of priors from dataframe
     par_to_estimate = parameter_df.loc[parameter_df[ESTIMATE] == 1]
+
+    if parameter_ids:
+        try:
+            par_to_estimate = par_to_estimate.loc[parameter_ids, :]
+        except KeyError as e:
+            missing_ids = set(parameter_ids) - set(par_to_estimate.index)
+            raise KeyError(
+                f"Parameter table does not contain estimated parameter(s) {missing_ids}."
+            ) from e
 
     prior_list = []
     for _, row in par_to_estimate.iterrows():

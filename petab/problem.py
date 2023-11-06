@@ -930,13 +930,13 @@ class Problem:
             **kwargs,
         )
 
-    def sample_parameter_startpoints(self, n_starts: int = 100):
+    def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
         """Create 2D array with starting points for optimization
 
         See :py:func:`petab.sample_parameter_startpoints`.
         """
         return sampling.sample_parameter_startpoints(
-            self.parameter_df, n_starts=n_starts
+            self.parameter_df, n_starts=n_starts, **kwargs
         )
 
     def sample_parameter_startpoints_dict(

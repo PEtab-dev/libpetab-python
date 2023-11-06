@@ -1,6 +1,6 @@
 """Functions related to parameter sampling"""
 
-from typing import Tuple
+from typing import Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -110,6 +110,7 @@ def sample_parameter_startpoints(
     parameter_df: pd.DataFrame,
     n_starts: int = 100,
     seed: int = None,
+    parameter_ids: Sequence[str] = None,
 ) -> np.array:
     """Create :class:`numpy.array` with starting points for an optimization
 
@@ -117,17 +118,20 @@ def sample_parameter_startpoints(
         parameter_df: PEtab parameter DataFrame
         n_starts: Number of points to be sampled
         seed: Random number generator seed (see :func:`numpy.random.seed`)
+        parameter_ids: A sequence of parameter IDs for which to sample starting points.
+            For subsetting or reordering the parameters.
+            Defaults to all estimated parameters.
 
     Returns:
         Array of sampled starting points with dimensions
-        n_startpoints x n_optimization_parameters
+        `n_startpoints` x `n_optimization_parameters`
     """
     if seed is not None:
         np.random.seed(seed)
 
     # get types and parameters of priors from dataframe
     prior_list = parameters.get_priors_from_df(
-        parameter_df, mode=INITIALIZATION
+        parameter_df, mode=INITIALIZATION, parameter_ids=parameter_ids
     )
 
     startpoints = [sample_from_prior(prior, n_starts) for prior in prior_list]
