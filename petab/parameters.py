@@ -442,7 +442,13 @@ def get_priors_from_df(
     par_to_estimate = parameter_df.loc[parameter_df[ESTIMATE] == 1]
 
     if parameter_ids:
-        par_to_estimate = par_to_estimate.loc[parameter_ids, :]
+        try:
+            par_to_estimate = par_to_estimate.loc[parameter_ids, :]
+        except KeyError as e:
+            missing_ids = set(parameter_ids) - set(par_to_estimate.index)
+            raise KeyError(
+                f"Parameter table does not contain estimated parameter(s) {missing_ids}."
+            ) from e
 
     prior_list = []
     for _, row in par_to_estimate.iterrows():

@@ -234,6 +234,11 @@ def test_get_priors_from_df():
     assert len(prior_list_subset) == 2
     assert prior_list_subset == [prior_list[1], prior_list[0]]
 
+    with pytest.raises(KeyError, match="Parameter table does not contain"):
+        petab.get_priors_from_df(
+            parameter_df, mode=INITIALIZATION, parameter_ids=["non_existent"]
+        )
+
 
 def test_startpoint_sampling(fujita_model_scaling):
     n_starts = 10
