@@ -123,12 +123,22 @@ class MPLPlotter(Plotter):
                 replicates = np.stack(
                     measurements_to_plot.data_to_plot.repl.values
                 )
+                cond, replicates = zip(
+                    *sorted(
+                        zip(
+                            measurements_to_plot.conditions,
+                            replicates
+                        )
+                    )
+                )
+                replicates = np.stack(replicates)
+
                 if replicates.ndim == 1:
                     replicates = np.expand_dims(replicates, axis=1)
 
                 # plot first replicate
                 p = ax.plot(
-                    measurements_to_plot.conditions,
+                    cond,
                     replicates[:, 0],
                     linestyle="-.",
                     marker="x",
@@ -138,7 +148,7 @@ class MPLPlotter(Plotter):
 
                 # plot other replicates with the same color
                 ax.plot(
-                    measurements_to_plot.conditions,
+                    cond,
                     replicates[:, 1:],
                     linestyle="-.",
                     marker="x",
