@@ -300,7 +300,7 @@ def get_required_parameters_for_parameter_table(
     # Add output parameters except for placeholders
     for kwargs in [
         dict(observables=True, noise=False),
-        dict(observables=False, noise=True),
+        dict(observables=True, noise=True),
     ]:
         output_parameters = observables.get_output_parameters(
             observable_df, model, mapping_df=mapping_df, **kwargs
