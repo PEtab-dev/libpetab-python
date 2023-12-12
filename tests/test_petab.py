@@ -828,7 +828,8 @@ def test_problem_from_yaml_v1_multiple_files():
 def test_get_required_parameters_for_parameter_table(petab_problem):
     """Test identification of required parameter table parameters.
 
-    NB: currently, this test only checks that observable parameter placeholders      in noise formulae are correctly identified as not required in the parameter
+    NB: currently, this test only checks that observable parameter placeholders
+    in noise formulae are correctly identified as not required in the parameter
     table.
     """
     noise_placeholders = petab.observables.get_output_parameters(
