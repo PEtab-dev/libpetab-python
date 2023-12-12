@@ -298,14 +298,27 @@ def get_required_parameters_for_parameter_table(
         )
 
     # Add output parameters except for placeholders
-    for kwargs in [
-        dict(observables=True, noise=False),
-        dict(observables=False, noise=True),
-    ]:
+    for formula_type, placeholder_sources in (
+        (
+            # Observable formulae
+            {'observables': True, 'noise': False},
+            # can only contain observable placeholders
+            {'noise': False, 'observables': True}
+        ),
+        (
+            # Noise formulae
+            {'observables': False, 'noise': True},
+            # can contain noise and observable placeholders
+            {'noise': True, 'observables': True}
+        ),
+    ):
         output_parameters = observables.get_output_parameters(
-            observable_df, model, mapping_df=mapping_df, **kwargs
+            observable_df, model, mapping_df=mapping_df, **formula_type,
         )
-        placeholders = observables.get_placeholders(observable_df, **kwargs)
+        placeholders = observables.get_placeholders(
+            observable_df,
+            **placeholder_sources,
+        )
         for p in output_parameters:
             if p not in placeholders:
                 parameter_ids[p] = None

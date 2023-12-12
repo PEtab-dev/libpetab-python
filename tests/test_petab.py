@@ -68,10 +68,10 @@ def petab_problem():
 
     observable_df = pd.DataFrame(
         data={
-            OBSERVABLE_ID: ["observable_1"],
+            OBSERVABLE_ID: ["obs1"],
             OBSERVABLE_NAME: ["julius"],
-            OBSERVABLE_FORMULA: ["observable_1"],
-            NOISE_FORMULA: [1],
+            OBSERVABLE_FORMULA: ["observable_1 * observableParameter1_obs1"],
+            NOISE_FORMULA: ["0.1 * observable_1 * observableParameter1_obs1"],
         }
     ).set_index(OBSERVABLE_ID)
 
@@ -653,7 +653,7 @@ def test_concat_condition_df():
 
 def test_get_observable_ids(petab_problem):  # pylint: disable=W0621
     """Test if observable ids functions returns correct value."""
-    assert set(petab_problem.get_observable_ids()) == {"observable_1"}
+    assert set(petab_problem.get_observable_ids()) == {"obs1"}
 
 
 def test_parameter_properties(petab_problem):  # pylint: disable=W0621
@@ -823,3 +823,35 @@ def test_problem_from_yaml_v1_multiple_files():
     assert petab_problem.measurement_df.shape[0] == 2
     assert petab_problem.observable_df.shape[0] == 2
     assert petab_problem.condition_df.shape[0] == 2
+
+
+def test_get_required_parameters_for_parameter_table(petab_problem):
+    """Test identification of required parameter table parameters.
+
+    NB: currently, this test only checks that observable parameter placeholders
+    in noise formulae are correctly identified as not required in the parameter
+    table.
+    """
+    noise_placeholders = petab.observables.get_output_parameters(
+        petab_problem.observable_df,
+        petab_problem.model,
+        observables=False,
+        noise=True,
+    )
+    # The observable parameter (scaling) appears in the noise formula,
+    # as part of the proportional error model.
+    assert "observableParameter1_obs1" in noise_placeholders
+
+    required_parameters_for_parameter_table = \
+        petab.parameters.get_required_parameters_for_parameter_table(
+            model=petab_problem.model,
+            condition_df=petab_problem.condition_df,
+            observable_df=petab_problem.observable_df,
+            measurement_df=petab_problem.measurement_df,
+        )
+    # The observable parameter is correctly recognized as a placeholder,
+    # i.e. does not need to be in the parameter table.
+    assert (
+        "observableParameter1_obs1"
+        not in required_parameters_for_parameter_table
+    )
