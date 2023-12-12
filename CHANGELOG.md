@@ -2,6 +2,17 @@
 
 ## 0.2 series
 
+### 0.2.5
+
+* Fix accessing `preequilibrationConditionId` without checking for presence
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/228
+* Startpoint sampling for a subset of parameters
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/230
+* Treat `observableParameter` overrides as placeholders in noise formulae
+  by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/231
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.4...v0.2.5
+
 ### 0.2.4
 
 * Made figure sizes for visualization functions customizable via `petab.visualize.plotting.DEFAULT_FIGSIZE`
