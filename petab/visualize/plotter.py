@@ -123,6 +123,7 @@ class MPLPlotter(Plotter):
                 replicates = np.stack(
                     measurements_to_plot.data_to_plot.repl.values
                 )
+                # sorts according to ascending order of conditions
                 cond, replicates = zip(
                     *sorted(
                         zip(
