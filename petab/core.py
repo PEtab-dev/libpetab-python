@@ -71,7 +71,7 @@ def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 
 def get_visualization_df(
-        visualization_file: Union[str, Path, pd.DataFrame, None]
+    visualization_file: Union[str, Path, pd.DataFrame, None]
 ) -> Union[pd.DataFrame, None]:
     """Read PEtab visualization table
 
@@ -254,7 +254,7 @@ def flatten_timepoint_specific_output_overrides(
 
     Arguments:
         petab_problem:
-            PEtab problem to work on
+            PEtab problem to work on. Modified in place.
     """
     new_measurement_dfs = []
     new_observable_dfs = []
@@ -277,22 +277,21 @@ def flatten_timepoint_specific_output_overrides(
         for field, hyperparameter_type, target in [
             (NOISE_PARAMETERS, "noiseParameter", NOISE_FORMULA),
             (OBSERVABLE_PARAMETERS, "observableParameter", OBSERVABLE_FORMULA),
+            (OBSERVABLE_PARAMETERS, "observableParameter", NOISE_FORMULA),
         ]:
-            if field in measurements:
-                hyperparameter_replacement_id = (
-                    get_hyperparameter_replacement_id(
-                        hyperparameter_type=hyperparameter_type,
-                        observable_replacement_id=observable_replacement_id,
-                    )
-                )
-                hyperparameter_id = mappings[field][
-                    hyperparameter_replacement_id
-                ]
-                observable[target] = re.sub(
-                    hyperparameter_id,
-                    hyperparameter_replacement_id,
-                    observable[target],
-                )
+            if field not in measurements:
+                continue
+
+            hyperparameter_replacement_id = get_hyperparameter_replacement_id(
+                hyperparameter_type=hyperparameter_type,
+                observable_replacement_id=observable_replacement_id,
+            )
+            hyperparameter_id = mappings[field][hyperparameter_replacement_id]
+            observable[target] = re.sub(
+                hyperparameter_id,
+                hyperparameter_replacement_id,
+                observable[target],
+            )
 
         measurements[OBSERVABLE_ID] = observable_replacement_id
         new_measurement_dfs.append(measurements)
@@ -306,7 +305,7 @@ def flatten_timepoint_specific_output_overrides(
 def unflatten_simulation_df(
     simulation_df: pd.DataFrame,
     petab_problem: "petab.problem.Problem",
-) -> None:
+) -> pd.DataFrame:
     """Unflatten simulations from a flattened PEtab problem.
 
     A flattened PEtab problem is the output of applying
