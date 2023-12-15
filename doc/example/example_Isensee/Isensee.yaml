@@ -1,0 +1,11 @@
+format_version: 1
+parameter_file:
+problems:
+- condition_files:
+  - Isensee_experimentalCondition.tsv
+  measurement_files:
+  - Isensee_measurementData.tsv
+  observable_files: []
+  sbml_files: []
+  visualization_files:
+  - Isensee_visualizationSpecification.tsv
