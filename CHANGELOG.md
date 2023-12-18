@@ -2,6 +2,13 @@
 
 ## 0.2 series
 
+### 0.2.7
+
+* Fixed a bug in `flatten_timepoint_specific_output_overrides`, which
+  did not handle numeric values correctly
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.6...v0.2.7
+
 ### 0.2.6
 
 * Fixed `flatten_timepoint_specific_output_overrides` not supporting
