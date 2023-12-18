@@ -349,12 +349,14 @@ def test_flatten_timepoint_specific_output_overrides():
     """Test flatten_timepoint_specific_output_overrides"""
     observable_df = pd.DataFrame(
         data={
-            OBSERVABLE_ID: ["obs1"],
+            OBSERVABLE_ID: ["obs1", "obs2"],
             OBSERVABLE_FORMULA: [
-                "observableParameter1_obs1 + observableParameter2_obs1"
+                "observableParameter1_obs1 + observableParameter2_obs1",
+                "x",
             ],
             NOISE_FORMULA: [
-                "(observableParameter1_obs1 + observableParameter2_obs1) * noiseParameter1_obs1"
+                "(observableParameter1_obs1 + observableParameter2_obs1) * noiseParameter1_obs1",
+                1,
             ],
         }
     )
@@ -366,11 +368,17 @@ def test_flatten_timepoint_specific_output_overrides():
     obs1_2_2_1 = "obs1__obsParOverride2_1_0__noiseParOverride2__condition1"
     observable_df_expected = pd.DataFrame(
         data={
-            OBSERVABLE_ID: [obs1_1_1_1, obs1_2_1_1, obs1_2_2_1],
+            OBSERVABLE_ID: [
+                obs1_1_1_1,
+                obs1_2_1_1,
+                obs1_2_2_1,
+                "obs2__condition1",
+            ],
             OBSERVABLE_FORMULA: [
                 f"observableParameter1_{obs1_1_1_1} + observableParameter2_{obs1_1_1_1}",
                 f"observableParameter1_{obs1_2_1_1} + observableParameter2_{obs1_2_1_1}",
                 f"observableParameter1_{obs1_2_2_1} + observableParameter2_{obs1_2_2_1}",
+                "x",
             ],
             NOISE_FORMULA: [
                 f"(observableParameter1_{obs1_1_1_1} + observableParameter2_{obs1_1_1_1})"
@@ -379,6 +387,7 @@ def test_flatten_timepoint_specific_output_overrides():
                 f" * noiseParameter1_{obs1_2_1_1}",
                 f"(observableParameter1_{obs1_2_2_1} + observableParameter2_{obs1_2_2_1})"
                 f" * noiseParameter1_{obs1_2_2_1}",
+                1,
             ],
         }
     )
@@ -387,54 +396,66 @@ def test_flatten_timepoint_specific_output_overrides():
     # Measurement table with timepoint-specific overrides
     measurement_df = pd.DataFrame(
         data={
-            OBSERVABLE_ID: ["obs1", "obs1", "obs1", "obs1"],
+            OBSERVABLE_ID: ["obs1", "obs1", "obs1", "obs1", "obs2"],
             SIMULATION_CONDITION_ID: [
                 "condition1",
                 "condition1",
                 "condition1",
                 "condition1",
+                "condition1",
             ],
-            PREEQUILIBRATION_CONDITION_ID: ["", "", "", ""],
-            TIME: [1.0, 1.0, 2.0, 2.0],
-            MEASUREMENT: [0.1] * 4,
+            PREEQUILIBRATION_CONDITION_ID: ["", "", "", "", ""],
+            TIME: [1.0, 1.0, 2.0, 2.0, 3.0],
+            MEASUREMENT: [0.1] * 5,
             OBSERVABLE_PARAMETERS: [
                 "obsParOverride1;1.0",
                 "obsParOverride2;1.0",
                 "obsParOverride2;1.0",
                 "obsParOverride2;1.0",
+                "",
             ],
             NOISE_PARAMETERS: [
                 "noiseParOverride1",
                 "noiseParOverride1",
                 "noiseParOverride2",
                 "noiseParOverride2",
+                "",
             ],
         }
     )
 
     measurement_df_expected = pd.DataFrame(
         data={
-            OBSERVABLE_ID: [obs1_1_1_1, obs1_2_1_1, obs1_2_2_1, obs1_2_2_1],
+            OBSERVABLE_ID: [
+                obs1_1_1_1,
+                obs1_2_1_1,
+                obs1_2_2_1,
+                obs1_2_2_1,
+                "obs2__condition1",
+            ],
             SIMULATION_CONDITION_ID: [
                 "condition1",
                 "condition1",
                 "condition1",
                 "condition1",
+                "condition1",
             ],
-            PREEQUILIBRATION_CONDITION_ID: ["", "", "", ""],
-            TIME: [1.0, 1.0, 2.0, 2.0],
-            MEASUREMENT: [0.1] * 4,
+            PREEQUILIBRATION_CONDITION_ID: ["", "", "", "", ""],
+            TIME: [1.0, 1.0, 2.0, 2.0, 3.0],
+            MEASUREMENT: [0.1] * 5,
             OBSERVABLE_PARAMETERS: [
                 "obsParOverride1;1.0",
                 "obsParOverride2;1.0",
                 "obsParOverride2;1.0",
                 "obsParOverride2;1.0",
+                "",
             ],
             NOISE_PARAMETERS: [
                 "noiseParOverride1",
                 "noiseParOverride1",
                 "noiseParOverride2",
                 "noiseParOverride2",
+                "",
             ],
         }
     )
@@ -483,7 +504,9 @@ def test_flatten_timepoint_specific_output_overrides():
         petab_problem=unflattened_problem,
     )
     # The unflattened simulation dataframe has the original observable IDs.
-    assert (unflattened_simulation_df[OBSERVABLE_ID] == "obs1").all()
+    assert (
+        unflattened_simulation_df[OBSERVABLE_ID] == ["obs1"] * 4 + ["obs2"]
+    ).all()
 
 
 def test_flatten_timepoint_specific_output_overrides_special_cases():

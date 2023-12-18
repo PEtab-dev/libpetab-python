@@ -17,6 +17,7 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_string_dtype
 
 from . import yaml
 from .C import *  # noqa: F403
@@ -280,6 +281,10 @@ def flatten_timepoint_specific_output_overrides(
             (OBSERVABLE_PARAMETERS, "observableParameter", NOISE_FORMULA),
         ]:
             if field not in measurements:
+                continue
+
+            if not is_string_dtype(type(observable[target])):
+                # if not a string, we don't have to substitute anything
                 continue
 
             hyperparameter_replacement_id = get_hyperparameter_replacement_id(
