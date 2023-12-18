@@ -353,36 +353,32 @@ def test_flatten_timepoint_specific_output_overrides():
             OBSERVABLE_FORMULA: [
                 "observableParameter1_obs1 + observableParameter2_obs1"
             ],
-            NOISE_FORMULA: ["noiseParameter1_obs1"],
+            NOISE_FORMULA: [
+                "(observableParameter1_obs1 + observableParameter2_obs1) * noiseParameter1_obs1"
+            ],
         }
     )
     observable_df.set_index(OBSERVABLE_ID, inplace=True)
 
+    # new observable IDs (obs${i_obs}_${i_obsParOverride}_${i_noiseParOverride}_${i_condition})
+    obs1_1_1_1 = "obs1__obsParOverride1_1_0__noiseParOverride1__condition1"
+    obs1_2_1_1 = "obs1__obsParOverride2_1_0__noiseParOverride1__condition1"
+    obs1_2_2_1 = "obs1__obsParOverride2_1_0__noiseParOverride2__condition1"
     observable_df_expected = pd.DataFrame(
         data={
-            OBSERVABLE_ID: [
-                "obs1__obsParOverride1_1_0__noiseParOverride1__condition1",
-                "obs1__obsParOverride2_1_0__noiseParOverride1__condition1",
-                "obs1__obsParOverride2_1_0__noiseParOverride2__condition1",
-            ],
+            OBSERVABLE_ID: [obs1_1_1_1, obs1_2_1_1, obs1_2_2_1],
             OBSERVABLE_FORMULA: [
-                "observableParameter1_obs1__obsParOverride1_1_0__"
-                "noiseParOverride1__condition1 + observableParameter2_obs1"
-                "__obsParOverride1_1_0__noiseParOverride1__condition1",
-                "observableParameter1_obs1__obsParOverride2_1_0__noiseParOverride1"
-                "__condition1 + observableParameter2_obs1__obsParOverride2_1_0"
-                "__noiseParOverride1__condition1",
-                "observableParameter1_obs1__obsParOverride2_1_0"
-                "__noiseParOverride2__condition1 + observableParameter2_obs1__"
-                "obsParOverride2_1_0__noiseParOverride2__condition1",
+                f"observableParameter1_{obs1_1_1_1} + observableParameter2_{obs1_1_1_1}",
+                f"observableParameter1_{obs1_2_1_1} + observableParameter2_{obs1_2_1_1}",
+                f"observableParameter1_{obs1_2_2_1} + observableParameter2_{obs1_2_2_1}",
             ],
             NOISE_FORMULA: [
-                "noiseParameter1_obs1__obsParOverride1_1_0__"
-                "noiseParOverride1__condition1",
-                "noiseParameter1_obs1__obsParOverride2_1_0__"
-                "noiseParOverride1__condition1",
-                "noiseParameter1_obs1__obsParOverride2_1_0__"
-                "noiseParOverride2__condition1",
+                f"(observableParameter1_{obs1_1_1_1} + observableParameter2_{obs1_1_1_1})"
+                f" * noiseParameter1_{obs1_1_1_1}",
+                f"(observableParameter1_{obs1_2_1_1} + observableParameter2_{obs1_2_1_1})"
+                f" * noiseParameter1_{obs1_2_1_1}",
+                f"(observableParameter1_{obs1_2_2_1} + observableParameter2_{obs1_2_2_1})"
+                f" * noiseParameter1_{obs1_2_2_1}",
             ],
         }
     )
@@ -418,12 +414,7 @@ def test_flatten_timepoint_specific_output_overrides():
 
     measurement_df_expected = pd.DataFrame(
         data={
-            OBSERVABLE_ID: [
-                "obs1__obsParOverride1_1_0__noiseParOverride1__condition1",
-                "obs1__obsParOverride2_1_0__noiseParOverride1__condition1",
-                "obs1__obsParOverride2_1_0__noiseParOverride2__condition1",
-                "obs1__obsParOverride2_1_0__noiseParOverride2__condition1",
-            ],
+            OBSERVABLE_ID: [obs1_1_1_1, obs1_2_1_1, obs1_2_2_1, obs1_2_2_1],
             SIMULATION_CONDITION_ID: [
                 "condition1",
                 "condition1",
@@ -472,8 +463,12 @@ def test_flatten_timepoint_specific_output_overrides():
         is False
     )
 
-    assert problem.observable_df.equals(observable_df_expected) is True
-    assert problem.measurement_df.equals(measurement_df_expected) is True
+    pd.testing.assert_frame_equal(
+        problem.observable_df, observable_df_expected
+    )
+    pd.testing.assert_frame_equal(
+        problem.measurement_df, measurement_df_expected
+    )
 
     assert petab.lint_problem(problem) is False
 
@@ -591,8 +586,12 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
         is False
     )
 
-    assert problem.observable_df.equals(observable_df_expected) is True
-    assert problem.measurement_df.equals(measurement_df_expected) is True
+    pd.testing.assert_frame_equal(
+        problem.observable_df, observable_df_expected
+    )
+    pd.testing.assert_frame_equal(
+        problem.measurement_df, measurement_df_expected
+    )
 
     assert petab.lint_problem(problem) is False
 
@@ -842,13 +841,14 @@ def test_get_required_parameters_for_parameter_table(petab_problem):
     # as part of the proportional error model.
     assert "observableParameter1_obs1" in noise_placeholders
 
-    required_parameters_for_parameter_table = \
+    required_parameters_for_parameter_table = (
         petab.parameters.get_required_parameters_for_parameter_table(
             model=petab_problem.model,
             condition_df=petab_problem.condition_df,
             observable_df=petab_problem.observable_df,
             measurement_df=petab_problem.measurement_df,
         )
+    )
     # The observable parameter is correctly recognized as a placeholder,
     # i.e. does not need to be in the parameter table.
     assert (
