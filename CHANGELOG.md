@@ -2,6 +2,18 @@
 
 ## 0.2 series
 
+### 0.2.6
+
+* Fixed `flatten_timepoint_specific_output_overrides` not supporting
+  observableParameter overrides as placeholders in noise formulae
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/235
+* Visualization: fixed replicate sorting
+  by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/232
+* Doc: Revised visualization examples
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/236
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.5...v0.2.6
+
 ### 0.2.5
 
 * Fix accessing `preequilibrationConditionId` without checking for presence
