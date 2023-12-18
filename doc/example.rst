@@ -10,8 +10,6 @@ The following examples should help to get a better idea of how to use the PEtab 
 
    example/example_petablint.ipynb
    example/example_visualization.ipynb
-   example/example_visualization_without_visspec.ipynb
-   example/example_visualization_with_visspec.ipynb
 
 Examples of systems biology parameter estimation problems specified in PEtab
 can be found in the `systems biology benchmark model collection <https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab>`_.

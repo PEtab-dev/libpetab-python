@@ -29,7 +29,7 @@ IdsList = List[str]
 NumList = List[int]
 
 # The default figure size
-DEFAULT_FIGSIZE = (20, 15)
+DEFAULT_FIGSIZE = [20, 15]
 
 # also for type hints
 # TODO: split into dataplot and subplot level dicts?

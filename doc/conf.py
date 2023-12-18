@@ -84,7 +84,8 @@ autodoc_mock_imports = ["yaml"]
 # myst_nb options
 #  https://myst-nb.readthedocs.io/en/latest/configuration.html
 nb_execution_mode = "force"
-
+nb_execution_raise_on_error = True
+nb_execution_show_tb = True
 
 source_suffix = {
     ".rst": "restructuredtext",
