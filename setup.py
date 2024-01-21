@@ -63,6 +63,9 @@ setup(
     install_requires=[
         "numpy>=1.15.1",
         "pandas>=1.2.0",
+        # remove when pandas >= 3, see also
+        # https://github.com/pandas-dev/pandas/issues/54466
+        "pyarrow",
         "python-libsbml>=5.17.0",
         "sympy",
         "colorama",

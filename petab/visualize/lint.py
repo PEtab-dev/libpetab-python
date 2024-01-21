@@ -144,7 +144,7 @@ def _apply_defaults(vis_df: pd.DataFrame):
         elif value is not None:
             if isinstance(value, str):
                 vis_df[column] = vis_df[column].astype("object")
-            vis_df[column].fillna(value, inplace=True)
+            vis_df.fillna({column: value}, inplace=True)
 
     set_default(C.PLOT_NAME, "")
     set_default(C.PLOT_TYPE_SIMULATION, C.LINE_PLOT)

@@ -2,6 +2,17 @@
 
 ## 0.2 series
 
+### 0.2.8
+
+* Fixed pandas `FutureWarning` in `petab/visualize/lint.py`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/242
+* Added `petab.Problem.n_{estimated,measurements,priors}`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/243
+* Require pyarrow
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/244
+
+* **Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.7...v0.2.8
+
 ### 0.2.7
 
 * Fixed a bug in `flatten_timepoint_specific_output_overrides`, which
@@ -178,8 +189,8 @@ Features:
 * Argument forwarding for
   `Problem.get_optimization_to_simulation_parameter_mapping` by @dweindl in
   https://github.com/PEtab-dev/libpetab-python/pull/159
-* Added candidate schema for version 2  by @dweindl in
-  https://github.com/PEtab-dev/libpetab-python/pull/142
+* Added candidate schema for version 2
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/142
 * `get_parameter_df`: Allow any collection of parameter tables by @dweindl in
   https://github.com/PEtab-dev/libpetab-python/pull/153,
   @m-philipps in https://github.com/PEtab-dev/libpetab-python/pull/156,
@@ -435,7 +446,7 @@ Documentation:
 
 * In README, add to the overview table the coverage for the supporting tools,
   and links and usage examples (various commits)
-* Show REAMDE on readthedocs documentation front page (PEtab-dev/PEtab#400)
+* Show README on readthedocs documentation front page (PEtab-dev/PEtab#400)
 * Correct description of observable and noise formulas (PEtab-dev/PEtab#401)
 * Update documentation on optional visualization values (PEtab-dev/PEtab#405, PEtab-dev/PEtab#419)
 

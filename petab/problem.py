@@ -1004,3 +1004,21 @@ class Problem:
             )
             for parameter_id, parameter_value in x_dict.items()
         }
+
+    @property
+    def n_estimated(self) -> int:
+        """The number of estimated parameters."""
+        return len(self.x_free_indices)
+
+    @property
+    def n_measurements(self) -> int:
+        """Number of measurements."""
+        return self.measurement_df[MEASUREMENT].notna().sum()
+
+    @property
+    def n_priors(self) -> int:
+        """Number of priors."""
+        if OBJECTIVE_PRIOR_PARAMETERS not in self.parameter_df:
+            return 0
+
+        return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()

@@ -46,6 +46,7 @@ def petab_problem():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs1", "obs2"],
+            MEASUREMENT: [0.1, 0.2],
             OBSERVABLE_PARAMETERS: ["", "p1;p2"],
             NOISE_PARAMETERS: ["p3;p4", "p5"],
         }
@@ -63,6 +64,7 @@ def petab_problem():
         data={
             PARAMETER_ID: ["dynamicParameter1", "dynamicParameter2"],
             PARAMETER_NAME: ["", "..."],
+            ESTIMATE: [1, 0],
         }
     ).set_index(PARAMETER_ID)
 
@@ -92,13 +94,18 @@ def petab_problem():
         petab.write_observable_df(observable_df, observable_file_name)
 
         with pytest.deprecated_call():
-            yield petab.Problem.from_files(
+            petab_problem = petab.Problem.from_files(
                 sbml_file=sbml_file_name,
                 measurement_file=measurement_file_name,
                 condition_file=condition_file_name,
                 parameter_file=parameter_file_name,
                 observable_files=observable_file_name,
             )
+            assert petab_problem.n_measurements == 2
+            assert petab_problem.n_estimated == 1
+            assert petab_problem.n_priors == 0
+
+            yield petab_problem
 
 
 @pytest.fixture
