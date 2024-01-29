@@ -107,7 +107,6 @@ def visu_file_Fujita_minimal():
     )
 
 
-@pytest.mark.filterwarnings("ignore:Visualization table is empty")
 @pytest.fixture
 def visu_file_Fujita_empty():
     return (
