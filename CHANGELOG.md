@@ -2,6 +2,14 @@
 
 ## 0.2 series
 
+### 0.2.9
+
+* Fixed a bug in `SbmlModel.get_free_parameter_ids_with_values` that led to
+  potentially wrong initial values in the parameter mapping for parameters that
+  are targets of `initialAssignment`s (the value from their `value` was taken
+  instead of the initial assignment)
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/248
+
 ### 0.2.8
 
 * Fixed pandas `FutureWarning` in `petab/visualize/lint.py`
