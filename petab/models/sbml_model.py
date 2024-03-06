@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
 import libsbml
+import sympy as sp
 
 from ..sbml import (
     get_sbml_model,
@@ -103,10 +104,41 @@ class SbmlModel(Model):
             ar.getVariable() for ar in self.sbml_model.getListOfRules()
         }
 
+        parser_settings = libsbml.L3ParserSettings(
+            self.sbml_model,
+            libsbml.L3P_PARSE_LOG_AS_LOG10,
+            libsbml.L3P_EXPAND_UNARY_MINUS,
+            libsbml.L3P_NO_UNITS,
+            libsbml.L3P_AVOGADRO_IS_CSYMBOL,
+            libsbml.L3P_COMPARE_BUILTINS_CASE_INSENSITIVE,
+            None,
+            libsbml.L3P_MODULO_IS_PIECEWISE,
+        )
+
+        def get_initial(p):
+            # return the initial assignment value if there is one, and it is a
+            # number; `None`, if there is a non-numeric initial assignment;
+            # otherwise, the parameter value
+            if ia := self.sbml_model.getInitialAssignmentBySymbol(p.getId()):
+                formula_str = libsbml.formulaToL3StringWithSettings(
+                    ia.getMath(), parser_settings
+                )
+                try:
+                    return float(formula_str)
+                except ValueError:
+                    sym_expr = sp.sympify(formula_str)
+                    return (
+                        float(sym_expr.evalf())
+                        if sym_expr.evalf().is_Number
+                        else None
+                    )
+            return p.getValue()
+
         return (
-            (p.getId(), p.getValue())
+            (p.getId(), initial)
             for p in self.sbml_model.getListOfParameters()
             if p.getId() not in rule_targets
+            and (initial := get_initial(p)) is not None
         )
 
     def get_parameter_ids(self) -> Iterable[str]:
