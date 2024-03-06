@@ -117,20 +117,28 @@ class SbmlModel(Model):
 
         def get_initial(p):
             # return the initial assignment value if there is one, and it is a
-            # number, otherwise the parameter value
+            # number; `None`, if there is a non-numeric initial assignment;
+            # otherwise, the parameter value
             if ia := self.sbml_model.getInitialAssignmentBySymbol(p.getId()):
-                sym_expr = sp.sympify(
-                    libsbml.formulaToL3StringWithSettings(
-                        ia.getMath(), parser_settings
-                    )
+                formula_str = libsbml.formulaToL3StringWithSettings(
+                    ia.getMath(), parser_settings
                 )
-                return float(sym_expr) if sym_expr.is_Number else p.getValue()
+                try:
+                    return float(formula_str)
+                except ValueError:
+                    sym_expr = sp.sympify(formula_str)
+                    return (
+                        float(sym_expr.evalf())
+                        if sym_expr.evalf().is_Number
+                        else None
+                    )
             return p.getValue()
 
         return (
-            (p.getId(), get_initial(p))
+            (p.getId(), initial)
             for p in self.sbml_model.getListOfParameters()
             if p.getId() not in rule_targets
+            and (initial := get_initial(p)) is not None
         )
 
     def get_parameter_ids(self) -> Iterable[str]:
