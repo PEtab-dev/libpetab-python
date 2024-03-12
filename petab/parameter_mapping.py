@@ -307,7 +307,7 @@ def _map_condition(packed_args):
 def get_parameter_mapping_for_condition(
     condition_id: str,
     is_preeq: bool,
-    cur_measurement_df: Optional[pd.DataFrame],
+    cur_measurement_df: Optional[pd.DataFrame] = None,
     sbml_model: libsbml.Model = None,
     condition_df: pd.DataFrame = None,
     parameter_df: pd.DataFrame = None,
