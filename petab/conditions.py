@@ -18,7 +18,7 @@ __all__ = [
 
 
 def get_condition_df(
-    condition_file: Union[str, pd.DataFrame, Path, None]
+    condition_file: Union[str, pd.DataFrame, Path, None],
 ) -> pd.DataFrame:
     """Read the provided condition file into a ``pandas.Dataframe``
 
@@ -75,7 +75,6 @@ def create_condition_df(
         A :py:class:`pandas.DataFrame` with empty given rows and columns and
         all nan values
     """
-
     condition_ids = [] if condition_ids is None else list(condition_ids)
 
     data = {CONDITION_ID: condition_ids}

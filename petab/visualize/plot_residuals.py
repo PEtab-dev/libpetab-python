@@ -155,7 +155,6 @@ def plot_goodness_of_fit(
     -------
         ax: Axis object of the created plot.
     """
-
     if isinstance(simulations_df, (str, Path)):
         simulations_df = get_simulation_df(simulations_df)
 

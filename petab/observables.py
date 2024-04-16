@@ -24,7 +24,7 @@ __all__ = [
 
 
 def get_observable_df(
-    observable_file: Union[str, pd.DataFrame, Path, None]
+    observable_file: Union[str, pd.DataFrame, Path, None],
 ) -> Union[pd.DataFrame, None]:
     """
     Read the provided observable file into a ``pandas.Dataframe``.
@@ -191,7 +191,6 @@ def get_placeholders(
         List of placeholder parameters from observable table observableFormulas
         and noiseFormulas.
     """
-
     # collect placeholder parameters overwritten by
     # {observable,noise}Parameters
     placeholder_types = []
@@ -224,5 +223,4 @@ def create_observable_df() -> pd.DataFrame:
     Returns:
         Created DataFrame
     """
-
     return pd.DataFrame(data={col: [] for col in OBSERVABLE_DF_COLS})

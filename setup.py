@@ -12,7 +12,6 @@ def read(fname):
 
 def absolute_links(txt):
     """Replace relative petab github links by absolute links."""
-
     raw_base = (
         "(https://raw.githubusercontent.com/petab-dev/libpetab-python/master/"
     )

@@ -46,7 +46,6 @@ def validate(
             file if a filename was provided for ``yaml_config`` or the current
             working directory.
     """
-
     validate_yaml_syntax(yaml_config)
     validate_yaml_semantics(yaml_config=yaml_config, path_prefix=path_prefix)
 
@@ -157,7 +156,6 @@ def load_yaml(yaml_config: Union[Dict, Path, str]) -> Dict:
         The unmodified dictionary if ``yaml_config`` was dictionary.
         Otherwise the parsed the YAML file.
     """
-
     # already parsed? all PEtab problem yaml files are dictionaries
     if isinstance(yaml_config, dict):
         return yaml_config
@@ -173,7 +171,6 @@ def is_composite_problem(yaml_config: Union[Dict, str, Path]) -> bool:
     Arguments:
         yaml_config: PEtab configuration as dictionary or YAML file name
     """
-
     yaml_config = load_yaml(yaml_config)
     return len(yaml_config[PROBLEMS]) > 1
 

@@ -322,7 +322,8 @@ def calculate_llh_for_table(
     parameter_df: pd.DataFrame,
 ) -> float:
     """Calculate log-likelihood for one set of tables. For the arguments, see
-    `calculate_llh`."""
+    `calculate_llh`.
+    """
     llhs = []
 
     # matching columns

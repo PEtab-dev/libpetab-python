@@ -114,7 +114,6 @@ def test_get_output_parameters():
 
 def test_get_formula_placeholders():
     """Test get_formula_placeholders"""
-
     # no placeholder
     assert petab.get_formula_placeholders("1.0", "any", "observable") == []
 

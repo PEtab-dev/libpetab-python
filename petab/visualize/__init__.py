@@ -6,15 +6,14 @@ PEtab comes with visualization functionality. Those need to be imported via
 ``import petab.visualize``.
 
 """
+# ruff: noqa: F401
 import importlib.util
-
-mpl_spec = importlib.util.find_spec("matplotlib")
 
 from .plotting import DataProvider, Figure
 
 __all__ = ["DataProvider", "Figure"]
 
-if mpl_spec is not None:
+if importlib.util.find_spec("matplotlib") is not None:
     from .plot_data_and_simulation import (
         plot_problem,
         plot_with_vis_spec,

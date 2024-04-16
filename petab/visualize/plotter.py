@@ -22,7 +22,6 @@ class Plotter(ABC):
 
     Attributes
     ----------
-
     figure:
         Figure instance that serves as a markup for the figure that
         should be generated
@@ -444,7 +443,7 @@ class MPLPlotter(Plotter):
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
-            return r"$e^{{{:.0f}}}$".format(np.log(y))
+            return rf"$e^{{{np.log(y):.0f}}}$"
 
         if subplot.xScale == LOG:
             ax.xaxis.set_major_formatter(mtick.FuncFormatter(ticks))
@@ -543,7 +542,6 @@ class MPLPlotter(Plotter):
         -------
             Updated axis object.
         """
-
         ax.axis("square")
 
         if lim is None:

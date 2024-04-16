@@ -138,7 +138,6 @@ def test_zero_bounded(petab_problem):
 
 def test_add_noise(petab_problem):
     """Test the noise generating method."""
-
     tested_noise_distributions = {"normal", "laplace"}
     assert set(petab.C.NOISE_MODELS) == tested_noise_distributions, (
         "The noise generation methods have only been tested for "

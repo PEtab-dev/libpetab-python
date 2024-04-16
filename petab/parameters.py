@@ -45,7 +45,7 @@ PARAMETER_SCALE_ARGS = Literal["", "lin", "log", "log10"]
 def get_parameter_df(
     parameter_file: Union[
         str, Path, pd.DataFrame, Iterable[Union[str, Path, pd.DataFrame]], None
-    ]
+    ],
 ) -> Union[pd.DataFrame, None]:
     """
     Read the provided parameter file into a ``pandas.Dataframe``.
@@ -301,19 +301,22 @@ def get_required_parameters_for_parameter_table(
     for formula_type, placeholder_sources in (
         (
             # Observable formulae
-            {'observables': True, 'noise': False},
+            {"observables": True, "noise": False},
             # can only contain observable placeholders
-            {'noise': False, 'observables': True}
+            {"noise": False, "observables": True},
         ),
         (
             # Noise formulae
-            {'observables': False, 'noise': True},
+            {"observables": False, "noise": True},
             # can contain noise and observable placeholders
-            {'noise': True, 'observables': True}
+            {"noise": True, "observables": True},
         ),
     ):
         output_parameters = observables.get_output_parameters(
-            observable_df, model, mapping_df=mapping_df, **formula_type,
+            observable_df,
+            model,
+            mapping_df=mapping_df,
+            **formula_type,
         )
         placeholders = observables.get_placeholders(
             observable_df,

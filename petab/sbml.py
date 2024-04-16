@@ -39,7 +39,6 @@ def is_sbml_consistent(
     Returns:
         ``False`` if problems were detected, otherwise ``True``
     """
-
     if not check_units:
         sbml_document.setConsistencyChecks(
             libsbml.LIBSBML_CAT_UNITS_CONSISTENCY, False
@@ -202,7 +201,6 @@ def load_sbml_from_string(
     :param sbml_string: Model as XML string
     :return: The SBML document, model and reader
     """
-
     sbml_reader = libsbml.SBMLReader()
     sbml_document = sbml_reader.readSBMLFromString(sbml_string)
     sbml_model = sbml_document.getModel()
