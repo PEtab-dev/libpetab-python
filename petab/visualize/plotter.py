@@ -15,14 +15,21 @@ from .plotting import DataPlot, DataProvider, DataSeries, Figure, Subplot
 
 __all__ = ["Plotter", "MPLPlotter", "SeabornPlotter"]
 
-#: Line style for the measurement data in line plots
-measurement_line_style = "-."
-#: Marker style for the measurement data in line plots
-measurement_marker = "x"
-#: Line style for the simulation data in line plots
-simulation_line_style = "-"
-#: Marker style for the simulation data in line plots
-simulation_marker = "o"
+
+#: Line style (:class:`matplotlib.lines.Line2D` options) for the measurement
+#  data in line plots
+measurement_line_kwargs = {
+    "linestyle": "-.",
+    "marker": "x",
+    "markersize": 10,
+}
+#: Line style (:class:`matplotlib.lines.Line2D` options) for the simulation
+#  data in line plots
+simulation_line_kwargs = {
+    "linestyle": "-",
+    "marker": "o",
+    "markersize": 10,
+}
 
 
 class Plotter(ABC):
@@ -145,19 +152,15 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     cond,
                     replicates[:, 0],
-                    linestyle=measurement_line_style,
-                    marker=measurement_marker,
-                    markersize=10,
                     label=label_base,
+                    **measurement_line_kwargs,
                 )
 
                 # plot other replicates with the same color
                 ax.plot(
                     cond,
                     replicates[:, 1:],
-                    linestyle=measurement_line_style,
-                    marker=measurement_marker,
-                    markersize=10,
+                    **measurement_line_kwargs,
                     color=p[0].get_color(),
                 )
 
@@ -186,9 +189,8 @@ class MPLPlotter(Plotter):
                         scond,
                         smean,
                         snoise,
-                        linestyle=measurement_line_style,
-                        marker=measurement_marker,
                         label=label_base,
+                        **measurement_line_kwargs,
                     )
 
             # simulations should have the same colors if both measurements
@@ -238,11 +240,10 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     xs,
                     ys,
-                    linestyle=simulation_line_style,
-                    marker=simulation_marker,
                     markevery=every,
                     label=label_base + " simulation",
                     color=simu_color,
+                    **simulation_line_kwargs,
                 )
                 # lines at t=inf should have the same colors also in case
                 # only simulations are plotted
@@ -638,23 +639,19 @@ class MPLPlotter(Plotter):
                     p = ax_inf.plot(
                         timepoints_inf,
                         [replicates[0]] * 3,
-                        linestyle=measurement_line_style,
-                        marker=measurement_marker,
-                        markersize=10,
                         markevery=[1],
                         label=label_base + " simulation",
                         color=color,
+                        **measurement_line_kwargs,
                     )
 
                     # plot other replicates with the same color
                     ax_inf.plot(
                         timepoints_inf,
                         [replicates[1:]] * 3,
-                        linestyle=simulation_line_style,
-                        marker=simulation_marker,
-                        markersize=10,
                         markevery=[1],
                         color=p[0].get_color(),
+                        **measurement_line_kwargs,
                     )
             else:
                 p = ax_inf.plot(
@@ -663,18 +660,16 @@ class MPLPlotter(Plotter):
                         measurements_data_to_plot_inf["mean"],
                         measurements_data_to_plot_inf["mean"],
                     ],
-                    linestyle=measurement_line_style,
-                    marker=measurement_marker,
                     color=color,
+                    **measurement_line_kwargs,
                 )
                 ax_inf.errorbar(
                     t_inf,
                     measurements_data_to_plot_inf["mean"],
                     measurements_data_to_plot_inf[noise_col],
-                    linestyle=measurement_line_style,
-                    marker=measurement_marker,
                     label=label_base + " simulation",
                     color=p[0].get_color(),
+                    **measurement_line_kwargs,
                 )
 
             if color is None:
@@ -698,30 +693,27 @@ class MPLPlotter(Plotter):
                 p = ax_inf.plot(
                     timepoints_inf,
                     [replicates[0]] * 3,
-                    linestyle=simulation_line_style,
-                    marker=simulation_marker,
                     markevery=[1],
                     label=label_base,
                     color=color,
+                    **simulation_line_kwargs,
                 )
 
                 # plot other replicates with the same color
                 ax_inf.plot(
                     timepoints_inf,
                     [replicates[1:]] * 3,
-                    linestyle=simulation_line_style,
-                    marker=simulation_marker,
                     markevery=[1],
                     color=p[0].get_color(),
+                    **simulation_line_kwargs,
                 )
             else:
                 ax_inf.plot(
                     timepoints_inf,
                     [simulations_data_to_plot_inf["mean"]] * 3,
-                    linestyle=simulation_line_style,
-                    marker=simulation_marker,
                     markevery=[1],
                     color=color,
+                    **simulation_line_kwargs,
                 )
 
         ax.set_xlim(right=ax_finite_right_limit)
