@@ -23,3 +23,6 @@ lint.extend-ignore = ["F403", "F405", "S101"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["T201"]

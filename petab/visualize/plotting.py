@@ -213,7 +213,8 @@ class Subplot:
                         f"For {PLOT_ID} {plot_id} in column "
                         f"{col} contradictory settings ({entry})"
                         f". Proceeding with first entry "
-                        f"({entry[0]})."
+                        f"({entry[0]}).",
+                        stacklevel=2,
                     )
                 entry = entry[0]
 
@@ -248,7 +249,8 @@ class Subplot:
                     f"Column {col} cannot be used to specify subplot"
                     f", only settings from the following columns can"
                     f" be used:"
-                    + ", ".join(VISUALIZATION_DF_SUBPLOT_LEVEL_COLS)
+                    + ", ".join(VISUALIZATION_DF_SUBPLOT_LEVEL_COLS),
+                    stacklevel=2,
                 )
         return cls(plot_id, vis_spec_dict, dataplots)
 
@@ -371,7 +373,8 @@ class Figure:
         warnings.warn(
             f"Note: please check that {DATASET_ID} column "
             f"corresponds to {DATASET_ID} column in Measurement "
-            f"(Simulation) table."
+            f"(Simulation) table.",
+            stacklevel=2,
         )
 
         visu_dict = {}

@@ -35,7 +35,7 @@ def create_report(
     import jinja2
 
     template_loader = jinja2.FileSystemLoader(searchpath=template_dir)
-    template_env = jinja2.Environment(loader=template_loader)
+    template_env = jinja2.Environment(loader=template_loader, autoescape=True)
     template = template_env.get_template(template_file)
 
     # Render and save

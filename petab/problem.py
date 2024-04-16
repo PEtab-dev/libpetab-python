@@ -5,7 +5,7 @@ import os
 import tempfile
 from math import nan
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Iterable
 from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
@@ -78,12 +78,12 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
-        self.condition_df: Optional[pd.DataFrame] = condition_df
-        self.measurement_df: Optional[pd.DataFrame] = measurement_df
-        self.parameter_df: Optional[pd.DataFrame] = parameter_df
-        self.visualization_df: Optional[pd.DataFrame] = visualization_df
-        self.observable_df: Optional[pd.DataFrame] = observable_df
-        self.mapping_df: Optional[pd.DataFrame] = mapping_df
+        self.condition_df: pd.DataFrame | None = condition_df
+        self.measurement_df: pd.DataFrame | None = measurement_df
+        self.parameter_df: pd.DataFrame | None = parameter_df
+        self.visualization_df: pd.DataFrame | None = visualization_df
+        self.observable_df: pd.DataFrame | None = observable_df
+        self.mapping_df: pd.DataFrame | None = mapping_df
 
         if any(
             (sbml_model, sbml_document, sbml_reader),
@@ -109,7 +109,7 @@ class Problem:
                 model_id=model_id,
             )
 
-        self.model: Optional[Model] = model
+        self.model: Model | None = model
         self.extensions_config = extensions_config or {}
 
     def __getattr__(self, name):
@@ -169,14 +169,12 @@ class Problem:
 
     @staticmethod
     def from_files(
-        sbml_file: Union[str, Path] = None,
-        condition_file: Union[str, Path, Iterable[Union[str, Path]]] = None,
-        measurement_file: Union[str, Path, Iterable[Union[str, Path]]] = None,
-        parameter_file: Union[str, Path, Iterable[Union[str, Path]]] = None,
-        visualization_files: Union[
-            str, Path, Iterable[Union[str, Path]]
-        ] = None,
-        observable_files: Union[str, Path, Iterable[Union[str, Path]]] = None,
+        sbml_file: str | Path = None,
+        condition_file: str | Path | Iterable[str | Path] = None,
+        measurement_file: str | Path | Iterable[str | Path] = None,
+        parameter_file: str | Path | Iterable[str | Path] = None,
+        visualization_files: str | Path | Iterable[str | Path] = None,
+        observable_files: str | Path | Iterable[str | Path] = None,
         model_id: str = None,
         extensions_config: dict = None,
     ) -> Problem:
@@ -252,7 +250,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_yaml(yaml_config: Union[dict, Path, str]) -> Problem:
+    def from_yaml(yaml_config: dict | Path | str) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
 
@@ -308,7 +306,7 @@ class Problem:
                 f"{format_version.__format_version__}."
             )
         if yaml_config[FORMAT_VERSION] == "2.0.0":
-            warn("Support for PEtab2.0 is experimental!")
+            warn("Support for PEtab2.0 is experimental!", stacklevel=2)
 
         problem0 = yaml_config["problems"][0]
 
@@ -421,7 +419,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_combine(filename: Union[Path, str]) -> Problem:
+    def from_combine(filename: Path | str) -> Problem:
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
         See also :py:func:`petab.create_combine_archive`.
@@ -444,8 +442,7 @@ class Problem:
 
         archive = libcombine.CombineArchive()
         if archive.initializeFromArchive(str(filename)) is None:
-            print(f"Invalid Combine Archive: {filename}")
-            return None
+            raise ValueError(f"Invalid Combine Archive: {filename}")
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             archive.extractTo(tmpdirname)
@@ -458,7 +455,7 @@ class Problem:
 
     def to_files_generic(
         self,
-        prefix_path: Union[str, Path],
+        prefix_path: str | Path,
     ) -> str:
         """Save a PEtab problem to generic file names.
 
@@ -510,17 +507,17 @@ class Problem:
 
     def to_files(
         self,
-        sbml_file: Union[None, str, Path] = None,
-        condition_file: Union[None, str, Path] = None,
-        measurement_file: Union[None, str, Path] = None,
-        parameter_file: Union[None, str, Path] = None,
-        visualization_file: Union[None, str, Path] = None,
-        observable_file: Union[None, str, Path] = None,
-        yaml_file: Union[None, str, Path] = None,
-        prefix_path: Union[None, str, Path] = None,
+        sbml_file: None | str | Path = None,
+        condition_file: None | str | Path = None,
+        measurement_file: None | str | Path = None,
+        parameter_file: None | str | Path = None,
+        visualization_file: None | str | Path = None,
+        observable_file: None | str | Path = None,
+        yaml_file: None | str | Path = None,
+        prefix_path: None | str | Path = None,
         relative_paths: bool = True,
-        model_file: Union[None, str, Path] = None,
-        mapping_file: Union[None, str, Path] = None,
+        model_file: None | str | Path = None,
+        mapping_file: None | str | Path = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -573,7 +570,7 @@ class Problem:
         if prefix_path is not None:
             prefix_path = Path(prefix_path)
 
-            def add_prefix(path0: Union[None, str, Path]) -> str:
+            def add_prefix(path0: None | str | Path) -> str:
                 return path0 if path0 is None else str(prefix_path / path0)
 
             model_file = add_prefix(model_file)
@@ -913,7 +910,7 @@ class Problem:
             )
         )
 
-    def create_parameter_df(self, *args, **kwargs):
+    def create_parameter_df(self, **kwargs):
         """Create a new PEtab parameter table
 
         See :py:func:`create_parameter_df`.
@@ -924,7 +921,6 @@ class Problem:
             observable_df=self.observable_df,
             measurement_df=self.measurement_df,
             mapping_df=self.mapping_df,
-            *args,
             **kwargs,
         )
 
