@@ -24,7 +24,6 @@ def create_report(
         model_name: Name of the model, used for file name for report
         output_path: Output directory
     """
-
     template_dir = Path(__file__).absolute().parent / "templates"
     output_path = Path(output_path)
     template_file = "report.html"
@@ -59,7 +58,6 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Pivot table with number of data points per observable and condition
     """
-
     my_measurements = measurement_df.copy()
 
     index = [SIMULATION_CONDITION_ID]

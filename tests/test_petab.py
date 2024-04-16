@@ -766,7 +766,6 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 
 def test_load_remote():
     """Test loading remote files"""
-
     yaml_url = (
         "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
         "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
@@ -797,7 +796,8 @@ def test_problem_from_yaml_v1_empty():
 
 def test_problem_from_yaml_v1_multiple_files():
     """Test loading PEtab version 1 yaml with multiple condition / measurement
-    / observable files"""
+    / observable files
+    """
     yaml_config = """
     format_version: 1
     parameter_file:

@@ -33,7 +33,6 @@ def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
         A list with generated datasetIds for each entry in the measurement
         (simulation) DataFrame
     """
-
     # create a column of dummy datasetIDs and legend entries: preallocate
     dataset_id_column = []
 

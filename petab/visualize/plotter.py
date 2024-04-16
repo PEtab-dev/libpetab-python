@@ -38,7 +38,6 @@ class Plotter(ABC):
 
     Attributes
     ----------
-
     figure:
         Figure instance that serves as a markup for the figure that
         should be generated
@@ -72,11 +71,12 @@ class MPLPlotter(Plotter):
 
         Parameters
         ----------
-            plot_type_data: PEtab plotTypeData value (the way replicates
-            should be handled)
+        plot_type_data: PEtab plotTypeData value (the way replicates should be
+            handled)
+
         Returns
         -------
-            Name of corresponding column
+        Name of corresponding column
         """
         if plot_type_data == MEAN_AND_SD:
             return "sd"
@@ -453,7 +453,7 @@ class MPLPlotter(Plotter):
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
-            return r"$e^{{{:.0f}}}$".format(np.log(y))
+            return rf"$e^{{{np.log(y):.0f}}}$"
 
         if subplot.xScale == LOG:
             ax.xaxis.set_major_formatter(mtick.FuncFormatter(ticks))
@@ -552,7 +552,6 @@ class MPLPlotter(Plotter):
         -------
             Updated axis object.
         """
-
         ax.axis("square")
 
         if lim is None:
