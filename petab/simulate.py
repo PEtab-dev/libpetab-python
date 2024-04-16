@@ -5,6 +5,7 @@ import pathlib
 import shutil
 import tempfile
 from typing import Dict, Optional, Union
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -90,15 +91,17 @@ class Simulator(abc.ABC):
         if force or self.temporary_working_dir:
             shutil.rmtree(self.working_dir, **kwargs)
             if self.working_dir.is_dir():
-                print(
+                warn(
                     "Failed to remove the working directory: "
-                    + str(self.working_dir)
+                    + str(self.working_dir),
+                    stacklevel=2,
                 )
         else:
-            print(
+            warn(
                 "By default, specified working directories are not removed. "
                 "Please call this method with `force=True`, or manually "
-                f"delete the working directory: {self.working_dir}"
+                f"delete the working directory: {self.working_dir}",
+                stacklevel=2,
             )
 
     @abc.abstractmethod

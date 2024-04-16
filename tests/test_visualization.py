@@ -553,7 +553,7 @@ def test_cli():
             "-o",
             temp_dir,
         ]
-        subprocess.run(args, check=True)
+        subprocess.run(args, check=True)  # noqa: S603
 
 
 @pytest.mark.filterwarnings("ignore:Visualization table is empty")

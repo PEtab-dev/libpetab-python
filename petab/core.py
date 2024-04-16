@@ -102,7 +102,8 @@ def get_visualization_df(
     except pd.errors.EmptyDataError:
         warn(
             "Visualization table is empty. Defaults will be used. "
-            "Refer to the documentation for details."
+            "Refer to the documentation for details.",
+            stacklevel=2,
         )
         vis_spec = pd.DataFrame()
     return vis_spec
@@ -226,9 +227,9 @@ def get_flattened_id_mappings(
 
         mappings[OBSERVABLE_ID][observable_replacement_id] = observable_id
 
-        for field, hyperparameter_type, target in [
-            (NOISE_PARAMETERS, "noiseParameter", NOISE_FORMULA),
-            (OBSERVABLE_PARAMETERS, "observableParameter", OBSERVABLE_FORMULA),
+        for field, hyperparameter_type in [
+            (NOISE_PARAMETERS, "noiseParameter"),
+            (OBSERVABLE_PARAMETERS, "observableParameter"),
         ]:
             if field in measurements:
                 mappings[field][
@@ -432,11 +433,11 @@ def create_combine_archive(
     # other SWIG interfaces
     try:
         import libcombine
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "To use PEtab's COMBINE functionality, libcombine "
             "(python-libcombine) must be installed."
-        )
+        ) from err
 
     def _add_file_metadata(location: str, description: str = ""):
         """Add metadata to the added file"""

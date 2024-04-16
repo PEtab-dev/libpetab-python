@@ -118,7 +118,8 @@ def sample_parameter_startpoints(
         parameter_df: PEtab parameter DataFrame
         n_starts: Number of points to be sampled
         seed: Random number generator seed (see :func:`numpy.random.seed`)
-        parameter_ids: A sequence of parameter IDs for which to sample starting points.
+        parameter_ids: A sequence of parameter IDs for which to sample starting
+            points.
             For subsetting or reordering the parameters.
             Defaults to all estimated parameters.
 

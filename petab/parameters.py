@@ -447,7 +447,8 @@ def get_priors_from_df(
     Arguments:
         parameter_df: PEtab parameter table
         mode: ``'initialization'`` or ``'objective'``
-        parameter_ids: A sequence of parameter IDs for which to sample starting points.
+        parameter_ids: A sequence of parameter IDs for which to sample starting
+            points.
             For subsetting or reordering the parameters.
             Defaults to all estimated parameters.
 
@@ -463,7 +464,8 @@ def get_priors_from_df(
         except KeyError as e:
             missing_ids = set(parameter_ids) - set(par_to_estimate.index)
             raise KeyError(
-                f"Parameter table does not contain estimated parameter(s) {missing_ids}."
+                "Parameter table does not contain estimated parameter(s) "
+                f"{missing_ids}."
             ) from e
 
     prior_list = []
@@ -567,7 +569,10 @@ def map_scale(
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)
-    return map(lambda x: scale(x[0], x[1]), zip(parameters, scale_strs))
+    return (
+        scale(par_val, scale_str)
+        for par_val, scale_str in zip(parameters, scale_strs)
+    )
 
 
 def map_unscale(
@@ -588,7 +593,10 @@ def map_unscale(
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)
-    return map(lambda x: unscale(x[0], x[1]), zip(parameters, scale_strs))
+    return (
+        unscale(par_val, scale_str)
+        for par_val, scale_str in zip(parameters, scale_strs)
+    )
 
 
 def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:

@@ -336,7 +336,7 @@ def calculate_llh_for_table(
     noise_formulas = get_symbolic_noise_formulas(observable_df)
 
     # iterate over measurements, find corresponding simulations
-    for irow, row in measurement_df.iterrows():
+    for _, row in measurement_df.iterrows():
         measurement = row[MEASUREMENT]
 
         # look up in simulation df
