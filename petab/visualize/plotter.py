@@ -15,6 +15,15 @@ from .plotting import DataPlot, DataProvider, DataSeries, Figure, Subplot
 
 __all__ = ["Plotter", "MPLPlotter", "SeabornPlotter"]
 
+#: Line style for the measurement data in line plots
+measurement_line_style = "-."
+#: Marker style for the measurement data in line plots
+measurement_marker = "x"
+#: Line style for the simulation data in line plots
+simulation_line_style = "-"
+#: Marker style for the simulation data in line plots
+simulation_marker = "o"
+
 
 class Plotter(ABC):
     """
@@ -78,7 +87,7 @@ class MPLPlotter(Plotter):
         splitaxes_params: dict,
     ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
-        Generate lineplot.
+        Generate line plot.
 
         It is possible to plot only data or only simulation or both.
 
@@ -125,12 +134,7 @@ class MPLPlotter(Plotter):
                 )
                 # sorts according to ascending order of conditions
                 cond, replicates = zip(
-                    *sorted(
-                        zip(
-                            measurements_to_plot.conditions,
-                            replicates
-                        )
-                    )
+                    *sorted(zip(measurements_to_plot.conditions, replicates))
                 )
                 replicates = np.stack(replicates)
 
@@ -141,8 +145,8 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     cond,
                     replicates[:, 0],
-                    linestyle="-.",
-                    marker="x",
+                    linestyle=measurement_line_style,
+                    marker=measurement_marker,
                     markersize=10,
                     label=label_base,
                 )
@@ -151,8 +155,8 @@ class MPLPlotter(Plotter):
                 ax.plot(
                     cond,
                     replicates[:, 1:],
-                    linestyle="-.",
-                    marker="x",
+                    linestyle=measurement_line_style,
+                    marker=measurement_marker,
                     markersize=10,
                     color=p[0].get_color(),
                 )
@@ -182,8 +186,8 @@ class MPLPlotter(Plotter):
                         scond,
                         smean,
                         snoise,
-                        linestyle="-.",
-                        marker=".",
+                        linestyle=measurement_line_style,
+                        marker=measurement_marker,
                         label=label_base,
                     )
 
@@ -234,8 +238,8 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     xs,
                     ys,
-                    linestyle="-",
-                    marker="o",
+                    linestyle=simulation_line_style,
+                    marker=simulation_marker,
                     markevery=every,
                     label=label_base + " simulation",
                     color=simu_color,
@@ -634,8 +638,8 @@ class MPLPlotter(Plotter):
                     p = ax_inf.plot(
                         timepoints_inf,
                         [replicates[0]] * 3,
-                        linestyle="-.",
-                        marker="x",
+                        linestyle=measurement_line_style,
+                        marker=measurement_marker,
                         markersize=10,
                         markevery=[1],
                         label=label_base + " simulation",
@@ -646,8 +650,8 @@ class MPLPlotter(Plotter):
                     ax_inf.plot(
                         timepoints_inf,
                         [replicates[1:]] * 3,
-                        linestyle="-.",
-                        marker="x",
+                        linestyle=simulation_line_style,
+                        marker=simulation_marker,
                         markersize=10,
                         markevery=[1],
                         color=p[0].get_color(),
@@ -659,15 +663,16 @@ class MPLPlotter(Plotter):
                         measurements_data_to_plot_inf["mean"],
                         measurements_data_to_plot_inf["mean"],
                     ],
-                    linestyle="-.",
+                    linestyle=measurement_line_style,
+                    marker=measurement_marker,
                     color=color,
                 )
                 ax_inf.errorbar(
                     t_inf,
                     measurements_data_to_plot_inf["mean"],
                     measurements_data_to_plot_inf[noise_col],
-                    linestyle="-.",
-                    marker=".",
+                    linestyle=measurement_line_style,
+                    marker=measurement_marker,
                     label=label_base + " simulation",
                     color=p[0].get_color(),
                 )
@@ -693,8 +698,8 @@ class MPLPlotter(Plotter):
                 p = ax_inf.plot(
                     timepoints_inf,
                     [replicates[0]] * 3,
-                    linestyle="-",
-                    marker="o",
+                    linestyle=simulation_line_style,
+                    marker=simulation_marker,
                     markevery=[1],
                     label=label_base,
                     color=color,
@@ -704,8 +709,8 @@ class MPLPlotter(Plotter):
                 ax_inf.plot(
                     timepoints_inf,
                     [replicates[1:]] * 3,
-                    linestyle="-",
-                    marker="o",
+                    linestyle=simulation_line_style,
+                    marker=simulation_marker,
                     markevery=[1],
                     color=p[0].get_color(),
                 )
@@ -713,8 +718,8 @@ class MPLPlotter(Plotter):
                 ax_inf.plot(
                     timepoints_inf,
                     [simulations_data_to_plot_inf["mean"]] * 3,
-                    linestyle="-",
-                    marker="o",
+                    linestyle=simulation_line_style,
+                    marker=simulation_marker,
                     markevery=[1],
                     color=color,
                 )
