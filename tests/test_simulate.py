@@ -55,7 +55,10 @@ def test_remove_working_dir(petab_problem):
     assert Path(simulator.working_dir).is_dir()
     # A user-specified working directory should not be removed unless
     # `force=True`.
-    simulator.remove_working_dir()
+    with pytest.warns(
+        UserWarning, match="working directories are not removed"
+    ):
+        simulator.remove_working_dir()
     # The user-specified working directory is not removed without `force=True`
     assert Path(simulator.working_dir).is_dir()
     simulator.remove_working_dir(force=True)

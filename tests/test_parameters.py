@@ -22,7 +22,7 @@ def test_get_optimization_parameter_scaling():
     df.set_index(PARAMETER_ID, inplace=True)
 
     # parameter and scale
-    expected = dict(p1=LIN, p3=LOG10)
+    expected = {"p1": LIN, "p3": LOG10}
 
     actual = petab.get_optimization_parameter_scaling(df)
 
@@ -105,7 +105,7 @@ def test_get_parameter_df():
                 PARAMETER_NAME: ["different_name2", "name3"],
             }
         )
-        for name, df in parameter_dfs.items():
+        for name in parameter_dfs:
             with tempfile.NamedTemporaryFile(
                 mode="w", delete=False, dir=directory
             ) as fh:
@@ -151,7 +151,7 @@ def test_get_parameter_df():
         parameter_dfs["subset2"] = pd.DataFrame(
             data={PARAMETER_ID: ["id3", "id4"], NOMINAL_VALUE: [1, 1]}
         )
-        for name, df in parameter_dfs.items():
+        for name in parameter_dfs:
             with tempfile.NamedTemporaryFile(
                 mode="w", delete=False, dir=directory
             ) as fh:

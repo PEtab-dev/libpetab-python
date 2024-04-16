@@ -47,7 +47,7 @@ def get_condition_df(
     except KeyError:
         raise KeyError(
             f"Condition table missing mandatory field {CONDITION_ID}."
-        )
+        ) from None
 
     return condition_file
 

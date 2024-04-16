@@ -38,7 +38,7 @@ if sys.version_info < (3, 9, 0):
 __version__ = ""
 version_file = os.path.join("petab", "version.py")
 # sets __version__
-exec(read(version_file))  # pylint: disable=W0122 # nosec
+exec(read(version_file))  # pylint: disable=W0122 # nosec # noqa: S102
 
 ENTRY_POINTS = {
     "console_scripts": [
@@ -83,7 +83,7 @@ setup(
             "pysb",
         ],
         "quality": [
-            "flake8>=3.8.3",
+            "pre-commit",
         ],
         "reports": [
             # https://github.com/spatialaudio/nbsphinx/issues/641

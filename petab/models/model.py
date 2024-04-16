@@ -9,6 +9,7 @@ from typing import Any, Iterable
 class Model(abc.ABC):
     """Base class for wrappers for any PEtab-supported model type"""
 
+    @abc.abstractmethod
     def __init__(self):
         ...
 

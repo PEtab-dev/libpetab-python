@@ -55,7 +55,7 @@ def get_observable_df(
     except KeyError:
         raise KeyError(
             f"Observable table missing mandatory field {OBSERVABLE_ID}."
-        )
+        ) from None
 
     return observable_file
 
