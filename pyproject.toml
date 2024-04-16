@@ -5,5 +5,21 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[tool.black]
-line-length = 80
+[tool.ruff]
+line-length = 79
+lint.extend-select = [
+    "F",  # Pyflakes
+    "I",  # isort
+    "S",  # flake8-bandit
+    "B",  # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "T20",  # flake8-print
+    "W",  # pycodestyle Warnings
+    "E",  # pycodestyle Errors
+    "UP",  # pyupgrade
+    # TODO: "ANN001", "D",  # pydocstyle (PEP 257)
+]
+lint.extend-ignore = ["F403", "F405", "S101"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"

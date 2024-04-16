@@ -10,7 +10,6 @@ from .plot_data_and_simulation import plot_problem
 
 def _parse_cli_args():
     """Parse command-line arguments."""
-
     parser = argparse.ArgumentParser(
         description="Create PEtab visualizations."
     )

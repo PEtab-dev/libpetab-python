@@ -15,7 +15,7 @@ pytest_plugins = [
 ]
 
 
-class TestGetSimulationToOptimizationParameterMapping(object):
+class TestGetSimulationToOptimizationParameterMapping:
     @staticmethod
     def test_no_condition_specific(condition_df_2_conditions):
         # Trivial case - no condition-specific parameters
@@ -544,8 +544,8 @@ class TestGetSimulationToOptimizationParameterMapping(object):
         - a log10 parameter to be estimated (condition 1)
         - lin parameter not estimated (condition2)
         - log10 parameter not estimated (condition 3)
-        - constant override (condition 4)"""
-
+        - constant override (condition 4)
+        """
         # overridden parameter
         overridee_id = "overridee"
 

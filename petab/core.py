@@ -72,7 +72,7 @@ def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 
 def get_visualization_df(
-    visualization_file: Union[str, Path, pd.DataFrame, None]
+    visualization_file: Union[str, Path, pd.DataFrame, None],
 ) -> Union[pd.DataFrame, None]:
     """Read PEtab visualization table
 
@@ -357,7 +357,6 @@ def concat_tables(
     Returns:
         The concatenated DataFrames
     """
-
     if isinstance(tables, pd.DataFrame):
         return tables
 
@@ -389,7 +388,6 @@ def to_float_if_float(x: Any) -> Any:
     Returns:
         ``x`` as float if possible, otherwise ``x``
     """
-
     try:
         return float(x)
     except (ValueError, TypeError):
@@ -427,7 +425,6 @@ def create_combine_archive(
         email: E-mail address of archive creator
         organization: Organization of archive creator
     """
-
     path_prefix = os.path.dirname(str(yaml_file))
     yaml_config = yaml.load_yaml(yaml_file)
 

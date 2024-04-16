@@ -122,7 +122,6 @@ class DataPlot:
         plot_settings: A plot spec for one dataplot
             (only VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS)
         """
-
         for key, val in plot_settings.items():
             setattr(self, key, val)
 
@@ -307,7 +306,6 @@ class Figure:
         size: Figure size
         title: Figure title
         """
-
         # TODO: Isensee measurements table in doc/examples doesn't correspond
         #       to documentation: observableTransformation and
         #       noiseDistribution columns replicateId problem
@@ -351,7 +349,6 @@ class Figure:
         ylim:
             Y axis limits.
         """
-
         for subplot in self.subplots:
             subplot.set_axes_limits(xlim, ylim)
 
@@ -496,7 +493,6 @@ class DataProvider:
             uni_condition_id
 
         """
-
         indep_var = getattr(dataplot, X_VALUES)
 
         dataset_id = getattr(dataplot, DATASET_ID)
@@ -726,7 +722,6 @@ class VisSpecParser:
 
         Returns
         -------
-
                 Subplot
         """
         subplot_columns = [
@@ -766,7 +761,6 @@ class VisSpecParser:
 
         Returns
         -------
-
         A figure template with visualization settings and a data provider
         """
         # import visualization specification, if file was specified
@@ -858,7 +852,6 @@ class VisSpecParser:
         A figure template with visualization settings and a data provider
 
         """
-
         if ids_per_plot is None:
             # this is the default case. If no grouping is specified,
             # all observables are plotted. One observable per plot.
@@ -893,7 +886,6 @@ class VisSpecParser:
         Add dataset_id column to the measurement table and simulations table
         (possibly overwrite).
         """
-
         if self.measurements_data is not None:
             if DATASET_ID in self.measurements_data.columns:
                 self.measurements_data = self.measurements_data.drop(
@@ -938,7 +930,6 @@ class VisSpecParser:
         A dictionary with values for columns PLOT_ID, DATASET_ID, \
         LEGEND_ENTRY, Y_VALUES for visualization specification.
         """
-
         if group_by != "dataset":
             dataset_id_list = create_dataset_id_list_new(
                 self._data_df, group_by, id_list

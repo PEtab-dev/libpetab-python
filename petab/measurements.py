@@ -28,7 +28,7 @@ __all__ = [
 
 
 def get_measurement_df(
-    measurement_file: Union[None, str, Path, pd.DataFrame]
+    measurement_file: Union[None, str, Path, pd.DataFrame],
 ) -> pd.DataFrame:
     """
     Read the provided measurement file into a ``pandas.Dataframe``.
@@ -217,7 +217,6 @@ def create_measurement_df() -> pd.DataFrame:
     Returns:
         Created DataFrame
     """
-
     return pd.DataFrame(
         data={
             OBSERVABLE_ID: [],
