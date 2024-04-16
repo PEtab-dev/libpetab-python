@@ -55,11 +55,12 @@ class MPLPlotter(Plotter):
 
         Parameters
         ----------
-            plot_type_data: PEtab plotTypeData value (the way replicates
-            should be handled)
+        plot_type_data: PEtab plotTypeData value (the way replicates should be
+            handled)
+
         Returns
         -------
-            Name of corresponding column
+        Name of corresponding column
         """
         if plot_type_data == MEAN_AND_SD:
             return "sd"
