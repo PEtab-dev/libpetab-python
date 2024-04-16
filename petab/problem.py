@@ -5,7 +5,7 @@ import os
 import tempfile
 from math import nan
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Union
 from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
@@ -76,7 +76,7 @@ class Problem:
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
-        extensions_config: Dict = None,
+        extensions_config: dict = None,
     ):
         self.condition_df: Optional[pd.DataFrame] = condition_df
         self.measurement_df: Optional[pd.DataFrame] = measurement_df
@@ -178,8 +178,8 @@ class Problem:
         ] = None,
         observable_files: Union[str, Path, Iterable[Union[str, Path]]] = None,
         model_id: str = None,
-        extensions_config: Dict = None,
-    ) -> "Problem":
+        extensions_config: dict = None,
+    ) -> Problem:
         """
         Factory method to load model and tables from files.
 
@@ -252,7 +252,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_yaml(yaml_config: Union[Dict, Path, str]) -> "Problem":
+    def from_yaml(yaml_config: Union[dict, Path, str]) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
 
@@ -274,9 +274,7 @@ class Problem:
             ):
                 # a regular file path string
                 path_prefix = Path(yaml_path).parent
-                get_path = (
-                    lambda filename: path_prefix / filename
-                )  # noqa: E731
+                get_path = lambda filename: path_prefix / filename  # noqa: E731
             else:
                 # a URL
                 # extract parent path from
@@ -293,9 +291,7 @@ class Problem:
                     )
                 )
                 # need "/" on windows, not "\"
-                get_path = (
-                    lambda filename: f"{path_prefix}/{filename}"
-                )  # noqa: E731
+                get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(
@@ -425,7 +421,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_combine(filename: Union[Path, str]) -> "Problem":
+    def from_combine(filename: Union[Path, str]) -> Problem:
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
         See also :py:func:`petab.create_combine_archive`.
@@ -687,7 +683,7 @@ class Problem:
         """
         return list(self.observable_df.index)
 
-    def _apply_mask(self, v: List, free: bool = True, fixed: bool = True):
+    def _apply_mask(self, v: list, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.
 
         Parameters
@@ -731,17 +727,17 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def x_ids(self) -> List[str]:
+    def x_ids(self) -> list[str]:
         """Parameter table parameter IDs"""
         return self.get_x_ids()
 
     @property
-    def x_free_ids(self) -> List[str]:
+    def x_free_ids(self) -> list[str]:
         """Parameter table parameter IDs, for free parameters."""
         return self.get_x_ids(fixed=False)
 
     @property
-    def x_fixed_ids(self) -> List[str]:
+    def x_fixed_ids(self) -> list[str]:
         """Parameter table parameter IDs, for fixed parameters."""
         return self.get_x_ids(free=False)
 
@@ -777,35 +773,37 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def x_nominal(self) -> List:
+    def x_nominal(self) -> list:
         """Parameter table nominal values"""
         return self.get_x_nominal()
 
     @property
-    def x_nominal_free(self) -> List:
+    def x_nominal_free(self) -> list:
         """Parameter table nominal values, for free parameters."""
         return self.get_x_nominal(fixed=False)
 
     @property
-    def x_nominal_fixed(self) -> List:
+    def x_nominal_fixed(self) -> list:
         """Parameter table nominal values, for fixed parameters."""
         return self.get_x_nominal(free=False)
 
     @property
-    def x_nominal_scaled(self) -> List:
+    def x_nominal_scaled(self) -> list:
         """Parameter table nominal values with applied parameter scaling"""
         return self.get_x_nominal(scaled=True)
 
     @property
-    def x_nominal_free_scaled(self) -> List:
+    def x_nominal_free_scaled(self) -> list:
         """Parameter table nominal values with applied parameter scaling,
-        for free parameters."""
+        for free parameters.
+        """
         return self.get_x_nominal(fixed=False, scaled=True)
 
     @property
-    def x_nominal_fixed_scaled(self) -> List:
+    def x_nominal_fixed_scaled(self) -> list:
         """Parameter table nominal values with applied parameter scaling,
-        for fixed parameters."""
+        for fixed parameters.
+        """
         return self.get_x_nominal(free=False, scaled=True)
 
     def get_lb(
@@ -836,12 +834,12 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def lb(self) -> List:
+    def lb(self) -> list:
         """Parameter table lower bounds."""
         return self.get_lb()
 
     @property
-    def lb_scaled(self) -> List:
+    def lb_scaled(self) -> list:
         """Parameter table lower bounds with applied parameter scaling"""
         return self.get_lb(scaled=True)
 
@@ -873,23 +871,23 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def ub(self) -> List:
+    def ub(self) -> list:
         """Parameter table upper bounds"""
         return self.get_ub()
 
     @property
-    def ub_scaled(self) -> List:
+    def ub_scaled(self) -> list:
         """Parameter table upper bounds with applied parameter scaling"""
         return self.get_ub(scaled=True)
 
     @property
-    def x_free_indices(self) -> List[int]:
+    def x_free_indices(self) -> list[int]:
         """Parameter table estimated parameter indices."""
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val != 0]
 
     @property
-    def x_fixed_indices(self) -> List[int]:
+    def x_fixed_indices(self) -> list[int]:
         """Parameter table non-estimated parameter indices."""
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val == 0]
@@ -941,7 +939,7 @@ class Problem:
 
     def sample_parameter_startpoints_dict(
         self, n_starts: int = 100
-    ) -> List[Dict[str, float]]:
+    ) -> list[dict[str, float]]:
         """Create dictionaries with starting points for optimization
 
         See also :py:func:`petab.sample_parameter_startpoints`.
@@ -959,8 +957,8 @@ class Problem:
 
     def unscale_parameters(
         self,
-        x_dict: Dict[str, float],
-    ) -> Dict[str, float]:
+        x_dict: dict[str, float],
+    ) -> dict[str, float]:
         """Unscale parameter values.
 
         Parameters
@@ -983,8 +981,8 @@ class Problem:
 
     def scale_parameters(
         self,
-        x_dict: Dict[str, float],
-    ) -> Dict[str, float]:
+        x_dict: dict[str, float],
+    ) -> dict[str, float]:
         """Scale parameter values.
 
         Parameters

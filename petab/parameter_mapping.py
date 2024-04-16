@@ -1,5 +1,6 @@
 """Functions related to mapping parameter from model to parameter estimation
-problem"""
+problem
+"""
 
 import logging
 import numbers
@@ -234,7 +235,6 @@ def _map_condition(packed_args):
     For arguments see
     :py:func:`get_optimization_to_simulation_parameter_mapping`.
     """
-
     (
         condition,
         measurement_df,
@@ -564,7 +564,6 @@ def _apply_parameter_table(
         parameter_df:
             PEtab parameter table
     """
-
     if parameter_df is None:
         return
 
@@ -626,8 +625,8 @@ def _perform_mapping_checks(
     allow_timepoint_specific_numeric_noise_parameters: bool = False,
 ) -> None:
     """Check for PEtab features which we can't account for during parameter
-    mapping."""
-
+    mapping.
+    """
     if lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df,
         allow_scalar_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501

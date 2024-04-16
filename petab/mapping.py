@@ -16,7 +16,7 @@ __all__ = [
 
 
 def get_mapping_df(
-    mapping_file: Union[None, str, Path, pd.DataFrame]
+    mapping_file: Union[None, str, Path, pd.DataFrame],
 ) -> pd.DataFrame:
     """
     Read the provided mapping file into a ``pandas.Dataframe``.
