@@ -127,6 +127,20 @@ def validate_visualization_df(problem: Problem) -> bool:
                     )
                     errors = True
 
+    if problem.measurement_df is not None:
+        referenced_datasets = set(filter(bool, vis_df[C.DATASET_ID].unique()))
+        if referenced_datasets:
+            existing_datasets = set(
+                filter(bool, problem.measurement_df[C.DATASET_ID].unique())
+            )
+            if not referenced_datasets.issubset(existing_datasets):
+                logger.error(
+                    f"Visualization table references {C.DATASET_ID}(s) "
+                    f"{referenced_datasets - existing_datasets}, but no such "
+                    "dataset(s) exist in the measurement table."
+                )
+                errors = True
+
     return errors
 
 
