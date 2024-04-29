@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 
 from setuptools import find_namespace_packages, setup
 
@@ -29,10 +28,6 @@ def absolute_links(txt):
         txt = txt.replace(var, rep)
     return txt
 
-
-# Python version check
-if sys.version_info < (3, 9, 0):
-    sys.exit("PEtab requires at least Python version 3.9")
 
 # read version from file
 __version__ = ""
@@ -72,7 +67,7 @@ setup(
         "jsonschema",
     ],
     include_package_data=True,
-    python_requires=">=3.9.0",
+    python_requires=">=3.10.0",
     entry_points=ENTRY_POINTS,
     extras_require={
         "tests": [
