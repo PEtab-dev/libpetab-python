@@ -57,7 +57,7 @@ def create_dataset_id_list_new(
 
     Parameters:
         df: Measurements or simulations DataFrame.
-        group_by: Defines  grouping of data to plot.
+        group_by: Defines grouping of data to plot.
         id_list:
             Grouping list. Each sublist corresponds to a subplot in a figure,
             and contains the IDs of observables or simulation conditions for
@@ -73,9 +73,9 @@ def create_dataset_id_list_new(
     dataset_id_list = []
 
     if group_by == "simulation":
-        groupping_col = SIMULATION_CONDITION_ID
+        grouping_col = SIMULATION_CONDITION_ID
     elif group_by == "observable":
-        groupping_col = OBSERVABLE_ID
+        grouping_col = OBSERVABLE_ID
         if id_list is None:
             # this is the default case. If no grouping is specified,
             # all observables are plotted. One observable per plot.
@@ -88,7 +88,7 @@ def create_dataset_id_list_new(
         plot_id_list = []
         for cond_id in sublist:
             plot_id_list.extend(
-                list(df[df[groupping_col] == cond_id][DATASET_ID].unique())
+                list(df[df[grouping_col] == cond_id][DATASET_ID].unique())
             )
         dataset_id_list.append(plot_id_list)
     return dataset_id_list
