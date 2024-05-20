@@ -217,6 +217,7 @@ def write_yaml(
 def create_problem_yaml(
     sbml_files: Union[str, Path, List[Union[str, Path]]],
     condition_files: Union[str, Path, List[Union[str, Path]]],
+    timecourse_files: Union[str, Path, List[Union[str, Path]]],
     measurement_files: Union[str, Path, List[Union[str, Path]]],
     parameter_file: Union[str, Path],
     observable_files: Union[str, Path, List[Union[str, Path]]],
@@ -232,6 +233,7 @@ def create_problem_yaml(
     Arguments:
         sbml_files: Path of SBML model file or list of such
         condition_files: Path of condition file or list of such
+        timecourse_files: Path of timecourse file or list of such
         measurement_files: Path of measurement file or list of such
         parameter_file: Path of parameter file
         observable_files: Path of observable file or list of such
@@ -267,26 +269,28 @@ def create_problem_yaml(
 
         sbml_files = get_rel_to_yaml(sbml_files)
         condition_files = get_rel_to_yaml(condition_files)
+        timecourse_files = get_rel_to_yaml(timecourse_files)
         measurement_files = get_rel_to_yaml(measurement_files)
         observable_files = get_rel_to_yaml(observable_files)
         visualization_files = get_rel_to_yaml(visualization_files)
         parameter_file = get_rel_to_yaml([parameter_file])[0]
         mapping_files = get_rel_to_yaml(mapping_files)
 
-    problem_dic = {
+    problem_dict = {
         CONDITION_FILES: condition_files,
+        TIMECOURSE_FILES: timecourse_files,
         MEASUREMENT_FILES: measurement_files,
         SBML_FILES: sbml_files,
         OBSERVABLE_FILES: observable_files,
     }
     if mapping_files:
-        problem_dic[MAPPING_FILES] = mapping_files
+        problem_dict[MAPPING_FILES] = mapping_files
 
     if visualization_files is not None:
-        problem_dic[VISUALIZATION_FILES] = visualization_files
-    yaml_dic = {
+        problem_dict[VISUALIZATION_FILES] = visualization_files
+    yaml_dict = {
         PARAMETER_FILE: parameter_file,
         FORMAT_VERSION: 1,
-        PROBLEMS: [problem_dic],
+        PROBLEMS: [problem_dict],
     }
-    write_yaml(yaml_dic, yaml_file)
+    write_yaml(yaml_dict, yaml_file)
