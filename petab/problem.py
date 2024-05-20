@@ -22,6 +22,7 @@ from . import (
     parameters,
     sampling,
     sbml,
+    timecourses,
     yaml,
 )
 from .C import *  # noqa: F403
@@ -42,6 +43,7 @@ class Problem:
 
     - model
     - condition table
+    - timecourse table
     - measurement table
     - parameter table
     - observables table
@@ -51,6 +53,7 @@ class Problem:
 
     Attributes:
         condition_df: PEtab condition table
+        timecourse_df: PEtab timecourse table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
@@ -77,6 +80,7 @@ class Problem:
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
+        timecourse_df: pd.DataFrame = None,
     ):
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
@@ -84,6 +88,7 @@ class Problem:
         self.visualization_df: pd.DataFrame | None = visualization_df
         self.observable_df: pd.DataFrame | None = observable_df
         self.mapping_df: pd.DataFrame | None = mapping_df
+        self.timecourse_df: pd.DataFrame | None = timecourse_df
 
         if any(
             (sbml_model, sbml_document, sbml_reader),
@@ -140,6 +145,12 @@ class Problem:
             else "without conditions table"
         )
 
+        timecourses = (
+            f"{self.timecourse_df.shape[0]} timecourses"
+            if self.timecourse_df is not None
+            else "without timecourses table"
+        )
+
         observables = (
             f"{self.observable_df.shape[0]} observables"
             if self.observable_df is not None
@@ -163,8 +174,8 @@ class Problem:
             parameters = "without parameter_df table"
 
         return (
-            f"PEtab Problem {model}, {conditions}, {observables}, "
-            f"{measurements}, {parameters}"
+            f"PEtab Problem {model}, {conditions}, {timecourses}, "
+            f"{observables}, {measurements}, {parameters}"
         )
 
     @staticmethod
@@ -177,6 +188,7 @@ class Problem:
         observable_files: str | Path | Iterable[str | Path] = None,
         model_id: str = None,
         extensions_config: dict = None,
+        timecourse_file: str | Path | Iterable[str | Path] = None,
     ) -> Problem:
         """
         Factory method to load model and tables from files.
@@ -190,6 +202,7 @@ class Problem:
             observable_files: PEtab observables tables
             model_id: PEtab ID of the model
             extensions_config: Information on the extensions used
+            timecourse_file: PEtab timecourse table
         """
         warn(
             "petab.Problem.from_files is deprecated and will be removed in a "
@@ -207,6 +220,13 @@ class Problem:
         condition_df = (
             core.concat_tables(condition_file, conditions.get_condition_df)
             if condition_file
+            else None
+        )
+
+        # FIXME deprecate method instead
+        timecourse_df = (
+            core.concat_tables(timecourse_file, timecourses.get_timecourse_df)
+            if timecourse_file
             else None
         )
 
@@ -247,6 +267,7 @@ class Problem:
             observable_df=observable_df,
             visualization_df=visualization_df,
             extensions_config=extensions_config,
+            timecourse_df=timecourse_df,
         )
 
     @staticmethod
@@ -379,6 +400,16 @@ class Problem:
             else None
         )
 
+        timecourse_files = [
+            get_path(f) for f in problem0.get(TIMECOURSE_FILES, [])
+        ]
+        # If there are multiple tables, we will merge them
+        timecourse_df = (
+            core.concat_tables(timecourse_files, timecourses.get_timecourse_df)
+            if timecourse_files
+            else None
+        )
+
         visualization_files = [
             get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])
         ]
@@ -416,6 +447,7 @@ class Problem:
             visualization_df=visualization_df,
             mapping_df=mapping_df,
             extensions_config=yaml_config.get(EXTENSIONS, {}),
+            timecourse_df=timecourse_df,
         )
 
     @staticmethod
@@ -481,6 +513,7 @@ class Problem:
         filenames = {}
         for table_name in [
             "condition",
+            "timecourse",
             "measurement",
             "parameter",
             "observable",
@@ -518,6 +551,7 @@ class Problem:
         relative_paths: bool = True,
         model_file: None | str | Path = None,
         mapping_file: None | str | Path = None,
+        timecourse_file: None | str | Path = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -532,6 +566,7 @@ class Problem:
             sbml_file: SBML model destination (deprecated)
             model_file: Model destination
             condition_file: Condition table destination
+            timecourse_file: Timecourse table destination
             measurement_file: Measurement table destination
             parameter_file: Parameter table destination
             visualization_file: Visualization table destination
@@ -575,6 +610,7 @@ class Problem:
 
             model_file = add_prefix(model_file)
             condition_file = add_prefix(condition_file)
+            timecourse_file = add_prefix(timecourse_file)
             measurement_file = add_prefix(measurement_file)
             parameter_file = add_prefix(parameter_file)
             observable_file = add_prefix(observable_file)
@@ -595,6 +631,14 @@ class Problem:
                 )
             else:
                 raise error("condition")
+
+        if timecourse_file:
+            if self.timecourse_df is not None:
+                timecourses.write_timecourse_df(
+                    self.timecourse_df, timecourse_file
+                )
+            else:
+                raise error("timecourse")
 
         if measurement_file:
             if self.measurement_df is not None:
@@ -645,6 +689,7 @@ class Problem:
                 visualization_files=visualization_file,
                 relative_paths=relative_paths,
                 mapping_files=mapping_file,
+                timecourse_files=timecourse_file,
             )
 
     def get_optimization_parameters(self):
@@ -891,7 +936,11 @@ class Problem:
 
     def get_simulation_conditions_from_measurement_df(self):
         """See petab.get_simulation_conditions"""
-        return measurements.get_simulation_conditions(self.measurement_df)
+        # TODO provide a minimal set of simulated periods for each
+        #      timepoint. e.g., if multiple timecourses use the same
+        #      preequilibration period, this period only needs to be
+        #      simulated once
+        return sorted(self.measurement_df[TIMECOURSE].unique())
 
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """
