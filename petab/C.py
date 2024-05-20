@@ -129,6 +129,15 @@ CONDITION_ID = "conditionId"
 CONDITION_NAME = "conditionName"
 
 
+# TIMECOURSES
+
+#:
+TIMECOURSE_ID = "timecourseId"
+#:
+TIMECOURSE_NAME = "timecourseName"
+#:
+TIMECOURSE = "timecourse"
+
 # OBSERVABLES
 
 #:
@@ -332,6 +341,8 @@ MODEL_LOCATION = "location"
 MODEL_LANGUAGE = "language"
 #:
 CONDITION_FILES = "condition_files"
+#:
+TIMECOURSE_FILES = "timecourse_files"
 #:
 MEASUREMENT_FILES = "measurement_files"
 #:
