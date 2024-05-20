@@ -27,5 +27,6 @@ from .problem import *  # noqa: F403, F401, E402
 from .sampling import *  # noqa: F403, F401, E402
 from .sbml import *  # noqa: F403, F401, E402
 from .simulate import *  # noqa: F403, F401, E402
+from .timecourses import *  # noqa: F403, F401, E402
 from .version import __version__  # noqa: F401, E402
 from .yaml import *  # noqa: F403, F401, E402
