@@ -10,12 +10,12 @@ from typing import Any, Iterable, Optional
 import numpy as np
 import pandas as pd
 import sympy as sp
-from sympy.abc import _clash
 
 import petab
 
 from . import core, measurements, parameters
 from .C import *  # noqa: F403
+from .math import sympify_petab
 from .models import Model
 
 logger = logging.getLogger(__name__)
@@ -317,7 +317,7 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
     for row in observable_df.itertuples():
         obs = getattr(row, OBSERVABLE_FORMULA)
         try:
-            sp.sympify(obs, locals=_clash)
+            sympify_petab(obs)
         except sp.SympifyError as e:
             raise AssertionError(
                 f"Cannot parse expression '{obs}' "
@@ -326,7 +326,7 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
 
         noise = getattr(row, NOISE_FORMULA)
         try:
-            sympified_noise = sp.sympify(noise, locals=_clash)
+            sympified_noise = sympify_petab(noise)
             if sympified_noise is None or (
                 sympified_noise.is_Number and not sympified_noise.is_finite
             ):
