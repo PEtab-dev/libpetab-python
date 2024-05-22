@@ -1,13 +1,11 @@
 """PEtab-math to sympy conversion."""
 import sympy as sp
-from antlr4 import *
 from antlr4.error.ErrorListener import ErrorListener
 
-from ._generated.PetabMathExprLexer import PetabMathExprLexer
 from ._generated.PetabMathExprParser import PetabMathExprParser
 from ._generated.PetabMathExprParserVisitor import PetabMathExprParserVisitor
 
-__all__ = ["parse"]
+__all__ = []
 
 _trig_funcs = {
     "sin": sp.sin,
@@ -237,18 +235,3 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 class MathErrorListener(ErrorListener):
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
         raise ValueError(f"Syntax error at {line}:{column}: {msg}")
-
-
-def parse(expr: str) -> sp.Expr:
-    input_stream = InputStream(expr)
-    lexer = PetabMathExprLexer(input_stream)
-    stream = CommonTokenStream(lexer)
-    parser = PetabMathExprParser(stream)
-    parser.removeErrorListeners()
-    parser.addErrorListener(MathErrorListener())
-    try:
-        tree = parser.prog()
-    except ValueError as e:
-        raise ValueError(f"Error parsing {expr!r}: {e.args[0]}") from None
-    visitor = MathVisitorSympy()
-    return visitor.visit(tree)

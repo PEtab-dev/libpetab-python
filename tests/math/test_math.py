@@ -5,15 +5,15 @@ import pytest
 import sympy as sp
 import yaml
 
-from petab.math.SympyVisitor import parse
+from petab.math import sympify_petab
 
 
 def test_parse_simple():
-    assert parse("1 + 2") == 3
-    assert parse("1 + 2 * 3") == 7
-    assert parse("(1 + 2) * 3") == 9
-    assert parse("1 + 2 * (3 + 4)") == 15
-    assert parse("1 + 2 * (3 + 4) / 2") == 8
+    assert sympify_petab("1 + 2") == 3
+    assert sympify_petab("1 + 2 * 3") == 7
+    assert sympify_petab("(1 + 2) * 3") == 9
+    assert sympify_petab("1 + 2 * (3 + 4)") == 15
+    assert sympify_petab("1 + 2 * (3 + 4) / 2") == 8
 
 
 def read_cases():
@@ -29,7 +29,7 @@ def read_cases():
 
 @pytest.mark.parametrize("expr_str, expected", read_cases())
 def test_parse_cases(expr_str, expected):
-    result = parse(expr_str)
+    result = sympify_petab(expr_str)
     result = float(result.evalf())
     assert np.isclose(
         result, expected
@@ -37,9 +37,9 @@ def test_parse_cases(expr_str, expected):
 
 
 def test_ids():
-    assert parse("bla * 2") == 2.0 * sp.Symbol("bla")
+    assert sympify_petab("bla * 2") == 2.0 * sp.Symbol("bla")
 
 
 def test_syntax_error():
     with pytest.raises(ValueError, match="Syntax error"):
-        parse("1 + ")
+        sympify_petab("1 + ")
