@@ -6,11 +6,10 @@ from pathlib import Path
 from typing import List, Literal, Union
 
 import pandas as pd
-import sympy as sp
-from sympy.abc import _clash
 
 from . import core, lint
 from .C import *  # noqa: F403
+from .math import sympify_petab
 from .models import Model
 
 __all__ = [
@@ -102,7 +101,7 @@ def get_output_parameters(
 
     for formula in formulas:
         free_syms = sorted(
-            sp.sympify(formula, locals=_clash).free_symbols,
+            sympify_petab(formula).free_symbols,
             key=lambda symbol: symbol.name,
         )
         for free_sym in free_syms:
@@ -110,7 +109,7 @@ def get_output_parameters(
             if model.symbol_allowed_in_observable_formula(sym):
                 continue
 
-            # does it mapping to a model entity?
+            # does it map to a model entity?
             if (
                 mapping_df is not None
                 and sym in mapping_df.index
