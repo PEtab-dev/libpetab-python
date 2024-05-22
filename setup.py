@@ -65,6 +65,7 @@ setup(
         "colorama",
         "pyyaml",
         "jsonschema",
+        "antlr4-python3-runtime==4.13.1",
     ],
     include_package_data=True,
     python_requires=">=3.10.0",
