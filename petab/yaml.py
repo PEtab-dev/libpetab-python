@@ -250,6 +250,8 @@ def create_problem_yaml(
         sbml_files = [sbml_files]
     if isinstance(condition_files, (Path, str)):
         condition_files = [condition_files]
+    if isinstance(timecourse_files, (Path, str)):
+        timecourse_files = [timecourse_files]
     if isinstance(measurement_files, (Path, str)):
         measurement_files = [measurement_files]
     if isinstance(observable_files, (Path, str)):
