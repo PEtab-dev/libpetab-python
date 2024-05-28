@@ -36,7 +36,10 @@ def get_mapping_df(
         )
 
     if not isinstance(mapping_file.index, pd.RangeIndex):
-        mapping_file.reset_index(drop=True, inplace=True)
+        mapping_file.reset_index(
+            drop=mapping_file.index.name != PETAB_ENTITY_ID,
+            inplace=True,
+        )
 
     for col in MAPPING_DF_REQUIRED_COLS:
         if col not in mapping_file.columns:
