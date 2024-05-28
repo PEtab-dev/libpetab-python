@@ -82,7 +82,7 @@ def get_parameter_df(
     )
 
     if not isinstance(parameter_df.index, pd.RangeIndex):
-        parameter_df.reset_index(inplace=True)
+        parameter_df.reset_index(drop=True, inplace=True)
 
     try:
         parameter_df.set_index([PARAMETER_ID], inplace=True)
