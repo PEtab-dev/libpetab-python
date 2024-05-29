@@ -2,10 +2,11 @@
 
 import sympy as sp
 from antlr4 import CommonTokenStream, InputStream
+from antlr4.error.ErrorListener import ErrorListener
 
 from petab.math._generated.PetabMathExprLexer import PetabMathExprLexer
 from petab.math._generated.PetabMathExprParser import PetabMathExprParser
-from petab.math.SympyVisitor import MathErrorListener, MathVisitorSympy
+from petab.math.SympyVisitor import MathVisitorSympy
 
 
 def sympify_petab(expr: str | int | float) -> sp.Expr:
@@ -34,3 +35,8 @@ def sympify_petab(expr: str | int | float) -> sp.Expr:
         raise ValueError(f"Error parsing {expr!r}: {e.args[0]}") from None
     visitor = MathVisitorSympy()
     return visitor.visit(tree)
+
+
+class MathErrorListener(ErrorListener):
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # noqa N803
+        raise ValueError(f"Syntax error at {line}:{column}: {msg}")

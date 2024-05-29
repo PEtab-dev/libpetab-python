@@ -1,11 +1,10 @@
 """PEtab-math to sympy conversion."""
 import sympy as sp
-from antlr4.error.ErrorListener import ErrorListener
 
 from ._generated.PetabMathExprParser import PetabMathExprParser
 from ._generated.PetabMathExprParserVisitor import PetabMathExprParserVisitor
 
-__all__ = []
+__all__ = ["MathVisitorSympy"]
 
 _trig_funcs = {
     "sin": sp.sin,
@@ -230,8 +229,3 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             case "false":
                 return sp.false
         raise AssertionError(f"Unexpected boolean literal: {ctx.getText()}")
-
-
-class MathErrorListener(ErrorListener):
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # noqa N803
-        raise ValueError(f"Syntax error at {line}:{column}: {msg}")
