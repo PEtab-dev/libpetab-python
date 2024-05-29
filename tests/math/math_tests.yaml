@@ -146,3 +146,10 @@ cases:
   expected: 1.0
 - expression: piecewise(1, !(2 < 3), 0)
   expected: 0.0
+- expression: piecewise(1, true, 2, true, 0)
+  expected: 1.0
+  comment: Test that the first true condition is used.
+- expression: piecewise(1, false, 2, true, 0)
+  expected: 2.0
+- expression: piecewise(1, false, 2, false, 3)
+  expected: 3.0

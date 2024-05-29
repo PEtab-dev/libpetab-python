@@ -126,14 +126,19 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             return sp.log(*args)
 
         if func_name == "piecewise":
-            if len(args) != 3:
+            if (len(args) - 1) % 2 != 0:
                 raise AssertionError(
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            true_expr, condition, false_expr = args
-            args = ((true_expr, condition), (false_expr, ~condition))
-            return sp.Piecewise(*args)
+            args.append(sp.true)
+            sp_args = (
+                (true_expr, condition)
+                for true_expr, condition in zip(
+                    args[::2], args[1::2], strict=True
+                )
+            )
+            return sp.Piecewise(*sp_args)
 
         raise ValueError(f"Unknown function: {ctx.getText()}")
 
