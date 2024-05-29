@@ -155,32 +155,23 @@ class Timecourse:
     def condition_ids(self):
         return [period.condition_id for period in self.periods]
 
-    # def to_df(self):
-    #     data = {
-    #         TIMECOURSE_ID: [self.timecourse_id],
-    #         TIMECOURSE_NAME: [self.name],
-    #         TIMECOURSE: [None],
-    #     }
-    #     if self.name is None:
-    #         del data[TIMECOURSE_NAME]
+    def to_series(self):
+        period_definitions = []
+        for period in self.periods:
+            period_definition = PERIOD_DELIMITER.join(
+                [
+                    str(period.start_time),
+                    period.condition_id,
+                ]
+            )
+            period_definitions.append(period_definition)
+        timecourse_definition = TIMECOURSE_DELIMITER.join(period_definitions)
 
-    #     t0 = self.t0
-    #     times = []
-    #     condition_ids = []
-    #     for period in self.periods:
-    #         times.append(t0)
-    #         condition_ids.append(period.condition_id)
-    #         t0 += period.duration
-
-    #     timecourse_str = PERIOD_DELIMITER.join(
-    #         TIME_CONDITION_DELIMITER.join([str(time), condition_id])
-    #         for time, condition_id in zip(times, condition_ids)
-    #     )
-    #     data[TIMECOURSE] = timecourse_str
-
-    #     return get_timecourse_df(
-    #         pd.DataFrame(data=data)
-    #     )
+        series = pd.Series(
+            data={TIMECOURSE: timecourse_definition},
+            name=self.timecourse_id,
+        )
+        return series
 
     @staticmethod
     def from_df_row(
