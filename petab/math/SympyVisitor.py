@@ -1,5 +1,6 @@
 """PEtab-math to sympy conversion."""
 import sympy as sp
+from sympy.logic.boolalg import Boolean
 
 from ._generated.PetabMathExprParser import PetabMathExprParser
 from ._generated.PetabMathExprParserVisitor import PetabMathExprParserVisitor
@@ -131,6 +132,12 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
+            if not all(isinstance(arg, Boolean) for arg in args[1::2]):
+                raise AssertionError(
+                    f"Expected boolean conditions in {ctx.getText()}"
+                )
+            # sympy's Piecewise requires an explicit condition for the final
+            # `else` case
             args.append(sp.true)
             sp_args = (
                 (true_expr, condition)
