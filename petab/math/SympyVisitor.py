@@ -67,11 +67,11 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 3:
-            if ctx.getChild(1).getText() == "*":
+            if ctx.MUL():
                 return self.visit(ctx.getChild(0)) * self.visit(
                     ctx.getChild(2)
                 )
-            if ctx.getChild(1).getText() == "/":
+            if ctx.DIV():
                 return self.visit(ctx.getChild(0)) / self.visit(
                     ctx.getChild(2)
                 )
@@ -80,9 +80,9 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     def visitAddExpr(self, ctx: PetabMathExprParser.AddExprContext):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
-        if ctx.getChild(1).getText() == "+":
+        if ctx.PLUS():
             return self.visit(ctx.getChild(0)) + self.visit(ctx.getChild(2))
-        if ctx.getChild(1).getText() == "-":
+        if ctx.MINUS():
             return self.visit(ctx.getChild(0)) - self.visit(ctx.getChild(2))
         raise AssertionError(
             f"Unexpected operator: {ctx.getChild(1).getText()} "
@@ -179,7 +179,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     def visitBooleanAtom(self, ctx: PetabMathExprParser.BooleanAtomContext):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
-        if ctx.getChildCount() == 3 and ctx.getChild(0).getText() == "(":
+        if ctx.getChildCount() == 3 and ctx.OPEN_PAREN() and ctx.CLOSE_PAREN():
             return self.visit(ctx.getChild(1))
         raise AssertionError(f"Unexpected boolean atom: {ctx.getText()}")
 
@@ -234,9 +234,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     def visitBooleanLiteral(
         self, ctx: PetabMathExprParser.BooleanLiteralContext
     ):
-        match ctx.getText():
-            case "true":
-                return sp.true
-            case "false":
-                return sp.false
+        if ctx.TRUE():
+            return sp.true
+        if ctx.FALSE():
+            return sp.false
         raise AssertionError(f"Unexpected boolean literal: {ctx.getText()}")
