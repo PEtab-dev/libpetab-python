@@ -48,6 +48,13 @@ _binary_funcs = {
     "max": sp.Max,
 }
 
+_reserved_names = {
+    "inf",
+    "nan",
+    "true",
+    "false",
+}
+
 
 class MathVisitorSympy(PetabMathExprParserVisitor):
     """
@@ -61,6 +68,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         return sp.Float(ctx.getText())
 
     def visitVar(self, ctx: PetabMathExprParser.VarContext):
+        if ctx.getText() in _reserved_names:
+            raise ValueError(f"Use of reserved name {ctx.getText()!r}")
         return sp.Symbol(ctx.getText())
 
     def visitMultExpr(self, ctx: PetabMathExprParser.MultExprContext):
