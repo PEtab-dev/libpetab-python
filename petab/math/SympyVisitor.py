@@ -204,21 +204,20 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             return self.visit(ctx.getChild(0))
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
-    def visitBooleanAndExpr(
-        self, ctx: PetabMathExprParser.BooleanAndExprContext
+    def visitBooleanAndOrExpr(
+        self, ctx: PetabMathExprParser.BooleanAndOrExprContext
     ):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         if ctx.getChildCount() != 3:
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
-        return self.visit(ctx.getChild(0)) & self.visit(ctx.getChild(2))
 
-    def visitBooleanOrExpr(
-        self, ctx: PetabMathExprParser.BooleanOrExprContext
-    ):
-        if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
-        return self.visit(ctx.getChild(0)) | self.visit(ctx.getChild(2))
+        if ctx.BOOLEAN_AND():
+            return self.visit(ctx.getChild(0)) & self.visit(ctx.getChild(2))
+        if ctx.BOOLEAN_OR():
+            return self.visit(ctx.getChild(0)) | self.visit(ctx.getChild(2))
+
+        raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
     def visitBooleanLiteral(
         self, ctx: PetabMathExprParser.BooleanLiteralContext

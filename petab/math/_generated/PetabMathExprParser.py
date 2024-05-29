@@ -10,45 +10,43 @@ else:
 
 def serializedATN():
     return [
-        4,1,27,121,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
+        4,1,27,118,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
         6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,
         1,0,1,0,1,0,1,1,1,1,3,1,34,8,1,1,2,1,2,1,3,1,3,1,3,1,3,1,3,1,3,1,
         3,1,3,1,3,1,3,3,3,48,8,3,1,3,1,3,1,3,1,3,1,3,1,3,1,3,1,3,1,3,5,3,
         59,8,3,10,3,12,3,62,9,3,1,4,1,4,1,4,5,4,67,8,4,10,4,12,4,70,9,4,
-        1,5,1,5,1,5,1,5,1,5,1,6,1,6,1,6,1,6,3,6,81,8,6,1,6,1,6,1,6,1,6,1,
-        6,1,6,5,6,89,8,6,10,6,12,6,92,9,6,1,7,1,7,1,7,1,7,1,7,1,7,1,7,3,
-        7,101,8,7,1,8,1,8,3,8,105,8,8,1,9,1,9,1,9,1,9,1,10,1,10,1,10,1,10,
-        1,11,1,11,1,12,1,12,1,13,1,13,1,13,0,2,6,12,14,0,2,4,6,8,10,12,14,
-        16,18,20,22,24,26,0,4,1,0,15,20,1,0,21,22,1,0,23,24,1,0,7,8,122,
-        0,28,1,0,0,0,2,33,1,0,0,0,4,35,1,0,0,0,6,47,1,0,0,0,8,63,1,0,0,0,
-        10,71,1,0,0,0,12,80,1,0,0,0,14,100,1,0,0,0,16,104,1,0,0,0,18,106,
-        1,0,0,0,20,110,1,0,0,0,22,114,1,0,0,0,24,116,1,0,0,0,26,118,1,0,
-        0,0,28,29,3,2,1,0,29,30,5,0,0,1,30,1,1,0,0,0,31,34,3,6,3,0,32,34,
-        3,12,6,0,33,31,1,0,0,0,33,32,1,0,0,0,34,3,1,0,0,0,35,36,7,0,0,0,
-        36,5,1,0,0,0,37,38,6,3,-1,0,38,39,7,1,0,0,39,48,3,6,3,7,40,41,5,
-        11,0,0,41,42,3,6,3,0,42,43,5,12,0,0,43,48,1,0,0,0,44,48,3,24,12,
-        0,45,48,3,10,5,0,46,48,3,26,13,0,47,37,1,0,0,0,47,40,1,0,0,0,47,
-        44,1,0,0,0,47,45,1,0,0,0,47,46,1,0,0,0,48,60,1,0,0,0,49,50,10,8,
-        0,0,50,51,5,25,0,0,51,59,3,6,3,8,52,53,10,6,0,0,53,54,7,2,0,0,54,
-        59,3,6,3,7,55,56,10,5,0,0,56,57,7,1,0,0,57,59,3,6,3,6,58,49,1,0,
-        0,0,58,52,1,0,0,0,58,55,1,0,0,0,59,62,1,0,0,0,60,58,1,0,0,0,60,61,
-        1,0,0,0,61,7,1,0,0,0,62,60,1,0,0,0,63,68,3,2,1,0,64,65,5,27,0,0,
-        65,67,3,2,1,0,66,64,1,0,0,0,67,70,1,0,0,0,68,66,1,0,0,0,68,69,1,
-        0,0,0,69,9,1,0,0,0,70,68,1,0,0,0,71,72,5,10,0,0,72,73,5,11,0,0,73,
-        74,3,8,4,0,74,75,5,12,0,0,75,11,1,0,0,0,76,77,6,6,-1,0,77,78,5,26,
-        0,0,78,81,3,14,7,0,79,81,3,14,7,0,80,76,1,0,0,0,80,79,1,0,0,0,81,
-        90,1,0,0,0,82,83,10,3,0,0,83,84,5,14,0,0,84,89,3,12,6,4,85,86,10,
-        2,0,0,86,87,5,13,0,0,87,89,3,12,6,3,88,82,1,0,0,0,88,85,1,0,0,0,
-        89,92,1,0,0,0,90,88,1,0,0,0,90,91,1,0,0,0,91,13,1,0,0,0,92,90,1,
-        0,0,0,93,101,3,22,11,0,94,95,5,11,0,0,95,96,3,12,6,0,96,97,5,12,
-        0,0,97,101,1,0,0,0,98,101,3,16,8,0,99,101,3,26,13,0,100,93,1,0,0,
-        0,100,94,1,0,0,0,100,98,1,0,0,0,100,99,1,0,0,0,101,15,1,0,0,0,102,
-        105,3,20,10,0,103,105,3,18,9,0,104,102,1,0,0,0,104,103,1,0,0,0,105,
-        17,1,0,0,0,106,107,3,22,11,0,107,108,3,4,2,0,108,109,3,22,11,0,109,
-        19,1,0,0,0,110,111,3,6,3,0,111,112,3,4,2,0,112,113,3,6,3,0,113,21,
-        1,0,0,0,114,115,7,3,0,0,115,23,1,0,0,0,116,117,5,1,0,0,117,25,1,
-        0,0,0,118,119,5,10,0,0,119,27,1,0,0,0,10,33,47,58,60,68,80,88,90,
-        100,104
+        1,5,1,5,1,5,1,5,1,5,1,6,1,6,1,6,1,6,3,6,81,8,6,1,6,1,6,1,6,5,6,86,
+        8,6,10,6,12,6,89,9,6,1,7,1,7,1,7,1,7,1,7,1,7,1,7,3,7,98,8,7,1,8,
+        1,8,3,8,102,8,8,1,9,1,9,1,9,1,9,1,10,1,10,1,10,1,10,1,11,1,11,1,
+        12,1,12,1,13,1,13,1,13,0,2,6,12,14,0,2,4,6,8,10,12,14,16,18,20,22,
+        24,26,0,5,1,0,15,20,1,0,21,22,1,0,23,24,1,0,13,14,1,0,7,8,118,0,
+        28,1,0,0,0,2,33,1,0,0,0,4,35,1,0,0,0,6,47,1,0,0,0,8,63,1,0,0,0,10,
+        71,1,0,0,0,12,80,1,0,0,0,14,97,1,0,0,0,16,101,1,0,0,0,18,103,1,0,
+        0,0,20,107,1,0,0,0,22,111,1,0,0,0,24,113,1,0,0,0,26,115,1,0,0,0,
+        28,29,3,2,1,0,29,30,5,0,0,1,30,1,1,0,0,0,31,34,3,6,3,0,32,34,3,12,
+        6,0,33,31,1,0,0,0,33,32,1,0,0,0,34,3,1,0,0,0,35,36,7,0,0,0,36,5,
+        1,0,0,0,37,38,6,3,-1,0,38,39,7,1,0,0,39,48,3,6,3,7,40,41,5,11,0,
+        0,41,42,3,6,3,0,42,43,5,12,0,0,43,48,1,0,0,0,44,48,3,24,12,0,45,
+        48,3,10,5,0,46,48,3,26,13,0,47,37,1,0,0,0,47,40,1,0,0,0,47,44,1,
+        0,0,0,47,45,1,0,0,0,47,46,1,0,0,0,48,60,1,0,0,0,49,50,10,8,0,0,50,
+        51,5,25,0,0,51,59,3,6,3,8,52,53,10,6,0,0,53,54,7,2,0,0,54,59,3,6,
+        3,7,55,56,10,5,0,0,56,57,7,1,0,0,57,59,3,6,3,6,58,49,1,0,0,0,58,
+        52,1,0,0,0,58,55,1,0,0,0,59,62,1,0,0,0,60,58,1,0,0,0,60,61,1,0,0,
+        0,61,7,1,0,0,0,62,60,1,0,0,0,63,68,3,2,1,0,64,65,5,27,0,0,65,67,
+        3,2,1,0,66,64,1,0,0,0,67,70,1,0,0,0,68,66,1,0,0,0,68,69,1,0,0,0,
+        69,9,1,0,0,0,70,68,1,0,0,0,71,72,5,10,0,0,72,73,5,11,0,0,73,74,3,
+        8,4,0,74,75,5,12,0,0,75,11,1,0,0,0,76,77,6,6,-1,0,77,78,5,26,0,0,
+        78,81,3,14,7,0,79,81,3,14,7,0,80,76,1,0,0,0,80,79,1,0,0,0,81,87,
+        1,0,0,0,82,83,10,2,0,0,83,84,7,3,0,0,84,86,3,12,6,3,85,82,1,0,0,
+        0,86,89,1,0,0,0,87,85,1,0,0,0,87,88,1,0,0,0,88,13,1,0,0,0,89,87,
+        1,0,0,0,90,98,3,22,11,0,91,92,5,11,0,0,92,93,3,12,6,0,93,94,5,12,
+        0,0,94,98,1,0,0,0,95,98,3,16,8,0,96,98,3,26,13,0,97,90,1,0,0,0,97,
+        91,1,0,0,0,97,95,1,0,0,0,97,96,1,0,0,0,98,15,1,0,0,0,99,102,3,20,
+        10,0,100,102,3,18,9,0,101,99,1,0,0,0,101,100,1,0,0,0,102,17,1,0,
+        0,0,103,104,3,22,11,0,104,105,3,4,2,0,105,106,3,22,11,0,106,19,1,
+        0,0,0,107,108,3,6,3,0,108,109,3,4,2,0,109,110,3,6,3,0,110,21,1,0,
+        0,0,111,112,7,4,0,0,112,23,1,0,0,0,113,114,5,1,0,0,114,25,1,0,0,
+        0,115,116,5,10,0,0,116,27,1,0,0,0,9,33,47,58,60,68,80,87,97,101
     ]
 
 class PetabMathExprParser ( Parser ):
@@ -747,28 +745,6 @@ class PetabMathExprParser ( Parser ):
             super().copyFrom(ctx)
 
 
-    class BooleanAndExprContext(BooleanExprContext):
-
-        def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.BooleanExprContext
-            super().__init__(parser)
-            self.copyFrom(ctx)
-
-        def booleanExpr(self, i:int=None):
-            if i is None:
-                return self.getTypedRuleContexts(PetabMathExprParser.BooleanExprContext)
-            else:
-                return self.getTypedRuleContext(PetabMathExprParser.BooleanExprContext,i)
-
-        def BOOLEAN_AND(self):
-            return self.getToken(PetabMathExprParser.BOOLEAN_AND, 0)
-
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitBooleanAndExpr" ):
-                return visitor.visitBooleanAndExpr(self)
-            else:
-                return visitor.visitChildren(self)
-
-
     class BooleanAtomExprContext(BooleanExprContext):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.BooleanExprContext
@@ -786,7 +762,7 @@ class PetabMathExprParser ( Parser ):
                 return visitor.visitChildren(self)
 
 
-    class BooleanOrExprContext(BooleanExprContext):
+    class BooleanAndOrExprContext(BooleanExprContext):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.BooleanExprContext
             super().__init__(parser)
@@ -798,12 +774,14 @@ class PetabMathExprParser ( Parser ):
             else:
                 return self.getTypedRuleContext(PetabMathExprParser.BooleanExprContext,i)
 
+        def BOOLEAN_AND(self):
+            return self.getToken(PetabMathExprParser.BOOLEAN_AND, 0)
         def BOOLEAN_OR(self):
             return self.getToken(PetabMathExprParser.BOOLEAN_OR, 0)
 
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitBooleanOrExpr" ):
-                return visitor.visitBooleanOrExpr(self)
+            if hasattr( visitor, "visitBooleanAndOrExpr" ):
+                return visitor.visitBooleanAndOrExpr(self)
             else:
                 return visitor.visitChildren(self)
 
@@ -835,6 +813,7 @@ class PetabMathExprParser ( Parser ):
         _prevctx = localctx
         _startState = 12
         self.enterRecursionRule(localctx, 12, self.RULE_booleanExpr, _p)
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 80
@@ -861,47 +840,32 @@ class PetabMathExprParser ( Parser ):
                 raise NoViableAltException(self)
 
             self._ctx.stop = self._input.LT(-1)
-            self.state = 90
+            self.state = 87
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,7,self._ctx)
+            _alt = self._interp.adaptivePredict(self._input,6,self._ctx)
             while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                 if _alt==1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
                     _prevctx = localctx
-                    self.state = 88
-                    self._errHandler.sync(self)
-                    la_ = self._interp.adaptivePredict(self._input,6,self._ctx)
-                    if la_ == 1:
-                        localctx = PetabMathExprParser.BooleanAndExprContext(self, PetabMathExprParser.BooleanExprContext(self, _parentctx, _parentState))
-                        self.pushNewRecursionContext(localctx, _startState, self.RULE_booleanExpr)
-                        self.state = 82
-                        if not self.precpred(self._ctx, 3):
-                            from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 3)")
-                        self.state = 83
-                        self.match(PetabMathExprParser.BOOLEAN_AND)
-                        self.state = 84
-                        self.booleanExpr(4)
-                        pass
-
-                    elif la_ == 2:
-                        localctx = PetabMathExprParser.BooleanOrExprContext(self, PetabMathExprParser.BooleanExprContext(self, _parentctx, _parentState))
-                        self.pushNewRecursionContext(localctx, _startState, self.RULE_booleanExpr)
-                        self.state = 85
-                        if not self.precpred(self._ctx, 2):
-                            from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 2)")
-                        self.state = 86
-                        self.match(PetabMathExprParser.BOOLEAN_OR)
-                        self.state = 87
-                        self.booleanExpr(3)
-                        pass
-
-
-                self.state = 92
+                    localctx = PetabMathExprParser.BooleanAndOrExprContext(self, PetabMathExprParser.BooleanExprContext(self, _parentctx, _parentState))
+                    self.pushNewRecursionContext(localctx, _startState, self.RULE_booleanExpr)
+                    self.state = 82
+                    if not self.precpred(self._ctx, 2):
+                        from antlr4.error.Errors import FailedPredicateException
+                        raise FailedPredicateException(self, "self.precpred(self._ctx, 2)")
+                    self.state = 83
+                    _la = self._input.LA(1)
+                    if not(_la==13 or _la==14):
+                        self._errHandler.recoverInline(self)
+                    else:
+                        self._errHandler.reportMatch(self)
+                        self.consume()
+                    self.state = 84
+                    self.booleanExpr(3)
+                self.state = 89
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,7,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,6,self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re
@@ -958,34 +922,34 @@ class PetabMathExprParser ( Parser ):
         localctx = PetabMathExprParser.BooleanAtomContext(self, self._ctx, self.state)
         self.enterRule(localctx, 14, self.RULE_booleanAtom)
         try:
-            self.state = 100
+            self.state = 97
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,8,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,7,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 93
+                self.state = 90
                 self.booleanLiteral()
                 pass
 
             elif la_ == 2:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 94
+                self.state = 91
                 self.match(PetabMathExprParser.OPEN_PAREN)
-                self.state = 95
+                self.state = 92
                 self.booleanExpr(0)
-                self.state = 96
+                self.state = 93
                 self.match(PetabMathExprParser.CLOSE_PAREN)
                 pass
 
             elif la_ == 3:
                 self.enterOuterAlt(localctx, 3)
-                self.state = 98
+                self.state = 95
                 self.comparisonExpr()
                 pass
 
             elif la_ == 4:
                 self.enterOuterAlt(localctx, 4)
-                self.state = 99
+                self.state = 96
                 self.var()
                 pass
 
@@ -1031,17 +995,17 @@ class PetabMathExprParser ( Parser ):
         localctx = PetabMathExprParser.ComparisonExprContext(self, self._ctx, self.state)
         self.enterRule(localctx, 16, self.RULE_comparisonExpr)
         try:
-            self.state = 104
+            self.state = 101
             self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [1, 10, 11, 21, 22]:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 102
+                self.state = 99
                 self.floatComparisonExpr()
                 pass
             elif token in [7, 8]:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 103
+                self.state = 100
                 self.boolComparisonExpr()
                 pass
             else:
@@ -1092,11 +1056,11 @@ class PetabMathExprParser ( Parser ):
         self.enterRule(localctx, 18, self.RULE_boolComparisonExpr)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 106
+            self.state = 103
             self.booleanLiteral()
-            self.state = 107
+            self.state = 104
             self.comp_op()
-            self.state = 108
+            self.state = 105
             self.booleanLiteral()
         except RecognitionException as re:
             localctx.exception = re
@@ -1143,11 +1107,11 @@ class PetabMathExprParser ( Parser ):
         self.enterRule(localctx, 20, self.RULE_floatComparisonExpr)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 110
+            self.state = 107
             self.arithmeticExpr(0)
-            self.state = 111
+            self.state = 108
             self.comp_op()
-            self.state = 112
+            self.state = 109
             self.arithmeticExpr(0)
         except RecognitionException as re:
             localctx.exception = re
@@ -1190,7 +1154,7 @@ class PetabMathExprParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 114
+            self.state = 111
             _la = self._input.LA(1)
             if not(_la==7 or _la==8):
                 self._errHandler.recoverInline(self)
@@ -1234,7 +1198,7 @@ class PetabMathExprParser ( Parser ):
         self.enterRule(localctx, 24, self.RULE_number)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 116
+            self.state = 113
             self.match(PetabMathExprParser.NUMBER)
         except RecognitionException as re:
             localctx.exception = re
@@ -1273,7 +1237,7 @@ class PetabMathExprParser ( Parser ):
         self.enterRule(localctx, 26, self.RULE_var)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 118
+            self.state = 115
             self.match(PetabMathExprParser.NAME)
         except RecognitionException as re:
             localctx.exception = re
@@ -1311,8 +1275,4 @@ class PetabMathExprParser ( Parser ):
 
     def booleanExpr_sempred(self, localctx:BooleanExprContext, predIndex:int):
             if predIndex == 3:
-                return self.precpred(self._ctx, 3)
-
-
-            if predIndex == 4:
                 return self.precpred(self._ctx, 2)

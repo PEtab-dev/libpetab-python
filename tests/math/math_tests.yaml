@@ -113,9 +113,11 @@ cases:
   expected: 1.0
 - expression: piecewise(false || (true || true), 1, 0)
   expected: 1.0
-- expression: piecewise(true || false && false, 1, 0)
+- expression: piecewise(true || false && false, 0, 1)
   expected: 1.0
-  comment: Test precedence of logical operators, && has higher precedence than ||.
+  comment: Test precedence of logical operators, && and || have equal precedence in PEtab (unlike in C where && has higher precedence than ||).
+- expression: piecewise(true || (false && false), 1, 0)
+  expected: 1.0
 - expression: piecewise(false, 1, 0)
   expected: 0.0
 - expression: abs(-4)

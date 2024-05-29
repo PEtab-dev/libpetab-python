@@ -36,10 +36,9 @@ argumentList: expr (',' expr)* ;
 func_expr: NAME OPEN_PAREN argumentList CLOSE_PAREN ;
 
 booleanExpr:
-    '!' booleanAtom                        # BooleanNotExpr
-    | booleanExpr BOOLEAN_AND booleanExpr  # BooleanAndExpr
-    | booleanExpr BOOLEAN_OR booleanExpr   # BooleanOrExpr
-    | booleanAtom                          # BooleanAtomExpr
+    '!' booleanAtom                                       # BooleanNotExpr
+    | booleanExpr (BOOLEAN_AND | BOOLEAN_OR) booleanExpr  # BooleanAndOrExpr
+    | booleanAtom                                         # BooleanAtomExpr
 ;
 
 booleanAtom:

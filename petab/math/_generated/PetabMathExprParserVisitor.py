@@ -74,18 +74,13 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by PetabMathExprParser#BooleanAndExpr.
-    def visitBooleanAndExpr(self, ctx:PetabMathExprParser.BooleanAndExprContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by PetabMathExprParser#BooleanAtomExpr.
     def visitBooleanAtomExpr(self, ctx:PetabMathExprParser.BooleanAtomExprContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by PetabMathExprParser#BooleanOrExpr.
-    def visitBooleanOrExpr(self, ctx:PetabMathExprParser.BooleanOrExprContext):
+    # Visit a parse tree produced by PetabMathExprParser#BooleanAndOrExpr.
+    def visitBooleanAndOrExpr(self, ctx:PetabMathExprParser.BooleanAndOrExprContext):
         return self.visitChildren(ctx)
 
 
