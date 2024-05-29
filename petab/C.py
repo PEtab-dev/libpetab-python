@@ -137,6 +137,15 @@ TIMECOURSE_ID = "timecourseId"
 TIMECOURSE_NAME = "timecourseName"
 #:
 TIMECOURSE = "timecourse"
+#: between periods
+TIMECOURSE_DELIMITER = ";"
+#: between the start time, (repeat duration), and condition ID
+PERIOD_DELIMITER = ":"
+#:
+START_TIME = "startTime"
+#:
+RESTART_EVERY = "restartEvery"
+
 
 # OBSERVABLES
 

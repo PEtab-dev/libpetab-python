@@ -2,10 +2,9 @@
 # noqa: F405
 
 import itertools
-import math
 import numbers
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -18,8 +17,8 @@ __all__ = [
     "create_measurement_df",
     "get_measurement_df",
     "get_measurement_parameter_ids",
-    "get_rows_for_condition",
-    "get_simulation_conditions",
+    "get_simulation_timecourses",
+    "get_timecourse_measurements",
     "measurements_have_replicates",
     "measurement_is_at_steady_state",
     "split_parameter_replacement_list",
@@ -65,82 +64,36 @@ def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     df.to_csv(filename, sep="\t", index=False)
 
 
-def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create a table of separate simulation conditions. A simulation condition
-    is a specific combination of simulationConditionId and
-    preequilibrationConditionId.
+def get_simulation_timecourses(measurement_df: pd.DataFrame) -> list[str]:
+    """Get the list of timecourses for which there are measurements.
 
     Arguments:
         measurement_df: PEtab measurement table
 
     Returns:
-        Dataframe with columns 'simulationConditionId' and
-        'preequilibrationConditionId'. All-null columns will be omitted.
-        Missing 'preequilibrationConditionId's will be set to '' (empty
-        string).
+        The list of timecourse IDs, sorted alphabetically.
     """
-    if measurement_df.empty:
-        return pd.DataFrame(data={SIMULATION_CONDITION_ID: []})
-    # find columns to group by (i.e. if not all nans).
-    # can be improved by checking for identical condition vectors
-    grouping_cols = core.get_notnull_columns(
-        measurement_df,
-        [SIMULATION_CONDITION_ID, PREEQUILIBRATION_CONDITION_ID],
-    )
-
-    # group by cols and return dataframe containing each combination
-    #  of those rows only once (and an additional counting row)
-    # We require NaN-containing rows, but they are ignored by `groupby`,
-    # therefore replace them before
-    simulation_conditions = (
-        measurement_df.fillna("")
-        .groupby(grouping_cols)
-        .size()
-        .reset_index()[grouping_cols]
-    )
-    # sort to be really sure that we always get the same order
-    return simulation_conditions.sort_values(grouping_cols, ignore_index=True)
+    return sorted(measurement_df[TIMECOURSE_ID].unique())
 
 
-def get_rows_for_condition(
-    measurement_df: pd.DataFrame,
-    condition: Union[pd.Series, pd.DataFrame, Dict],
-) -> pd.DataFrame:
-    """
-    Extract rows in `measurement_df` for `condition` according
-    to 'preequilibrationConditionId' and 'simulationConditionId' in
-    `condition`.
+def get_timecourse_measurements(
+    measurement_df: pd.DataFrame, timecourse_id: str
+):
+    """Get the measurements associated with a specific timecourse.
 
     Arguments:
         measurement_df:
-            PEtab measurement DataFrame
-        condition:
-            DataFrame with single row (or Series) and columns
-            'preequilibrationConditionId' and 'simulationConditionId'.
-            Or dictionary with those keys.
+            PEtab measurement DataFrame.
+        timecourse_id:
+            The timecourse ID.
 
     Returns:
-        The subselection of rows in ``measurement_df`` for the condition
-        ``condition``.
+        The measurements for the timecourse.
     """
-    # filter rows for condition
-    row_filter = 1
-    # check for equality in all grouping cols
-    if PREEQUILIBRATION_CONDITION_ID in condition:
-        row_filter = (
-            measurement_df[PREEQUILIBRATION_CONDITION_ID].fillna("")
-            == condition[PREEQUILIBRATION_CONDITION_ID]
-        ) & row_filter
-    if SIMULATION_CONDITION_ID in condition:
-        row_filter = (
-            measurement_df[SIMULATION_CONDITION_ID]
-            == condition[SIMULATION_CONDITION_ID]
-        ) & row_filter
-    # apply filter
-    cur_measurement_df = measurement_df.loc[row_filter, :]
-
-    return cur_measurement_df
+    timecourse_measurement_df = measurement_df.loc[
+        measurement_df[TIMECOURSE_ID] == timecourse_id
+    ]
+    return timecourse_measurement_df
 
 
 def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
@@ -336,13 +289,5 @@ def assert_overrides_match_parameter_count(
 
 
 def measurement_is_at_steady_state(time: float) -> bool:
-    """Check whether a measurement is at steady state.
-
-    Arguments:
-        time:
-            The time.
-
-    Returns:
-        Whether the measurement is at steady state.
-    """
-    return math.isinf(time)
+    """Deprecated. See `petab.core.time_is_at_steady_state`."""
+    return core.time_is_at_steady_state(time, postequilibration=True)

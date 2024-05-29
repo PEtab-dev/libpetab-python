@@ -65,6 +65,7 @@ setup(
         "colorama",
         "pyyaml",
         "jsonschema",
+        "more_itertools",
     ],
     include_package_data=True,
     python_requires=">=3.10.0",
