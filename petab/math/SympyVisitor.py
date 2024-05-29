@@ -233,5 +233,5 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
 
 class MathErrorListener(ErrorListener):
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # noqa N803
         raise ValueError(f"Syntax error at {line}:{column}: {msg}")
