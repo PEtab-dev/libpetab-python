@@ -107,18 +107,18 @@ cases:
   expected: 0.0
 - expression: arccsch(1)
   expected: 0.881373587019543
-- expression: piecewise(true, 1, 0)
+- expression: piecewise(1, true, 0)
   expected: 1.0
-- expression: piecewise(true || true, 1, 0)
+- expression: piecewise(1, true || true, 0)
   expected: 1.0
-- expression: piecewise(false || (true || true), 1, 0)
+- expression: piecewise(1, false || (true || true), 0)
   expected: 1.0
-- expression: piecewise(true || false && false, 0, 1)
+- expression: piecewise(0, true || false && false, 1)
   expected: 1.0
   comment: Test precedence of logical operators, && and || have equal precedence in PEtab (unlike in C where && has higher precedence than ||).
-- expression: piecewise(true || (false && false), 1, 0)
+- expression: piecewise(1, true || (false && false), 0)
   expected: 1.0
-- expression: piecewise(false, 1, 0)
+- expression: piecewise(1, false, 0)
   expected: 0.0
 - expression: abs(-4)
   expected: 4.0
@@ -128,21 +128,21 @@ cases:
   expected: 1.0
 - expression: max(1, 2)
   expected: 2.0
-- expression: piecewise(1 > 2, 1, 0)
+- expression: piecewise(1, 1 > 2, 0)
   expected: 0.0
-- expression: piecewise(2 >= 2, 1, 0)
+- expression: piecewise(1, 2 >= 2, 0)
   expected: 1.0
-- expression: piecewise(2 == 2, 1, 0)
+- expression: piecewise(1, 2 == 2, 0)
   expected: 1.0
-- expression: piecewise(true == true, 1, 0)
+- expression: piecewise(1, true == true, 0)
   expected: 1.0
-- expression: piecewise(false == false, 1, 0)
+- expression: piecewise(1, false == false, 0)
   expected: 1.0
-- expression: piecewise(2 != 2, 1, 0)
+- expression: piecewise(1, 2 != 2, 0)
   expected: 0.0
-- expression: piecewise(2 < 3 && 3 > 2, 1, 0)
+- expression: piecewise(1, 2 < 3 && 3 > 2, 0)
   expected: 1.0
-- expression: piecewise(2 < 3 || 3 < 2, 1, 0)
+- expression: piecewise(1, 2 < 3 || 3 < 2, 0)
   expected: 1.0
-- expression: piecewise(!(2 < 3), 1, 0)
+- expression: piecewise(1, !(2 < 3), 0)
   expected: 0.0

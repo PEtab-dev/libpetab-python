@@ -131,7 +131,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            condition, true_expr, false_expr = args
+            true_expr, condition, false_expr = args
             args = ((true_expr, condition), (false_expr, ~condition))
             return sp.Piecewise(*args)
 
