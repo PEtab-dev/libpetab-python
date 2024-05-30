@@ -3,13 +3,23 @@
 $schema: "http://json-schema.org/draft-06/schema"
 description: PEtab parameter estimation problem config file schema
 
+definitions:
+  list_of_files:
+    type: array
+    description: List of files.
+    items:
+      type: string
+      description: File name or URL.
+  version_number:
+    type: string
+    pattern: ^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$
+    description: Version number (corresponding to PEP 440).
+
 properties:
 
   format_version:
     anyof:
-      - type: string
-        #  (corresponding to PEP 440).
-        pattern: ^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$
+      - $ref: "#/definitions/version_number"
       - type: integer
 
     description: Version of the PEtab format
@@ -60,36 +70,20 @@ properties:
           additionalProperties: false
 
         measurement_files:
-          type: array
           description: List of PEtab measurement files.
-
-          items:
-            type: string
-            description: PEtab measurement file name or URL.
+          $ref: "#/definitions/list_of_files"
 
         condition_files:
-          type: array
           description: List of PEtab condition files.
-
-          items:
-            type: string
-            description: PEtab condition file name or URL.
+          $ref: "#/definitions/list_of_files"
 
         observable_files:
-          type: array
           description: List of PEtab observable files.
-
-          items:
-            type: string
-            description: PEtab observable file name or URL.
+          $ref: "#/definitions/list_of_files"
 
         visualization_files:
-          type: array
           description: List of PEtab visualization files.
-
-          items:
-            type: string
-            description: PEtab visualization file name or URL.
+          $ref: "#/definitions/list_of_files"
 
         mapping_file:
             type: string
@@ -113,8 +107,7 @@ properties:
           Information on a specific extension
         properties:
           version:
-            type: string
-            pattern: ^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$
+            $ref: "#/definitions/version_number"
 
         required:
           - version
