@@ -60,12 +60,15 @@ def petab_problem():
         }
     ).set_index(CONDITION_ID)
 
-    timecourse_df = pd.DataFrame(
+    experiment_df = pd.DataFrame(
         data={
-            TIMECOURSE_ID: ["timecourse1", "timecourse2"],
-            TIMECOURSE: ["0:condition1;5:condition2", "-inf:condition1;0:condition2"],
+            EXPERIMENT_ID: ["experiment1", "experiment2"],
+            EXPERIMENT: [
+                "0:condition1;5:condition2",
+                "-inf:condition1;0:condition2",
+            ],
         }
-    ).set_index(TIMECOURSE_ID)
+    ).set_index(EXPERIMENT_ID)
 
     parameter_df = pd.DataFrame(
         data={
@@ -94,8 +97,8 @@ def petab_problem():
         condition_file_name = Path(temp_dir, "conditions.tsv")
         petab.write_condition_df(condition_df, condition_file_name)
 
-        timecourse_file_name = Path(temp_dir, "timecourses.tsv")
-        petab.write_timecourse_df(timecourse_df, timecourse_file_name)
+        experiment_file_name = Path(temp_dir, "experiments.tsv")
+        petab.write_experiment_df(experiment_df, experiment_file_name)
 
         parameter_file_name = Path(temp_dir, "parameters.tsv")
         petab.write_parameter_df(parameter_df, parameter_file_name)
@@ -108,7 +111,7 @@ def petab_problem():
                 sbml_file=sbml_file_name,
                 measurement_file=measurement_file_name,
                 condition_file=condition_file_name,
-                timecourse_file=timecourse_file_name,
+                experiment_file=experiment_file_name,
                 parameter_file=parameter_file_name,
                 observable_files=observable_file_name,
             )
@@ -786,29 +789,24 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 def test_to_files_generic(petab_problem):  # pylint: disable=W0621
     """Test problem.to_files."""
     with tempfile.TemporaryDirectory() as outdir:
-        # create target files
-        sbml_file = Path(outdir, "model.xml")
-        condition_file = Path(outdir, "conditions.tsv")
-        measurement_file = Path(outdir, "measurements.tsv")
-        parameter_file = Path(outdir, "parameters.tsv")
-        observable_file = Path(outdir, "observables.tsv")
-
         # write contents to files
         petab_problem.to_files_generic(outdir)
 
-        loaded_petab_problem = petab.Problem.from_yaml(Path(outdir) / "problem.yaml")
-
         # exemplarily load some
-        test_dfs = ["condition", "measurement", "observable", "parameter", "timecourse"]
+        test_dfs = [
+            "condition",
+            "measurement",
+            "observable",
+            "parameter",
+            "experiment",
+        ]
         for test_df_name in test_dfs:
-            test_df = getattr(petab, f"get_{test_df_name}_df")(f"{outdir}/{test_df_name}s.tsv")
+            test_df = getattr(petab, f"get_{test_df_name}_df")(
+                f"{outdir}/{test_df_name}s.tsv"
+            )
             expected_df = getattr(petab_problem, f"{test_df_name}_df")
             same_nans = test_df.isna() == expected_df.isna()
-            assert (
-                ((test_df == expected_df) | same_nans)
-                .all()
-                .all()
-            )
+            assert ((test_df == expected_df) | same_nans).all().all()
 
 
 def test_load_remote():

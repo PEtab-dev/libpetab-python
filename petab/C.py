@@ -129,16 +129,16 @@ CONDITION_ID = "conditionId"
 CONDITION_NAME = "conditionName"
 
 
-# TIMECOURSES
+# EXPERIMENTS
 
 #:
-TIMECOURSE_ID = "timecourseId"
+EXPERIMENT_ID = "experimentId"
 #:
-TIMECOURSE_NAME = "timecourseName"
+EXPERIMENT_NAME = "experimentName"
 #:
-TIMECOURSE = "timecourse"
+EXPERIMENT = "experiment"
 #: between periods
-TIMECOURSE_DELIMITER = ";"
+EXPERIMENT_DELIMITER = ";"
 #: between the start time, (repeat duration), and condition ID
 PERIOD_DELIMITER = ":"
 #:
@@ -351,7 +351,7 @@ MODEL_LANGUAGE = "language"
 #:
 CONDITION_FILES = "condition_files"
 #:
-TIMECOURSE_FILES = "timecourse_files"
+EXPERIMENT_FILES = "experiment_files"
 #:
 MEASUREMENT_FILES = "measurement_files"
 #:

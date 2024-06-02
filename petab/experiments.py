@@ -12,18 +12,18 @@ from more_itertools import one
 
 from . import core, lint, measurements
 from .C import (
+    EXPERIMENT,
+    EXPERIMENT_DELIMITER,
+    EXPERIMENT_ID,
+    EXPERIMENT_NAME,
     PERIOD_DELIMITER,
     TIME,
     TIME_STEADY_STATE,
-    TIMECOURSE,
-    TIMECOURSE_DELIMITER,
-    TIMECOURSE_ID,
-    TIMECOURSE_NAME,
 )
 
 __all__ = [
-    "get_timecourse_df",
-    "write_timecourse_df",
+    "get_experiment_df",
+    "write_experiment_df",
     "Timecourse",
     "Period",
 ]
@@ -33,49 +33,49 @@ Time = TypeVar("Time", float, int, str)
 UpdateValue = TypeVar("UpdateValue", float, int, str)
 
 
-def get_timecourse_df(timecourse_file: str | Path | None) -> pd.DataFrame:
-    """Read the provided timecourse file into a ``pandas.Dataframe``.
+def get_experiment_df(experiment_file: str | Path | None) -> pd.DataFrame:
+    """Read the provided experiment file into a ``pandas.Dataframe``.
 
     Arguments:
-        timecourse_file:
-            Location of PEtab timecourse file, or a ``pandas.Dataframe``.
+        experiment_file:
+            Location of PEtab experiment file, or a ``pandas.Dataframe``.
 
     Returns:
-        The timecourses dataframe.
+        The experiments dataframe.
     """
-    if timecourse_file is None:
-        return timecourse_file
+    if experiment_file is None:
+        return experiment_file
 
-    if isinstance(timecourse_file, (str, Path)):
-        timecourse_file = pd.read_csv(
-            timecourse_file,
+    if isinstance(experiment_file, (str, Path)):
+        experiment_file = pd.read_csv(
+            experiment_file,
             sep="\t",
             float_precision="round_trip",
         )
 
     lint.assert_no_leading_trailing_whitespace(
-        timecourse_file.columns.values, TIMECOURSE
+        experiment_file.columns.values, EXPERIMENT
     )
 
-    if not isinstance(timecourse_file.index, pd.RangeIndex):
-        timecourse_file.reset_index(inplace=True)
+    if not isinstance(experiment_file.index, pd.RangeIndex):
+        experiment_file.reset_index(inplace=True)
 
     try:
-        timecourse_file.set_index([TIMECOURSE_ID], inplace=True)
+        experiment_file.set_index([EXPERIMENT_ID], inplace=True)
     except KeyError as e:
         raise KeyError(
-            f"Timecourse table missing mandatory field {TIMECOURSE_ID}."
+            f"Timecourse table missing mandatory field {EXPERIMENT_ID}."
         ) from e
 
-    return timecourse_file
+    return experiment_file
 
 
-def write_timecourse_df(df: pd.DataFrame, filename: str | Path) -> None:
-    """Write the provided PEtab timecourse table to disk.
+def write_experiment_df(df: pd.DataFrame, filename: str | Path) -> None:
+    """Write the provided PEtab experiment table to disk.
 
     Arguments:
         df:
-            The PEtab timecourse table.
+            The PEtab experiment table.
         filename:
             The table will be written to this location.
     """
@@ -84,7 +84,7 @@ def write_timecourse_df(df: pd.DataFrame, filename: str | Path) -> None:
 
 @dataclass
 class Period:
-    """A timecourse period.
+    """A experiment period.
 
     Attributes:
         condition_id:
@@ -93,14 +93,14 @@ class Period:
             The time when the period ends.
         start_time:
             The time when the period starts.
-        timecourse_id:
-            The ID of the timecourse that this period belongs to.
+        experiment_id:
+            The ID of the experiment that this period belongs to.
     """
 
     condition_id: str
     end_time: Time
     start_time: Time
-    timecourse_id: str
+    experiment_id: str
 
     def get_condition(self, condition_df: pd.DataFrame) -> pd.Series:
         return condition_df.loc[self.condition_id]
@@ -110,36 +110,36 @@ class Period:
         measurement_df: pd.DataFrame,
         include_end: bool = False,
     ) -> pd.Series:
-        timecourse_measurement_df = measurements.get_timecourse_measurements(
-            measurement_df=measurement_df, timecourse_id=self.timecourse_id
+        experiment_measurement_df = measurements.get_experiment_measurements(
+            measurement_df=measurement_df, experiment_id=self.experiment_id
         )
 
-        after_start = timecourse_measurement_df[TIME] >= self.start_time
+        after_start = experiment_measurement_df[TIME] >= self.start_time
         before_end = (
-            timecourse_measurement_df[TIME] <= self.end_time
+            experiment_measurement_df[TIME] <= self.end_time
             if include_end
-            else timecourse_measurement_df[TIME] < self.end_time
+            else experiment_measurement_df[TIME] < self.end_time
         )
-        return timecourse_measurement_df.loc[after_start & before_end]
+        return experiment_measurement_df.loc[after_start & before_end]
 
 
 @dataclass
 class Timecourse:
-    """A timecourse.
+    """A experiment.
 
 
     Attributes:
         name:
-            The timecourse name.
+            The experiment name.
         periods:
-            The periods of the timecourse.
+            The periods of the experiment.
         #t0:
-        #    The time when the timecourse starts.
-        timecourse_id:
-            The timecourse ID.
+        #    The time when the experiment starts.
+        experiment_id:
+            The experiment ID.
     """
 
-    timecourse_id: str
+    experiment_id: str
     periods: list[Period]
     name: None | str = None
 
@@ -165,11 +165,11 @@ class Timecourse:
                 ]
             )
             period_definitions.append(period_definition)
-        timecourse_definition = TIMECOURSE_DELIMITER.join(period_definitions)
+        experiment_definition = EXPERIMENT_DELIMITER.join(period_definitions)
 
         series = pd.Series(
-            data={TIMECOURSE: timecourse_definition},
-            name=self.timecourse_id,
+            data={EXPERIMENT: experiment_definition},
+            name=self.experiment_id,
         )
         return series
 
@@ -177,34 +177,34 @@ class Timecourse:
     def from_df_row(
         row: pd.Series,
         # measurement_df: pd.DataFrame = None,
-        timecourses: dict[str, Timecourse] = None,
+        experiments: dict[str, Timecourse] = None,
     ) -> Timecourse:
-        """Create a timecourse object from a row definition.
+        """Create a experiment object from a row definition.
 
         Any nested or repetitive structure is flattened.
 
         Argments:
             row:
                 The row definition.
-            timecourses:
-                Required to flatten nested timecourses. Keys are timecourse
+            experiments:
+                Required to flatten nested experiments. Keys are experiment
                 IDs.
 
         Returns:
-            The timecourse.
+            The experiment.
         """
-        timecourse_id = row.name
+        experiment_id = row.name
 
         # Collect all periods, which are possibly nested in one of two ways:
         #    1. `restartEvery` is specified
-        #    2. another timecourseId is used as the condition for a period
+        #    2. another experimentId is used as the condition for a period
         # We use "true period" to refer to a period as it is seen in a
-        # timecourse table, i.e. as truth as specified by the user. We use
+        # experiment table, i.e. as truth as specified by the user. We use
         # "denested period" to refer to one of the possibly-many periods that
         # actually occur within the true period, after it is denested.
         true_periods = []
-        for period_definition in row.get(TIMECOURSE).split(
-            TIMECOURSE_DELIMITER
+        for period_definition in row.get(EXPERIMENT).split(
+            EXPERIMENT_DELIMITER
         ):
             true_periods.append(_parse_period_definition(period_definition))
 
@@ -230,8 +230,8 @@ class Timecourse:
                 true_end_time = float(true_end_time)
             except ValueError as e:
                 raise ValueError(
-                    "Parameterized timecourse times are not yet supported. "
-                    f"In timecourse {timecourse_id}, there is a period "
+                    "Parameterized experiment times are not yet supported. "
+                    f"In experiment {experiment_id}, there is a period "
                     f"`{true_period_index}` starts at `{true_start_time}` and "
                     f"ends at `{true_end_time}`."
                 ) from e
@@ -249,7 +249,7 @@ class Timecourse:
                 raise ValueError(
                     "Period restarts are currently not supported in "
                     "periods that are simulated until steady-state. This "
-                    f"occurs in timecourse `{timecourse_id}` during period "
+                    f"occurs in experiment `{experiment_id}` during period "
                     f"`{true_period_index}`. Period start time: "
                     f"`{true_start_time}`. Period end time: `{true_end_time}`."
                 )
@@ -281,114 +281,114 @@ class Timecourse:
                         start_time=restart_start_time,
                         end_time=restart_end_time,
                         condition_id=true_period_condition_id,
-                        timecourse_id=timecourse_id,
+                        experiment_id=experiment_id,
                     )
                 ]
 
-                # Handle `timecourseId` condition nesting
-                if nested_timecourse := timecourses.get(
+                # Handle `experimentId` condition nesting
+                if nested_experiment := experiments.get(
                     true_period_condition_id
                 ):
-                    denested_period = copy.deepcopy(nested_timecourse.periods)
+                    denested_period = copy.deepcopy(nested_experiment.periods)
 
                     # TODO for now, require this
                     if denested_period[0].start_time != 0:
                         raise ValueError(
-                            "The first period of a nested timecourse must "
-                            "have a start time of `0`. The timecourse "
-                            f"`{nested_timecourse.timecourse_id}` is nested "
-                            f"within timecourse `{timecourse_id}`."
+                            "The first period of a nested experiment must "
+                            "have a start time of `0`. The experiment "
+                            f"`{nested_experiment.experiment_id}` is nested "
+                            f"within experiment `{experiment_id}`."
                         )
 
                     # Shift all nested periods in time, to match the start time
                     # of the period restart. Drop nested periods that start
                     # after the current period restart ends.
                     current_start_time = restart_start_time
-                    for nested_timecourse_period in denested_period:
-                        nested_timecourse_period.timecourse_id = timecourse_id
+                    for nested_experiment_period in denested_period:
+                        nested_experiment_period.experiment_id = experiment_id
 
-                        nested_timecourse_period.start_time = (
+                        nested_experiment_period.start_time = (
                             current_start_time
                         )
-                        nested_timecourse_period.end_time += current_start_time
+                        nested_experiment_period.end_time += current_start_time
 
                         if (
-                            nested_timecourse_period.end_time
+                            nested_experiment_period.end_time
                             > restart_end_time
                         ):
-                            nested_timecourse_period.end_time = (
+                            nested_experiment_period.end_time = (
                                 restart_end_time
                             )
                             # Drop nested periods if they will start after the
                             # current restarted period is scheduled to end.
                             break
 
-                        current_start_time = nested_timecourse_period.end_time
+                        current_start_time = nested_experiment_period.end_time
 
                 denested_periods.extend(denested_period)
 
         return Timecourse(
-            timecourse_id=timecourse_id,
-            name=row.get(TIMECOURSE_NAME),
+            experiment_id=experiment_id,
+            name=row.get(EXPERIMENT_NAME),
             periods=denested_periods,
         )
 
     @staticmethod
     def from_df(
-        timecourse_df: pd.DataFrame,
-        timecourse_ids: str | list[str] = None,
+        experiment_df: pd.DataFrame,
+        experiment_ids: str | list[str] = None,
     ) -> dict[str, Timecourse] | Timecourse:
-        """Read in all timecourse(s).
+        """Read in all experiment(s).
 
         Arguments:
-            timecourse_df:
-                The PEtab timecourse table.
-            timecourse_ids:
-                Specific timecourse id(s).
+            experiment_df:
+                The PEtab experiment table.
+            experiment_ids:
+                Specific experiment id(s).
 
         Returns:
-            The timecourse(s).
+            The experiment(s).
         """
-        timecourse_df = _clean_timecourse_df(timecourse_df)
+        experiment_df = _clean_experiment_df(experiment_df)
 
-        # TODO performance gain: only return timecourses required to fully
-        # denest the supplied `timecourse_ids` timecourses. Currently returns
-        # all timecourses in an order that supports denesting.
-        sorted_timecourse_ids = toposort_timecourses(timecourse_df)
+        # TODO performance gain: only return experiments required to fully
+        # denest the supplied `experiment_ids` experiments. Currently returns
+        # all experiments in an order that supports denesting.
+        sorted_experiment_ids = toposort_experiments(experiment_df)
 
-        timecourses = {}
-        for timecourse_id, row in timecourse_df.loc[
-            sorted_timecourse_ids
+        experiments = {}
+        for experiment_id, row in experiment_df.loc[
+            sorted_experiment_ids
         ].iterrows():
-            timecourses[timecourse_id] = Timecourse.from_df_row(
+            experiments[experiment_id] = Timecourse.from_df_row(
                 row=row,
-                timecourses=timecourses,
+                experiments=experiments,
             )
 
-        if timecourse_ids is None:
-            timecourse_ids = sorted_timecourse_ids
-        if isinstance(timecourse_ids, str):
-            timecourse_ids = [timecourse_ids]
-        timecourses = {
-            timecourse_id: timecourse
-            for timecourse_id, timecourse in timecourses.items()
-            if timecourse_id in timecourse_ids
+        if experiment_ids is None:
+            experiment_ids = sorted_experiment_ids
+        if isinstance(experiment_ids, str):
+            experiment_ids = [experiment_ids]
+        experiments = {
+            experiment_id: experiment
+            for experiment_id, experiment in experiments.items()
+            if experiment_id in experiment_ids
         }
 
-        if len(timecourse_ids) == 1:
-            timecourses = timecourses[one(timecourse_ids)]
+        if len(experiment_ids) == 1:
+            experiments = experiments[one(experiment_ids)]
 
-        return timecourses
+        return experiments
 
     def __len__(self):
         return len(self.periods)
 
 
-def _clean_timecourse_df(timecourse_df: pd.DataFrame) -> str:
-    timecourse_df[TIMECOURSE] = timecourse_df[TIMECOURSE].apply(
-        lambda timecourse_definition: timecourse_definition.replace(" ", "")
+def _clean_experiment_df(experiment_df: pd.DataFrame) -> str:
+    experiment_df[EXPERIMENT] = experiment_df[EXPERIMENT].apply(
+        lambda experiment_definition: experiment_definition.replace(" ", "")
     )
-    return timecourse_df
+    return experiment_df
 
 
 def _parse_period_definition(period_def: str) -> list[float | str]:
@@ -401,7 +401,7 @@ def _parse_period_definition(period_def: str) -> list[float | str]:
     Arguments:
         period_def:
             The period definition, in the same format as specified in the
-            timecourse table.
+            experiment table.
 
     Returns:
         A tuple with:
@@ -435,46 +435,46 @@ def _parse_period_definition(period_def: str) -> list[float | str]:
     return start_time, restart_every, condition_id
 
 
-def toposort_timecourses(timecourse_df: pd.DataFrame) -> list[str]:
-    """Order timecourses according to nested dependencies.
+def toposort_experiments(experiment_df: pd.DataFrame) -> list[str]:
+    """Order experiments according to nested dependencies.
 
     The returned list will be similar to the following process. For each
-    pairing of timecourse IDs, "timecourse_A" and "timecourse_B", if
-    "timecourse_A" is nested in "timecourse_B", then "timecourse_A"
-    will appear earlier in the returned list than "timecourse_B".
+    pairing of experiment IDs, "experiment_A" and "experiment_B", if
+    "experiment_A" is nested in "experiment_B", then "experiment_A"
+    will appear earlier in the returned list than "experiment_B".
 
     Arguments:
-        timecourse_df:
-            The timecourse table.
+        experiment_df:
+            The experiment table.
 
     Returns:
-        The timecourse IDs, ordered from no dependencies to most dependencies.
+        The experiment IDs, ordered from no dependencies to most dependencies.
     """
-    timecourse_ids = sorted(timecourse_df.index)
+    experiment_ids = sorted(experiment_df.index)
     dependencies = {
-        timecourse_id: {
-            # The timecourse contains a nested timecourse if one of its periods
-            # has a condition that is actually a timecourse ID.
+        experiment_id: {
+            # The experiment contains a nested experiment if one of its periods
+            # has a condition that is actually a experiment ID.
             condition_id
             for period in (
-                timecourse_df.loc[timecourse_id, TIMECOURSE].split(
-                    TIMECOURSE_DELIMITER
+                experiment_df.loc[experiment_id, EXPERIMENT].split(
+                    EXPERIMENT_DELIMITER
                 )
             )
             if (condition_id := period.split(PERIOD_DELIMITER)[-1])
-            in timecourse_ids
+            in experiment_ids
         }
-        for timecourse_id in timecourse_ids
+        for experiment_id in experiment_ids
     }
     dependencies = list(TopologicalSorter(graph=dependencies).static_order())
     return dependencies
 
 
 # FIXME lint:
-# timecourse IDs do not match any condition IDs
-# measurement_df timecourse IDs are empty or exist in timecourse table
-# no circular dependencies from nested timecourses
-# timecourse ID is valid petab ID
-# timecourse definition matches format
-#     `time[:restartEvery]:conditionId|timecourseId;...`
-# a nested timecourse does not involve preequilibration
+# experiment IDs do not match any condition IDs
+# measurement_df experiment IDs are empty or exist in experiment table
+# no circular dependencies from nested experiments
+# experiment ID is valid petab ID
+# experiment definition matches format
+#     `time[:restartEvery]:conditionId|experimentId;...`
+# a nested experiment does not involve preequilibration

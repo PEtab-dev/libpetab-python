@@ -16,6 +16,7 @@ from .calculate import *  # noqa: F403, F401, E402
 from .composite_problem import *  # noqa: F403, F401, E402
 from .conditions import *  # noqa: F403, F401, E402
 from .core import *  # noqa: F403, F401, E402
+from .experiments import *  # noqa: F403, F401, E402
 from .format_version import __format_version__  # noqa: F401, E402
 from .lint import *  # noqa: F403, F401, E402
 from .mapping import *  # noqa: F403, F401, E402
@@ -27,6 +28,5 @@ from .problem import *  # noqa: F403, F401, E402
 from .sampling import *  # noqa: F403, F401, E402
 from .sbml import *  # noqa: F403, F401, E402
 from .simulate import *  # noqa: F403, F401, E402
-from .timecourses import *  # noqa: F403, F401, E402
 from .version import __version__  # noqa: F401, E402
 from .yaml import *  # noqa: F403, F401, E402

@@ -217,7 +217,7 @@ def write_yaml(
 def create_problem_yaml(
     sbml_files: Union[str, Path, List[Union[str, Path]]],
     condition_files: Union[str, Path, List[Union[str, Path]]],
-    timecourse_files: Union[str, Path, List[Union[str, Path]]],
+    experiment_files: Union[str, Path, List[Union[str, Path]]],
     measurement_files: Union[str, Path, List[Union[str, Path]]],
     parameter_file: Union[str, Path],
     observable_files: Union[str, Path, List[Union[str, Path]]],
@@ -233,7 +233,7 @@ def create_problem_yaml(
     Arguments:
         sbml_files: Path of SBML model file or list of such
         condition_files: Path of condition file or list of such
-        timecourse_files: Path of timecourse file or list of such
+        experiment_files: Path of experiment file or list of such
         measurement_files: Path of measurement file or list of such
         parameter_file: Path of parameter file
         observable_files: Path of observable file or list of such
@@ -250,8 +250,8 @@ def create_problem_yaml(
         sbml_files = [sbml_files]
     if isinstance(condition_files, (Path, str)):
         condition_files = [condition_files]
-    if isinstance(timecourse_files, (Path, str)):
-        timecourse_files = [timecourse_files]
+    if isinstance(experiment_files, (Path, str)):
+        experiment_files = [experiment_files]
     if isinstance(measurement_files, (Path, str)):
         measurement_files = [measurement_files]
     if isinstance(observable_files, (Path, str)):
@@ -271,7 +271,7 @@ def create_problem_yaml(
 
         sbml_files = get_rel_to_yaml(sbml_files)
         condition_files = get_rel_to_yaml(condition_files)
-        timecourse_files = get_rel_to_yaml(timecourse_files)
+        experiment_files = get_rel_to_yaml(experiment_files)
         measurement_files = get_rel_to_yaml(measurement_files)
         observable_files = get_rel_to_yaml(observable_files)
         visualization_files = get_rel_to_yaml(visualization_files)
@@ -280,7 +280,7 @@ def create_problem_yaml(
 
     problem_dict = {
         CONDITION_FILES: condition_files,
-        TIMECOURSE_FILES: timecourse_files,
+        EXPERIMENT_FILES: experiment_files,
         MEASUREMENT_FILES: measurement_files,
         SBML_FILES: sbml_files,
         OBSERVABLE_FILES: observable_files,
