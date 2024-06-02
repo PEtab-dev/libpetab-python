@@ -5,6 +5,32 @@ This file contains constant definitions.
 
 import math as _math
 
+# CONDITIONS
+
+#:
+CONDITION_ID = "conditionId"
+#:
+CONDITION_NAME = "conditionName"
+
+
+# EXPERIMENTS
+
+#:
+EXPERIMENT_ID = "experimentId"
+#:
+EXPERIMENT_NAME = "experimentName"
+#:
+EXPERIMENT = "experiment"
+#: between periods
+EXPERIMENT_DELIMITER = ";"
+#: between the start time, (repeat duration), and condition ID
+PERIOD_DELIMITER = ":"
+#:
+START_TIME = "startTime"
+#:
+RESTART_EVERY = "restartEvery"
+
+
 # MEASUREMENTS
 
 #:
@@ -40,14 +66,13 @@ REPLICATE_ID = "replicateId"
 #: Mandatory columns of measurement table
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
-    SIMULATION_CONDITION_ID,
+    EXPERIMENT_ID,
     MEASUREMENT,
     TIME,
 ]
 
 #: Optional columns of measurement table
 MEASUREMENT_DF_OPTIONAL_COLS = [
-    PREEQUILIBRATION_CONDITION_ID,
     OBSERVABLE_PARAMETERS,
     NOISE_PARAMETERS,
     DATASET_ID,
@@ -119,32 +144,6 @@ PARAMETER_DF_COLS = [
 INITIALIZATION = "initialization"
 #:
 OBJECTIVE = "objective"
-
-
-# CONDITIONS
-
-#:
-CONDITION_ID = "conditionId"
-#:
-CONDITION_NAME = "conditionName"
-
-
-# EXPERIMENTS
-
-#:
-EXPERIMENT_ID = "experimentId"
-#:
-EXPERIMENT_NAME = "experimentName"
-#:
-EXPERIMENT = "experiment"
-#: between periods
-EXPERIMENT_DELIMITER = ";"
-#: between the start time, (repeat duration), and condition ID
-PERIOD_DELIMITER = ":"
-#:
-START_TIME = "startTime"
-#:
-RESTART_EVERY = "restartEvery"
 
 
 # OBSERVABLES

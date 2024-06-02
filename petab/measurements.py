@@ -17,8 +17,8 @@ __all__ = [
     "create_measurement_df",
     "get_measurement_df",
     "get_measurement_parameter_ids",
-    "get_simulation_timecourses",
-    "get_timecourse_measurements",
+    "get_measured_experiments",
+    "get_experiment_measurements",
     "measurements_have_replicates",
     "measurement_is_at_steady_state",
     "split_parameter_replacement_list",
@@ -64,36 +64,36 @@ def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     df.to_csv(filename, sep="\t", index=False)
 
 
-def get_simulation_timecourses(measurement_df: pd.DataFrame) -> list[str]:
-    """Get the list of timecourses for which there are measurements.
+def get_measured_experiments(measurement_df: pd.DataFrame) -> list[str]:
+    """Get the list of experiments for which there are measurements.
 
     Arguments:
         measurement_df: PEtab measurement table
 
     Returns:
-        The list of timecourse IDs, sorted alphabetically.
+        The list of experiment IDs, sorted alphabetically.
     """
-    return sorted(measurement_df[TIMECOURSE_ID].unique())
+    return sorted(measurement_df[EXPERIMENT_ID].unique())
 
 
-def get_timecourse_measurements(
-    measurement_df: pd.DataFrame, timecourse_id: str
+def get_experiment_measurements(
+    measurement_df: pd.DataFrame, experiment_id: str
 ):
-    """Get the measurements associated with a specific timecourse.
+    """Get the measurements associated with a specific experiment.
 
     Arguments:
         measurement_df:
             PEtab measurement DataFrame.
-        timecourse_id:
-            The timecourse ID.
+        experiment_id:
+            The experiment ID.
 
     Returns:
-        The measurements for the timecourse.
+        The measurements for the experiment.
     """
-    timecourse_measurement_df = measurement_df.loc[
-        measurement_df[TIMECOURSE_ID] == timecourse_id
+    experiment_measurement_df = measurement_df.loc[
+        measurement_df[EXPERIMENT_ID] == experiment_id
     ]
-    return timecourse_measurement_df
+    return experiment_measurement_df
 
 
 def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
@@ -173,8 +173,7 @@ def create_measurement_df() -> pd.DataFrame:
     return pd.DataFrame(
         data={
             OBSERVABLE_ID: [],
-            PREEQUILIBRATION_CONDITION_ID: [],
-            SIMULATION_CONDITION_ID: [],
+            EXPERIMENT_ID: [],
             MEASUREMENT: [],
             TIME: [],
             OBSERVABLE_PARAMETERS: [],
@@ -198,8 +197,7 @@ def measurements_have_replicates(measurement_df: pd.DataFrame) -> bool:
         measurement_df,
         [
             OBSERVABLE_ID,
-            SIMULATION_CONDITION_ID,
-            PREEQUILIBRATION_CONDITION_ID,
+            EXPERIMENT_ID,
             TIME,
         ],
     )
