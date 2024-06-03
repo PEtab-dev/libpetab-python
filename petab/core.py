@@ -44,8 +44,7 @@ POSSIBLE_GROUPVARS_FLATTENED_PROBLEM = [
     OBSERVABLE_ID,
     OBSERVABLE_PARAMETERS,
     NOISE_PARAMETERS,
-    SIMULATION_CONDITION_ID,
-    PREEQUILIBRATION_CONDITION_ID,
+    EXPERIMENT_ID,
 ]
 
 
@@ -494,6 +493,7 @@ def create_combine_archive(
             OBSERVABLE_FILES,
             VISUALIZATION_FILES,
             CONDITION_FILES,
+            EXPERIMENT_FILES,
         ]:
             if field not in problem:
                 continue

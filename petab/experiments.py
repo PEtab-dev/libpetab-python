@@ -336,7 +336,7 @@ class Timecourse:
     @staticmethod
     def from_df(
         experiment_df: pd.DataFrame,
-        experiment_ids: str | list[str] = None,
+        experiment_id: str | list[str] = None,
     ) -> dict[str, Timecourse] | Timecourse:
         """Read in all experiment(s).
 
@@ -350,11 +350,15 @@ class Timecourse:
             The experiment(s).
         """
         experiment_df = _clean_experiment_df(experiment_df)
-
         # TODO performance gain: only return experiments required to fully
         # denest the supplied `experiment_ids` experiments. Currently returns
         # all experiments in an order that supports denesting.
         sorted_experiment_ids = toposort_experiments(experiment_df)
+
+        if experiment_id is None:
+            experiment_ids = sorted_experiment_ids
+        if isinstance(experiment_id, str):
+            experiment_ids = [experiment_id]
 
         experiments = {}
         for experiment_id, row in experiment_df.loc[
@@ -365,10 +369,6 @@ class Timecourse:
                 experiments=experiments,
             )
 
-        if experiment_ids is None:
-            experiment_ids = sorted_experiment_ids
-        if isinstance(experiment_ids, str):
-            experiment_ids = [experiment_ids]
         experiments = {
             experiment_id: experiment
             for experiment_id, experiment in experiments.items()

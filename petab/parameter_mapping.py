@@ -18,6 +18,7 @@ import pandas as pd
 from . import (
     ENV_NUM_THREADS,
     core,
+    experiments,
     lint,
     measurements,
     observables,
@@ -32,7 +33,7 @@ __all__ = [
     "get_optimization_to_simulation_parameter_mapping",
     "get_parameter_mapping_for_condition",
     "handle_missing_overrides",
-    "merge_pars_timecourse",
+    "merge_pars_experiment",
     "ParMappingDict",
     "ParMappingDictList",
     "ScaleMappingDict",
@@ -43,24 +44,24 @@ __all__ = [
 
 # Parameter mapping for condition
 ParMappingDict = dict[str, str | numbers.Number]
-# Parameter mapping for timecourse periods
+# Parameter mapping for experiment periods
 ParMappingDictList = list[ParMappingDict]
 # Same for scale mapping
 ScaleMappingDict = dict[str, str]
 ScaleMappingDictList = List[ScaleMappingDict]
-# Full mapping for timecourse periods
+# Full mapping for experiment periods
 FullMapping = list[list[tuple[ParMappingDict, ScaleMappingDict]]]
 
 
 def get_optimization_to_simulation_parameter_mapping(
     condition_df: pd.DataFrame,
-    timecourse_df: pd.DataFrame,
+    experiment_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     parameter_df: Optional[pd.DataFrame] = None,
     observable_df: Optional[pd.DataFrame] = None,
     mapping_df: Optional[pd.DataFrame] = None,
     sbml_model: libsbml.Model = None,
-    simulation_timecourses: Optional[pd.DataFrame] = None,
+    simulation_experiments: Optional[pd.DataFrame] = None,
     warn_unmapped: Optional[bool] = True,
     scaled_parameters: bool = False,
     fill_fixed_parameters: bool = True,
@@ -76,16 +77,16 @@ def get_optimization_to_simulation_parameter_mapping(
 
     Parameters:
         condition_df, measurement_df, parameter_df, observable_df,
-        timecourse_df:
+        experiment_df:
             The dataframes in the PEtab format.
         sbml_model:
             The SBML model (deprecated)
         model:
             The model.
-        simulation_timecourses:
-            List of timecourse IDs that have measurements, i.e. the output of
-            ``petab.get_simulation_timecourses``, which
-            ``simulation_timecourses`` defaults to.
+        simulation_experiments:
+            List of experiment IDs that have measurements, i.e. the output of
+            ``petab.get_simulation_experiments``, which
+            ``simulation_experiments`` defaults to.
         warn_unmapped:
             If ``True``, log warning regarding unmapped parameters
         scaled_parameters:
@@ -103,11 +104,11 @@ def get_optimization_to_simulation_parameter_mapping(
 
     Returns:
         Parameter value and parameter scale mapping for all periods across
-        all timecourses, in the order provided by `simulation_timecourses`.
+        all experiments, in the order provided by `simulation_experiments`.
 
         The nested structure is:
-            - outer list over timecourses
-                - inner list over timecourse-specific periods
+            - outer list over experiments
+                - inner list over experiment-specific periods
                     - tuple of period-specific parameter and scale mappings
     """
     if sbml_model:
@@ -132,8 +133,8 @@ def get_optimization_to_simulation_parameter_mapping(
         allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
     )
 
-    if simulation_timecourses is None:
-        simulation_timecourses = measurements.get_simulation_timecourses(
+    if simulation_experiments is None:
+        simulation_experiments = measurements.get_measured_experiments(
             measurement_df
         )
 
@@ -149,7 +150,8 @@ def get_optimization_to_simulation_parameter_mapping(
     num_threads = int(os.environ.get(ENV_NUM_THREADS, 1))
     if num_threads == 1:
         # simply map if no multi-threading
-        mapping_context_manager = nullcontext(map)
+        def mapping_context_manager():
+            return nullcontext(map)
     else:
         from concurrent.futures import ThreadPoolExecutor
 
@@ -161,11 +163,11 @@ def get_optimization_to_simulation_parameter_mapping(
             # ThreadPoolExecutor.map
             mapper = mapper.map
         mapping = mapper(
-            _map_timecourse,
-            _map_timecourse_arg_packer(
-                simulation_timecourses,
+            _map_experiment,
+            _map_experiment_arg_packer(
+                simulation_experiments,
                 measurement_df,
-                timecourse_df,
+                experiment_df,
                 condition_df,
                 parameter_df,
                 mapping_df,
@@ -180,10 +182,10 @@ def get_optimization_to_simulation_parameter_mapping(
     return list(mapping)
 
 
-def _map_timecourse_arg_packer(
-    simulation_timecourses,
+def _map_experiment_arg_packer(
+    simulation_experiments,
     measurement_df,
-    timecourse_df,
+    experiment_df,
     condition_df,
     parameter_df,
     mapping_df,
@@ -195,11 +197,11 @@ def _map_timecourse_arg_packer(
     allow_timepoint_specific_numeric_noise_parameters,
 ):
     """Helper function to pack extra arguments for _map_condition"""
-    for timecourse_id in simulation_timecourses:
+    for experiment_id in simulation_experiments:
         yield (
-            timecourse_id,
+            experiment_id,
             measurement_df,
-            timecourse_df,
+            experiment_df,
             condition_df,
             parameter_df,
             mapping_df,
@@ -212,16 +214,16 @@ def _map_timecourse_arg_packer(
         )
 
 
-def _map_timecourse(packed_args):
-    """Helper function for parallel timecourse mapping.
+def _map_experiment(packed_args):
+    """Helper function for parallel experiment mapping.
 
     For arguments see
     :py:func:`get_optimization_to_simulation_parameter_mapping`.
     """
     (
-        timecourse_id,
+        experiment_id,
         measurement_df,
-        timecourse_df,
+        experiment_df,
         condition_df,
         parameter_df,
         mapping_df,
@@ -243,13 +245,15 @@ def _map_timecourse(packed_args):
         NOISE_PARAMETERS in measurement_df
         and measurement_df[NOISE_PARAMETERS].notna().any()
     ):
-        cur_measurement_df = measurements.get_timecourse_measurements(
-            measurement_df, timecourse_id
+        cur_measurement_df = measurements.get_experiment_measurements(
+            measurement_df, experiment_id
         )
 
-    timecourse = timecourses.get_timecourse(timecourse_id, timecourse_df)
+    experiment = experiments.Timecourse.from_df(
+        experiment_df=experiment_df, experiment_id=experiment_id
+    )
     mappings = []
-    for period_index, period in enumerate(timecourse.periods):
+    for period_index, period in enumerate(experiment.periods):
         par_map, scale_map = get_parameter_mapping_for_condition(
             condition_id=period.condition_id,
             is_initial_period=period_index == 0,
@@ -644,10 +648,10 @@ def handle_missing_overrides(
         )
 
 
-def merge_pars_timecourse(
+def merge_pars_experiment(
     condition_maps: List[ParMappingDict],
     condition_scales: List[ScaleMappingDict],
-    timecourse: Any,
+    experiment: Any,
 ) -> None:
     """Merge preequilibration and simulation parameters and scales for a single
     condition while checking for compatibility.
@@ -665,7 +669,7 @@ def merge_pars_timecourse(
         condition_scale_map_preeq, condition_scale_map_sim:
             Parameter scale mapping as obtained from
             :py:func:`get_parameter_mapping_for_condition`
-        timecourse: Timecourse identifier for more informative error messages
+        experiment: Timecourse identifier for more informative error messages
     """
     if len(condition_maps) == 1:
         # nothing to do
@@ -710,7 +714,7 @@ def merge_pars_timecourse(
                 else:
                     raise ValueError(
                         "Cannot handle different values for dynamic "
-                        f"parameters: for timecourse {timecourse} "
+                        f"parameters: for experiment {experiment} "
                         f"at period {condition_index}, "
                         f"parameter {par_id} is {par0} for the previous "
                         f"period and {par} for this period."
@@ -730,7 +734,7 @@ def merge_pars_timecourse(
                 else:
                     raise ValueError(
                         "Cannot handle different parameter scales "
-                        f"parameters: for timecourse {timecourse} "
+                        f"parameters: for experiment {experiment} "
                         f"at period {condition_index}, "
                         f"scale for parameter {par_id} is {scale0} for the "
                         f"previous period and {scale} for simulation."

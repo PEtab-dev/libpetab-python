@@ -719,8 +719,7 @@ def measurement_table_has_timepoint_specific_mappings(
         measurement_df,
         [
             OBSERVABLE_ID,
-            SIMULATION_CONDITION_ID,
-            PREEQUILIBRATION_CONDITION_ID,
+            EXPERIMENT_ID,
             OBSERVABLE_PARAMETERS,
             NOISE_PARAMETERS,
         ],
@@ -731,8 +730,7 @@ def measurement_table_has_timepoint_specific_mappings(
         measurement_df,
         [
             OBSERVABLE_ID,
-            SIMULATION_CONDITION_ID,
-            PREEQUILIBRATION_CONDITION_ID,
+            EXPERIMENT_ID,
         ],
     )
     grouped_df2 = measurement_df.groupby(grouping_cols)
