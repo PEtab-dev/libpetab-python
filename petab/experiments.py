@@ -95,12 +95,15 @@ class Period:
             The time when the period starts.
         experiment_id:
             The ID of the experiment that this period belongs to.
+        last_period:
+            Whether this period is the last in the experiment.
     """
 
     condition_id: str
     end_time: Time
     start_time: Time
     experiment_id: str
+    last_period: bool
 
     def get_condition(self, condition_df: pd.DataFrame) -> pd.Series:
         return condition_df.loc[self.condition_id]
@@ -108,18 +111,24 @@ class Period:
     def get_measurements(
         self,
         measurement_df: pd.DataFrame,
-        include_end: bool = False,
     ) -> pd.Series:
         experiment_measurement_df = measurements.get_experiment_measurements(
             measurement_df=measurement_df, experiment_id=self.experiment_id
         )
 
         after_start = experiment_measurement_df[TIME] >= self.start_time
-        before_end = (
-            experiment_measurement_df[TIME] <= self.end_time
-            if include_end
-            else experiment_measurement_df[TIME] < self.end_time
-        )
+        before_end = experiment_measurement_df[TIME] < self.end_time
+        if self.last_period:
+            # include measurements at the "end" of the period
+            # ...probably useless since this should always be `inf`.
+            before_end |= experiment_measurement_df[TIME] == self.end_time
+            # include steady-state measurements
+            before_end |= experiment_measurement_df[TIME].apply(
+                lambda time: core.time_is_at_steady_state(
+                    time=time,
+                    postequilibration=True,
+                )
+            )
         return experiment_measurement_df.loc[after_start & before_end]
 
 
@@ -282,6 +291,10 @@ class Timecourse:
                         end_time=restart_end_time,
                         condition_id=true_period_condition_id,
                         experiment_id=experiment_id,
+                        last_period=core.time_is_at_steady_state(
+                            restart_end_time,
+                            postequilibration=True,
+                        ),
                     )
                 ]
 
