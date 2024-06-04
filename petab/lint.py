@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "assert_all_parameters_present_in_parameter_df",
     "assert_measured_observables_defined",
-    "assert_measurement_conditions_present_in_condition_table",
+    "assert_measurement_experiments_present_in_experiment_table",
     "assert_measurements_not_null",
     "assert_measurements_numeric",
     "assert_model_parameters_in_condition_or_parameter_table",
@@ -880,8 +880,8 @@ def lint_problem(problem: "petab.Problem") -> bool:
             check_measurement_df(problem.measurement_df, problem.observable_df)
 
             if problem.condition_df is not None:
-                assert_measurement_conditions_present_in_condition_table(
-                    problem.measurement_df, problem.condition_df
+                assert_measurement_experiments_present_in_experiment_table(
+                    problem.measurement_df, problem.experiment_df
                 )
         except AssertionError as e:
             logger.error(e)
@@ -1067,31 +1067,24 @@ def assert_model_parameters_in_condition_or_parameter_table(
         )
 
 
-def assert_measurement_conditions_present_in_condition_table(
-    measurement_df: pd.DataFrame, condition_df: pd.DataFrame
+def assert_measurement_experiments_present_in_experiment_table(
+    measurement_df: pd.DataFrame, experiment_df: pd.DataFrame
 ) -> None:
-    """Ensure that all entries from measurement_df.simulationConditionId and
-    measurement_df.preequilibrationConditionId are present in
-    condition_df.index.
+    """Ensure that all ``experimentId``s in the measurement table exist.
 
     Arguments:
         measurement_df: PEtab measurement table
-        condition_df: PEtab condition table
+        experiment_df: PEtab experiment table
 
     Raises:
         AssertionError: in case of problems
     """
-    used_conditions = set(measurement_df[SIMULATION_CONDITION_ID].values)
-    if PREEQUILIBRATION_CONDITION_ID in measurement_df:
-        used_conditions |= set(
-            measurement_df[PREEQUILIBRATION_CONDITION_ID].dropna().values
-        )
-    available_conditions = set(condition_df.index.values)
-    if missing_conditions := (used_conditions - available_conditions):
+    used_experiment_ids = set(measurement_df[EXPERIMENT_ID].values)
+    available_experiment_ids = set(experiment_df.index.values)
+    if missing_ids := (used_experiment_ids - available_experiment_ids):
         raise AssertionError(
-            "Measurement table references conditions that "
-            "are not specified in the condition table: "
-            + str(missing_conditions)
+            "Measurement table references experiments that "
+            "are not specified in the experiment table: " + str(missing_ids)
         )
 
 

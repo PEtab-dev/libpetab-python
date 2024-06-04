@@ -24,7 +24,7 @@ from .C import (
 __all__ = [
     "get_experiment_df",
     "write_experiment_df",
-    "Timecourse",
+    "Experiment",
     "Period",
 ]
 
@@ -64,7 +64,7 @@ def get_experiment_df(experiment_file: str | Path | None) -> pd.DataFrame:
         experiment_file.set_index([EXPERIMENT_ID], inplace=True)
     except KeyError as e:
         raise KeyError(
-            f"Timecourse table missing mandatory field {EXPERIMENT_ID}."
+            f"Experiment table missing mandatory field {EXPERIMENT_ID}."
         ) from e
 
     return experiment_file
@@ -133,7 +133,7 @@ class Period:
 
 
 @dataclass
-class Timecourse:
+class Experiment:
     """A experiment.
 
 
@@ -186,8 +186,8 @@ class Timecourse:
     def from_df_row(
         row: pd.Series,
         # measurement_df: pd.DataFrame = None,
-        experiments: dict[str, Timecourse] = None,
-    ) -> Timecourse:
+        experiments: dict[str, Experiment] = None,
+    ) -> Experiment:
         """Create a experiment object from a row definition.
 
         Any nested or repetitive structure is flattened.
@@ -340,7 +340,7 @@ class Timecourse:
 
                 denested_periods.extend(denested_period)
 
-        return Timecourse(
+        return Experiment(
             experiment_id=experiment_id,
             name=row.get(EXPERIMENT_NAME),
             periods=denested_periods,
@@ -350,7 +350,7 @@ class Timecourse:
     def from_df(
         experiment_df: pd.DataFrame,
         experiment_id: str | list[str] = None,
-    ) -> dict[str, Timecourse] | Timecourse:
+    ) -> dict[str, Experiment] | Experiment:
         """Read in all experiment(s).
 
         Arguments:
@@ -377,7 +377,7 @@ class Timecourse:
         for experiment_id, row in experiment_df.loc[
             sorted_experiment_ids
         ].iterrows():
-            experiments[experiment_id] = Timecourse.from_df_row(
+            experiments[experiment_id] = Experiment.from_df_row(
                 row=row,
                 experiments=experiments,
             )
@@ -398,8 +398,8 @@ class Timecourse:
 
 
 def _clean_experiment_df(experiment_df: pd.DataFrame) -> str:
-    experiment_df[EXPERIMENT] = experiment_df[EXPERIMENT].apply(
-        lambda experiment_definition: experiment_definition.replace(" ", "")
+    experiment_df.loc[:, EXPERIMENT] = experiment_df.loc[:, EXPERIMENT].apply(
+        lambda experiment_definition: "".join(experiment_definition.split())
     )
     return experiment_df
 

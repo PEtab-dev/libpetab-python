@@ -249,7 +249,7 @@ def _map_experiment(packed_args):
             measurement_df, experiment_id
         )
 
-    experiment = experiments.Timecourse.from_df(
+    experiment = experiments.Experiment.from_df(
         experiment_df=experiment_df, experiment_id=experiment_id
     )
     mappings = []
@@ -669,7 +669,7 @@ def merge_pars_experiment(
         condition_scale_map_preeq, condition_scale_map_sim:
             Parameter scale mapping as obtained from
             :py:func:`get_parameter_mapping_for_condition`
-        experiment: Timecourse identifier for more informative error messages
+        experiment: Experiment identifier for more informative error messages
     """
     if len(condition_maps) == 1:
         # nothing to do

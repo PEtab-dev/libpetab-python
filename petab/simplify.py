@@ -12,6 +12,7 @@ from .lint import lint_problem
 __all__ = [
     "remove_nan_measurements",
     "remove_unused_observables",
+    "remove_unused_experiments",
     "remove_unused_conditions",
     "simplify_problem",
     "condition_parameters_to_parameter_table",
@@ -34,18 +35,26 @@ def remove_unused_observables(problem: Problem):
     ]
 
 
+def remove_unused_experiments(problem: Problem):
+    """Remove experiments that have no measurements"""
+    measured_experiments = set(problem.measurement_df[EXPERIMENT_ID].unique())
+
+    problem.experiment_df = problem.experiment_df[
+        problem.experiment_df.index.isin(measured_experiments)
+    ]
+
+
 def remove_unused_conditions(problem: Problem):
-    """Remove conditions that have no measurements"""
-    measured_conditions = set(
-        problem.measurement_df[SIMULATION_CONDITION_ID].unique()
-    )
-    if PREEQUILIBRATION_CONDITION_ID in problem.measurement_df:
-        measured_conditions |= set(
-            problem.measurement_df[PREEQUILIBRATION_CONDITION_ID].unique()
-        )
+    """Remove conditions that are not used in any experiments"""
+    experiments = petab.experiments.Experiment.from_df(problem.experiment_df)
+    used_conditions = {
+        period.condition_id
+        for experiment in experiments.values()
+        for period in experiment.periods
+    }
 
     problem.condition_df = problem.condition_df[
-        problem.condition_df.index.isin(measured_conditions)
+        problem.condition_df.index.isin(used_conditions)
     ]
 
 
@@ -54,6 +63,7 @@ def simplify_problem(problem: Problem):
         raise ValueError("Invalid PEtab problem supplied.")
 
     remove_unused_observables(problem)
+    remove_unused_experiments(problem)
     remove_unused_conditions(problem)
     condition_parameters_to_parameter_table(problem)
 

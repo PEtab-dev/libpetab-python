@@ -566,7 +566,7 @@ class Problem:
             sbml_file: SBML model destination (deprecated)
             model_file: Model destination
             condition_file: Condition table destination
-            experiment_file: Timecourse table destination
+            experiment_file: Experiment table destination
             measurement_file: Measurement table destination
             parameter_file: Parameter table destination
             visualization_file: Visualization table destination

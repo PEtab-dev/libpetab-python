@@ -244,7 +244,7 @@ def get_period_model(
 
     assert isinstance(petab_problem.model, SbmlModel)
 
-    experiment = petab.experiments.Timecourse.from_df(
+    experiment = petab.experiments.Experiment.from_df(
         experiment_df=petab_problem.experiment_df,
         experiment_id=experiment_id,
     )
