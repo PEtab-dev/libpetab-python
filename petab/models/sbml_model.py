@@ -6,6 +6,7 @@ from typing import Iterable, Optional, Tuple
 
 import libsbml
 import sympy as sp
+from sympy.abc import _clash
 
 from ..sbml import (
     get_sbml_model,
@@ -104,34 +105,17 @@ class SbmlModel(Model):
             ar.getVariable() for ar in self.sbml_model.getListOfRules()
         }
 
-        parser_settings = libsbml.L3ParserSettings(
-            self.sbml_model,
-            libsbml.L3P_PARSE_LOG_AS_LOG10,
-            libsbml.L3P_EXPAND_UNARY_MINUS,
-            libsbml.L3P_NO_UNITS,
-            libsbml.L3P_AVOGADRO_IS_CSYMBOL,
-            libsbml.L3P_COMPARE_BUILTINS_CASE_INSENSITIVE,
-            None,
-            libsbml.L3P_MODULO_IS_PIECEWISE,
-        )
-
         def get_initial(p):
             # return the initial assignment value if there is one, and it is a
             # number; `None`, if there is a non-numeric initial assignment;
             # otherwise, the parameter value
             if ia := self.sbml_model.getInitialAssignmentBySymbol(p.getId()):
-                formula_str = libsbml.formulaToL3StringWithSettings(
-                    ia.getMath(), parser_settings
+                sym_expr = sympify_sbml(ia.getMath())
+                return (
+                    float(sym_expr.evalf())
+                    if sym_expr.evalf().is_Number
+                    else None
                 )
-                try:
-                    return float(formula_str)
-                except ValueError:
-                    sym_expr = sp.sympify(formula_str)
-                    return (
-                        float(sym_expr.evalf())
-                        if sym_expr.evalf().is_Number
-                        else None
-                    )
             return p.getValue()
 
         return (
@@ -200,3 +184,39 @@ class SbmlModel(Model):
             or self.sbml_model.getCompartment(id_) is not None
             or self.sbml_model.getRuleByVariable(id_) is not None
         )
+
+
+def sympify_sbml(sbml_obj: libsbml.ASTNode | libsbml.SBase) -> sp.Expr:
+    """Convert SBML math expression to sympy expression.
+
+    Parameters
+    ----------
+    sbml_obj:
+        SBML math element or an SBML object with a math element.
+
+    Returns
+    -------
+    The sympy expression corresponding to ``sbml_obj``.
+    """
+    ast_node = (
+        sbml_obj
+        if isinstance(sbml_obj, libsbml.ASTNode)
+        else sbml_obj.getMath()
+    )
+
+    parser_settings = libsbml.L3ParserSettings(
+        ast_node.getParentSBMLObject().getModel(),
+        libsbml.L3P_PARSE_LOG_AS_LOG10,
+        libsbml.L3P_EXPAND_UNARY_MINUS,
+        libsbml.L3P_NO_UNITS,
+        libsbml.L3P_AVOGADRO_IS_CSYMBOL,
+        libsbml.L3P_COMPARE_BUILTINS_CASE_INSENSITIVE,
+        None,
+        libsbml.L3P_MODULO_IS_PIECEWISE,
+    )
+
+    formula_str = libsbml.formulaToL3StringWithSettings(
+        ast_node, parser_settings
+    )
+
+    return sp.sympify(formula_str, locals=_clash)
