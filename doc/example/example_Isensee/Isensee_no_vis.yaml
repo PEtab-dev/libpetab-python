@@ -3,6 +3,8 @@ parameter_file:
 problems:
 - condition_files:
   - Isensee_experimentalCondition.tsv
+  experiment_files:
+  - Isensee_experiments.tsv
   measurement_files:
   - Isensee_measurementData.tsv
   observable_files: []
