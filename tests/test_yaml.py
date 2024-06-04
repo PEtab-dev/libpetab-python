@@ -32,6 +32,7 @@ def test_create_problem_yaml():
         # create target files
         sbml_file = Path(outdir, "model.xml")
         condition_file = Path(outdir, "conditions.tsv")
+        experiment_file = Path(outdir, "experiments.tsv")
         measurement_file = Path(outdir, "measurements.tsv")
         parameter_file = Path(outdir, "parameters.tsv")
         observable_file = Path(outdir, "observables.tsv")
@@ -47,13 +48,14 @@ def test_create_problem_yaml():
         ):
             file.touch()
         create_problem_yaml(
-            sbml_file,
-            condition_file,
-            measurement_file,
-            parameter_file,
-            observable_file,
-            yaml_file,
-            visualization_file,
+            sbml_files=sbml_file,
+            condition_files=condition_file,
+            experiment_files=experiment_file,
+            measurement_files=measurement_file,
+            parameter_file=parameter_file,
+            observable_files=observable_file,
+            yaml_file=yaml_file,
+            visualization_files=visualization_file,
         )
         validate(yaml_file)
 
@@ -61,6 +63,7 @@ def test_create_problem_yaml():
         # create additional target files
         sbml_file2 = Path(outdir, "model2.xml")
         condition_file2 = Path(outdir, "conditions2.tsv")
+        experiment_file2 = Path(outdir, "experiments2.tsv")
         measurement_file2 = Path(outdir, "measurements2.tsv")
         observable_file2 = Path(outdir, "observables2.tsv")
         yaml_file2 = Path(outdir, "problem2.yaml")
@@ -74,14 +77,16 @@ def test_create_problem_yaml():
 
         sbml_files = [sbml_file, sbml_file2]
         condition_files = [condition_file, condition_file2]
+        experiment_files = [experiment_file, experiment_file2]
         measurement_files = [measurement_file, measurement_file2]
         observable_files = [observable_file, observable_file2]
         create_problem_yaml(
-            sbml_files,
-            condition_files,
-            measurement_files,
-            parameter_file,
-            observable_files,
-            yaml_file2,
+            sbml_files=sbml_files,
+            condition_files=condition_files,
+            experiment_files=experiment_files,
+            measurement_files=measurement_files,
+            parameter_file=parameter_file,
+            observable_files=observable_files,
+            yaml_file=yaml_file2,
         )
         validate(yaml_file2)

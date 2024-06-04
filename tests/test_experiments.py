@@ -78,9 +78,9 @@ def test_write_experiment_df():
 
 
 def test_nested_experiments():
-    """Test the denesting in `Timecourse.from_df`.
+    """Test the denesting in `Experiment.from_df`.
 
-    Implicitly tests general construction and use of the `Timecourse` and
+    Implicitly tests general construction and use of the `Experiment` and
     `Period` classes, up to loading them from a PEtab experiment table.
     """
     # Define experiment table with both `restartEvery` and "nested experiment"
@@ -100,7 +100,7 @@ def test_nested_experiments():
     ]
     experiment_df = pd.DataFrame(data=experiment_data)
     experiment_df.set_index("experimentId", inplace=True)
-    experiments = petab.experiments.Timecourse.from_df(experiment_df)
+    experiments = petab.experiments.Experiment.from_df(experiment_df)
 
     # Reconstruct df
     reconstructed_df = pd.DataFrame(

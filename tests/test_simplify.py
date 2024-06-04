@@ -6,7 +6,7 @@ import pytest
 import simplesbml
 from pandas.testing import *
 
-from petab import Problem
+from petab import Problem, get_experiment_df
 from petab.C import *  # noqa: F403
 from petab.models.sbml_model import SbmlModel
 from petab.simplify import *
@@ -40,14 +40,31 @@ def problem() -> Problem:
     )
     conditions_df.set_index(CONDITION_ID, inplace=True)
 
+    experiment_df = get_experiment_df(
+        pd.DataFrame(
+            data={
+                EXPERIMENT_ID: [
+                    "experiment_used_1",
+                    "experiment_unused",
+                    "experiment_used_2",
+                ],
+                EXPERIMENT: [
+                    "0:condition_used_1",
+                    "0:condition_used_1",
+                    "0:condition_used_2",
+                ],
+            }
+        )
+    )
+
     measurement_df = pd.DataFrame(
         {
             OBSERVABLE_ID: ["obs_used", "obs_used_2", "obs_used"],
             MEASUREMENT: [1.0, 1.5, 2.0],
-            SIMULATION_CONDITION_ID: [
-                "condition_used_1",
-                "condition_used_1",
-                "condition_used_2",
+            EXPERIMENT_ID: [
+                "experiment_used_1",
+                "experiment_used_1",
+                "experiment_used_2",
             ],
             TIME: [1.0] * 3,
         }
@@ -55,6 +72,7 @@ def problem() -> Problem:
     yield Problem(
         model=SbmlModel(sbml_model=ss_model.getModel()),
         condition_df=conditions_df,
+        experiment_df=experiment_df,
         observable_df=observable_df,
         measurement_df=measurement_df,
     )
@@ -65,7 +83,7 @@ def test_remove_nan_measurements(problem):
         {
             OBSERVABLE_ID: ["obs_used"] * 2,
             MEASUREMENT: [1.0, 2.0],
-            SIMULATION_CONDITION_ID: ["condition_used_1", "condition_used_2"],
+            EXPERIMENT_ID: ["experiment_used_1", "experiment_used_2"],
             TIME: [1.0] * 2,
         }
     )
@@ -74,10 +92,10 @@ def test_remove_nan_measurements(problem):
         {
             OBSERVABLE_ID: ["obs_used", "obs_with_nan", "obs_used"],
             MEASUREMENT: [1.0, nan, 2.0],
-            SIMULATION_CONDITION_ID: [
-                "condition_used_1",
-                "condition_used_1",
-                "condition_used_2",
+            EXPERIMENT_ID: [
+                "experiment_used_1",
+                "experiment_used_1",
+                "experiment_used_2",
             ],
             TIME: [1.0] * 3,
         }
@@ -103,6 +121,21 @@ def test_remove_unused_observables(problem):
     remove_unused_observables(problem)
 
     assert_frame_equal(problem.observable_df, expected)
+
+
+def test_remove_unused_experiments(problem):
+    expected = pd.DataFrame(
+        {
+            EXPERIMENT_ID: ["experiment_used_1", "experiment_used_2"],
+            EXPERIMENT: ["0:condition_used_1", "0:condition_used_2"],
+        }
+    )
+    expected.set_index(EXPERIMENT_ID, inplace=True)
+    assert not problem.experiment_df.equals(expected)
+
+    remove_unused_experiments(problem)
+
+    assert_frame_equal(problem.experiment_df, expected)
 
 
 def test_remove_unused_conditions(problem):
