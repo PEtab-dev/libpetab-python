@@ -1,4 +1,4 @@
-# For syntax see: https://json-schema.org/understanding-json-schema/index.html
+# For syntax see: https://json-schema.org/understanding-json-schema
 #$schema: "https://json-schema.org/draft/2019-09/meta/core"
 $schema: "http://json-schema.org/draft-06/schema"
 description: PEtab parameter estimation problem config file schema
