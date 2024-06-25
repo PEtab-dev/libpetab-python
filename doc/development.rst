@@ -4,7 +4,7 @@ Development
 Versioning
 ----------
 
-We use [Semantic Versioning](http://semver.org/) with the modifications
+We use `Semantic Versioning <http://semver.org/>`_ with the modifications
 described under :ref:`deprecation_policy`.
 
 .. _deprecation_policy:
