@@ -4,7 +4,6 @@ import abc
 import pathlib
 import shutil
 import tempfile
-from typing import Dict, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -43,7 +42,7 @@ class Simulator(abc.ABC):
     def __init__(
         self,
         petab_problem: petab.Problem,
-        working_dir: Optional[Union[pathlib.Path, str]] = None,
+        working_dir: pathlib.Path | str | None = None,
     ):
         """Initialize the simulator.
 
@@ -195,8 +194,8 @@ def sample_noise(
     petab_problem: petab.Problem,
     measurement_row: pd.Series,
     simulated_value: float,
-    noise_formulas: Optional[Dict[str, sp.Expr]] = None,
-    rng: Optional[np.random.Generator] = None,
+    noise_formulas: dict[str, sp.Expr] | None = None,
+    rng: np.random.Generator | None = None,
     noise_scaling_factor: float = 1,
     zero_bounded: bool = False,
 ) -> float:

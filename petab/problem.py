@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Iterable
 from math import nan
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
@@ -945,7 +946,7 @@ class Problem:
             parameter values.
         """
         return [
-            dict(zip(self.x_free_ids, parameter_values))
+            dict(zip(self.x_free_ids, parameter_values, strict=True))
             for parameter_values in self.sample_parameter_startpoints(
                 n_starts=n_starts
             )

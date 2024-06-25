@@ -1,6 +1,6 @@
 """Functions related to parameter sampling"""
 
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ __all__ = ["sample_from_prior", "sample_parameter_startpoints"]
 
 
 def sample_from_prior(
-    prior: Tuple[str, list, str, list], n_starts: int
+    prior: tuple[str, list, str, list], n_starts: int
 ) -> np.array:
     """Creates samples for one parameter based on prior
 
