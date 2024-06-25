@@ -17,10 +17,10 @@ jobs:
 
     steps:
     - name: Check out repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Prepare python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -31,7 +31,7 @@ jobs:
       shell: bash
 
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ steps.pip_cache_dir.outputs.dir }}
         key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
@@ -51,7 +51,7 @@ jobs:
       run: tox -e unit
 
     - name: Coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml

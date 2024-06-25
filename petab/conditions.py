@@ -40,7 +40,10 @@ def get_condition_df(
     )
 
     if not isinstance(condition_file.index, pd.RangeIndex):
-        condition_file.reset_index(inplace=True)
+        condition_file.reset_index(
+            drop=condition_file.index.name != CONDITION_ID,
+            inplace=True,
+        )
 
     try:
         condition_file.set_index([CONDITION_ID], inplace=True)
