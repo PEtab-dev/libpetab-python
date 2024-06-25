@@ -5,6 +5,82 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "petab"
+dynamic = ["version", "readme"]
+description = "Parameter estimation tabular data"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.15.1",
+    "pandas>=1.2.0",
+    # remove when pandas >= 3, see also
+    # https://github.com/pandas-dev/pandas/issues/54466
+    "pyarrow",
+    "python-libsbml>=5.17.0",
+    "sympy",
+    "colorama",
+    "pyyaml",
+    "jsonschema",
+    "antlr4-python3-runtime==4.13.1",
+]
+license = {text = "MIT License"}
+authors = [
+    {name = "The PEtab developers"},
+]
+maintainers = [
+    {name = "Daniel Weindl", email = "sci@danielweindl.de"},
+    {name = "Dilan Pathirana", email = "dilan.pathirana@uni-bonn.de"},
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest",
+    "pytest-cov",
+    "simplesbml",
+    "scipy",
+    "pysb",
+]
+quality = [
+    "pre-commit",
+]
+reports = [
+    # https://github.com/spatialaudio/nbsphinx/issues/641
+    "Jinja2==3.0.3",
+]
+combine = [
+    "python-libcombine>=0.2.6",
+]
+doc = [
+    "sphinx>=3.5.3, !=5.1.0",
+    "sphinxcontrib-napoleon>=0.7",
+    "sphinx-markdown-tables>=0.0.15",
+    "sphinx-rtd-theme>=0.5.1",
+    "m2r2",
+    "myst-nb>=0.14.0",
+    # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
+    "ipython>=7.21.0, !=8.7.0",
+]
+vis = [
+    "matplotlib>=3.6.0",
+    "seaborn",
+    "scipy"
+]
+
+[project.scripts]
+petablint = "petab.petablint:main"
+petab_visualize = "petab.visualize.cli:_petab_visualize_main"
+
+[project.urls]
+Repository = "https://github.com/PEtab-dev/libpetab-python"
+Documentation = "https://petab.readthedocs.io/projects/libpetab-python/"
+
+[tool.setuptools.packages.find]
+include = ["petab", "petab.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+petab = ["petab/schemas/*", "petab/visualize/templates/*"]
+
 [tool.ruff]
 line-length = 79
 lint.extend-select = [
@@ -23,7 +99,6 @@ lint.extend-ignore = ["F403", "F405", "S101"]
 lint.exclude = [
     "petab/math/_generated/*",  # auto-generated
 ]
-target-version = "py310"
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
