@@ -28,7 +28,7 @@ __all__ = [
 
 
 def get_measurement_df(
-    measurement_file: Union[None, str, Path, pd.DataFrame]
+    measurement_file: Union[None, str, Path, pd.DataFrame],
 ) -> pd.DataFrame:
     """
     Read the provided measurement file into a ``pandas.Dataframe``.
@@ -217,7 +217,6 @@ def create_measurement_df() -> pd.DataFrame:
     Returns:
         Created DataFrame
     """
-
     return pd.DataFrame(
         data={
             OBSERVABLE_ID: [],
@@ -322,7 +321,7 @@ def assert_overrides_match_parameter_count(
                     f"Mismatch of noise parameter overrides in:\n{row}\n"
                     f"Expected {expected} but got {len(replacements)}"
                 )
-        except KeyError:
+        except KeyError as err:
             # no overrides defined, but a numerical sigma can be provided
             # anyways
             if len(replacements) != 1 or not isinstance(
@@ -333,7 +332,7 @@ def assert_overrides_match_parameter_count(
                     f"for observable {row[OBSERVABLE_ID]}, but parameter ID "
                     "or multiple overrides were specified in the "
                     "noiseParameters column."
-                )
+                ) from err
 
 
 def measurement_is_at_steady_state(time: float) -> bool:

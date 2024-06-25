@@ -24,7 +24,6 @@ def create_report(
         model_name: Name of the model, used for file name for report
         output_path: Output directory
     """
-
     template_dir = Path(__file__).absolute().parent / "templates"
     output_path = Path(output_path)
     template_file = "report.html"
@@ -36,7 +35,7 @@ def create_report(
     import jinja2
 
     template_loader = jinja2.FileSystemLoader(searchpath=template_dir)
-    template_env = jinja2.Environment(loader=template_loader)
+    template_env = jinja2.Environment(loader=template_loader, autoescape=True)
     template = template_env.get_template(template_file)
 
     # Render and save
@@ -59,7 +58,6 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Pivot table with number of data points per observable and condition
     """
-
     my_measurements = measurement_df.copy()
 
     index = [SIMULATION_CONDITION_ID]

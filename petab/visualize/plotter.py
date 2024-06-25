@@ -16,13 +16,28 @@ from .plotting import DataPlot, DataProvider, DataSeries, Figure, Subplot
 __all__ = ["Plotter", "MPLPlotter", "SeabornPlotter"]
 
 
+#: Line style (:class:`matplotlib.lines.Line2D` options) for the measurement
+#  data in line plots
+measurement_line_kwargs = {
+    "linestyle": "-.",
+    "marker": "x",
+    "markersize": 10,
+}
+#: Line style (:class:`matplotlib.lines.Line2D` options) for the simulation
+#  data in line plots
+simulation_line_kwargs = {
+    "linestyle": "-",
+    "marker": "o",
+    "markersize": 10,
+}
+
+
 class Plotter(ABC):
     """
     Plotter abstract base class.
 
     Attributes
     ----------
-
     figure:
         Figure instance that serves as a markup for the figure that
         should be generated
@@ -56,11 +71,12 @@ class MPLPlotter(Plotter):
 
         Parameters
         ----------
-            plot_type_data: PEtab plotTypeData value (the way replicates
-            should be handled)
+        plot_type_data: PEtab plotTypeData value (the way replicates should be
+            handled)
+
         Returns
         -------
-            Name of corresponding column
+        Name of corresponding column
         """
         if plot_type_data == MEAN_AND_SD:
             return "sd"
@@ -78,7 +94,7 @@ class MPLPlotter(Plotter):
         splitaxes_params: dict,
     ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
-        Generate lineplot.
+        Generate line plot.
 
         It is possible to plot only data or only simulation or both.
 
@@ -125,12 +141,7 @@ class MPLPlotter(Plotter):
                 )
                 # sorts according to ascending order of conditions
                 cond, replicates = zip(
-                    *sorted(
-                        zip(
-                            measurements_to_plot.conditions,
-                            replicates
-                        )
-                    )
+                    *sorted(zip(measurements_to_plot.conditions, replicates))
                 )
                 replicates = np.stack(replicates)
 
@@ -141,19 +152,15 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     cond,
                     replicates[:, 0],
-                    linestyle="-.",
-                    marker="x",
-                    markersize=10,
                     label=label_base,
+                    **measurement_line_kwargs,
                 )
 
                 # plot other replicates with the same color
                 ax.plot(
                     cond,
                     replicates[:, 1:],
-                    linestyle="-.",
-                    marker="x",
-                    markersize=10,
+                    **measurement_line_kwargs,
                     color=p[0].get_color(),
                 )
 
@@ -182,9 +189,8 @@ class MPLPlotter(Plotter):
                         scond,
                         smean,
                         snoise,
-                        linestyle="-.",
-                        marker=".",
                         label=label_base,
+                        **measurement_line_kwargs,
                     )
 
             # simulations should have the same colors if both measurements
@@ -234,11 +240,10 @@ class MPLPlotter(Plotter):
                 p = ax.plot(
                     xs,
                     ys,
-                    linestyle="-",
-                    marker="o",
                     markevery=every,
                     label=label_base + " simulation",
                     color=simu_color,
+                    **simulation_line_kwargs,
                 )
                 # lines at t=inf should have the same colors also in case
                 # only simulations are plotted
@@ -448,7 +453,7 @@ class MPLPlotter(Plotter):
 
         # show 'e' as basis not 2.7... in natural log scale cases
         def ticks(y, _):
-            return r"$e^{{{:.0f}}}$".format(np.log(y))
+            return rf"$e^{{{np.log(y):.0f}}}$"
 
         if subplot.xScale == LOG:
             ax.xaxis.set_major_formatter(mtick.FuncFormatter(ticks))
@@ -547,7 +552,6 @@ class MPLPlotter(Plotter):
         -------
             Updated axis object.
         """
-
         ax.axis("square")
 
         if lim is None:
@@ -634,23 +638,19 @@ class MPLPlotter(Plotter):
                     p = ax_inf.plot(
                         timepoints_inf,
                         [replicates[0]] * 3,
-                        linestyle="-.",
-                        marker="x",
-                        markersize=10,
                         markevery=[1],
                         label=label_base + " simulation",
                         color=color,
+                        **measurement_line_kwargs,
                     )
 
                     # plot other replicates with the same color
                     ax_inf.plot(
                         timepoints_inf,
                         [replicates[1:]] * 3,
-                        linestyle="-.",
-                        marker="x",
-                        markersize=10,
                         markevery=[1],
                         color=p[0].get_color(),
+                        **measurement_line_kwargs,
                     )
             else:
                 p = ax_inf.plot(
@@ -659,17 +659,16 @@ class MPLPlotter(Plotter):
                         measurements_data_to_plot_inf["mean"],
                         measurements_data_to_plot_inf["mean"],
                     ],
-                    linestyle="-.",
                     color=color,
+                    **measurement_line_kwargs,
                 )
                 ax_inf.errorbar(
                     t_inf,
                     measurements_data_to_plot_inf["mean"],
                     measurements_data_to_plot_inf[noise_col],
-                    linestyle="-.",
-                    marker=".",
                     label=label_base + " simulation",
                     color=p[0].get_color(),
+                    **measurement_line_kwargs,
                 )
 
             if color is None:
@@ -693,30 +692,27 @@ class MPLPlotter(Plotter):
                 p = ax_inf.plot(
                     timepoints_inf,
                     [replicates[0]] * 3,
-                    linestyle="-",
-                    marker="o",
                     markevery=[1],
                     label=label_base,
                     color=color,
+                    **simulation_line_kwargs,
                 )
 
                 # plot other replicates with the same color
                 ax_inf.plot(
                     timepoints_inf,
                     [replicates[1:]] * 3,
-                    linestyle="-",
-                    marker="o",
                     markevery=[1],
                     color=p[0].get_color(),
+                    **simulation_line_kwargs,
                 )
             else:
                 ax_inf.plot(
                     timepoints_inf,
                     [simulations_data_to_plot_inf["mean"]] * 3,
-                    linestyle="-",
-                    marker="o",
                     markevery=[1],
                     color=color,
+                    **simulation_line_kwargs,
                 )
 
         ax.set_xlim(right=ax_finite_right_limit)

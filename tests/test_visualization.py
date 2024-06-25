@@ -178,11 +178,16 @@ def test_visualization_with_vis_and_sim(
     simulation_file_Isensee,
     close_fig,
 ):
-    validate_visualization_df(
-        petab.Problem(
-            condition_df=petab.get_condition_df(condition_file_Isensee),
-            visualization_df=petab.get_visualization_df(vis_spec_file_Isensee),
+    assert (
+        validate_visualization_df(
+            petab.Problem(
+                condition_df=petab.get_condition_df(condition_file_Isensee),
+                visualization_df=petab.get_visualization_df(
+                    vis_spec_file_Isensee
+                ),
+            )
         )
+        is False
     )
     plot_with_vis_spec(
         vis_spec_file_Isensee,
@@ -553,7 +558,7 @@ def test_cli():
             "-o",
             temp_dir,
         ]
-        subprocess.run(args, check=True)
+        subprocess.run(args, check=True)  # noqa: S603
 
 
 @pytest.mark.filterwarnings("ignore:Visualization table is empty")
@@ -577,3 +582,21 @@ def test_validate(vis_file, request):
     assert False is validate_visualization_df(
         petab.Problem(visualization_df=petab.get_visualization_df(vis_file))
     )
+
+
+def test_validate_visualization_missing_dataset(
+    condition_file_Isensee,
+    data_file_Isensee,
+    vis_spec_file_Isensee,
+    simulation_file_Isensee,
+):
+    petab_problem = petab.Problem(
+        condition_df=petab.get_condition_df(condition_file_Isensee),
+        measurement_df=petab.get_measurement_df(data_file_Isensee),
+        visualization_df=petab.get_visualization_df(vis_spec_file_Isensee),
+    )
+
+    assert validate_visualization_df(petab_problem) is False
+
+    petab_problem.visualization_df.loc[0, petab.DATASET_ID] = "missing_dataset"
+    assert validate_visualization_df(petab_problem) is True

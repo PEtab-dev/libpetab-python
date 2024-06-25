@@ -77,7 +77,6 @@ def test_measurements_have_replicates():
 
 def test_get_simulation_conditions():
     """Test get_simulation_conditions"""
-
     # only simulation condition
     measurement_df = pd.DataFrame(
         data={

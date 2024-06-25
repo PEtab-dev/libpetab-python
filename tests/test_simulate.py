@@ -55,7 +55,10 @@ def test_remove_working_dir(petab_problem):
     assert Path(simulator.working_dir).is_dir()
     # A user-specified working directory should not be removed unless
     # `force=True`.
-    simulator.remove_working_dir()
+    with pytest.warns(
+        UserWarning, match="working directories are not removed"
+    ):
+        simulator.remove_working_dir()
     # The user-specified working directory is not removed without `force=True`
     assert Path(simulator.working_dir).is_dir()
     simulator.remove_working_dir(force=True)
@@ -138,7 +141,6 @@ def test_zero_bounded(petab_problem):
 
 def test_add_noise(petab_problem):
     """Test the noise generating method."""
-
     tested_noise_distributions = {"normal", "laplace"}
     assert set(petab.C.NOISE_MODELS) == tested_noise_distributions, (
         "The noise generation methods have only been tested for "

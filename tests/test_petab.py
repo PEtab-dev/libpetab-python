@@ -165,7 +165,7 @@ def test_get_measurement_parameter_ids():
 
 def test_serialization(petab_problem):
     # serialize and back
-    problem_recreated = pickle.loads(pickle.dumps(petab_problem))
+    problem_recreated = pickle.loads(pickle.dumps(petab_problem))  # noqa: S301
 
     assert problem_recreated.measurement_df.equals(
         petab_problem.measurement_df
@@ -362,14 +362,16 @@ def test_flatten_timepoint_specific_output_overrides():
                 "x",
             ],
             NOISE_FORMULA: [
-                "(observableParameter1_obs1 + observableParameter2_obs1) * noiseParameter1_obs1",
+                "(observableParameter1_obs1 + observableParameter2_obs1)"
+                " * noiseParameter1_obs1",
                 1,
             ],
         }
     )
     observable_df.set_index(OBSERVABLE_ID, inplace=True)
 
-    # new observable IDs (obs${i_obs}_${i_obsParOverride}_${i_noiseParOverride}_${i_condition})
+    # new observable IDs
+    #  (obs${i_obs}_${i_obsParOverride}_${i_noiseParOverride}_${i_condition})
     obs1_1_1_1 = "obs1__obsParOverride1_1_0__noiseParOverride1__condition1"
     obs1_2_1_1 = "obs1__obsParOverride2_1_0__noiseParOverride1__condition1"
     obs1_2_2_1 = "obs1__obsParOverride2_1_0__noiseParOverride2__condition1"
@@ -382,17 +384,23 @@ def test_flatten_timepoint_specific_output_overrides():
                 "obs2__condition1",
             ],
             OBSERVABLE_FORMULA: [
-                f"observableParameter1_{obs1_1_1_1} + observableParameter2_{obs1_1_1_1}",
-                f"observableParameter1_{obs1_2_1_1} + observableParameter2_{obs1_2_1_1}",
-                f"observableParameter1_{obs1_2_2_1} + observableParameter2_{obs1_2_2_1}",
+                f"observableParameter1_{obs1_1_1_1}"
+                f" + observableParameter2_{obs1_1_1_1}",
+                f"observableParameter1_{obs1_2_1_1}"
+                f" + observableParameter2_{obs1_2_1_1}",
+                f"observableParameter1_{obs1_2_2_1}"
+                f" + observableParameter2_{obs1_2_2_1}",
                 "x",
             ],
             NOISE_FORMULA: [
-                f"(observableParameter1_{obs1_1_1_1} + observableParameter2_{obs1_1_1_1})"
+                f"(observableParameter1_{obs1_1_1_1}"
+                f" + observableParameter2_{obs1_1_1_1})"
                 f" * noiseParameter1_{obs1_1_1_1}",
-                f"(observableParameter1_{obs1_2_1_1} + observableParameter2_{obs1_2_1_1})"
+                f"(observableParameter1_{obs1_2_1_1}"
+                f" + observableParameter2_{obs1_2_1_1})"
                 f" * noiseParameter1_{obs1_2_1_1}",
-                f"(observableParameter1_{obs1_2_2_1} + observableParameter2_{obs1_2_2_1})"
+                f"(observableParameter1_{obs1_2_2_1}"
+                f" + observableParameter2_{obs1_2_2_1})"
                 f" * noiseParameter1_{obs1_2_2_1}",
                 1,
             ],
@@ -766,7 +774,6 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 
 def test_load_remote():
     """Test loading remote files"""
-
     yaml_url = (
         "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
         "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
@@ -797,7 +804,8 @@ def test_problem_from_yaml_v1_empty():
 
 def test_problem_from_yaml_v1_multiple_files():
     """Test loading PEtab version 1 yaml with multiple condition / measurement
-    / observable files"""
+    / observable files
+    """
     yaml_config = """
     format_version: 1
     parameter_file:

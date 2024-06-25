@@ -6,11 +6,10 @@ from pathlib import Path
 from typing import List, Literal, Union
 
 import pandas as pd
-import sympy as sp
-from sympy.abc import _clash
 
 from . import core, lint
 from .C import *  # noqa: F403
+from .math import sympify_petab
 from .models import Model
 
 __all__ = [
@@ -24,7 +23,7 @@ __all__ = [
 
 
 def get_observable_df(
-    observable_file: Union[str, pd.DataFrame, Path, None]
+    observable_file: Union[str, pd.DataFrame, Path, None],
 ) -> Union[pd.DataFrame, None]:
     """
     Read the provided observable file into a ``pandas.Dataframe``.
@@ -48,14 +47,17 @@ def get_observable_df(
     )
 
     if not isinstance(observable_file.index, pd.RangeIndex):
-        observable_file.reset_index(inplace=True)
+        observable_file.reset_index(
+            drop=observable_file.index.name != OBSERVABLE_ID,
+            inplace=True,
+        )
 
     try:
         observable_file.set_index([OBSERVABLE_ID], inplace=True)
     except KeyError:
         raise KeyError(
             f"Observable table missing mandatory field {OBSERVABLE_ID}."
-        )
+        ) from None
 
     return observable_file
 
@@ -102,7 +104,7 @@ def get_output_parameters(
 
     for formula in formulas:
         free_syms = sorted(
-            sp.sympify(formula, locals=_clash).free_symbols,
+            sympify_petab(formula).free_symbols,
             key=lambda symbol: symbol.name,
         )
         for free_sym in free_syms:
@@ -110,7 +112,7 @@ def get_output_parameters(
             if model.symbol_allowed_in_observable_formula(sym):
                 continue
 
-            # does it mapping to a model entity?
+            # does it map to a model entity?
             if (
                 mapping_df is not None
                 and sym in mapping_df.index
@@ -191,7 +193,6 @@ def get_placeholders(
         List of placeholder parameters from observable table observableFormulas
         and noiseFormulas.
     """
-
     # collect placeholder parameters overwritten by
     # {observable,noise}Parameters
     placeholder_types = []
@@ -224,5 +225,4 @@ def create_observable_df() -> pd.DataFrame:
     Returns:
         Created DataFrame
     """
-
     return pd.DataFrame(data={col: [] for col in OBSERVABLE_DF_COLS})

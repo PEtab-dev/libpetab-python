@@ -10,12 +10,12 @@ from typing import Any, Iterable, Optional
 import numpy as np
 import pandas as pd
 import sympy as sp
-from sympy.abc import _clash
 
 import petab
 
 from . import core, measurements, parameters
 from .C import *  # noqa: F403
+from .math import sympify_petab
 from .models import Model
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,6 @@ def check_condition_df(
     Raises:
         AssertionError: in case of problems
     """
-
     # Check required columns are present
     req_cols = []
     _check_df(df, req_cols, "condition")
@@ -167,7 +166,6 @@ def check_measurement_df(
     Raises:
         AssertionError, ValueError: in case of problems
     """
-
     _check_df(df, MEASUREMENT_DF_REQUIRED_COLS, "measurement")
 
     for column_name in MEASUREMENT_DF_REQUIRED_COLS:
@@ -319,7 +317,7 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
     for row in observable_df.itertuples():
         obs = getattr(row, OBSERVABLE_FORMULA)
         try:
-            sp.sympify(obs, locals=_clash)
+            sympify_petab(obs)
         except sp.SympifyError as e:
             raise AssertionError(
                 f"Cannot parse expression '{obs}' "
@@ -328,7 +326,7 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
 
         noise = getattr(row, NOISE_FORMULA)
         try:
-            sympified_noise = sp.sympify(noise, locals=_clash)
+            sympified_noise = sympify_petab(noise)
             if sympified_noise is None or (
                 sympified_noise.is_Number and not sympified_noise.is_finite
             ):
@@ -432,7 +430,6 @@ def assert_measured_observables_defined(
     Raises:
         AssertionError: in case of problems
     """
-
     used_observables = set(measurement_df[OBSERVABLE_ID].values)
     defined_observables = set(observable_df.index.values)
     if undefined_observables := (used_observables - defined_observables):
@@ -453,7 +450,6 @@ def condition_table_is_parameter_free(condition_df: pd.DataFrame) -> bool:
         ``True`` if there are no parameter overrides in the condition table,
         ``False`` otherwise.
     """
-
     return len(petab.get_parametric_overrides(condition_df)) == 0
 
 
@@ -468,7 +464,6 @@ def assert_parameter_id_is_string(parameter_df: pd.DataFrame) -> None:
     Raises:
         AssertionError: in case of problems
     """
-
     for parameter_id in parameter_df:
         if isinstance(parameter_id, str):
             if parameter_id[0].isdigit():
@@ -1088,7 +1083,6 @@ def assert_measurement_conditions_present_in_condition_table(
     Raises:
         AssertionError: in case of problems
     """
-
     used_conditions = set(measurement_df[SIMULATION_CONDITION_ID].values)
     if PREEQUILIBRATION_CONDITION_ID in measurement_df:
         used_conditions |= set(

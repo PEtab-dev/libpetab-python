@@ -6,7 +6,8 @@ from petab.visualize.data_overview import create_report
 
 
 def test_data_overview():
-    """Data overview generation with Fujita example data from this repository"""
+    """Data overview generation with Fujita example data from this
+    repository"""
     with TemporaryDirectory() as temp_dir:
         outfile = Path(temp_dir) / "Fujita.html"
         repo_root = Path(__file__).parent.parent

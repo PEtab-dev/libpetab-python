@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import abc
 from pathlib import Path
-from typing import Any, Iterable, Tuple
+from typing import Any, Iterable
 
 
 class Model(abc.ABC):
     """Base class for wrappers for any PEtab-supported model type"""
 
+    @abc.abstractmethod
     def __init__(self):
         ...
 
@@ -55,7 +56,7 @@ class Model(abc.ABC):
     @abc.abstractmethod
     def get_free_parameter_ids_with_values(
         self,
-    ) -> Iterable[Tuple[str, float]]:
+    ) -> Iterable[tuple[str, float]]:
         """Get free model parameters along with their values
 
         Returns:
@@ -106,7 +107,6 @@ class Model(abc.ABC):
 
         :returns: ``True``, if allowed, ``False`` otherwise
         """
-
         ...
 
     @abc.abstractmethod

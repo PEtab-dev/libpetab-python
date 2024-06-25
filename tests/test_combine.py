@@ -15,7 +15,6 @@ pytest_plugins = [
 
 def test_combine_archive():
     """Test `create_combine_archive` and `Problem.from_combine`"""
-
     # Create test files
     import simplesbml
 

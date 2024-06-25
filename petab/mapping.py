@@ -16,7 +16,7 @@ __all__ = [
 
 
 def get_mapping_df(
-    mapping_file: Union[None, str, Path, pd.DataFrame]
+    mapping_file: Union[None, str, Path, pd.DataFrame],
 ) -> pd.DataFrame:
     """
     Read the provided mapping file into a ``pandas.Dataframe``.
@@ -36,7 +36,10 @@ def get_mapping_df(
         )
 
     if not isinstance(mapping_file.index, pd.RangeIndex):
-        mapping_file.reset_index(inplace=True)
+        mapping_file.reset_index(
+            drop=mapping_file.index.name != PETAB_ENTITY_ID,
+            inplace=True,
+        )
 
     for col in MAPPING_DF_REQUIRED_COLS:
         if col not in mapping_file.columns:

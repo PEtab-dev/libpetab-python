@@ -1,5 +1,6 @@
 """Functions for plotting PEtab measurement files and simulation results in
-the same format."""
+the same format.
+"""
 
 from typing import Dict, List, Optional, Union
 
@@ -58,7 +59,6 @@ def plot_with_vis_spec(
     ax: Axis object of the created plot.
     None: In case subplots are saved to a file.
     """
-
     if measurements_df is None and simulations_df is None:
         raise TypeError(
             "Not enough arguments. Either measurements_data "
@@ -133,7 +133,6 @@ def plot_without_vis_spec(
     ax: Axis object of the created plot.
     None: In case subplots are saved to a file.
     """
-
     if measurements_df is None and simulations_df is None:
         raise TypeError(
             "Not enough arguments. Either measurements_data "
@@ -203,7 +202,6 @@ def plot_problem(
     ax: Axis object of the created plot.
     None: In case subplots are saved to a file.
     """
-
     if petab_problem.visualization_df is not None:
         return plot_with_vis_spec(
             petab_problem.visualization_df,

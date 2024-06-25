@@ -72,7 +72,7 @@ def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 
 def get_visualization_df(
-    visualization_file: Union[str, Path, pd.DataFrame, None]
+    visualization_file: Union[str, Path, pd.DataFrame, None],
 ) -> Union[pd.DataFrame, None]:
     """Read PEtab visualization table
 
@@ -102,7 +102,8 @@ def get_visualization_df(
     except pd.errors.EmptyDataError:
         warn(
             "Visualization table is empty. Defaults will be used. "
-            "Refer to the documentation for details."
+            "Refer to the documentation for details.",
+            stacklevel=2,
         )
         vis_spec = pd.DataFrame()
     return vis_spec
@@ -226,9 +227,9 @@ def get_flattened_id_mappings(
 
         mappings[OBSERVABLE_ID][observable_replacement_id] = observable_id
 
-        for field, hyperparameter_type, target in [
-            (NOISE_PARAMETERS, "noiseParameter", NOISE_FORMULA),
-            (OBSERVABLE_PARAMETERS, "observableParameter", OBSERVABLE_FORMULA),
+        for field, hyperparameter_type in [
+            (NOISE_PARAMETERS, "noiseParameter"),
+            (OBSERVABLE_PARAMETERS, "observableParameter"),
         ]:
             if field in measurements:
                 mappings[field][
@@ -357,7 +358,6 @@ def concat_tables(
     Returns:
         The concatenated DataFrames
     """
-
     if isinstance(tables, pd.DataFrame):
         return tables
 
@@ -389,7 +389,6 @@ def to_float_if_float(x: Any) -> Any:
     Returns:
         ``x`` as float if possible, otherwise ``x``
     """
-
     try:
         return float(x)
     except (ValueError, TypeError):
@@ -427,7 +426,6 @@ def create_combine_archive(
         email: E-mail address of archive creator
         organization: Organization of archive creator
     """
-
     path_prefix = os.path.dirname(str(yaml_file))
     yaml_config = yaml.load_yaml(yaml_file)
 
@@ -435,11 +433,11 @@ def create_combine_archive(
     # other SWIG interfaces
     try:
         import libcombine
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "To use PEtab's COMBINE functionality, libcombine "
             "(python-libcombine) must be installed."
-        )
+        ) from err
 
     def _add_file_metadata(location: str, description: str = ""):
         """Add metadata to the added file"""

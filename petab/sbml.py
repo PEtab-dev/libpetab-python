@@ -39,7 +39,6 @@ def is_sbml_consistent(
     Returns:
         ``False`` if problems were detected, otherwise ``True``
     """
-
     if not check_units:
         sbml_document.setConsistencyChecks(
             libsbml.LIBSBML_CAT_UNITS_CONSISTENCY, False
@@ -104,15 +103,15 @@ def globalize_parameters(
             creating global parameters
     """
     warn(
-        "This function will be removed in future releases.", DeprecationWarning
+        "This function will be removed in future releases.",
+        DeprecationWarning,
+        stacklevel=2,
     )
 
     for reaction in sbml_model.getListOfReactions():
         law = reaction.getKineticLaw()
         # copy first so we can delete in the following loop
-        local_parameters = list(
-            local_parameter for local_parameter in law.getListOfParameters()
-        )
+        local_parameters = list(law.getListOfParameters())
         for lp in local_parameters:
             if prepend_reaction_id:
                 parameter_id = f"{reaction.getId()}_{lp.getId()}"
@@ -202,7 +201,6 @@ def load_sbml_from_string(
     :param sbml_string: Model as XML string
     :return: The SBML document, model and reader
     """
-
     sbml_reader = libsbml.SBMLReader()
     sbml_document = sbml_reader.readSBMLFromString(sbml_string)
     sbml_model = sbml_document.getModel()
@@ -302,7 +300,8 @@ def get_model_for_condition(
         if sbml_model.removeRuleByVariable(target_id):
             warn(
                 "An SBML rule was removed to set the component "
-                f"{target_id} to a constant value."
+                f"{target_id} to a constant value.",
+                stacklevel=2,
             )
         sbml_model.removeInitialAssignment(target_id)
 

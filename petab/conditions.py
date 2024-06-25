@@ -18,7 +18,7 @@ __all__ = [
 
 
 def get_condition_df(
-    condition_file: Union[str, pd.DataFrame, Path, None]
+    condition_file: Union[str, pd.DataFrame, Path, None],
 ) -> pd.DataFrame:
     """Read the provided condition file into a ``pandas.Dataframe``
 
@@ -40,14 +40,17 @@ def get_condition_df(
     )
 
     if not isinstance(condition_file.index, pd.RangeIndex):
-        condition_file.reset_index(inplace=True)
+        condition_file.reset_index(
+            drop=condition_file.index.name != CONDITION_ID,
+            inplace=True,
+        )
 
     try:
         condition_file.set_index([CONDITION_ID], inplace=True)
     except KeyError:
         raise KeyError(
             f"Condition table missing mandatory field {CONDITION_ID}."
-        )
+        ) from None
 
     return condition_file
 
@@ -75,7 +78,6 @@ def create_condition_df(
         A :py:class:`pandas.DataFrame` with empty given rows and columns and
         all nan values
     """
-
     condition_ids = [] if condition_ids is None else list(condition_ids)
 
     data = {CONDITION_ID: condition_ids}

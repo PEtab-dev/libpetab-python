@@ -63,7 +63,8 @@ def simplify_problem(problem: Problem):
 
 def condition_parameters_to_parameter_table(problem: Problem):
     """Move parameters from the condition table to the parameters table, if
-    the same parameter value is used for all conditions."""
+    the same parameter value is used for all conditions.
+    """
     if (
         problem.condition_df is None
         or problem.condition_df.empty

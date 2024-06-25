@@ -425,7 +425,8 @@ def test_assert_parameter_prior_parameters_are_valid():
 
 def test_petablint_succeeds():
     """Run petablint and ensure we exit successfully for a file that should
-    contain no errors"""
+    contain no errors
+    """
     dir_isensee = "../doc/example/example_Isensee/"
     dir_fujita = "../doc/example/example_Fujita/"
 
@@ -434,18 +435,18 @@ def test_petablint_succeeds():
     measurement_file = os.path.join(
         script_path, dir_isensee, "Isensee_measurementData.tsv"
     )
-    result = subprocess.run(["petablint", "-m", measurement_file])
+    result = subprocess.run(["petablint", "-m", measurement_file])  # noqa: S603,S607
     assert result.returncode == 0
 
     # run with yaml
     yaml_file = os.path.join(script_path, dir_fujita, "Fujita.yaml")
-    result = subprocess.run(["petablint", "-v", "-y", yaml_file])
+    result = subprocess.run(["petablint", "-v", "-y", yaml_file])  # noqa: S603,S607
     assert result.returncode == 0
 
     parameter_file = os.path.join(
         script_path, dir_fujita, "Fujita_parameters.tsv"
     )
-    result = subprocess.run(["petablint", "-v", "-p", parameter_file])
+    result = subprocess.run(["petablint", "-v", "-p", parameter_file])  # noqa: S603,S607
     assert result.returncode == 0
 
 
@@ -550,7 +551,6 @@ def test_check_condition_df():
 
 def test_check_ids():
     """Test check_ids"""
-
     lint.check_ids(["a1", "_1"])
 
     with pytest.raises(ValueError):
@@ -559,7 +559,6 @@ def test_check_ids():
 
 def test_check_parameter_df():
     """Check lint.check_parameter_df."""
-
     parameter_df = pd.DataFrame(
         {
             PARAMETER_ID: ["par0", "par1", "par2"],
@@ -586,7 +585,6 @@ def test_check_parameter_df():
 
 def test_check_observable_df():
     """Check that we correctly detect errors in observable table"""
-
     observable_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs1", "obs2"],

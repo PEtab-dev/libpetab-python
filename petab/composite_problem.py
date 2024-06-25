@@ -46,7 +46,6 @@ class CompositeProblem:
         Arguments:
             yaml_config: PEtab configuration as dictionary or YAML file name
         """
-
         if isinstance(yaml_config, str):
             path_prefix = os.path.dirname(yaml_config)
             yaml_config = yaml.load_yaml(yaml_config)

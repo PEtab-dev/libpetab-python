@@ -45,7 +45,7 @@ PARAMETER_SCALE_ARGS = Literal["", "lin", "log", "log10"]
 def get_parameter_df(
     parameter_file: Union[
         str, Path, pd.DataFrame, Iterable[Union[str, Path, pd.DataFrame]], None
-    ]
+    ],
 ) -> Union[pd.DataFrame, None]:
     """
     Read the provided parameter file into a ``pandas.Dataframe``.
@@ -82,7 +82,10 @@ def get_parameter_df(
     )
 
     if not isinstance(parameter_df.index, pd.RangeIndex):
-        parameter_df.reset_index(inplace=True)
+        parameter_df.reset_index(
+            drop=parameter_file.index.name != PARAMETER_ID,
+            inplace=True,
+        )
 
     try:
         parameter_df.set_index([PARAMETER_ID], inplace=True)
@@ -301,19 +304,22 @@ def get_required_parameters_for_parameter_table(
     for formula_type, placeholder_sources in (
         (
             # Observable formulae
-            {'observables': True, 'noise': False},
+            {"observables": True, "noise": False},
             # can only contain observable placeholders
-            {'noise': False, 'observables': True}
+            {"noise": False, "observables": True},
         ),
         (
             # Noise formulae
-            {'observables': False, 'noise': True},
+            {"observables": False, "noise": True},
             # can contain noise and observable placeholders
-            {'noise': True, 'observables': True}
+            {"noise": True, "observables": True},
         ),
     ):
         output_parameters = observables.get_output_parameters(
-            observable_df, model, mapping_df=mapping_df, **formula_type,
+            observable_df,
+            model,
+            mapping_df=mapping_df,
+            **formula_type,
         )
         placeholders = observables.get_placeholders(
             observable_df,
@@ -444,7 +450,8 @@ def get_priors_from_df(
     Arguments:
         parameter_df: PEtab parameter table
         mode: ``'initialization'`` or ``'objective'``
-        parameter_ids: A sequence of parameter IDs for which to sample starting points.
+        parameter_ids: A sequence of parameter IDs for which to sample starting
+            points.
             For subsetting or reordering the parameters.
             Defaults to all estimated parameters.
 
@@ -460,7 +467,8 @@ def get_priors_from_df(
         except KeyError as e:
             missing_ids = set(parameter_ids) - set(par_to_estimate.index)
             raise KeyError(
-                f"Parameter table does not contain estimated parameter(s) {missing_ids}."
+                "Parameter table does not contain estimated parameter(s) "
+                f"{missing_ids}."
             ) from e
 
     prior_list = []
@@ -564,7 +572,10 @@ def map_scale(
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)
-    return map(lambda x: scale(x[0], x[1]), zip(parameters, scale_strs))
+    return (
+        scale(par_val, scale_str)
+        for par_val, scale_str in zip(parameters, scale_strs)
+    )
 
 
 def map_unscale(
@@ -585,7 +596,10 @@ def map_unscale(
     """
     if isinstance(scale_strs, str):
         scale_strs = [scale_strs] * len(parameters)
-    return map(lambda x: unscale(x[0], x[1]), zip(parameters, scale_strs))
+    return (
+        unscale(par_val, scale_str)
+        for par_val, scale_str in zip(parameters, scale_strs)
+    )
 
 
 def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:

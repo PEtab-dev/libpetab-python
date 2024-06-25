@@ -5,7 +5,7 @@ import os
 import tempfile
 from math import nan
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Iterable
 from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
@@ -76,14 +76,14 @@ class Problem:
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
-        extensions_config: Dict = None,
+        extensions_config: dict = None,
     ):
-        self.condition_df: Optional[pd.DataFrame] = condition_df
-        self.measurement_df: Optional[pd.DataFrame] = measurement_df
-        self.parameter_df: Optional[pd.DataFrame] = parameter_df
-        self.visualization_df: Optional[pd.DataFrame] = visualization_df
-        self.observable_df: Optional[pd.DataFrame] = observable_df
-        self.mapping_df: Optional[pd.DataFrame] = mapping_df
+        self.condition_df: pd.DataFrame | None = condition_df
+        self.measurement_df: pd.DataFrame | None = measurement_df
+        self.parameter_df: pd.DataFrame | None = parameter_df
+        self.visualization_df: pd.DataFrame | None = visualization_df
+        self.observable_df: pd.DataFrame | None = observable_df
+        self.mapping_df: pd.DataFrame | None = mapping_df
 
         if any(
             (sbml_model, sbml_document, sbml_reader),
@@ -109,7 +109,7 @@ class Problem:
                 model_id=model_id,
             )
 
-        self.model: Optional[Model] = model
+        self.model: Model | None = model
         self.extensions_config = extensions_config or {}
 
     def __getattr__(self, name):
@@ -169,17 +169,15 @@ class Problem:
 
     @staticmethod
     def from_files(
-        sbml_file: Union[str, Path] = None,
-        condition_file: Union[str, Path, Iterable[Union[str, Path]]] = None,
-        measurement_file: Union[str, Path, Iterable[Union[str, Path]]] = None,
-        parameter_file: Union[str, Path, Iterable[Union[str, Path]]] = None,
-        visualization_files: Union[
-            str, Path, Iterable[Union[str, Path]]
-        ] = None,
-        observable_files: Union[str, Path, Iterable[Union[str, Path]]] = None,
+        sbml_file: str | Path = None,
+        condition_file: str | Path | Iterable[str | Path] = None,
+        measurement_file: str | Path | Iterable[str | Path] = None,
+        parameter_file: str | Path | Iterable[str | Path] = None,
+        visualization_files: str | Path | Iterable[str | Path] = None,
+        observable_files: str | Path | Iterable[str | Path] = None,
         model_id: str = None,
-        extensions_config: Dict = None,
-    ) -> "Problem":
+        extensions_config: dict = None,
+    ) -> Problem:
         """
         Factory method to load model and tables from files.
 
@@ -252,7 +250,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_yaml(yaml_config: Union[Dict, Path, str]) -> "Problem":
+    def from_yaml(yaml_config: dict | Path | str) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
 
@@ -274,9 +272,7 @@ class Problem:
             ):
                 # a regular file path string
                 path_prefix = Path(yaml_path).parent
-                get_path = (
-                    lambda filename: path_prefix / filename
-                )  # noqa: E731
+                get_path = lambda filename: path_prefix / filename  # noqa: E731
             else:
                 # a URL
                 # extract parent path from
@@ -293,9 +289,7 @@ class Problem:
                     )
                 )
                 # need "/" on windows, not "\"
-                get_path = (
-                    lambda filename: f"{path_prefix}/{filename}"
-                )  # noqa: E731
+                get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(
@@ -312,7 +306,7 @@ class Problem:
                 f"{format_version.__format_version__}."
             )
         if yaml_config[FORMAT_VERSION] == "2.0.0":
-            warn("Support for PEtab2.0 is experimental!")
+            warn("Support for PEtab2.0 is experimental!", stacklevel=2)
 
         problem0 = yaml_config["problems"][0]
 
@@ -425,7 +419,7 @@ class Problem:
         )
 
     @staticmethod
-    def from_combine(filename: Union[Path, str]) -> "Problem":
+    def from_combine(filename: Path | str) -> Problem:
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
         See also :py:func:`petab.create_combine_archive`.
@@ -448,8 +442,7 @@ class Problem:
 
         archive = libcombine.CombineArchive()
         if archive.initializeFromArchive(str(filename)) is None:
-            print(f"Invalid Combine Archive: {filename}")
-            return None
+            raise ValueError(f"Invalid Combine Archive: {filename}")
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             archive.extractTo(tmpdirname)
@@ -462,7 +455,7 @@ class Problem:
 
     def to_files_generic(
         self,
-        prefix_path: Union[str, Path],
+        prefix_path: str | Path,
     ) -> str:
         """Save a PEtab problem to generic file names.
 
@@ -514,17 +507,17 @@ class Problem:
 
     def to_files(
         self,
-        sbml_file: Union[None, str, Path] = None,
-        condition_file: Union[None, str, Path] = None,
-        measurement_file: Union[None, str, Path] = None,
-        parameter_file: Union[None, str, Path] = None,
-        visualization_file: Union[None, str, Path] = None,
-        observable_file: Union[None, str, Path] = None,
-        yaml_file: Union[None, str, Path] = None,
-        prefix_path: Union[None, str, Path] = None,
+        sbml_file: None | str | Path = None,
+        condition_file: None | str | Path = None,
+        measurement_file: None | str | Path = None,
+        parameter_file: None | str | Path = None,
+        visualization_file: None | str | Path = None,
+        observable_file: None | str | Path = None,
+        yaml_file: None | str | Path = None,
+        prefix_path: None | str | Path = None,
         relative_paths: bool = True,
-        model_file: Union[None, str, Path] = None,
-        mapping_file: Union[None, str, Path] = None,
+        model_file: None | str | Path = None,
+        mapping_file: None | str | Path = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -577,7 +570,7 @@ class Problem:
         if prefix_path is not None:
             prefix_path = Path(prefix_path)
 
-            def add_prefix(path0: Union[None, str, Path]) -> str:
+            def add_prefix(path0: None | str | Path) -> str:
                 return path0 if path0 is None else str(prefix_path / path0)
 
             model_file = add_prefix(model_file)
@@ -687,7 +680,7 @@ class Problem:
         """
         return list(self.observable_df.index)
 
-    def _apply_mask(self, v: List, free: bool = True, fixed: bool = True):
+    def _apply_mask(self, v: list, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.
 
         Parameters
@@ -731,17 +724,17 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def x_ids(self) -> List[str]:
+    def x_ids(self) -> list[str]:
         """Parameter table parameter IDs"""
         return self.get_x_ids()
 
     @property
-    def x_free_ids(self) -> List[str]:
+    def x_free_ids(self) -> list[str]:
         """Parameter table parameter IDs, for free parameters."""
         return self.get_x_ids(fixed=False)
 
     @property
-    def x_fixed_ids(self) -> List[str]:
+    def x_fixed_ids(self) -> list[str]:
         """Parameter table parameter IDs, for fixed parameters."""
         return self.get_x_ids(free=False)
 
@@ -777,35 +770,37 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def x_nominal(self) -> List:
+    def x_nominal(self) -> list:
         """Parameter table nominal values"""
         return self.get_x_nominal()
 
     @property
-    def x_nominal_free(self) -> List:
+    def x_nominal_free(self) -> list:
         """Parameter table nominal values, for free parameters."""
         return self.get_x_nominal(fixed=False)
 
     @property
-    def x_nominal_fixed(self) -> List:
+    def x_nominal_fixed(self) -> list:
         """Parameter table nominal values, for fixed parameters."""
         return self.get_x_nominal(free=False)
 
     @property
-    def x_nominal_scaled(self) -> List:
+    def x_nominal_scaled(self) -> list:
         """Parameter table nominal values with applied parameter scaling"""
         return self.get_x_nominal(scaled=True)
 
     @property
-    def x_nominal_free_scaled(self) -> List:
+    def x_nominal_free_scaled(self) -> list:
         """Parameter table nominal values with applied parameter scaling,
-        for free parameters."""
+        for free parameters.
+        """
         return self.get_x_nominal(fixed=False, scaled=True)
 
     @property
-    def x_nominal_fixed_scaled(self) -> List:
+    def x_nominal_fixed_scaled(self) -> list:
         """Parameter table nominal values with applied parameter scaling,
-        for fixed parameters."""
+        for fixed parameters.
+        """
         return self.get_x_nominal(free=False, scaled=True)
 
     def get_lb(
@@ -836,12 +831,12 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def lb(self) -> List:
+    def lb(self) -> list:
         """Parameter table lower bounds."""
         return self.get_lb()
 
     @property
-    def lb_scaled(self) -> List:
+    def lb_scaled(self) -> list:
         """Parameter table lower bounds with applied parameter scaling"""
         return self.get_lb(scaled=True)
 
@@ -873,23 +868,23 @@ class Problem:
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
-    def ub(self) -> List:
+    def ub(self) -> list:
         """Parameter table upper bounds"""
         return self.get_ub()
 
     @property
-    def ub_scaled(self) -> List:
+    def ub_scaled(self) -> list:
         """Parameter table upper bounds with applied parameter scaling"""
         return self.get_ub(scaled=True)
 
     @property
-    def x_free_indices(self) -> List[int]:
+    def x_free_indices(self) -> list[int]:
         """Parameter table estimated parameter indices."""
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val != 0]
 
     @property
-    def x_fixed_indices(self) -> List[int]:
+    def x_fixed_indices(self) -> list[int]:
         """Parameter table non-estimated parameter indices."""
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val == 0]
@@ -915,7 +910,7 @@ class Problem:
             )
         )
 
-    def create_parameter_df(self, *args, **kwargs):
+    def create_parameter_df(self, **kwargs):
         """Create a new PEtab parameter table
 
         See :py:func:`create_parameter_df`.
@@ -926,7 +921,6 @@ class Problem:
             observable_df=self.observable_df,
             measurement_df=self.measurement_df,
             mapping_df=self.mapping_df,
-            *args,
             **kwargs,
         )
 
@@ -941,7 +935,7 @@ class Problem:
 
     def sample_parameter_startpoints_dict(
         self, n_starts: int = 100
-    ) -> List[Dict[str, float]]:
+    ) -> list[dict[str, float]]:
         """Create dictionaries with starting points for optimization
 
         See also :py:func:`petab.sample_parameter_startpoints`.
@@ -959,8 +953,8 @@ class Problem:
 
     def unscale_parameters(
         self,
-        x_dict: Dict[str, float],
-    ) -> Dict[str, float]:
+        x_dict: dict[str, float],
+    ) -> dict[str, float]:
         """Unscale parameter values.
 
         Parameters
@@ -983,8 +977,8 @@ class Problem:
 
     def scale_parameters(
         self,
-        x_dict: Dict[str, float],
-    ) -> Dict[str, float]:
+        x_dict: dict[str, float],
+    ) -> dict[str, float]:
         """Scale parameter values.
 
         Parameters

@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "libpetab-python"
-copyright = "2018-2023, the PEtab developers"
+copyright = "2018-2024, the PEtab developers"
 author = "PEtab developers"
 
 # The full version, including alpha/beta/rc tags
@@ -29,7 +29,7 @@ release = "latest"
 # -- Custom pre-build --------------------------------------------------------
 
 
-subprocess.run(["python", "md2rst.py"])
+subprocess.run([sys.executable, "md2rst.py"])  # noqa: S603
 
 # -- General configuration ---------------------------------------------------
 
@@ -74,7 +74,6 @@ autodoc_default_options = {
     "members": None,
     "imported-members": ["petab"],
     "inherited-members": None,
-    "private-members": None,
     "show-inheritance": None,
 }
 
