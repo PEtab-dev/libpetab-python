@@ -3,16 +3,11 @@
 import numbers
 import warnings
 from collections import OrderedDict
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import (
-    Dict,
-    Iterable,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Set,
-    Tuple,
     Union,
 )
 
@@ -123,7 +118,7 @@ def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     df.to_csv(filename, sep="\t", index=True)
 
 
-def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:
+def get_optimization_parameters(parameter_df: pd.DataFrame) -> list[str]:
     """
     Get list of optimization parameter IDs from parameter table.
 
@@ -138,7 +133,7 @@ def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:
 
 def get_optimization_parameter_scaling(
     parameter_df: pd.DataFrame,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Get Dictionary with optimization parameter IDs mapped to parameter scaling
     strings.
@@ -151,7 +146,9 @@ def get_optimization_parameter_scaling(
         strings.
     """
     estimated_df = parameter_df.loc[parameter_df[ESTIMATE] == 1]
-    return dict(zip(estimated_df.index, estimated_df[PARAMETER_SCALE]))
+    return dict(
+        zip(estimated_df.index, estimated_df[PARAMETER_SCALE], strict=False)
+    )
 
 
 def create_parameter_df(
@@ -261,7 +258,7 @@ def get_required_parameters_for_parameter_table(
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     mapping_df: pd.DataFrame = None,
-) -> Set[str]:
+) -> set[str]:
     """
     Get set of parameters which need to go into the parameter table
 
@@ -351,7 +348,7 @@ def get_valid_parameters_for_parameter_table(
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     mapping_df: pd.DataFrame = None,
-) -> Set[str]:
+) -> set[str]:
     """
     Get set of parameters which may be present inside the parameter table
 
@@ -397,7 +394,7 @@ def get_valid_parameters_for_parameter_table(
 
     if mapping_df is not None:
         for from_id, to_id in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID]
+            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=False
         ):
             if to_id in parameter_ids.keys():
                 parameter_ids[from_id] = None
@@ -444,7 +441,7 @@ def get_priors_from_df(
     parameter_df: pd.DataFrame,
     mode: Literal["initialization", "objective"],
     parameter_ids: Sequence[str] = None,
-) -> List[Tuple]:
+) -> list[tuple]:
     """Create list with information about the parameter priors
 
     Arguments:
@@ -574,7 +571,7 @@ def map_scale(
         scale_strs = [scale_strs] * len(parameters)
     return (
         scale(par_val, scale_str)
-        for par_val, scale_str in zip(parameters, scale_strs)
+        for par_val, scale_str in zip(parameters, scale_strs, strict=False)
     )
 
 
@@ -598,7 +595,7 @@ def map_unscale(
         scale_strs = [scale_strs] * len(parameters)
     return (
         unscale(par_val, scale_str)
-        for par_val, scale_str in zip(parameters, scale_strs)
+        for par_val, scale_str in zip(parameters, scale_strs, strict=False)
     )
 
 
@@ -615,7 +612,9 @@ def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:
         OBJECTIVE_PRIOR_PARAMETERS,
     ]
     # iterate over initialization and objective priors
-    for prior_type_col, prior_par_col in zip(prior_type_cols, prior_par_cols):
+    for prior_type_col, prior_par_col in zip(
+        prior_type_cols, prior_par_cols, strict=False
+    ):
         # fill in default values for prior type
         if prior_type_col not in df:
             df[prior_type_col] = PARAMETER_SCALE_UNIFORM

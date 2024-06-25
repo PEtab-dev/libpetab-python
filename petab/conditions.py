@@ -1,7 +1,8 @@
 """Functions operating on the PEtab condition table"""
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -93,7 +94,7 @@ def create_condition_df(
     return df
 
 
-def get_parametric_overrides(condition_df: pd.DataFrame) -> List[str]:
+def get_parametric_overrides(condition_df: pd.DataFrame) -> list[str]:
     """Get parametric overrides from condition table
 
     Arguments:

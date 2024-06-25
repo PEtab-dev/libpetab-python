@@ -7,7 +7,8 @@ import numbers
 import os
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Any, Literal, Optional, Union
 
 import libsbml
 import numpy as np
@@ -41,16 +42,16 @@ __all__ = [
 
 
 # Parameter mapping for condition
-ParMappingDict = Dict[str, Union[str, numbers.Number]]
+ParMappingDict = dict[str, Union[str, numbers.Number]]
 # Parameter mapping for combination of preequilibration and simulation
 # condition
-ParMappingDictTuple = Tuple[ParMappingDict, ParMappingDict]
+ParMappingDictTuple = tuple[ParMappingDict, ParMappingDict]
 # Same for scale mapping
-ScaleMappingDict = Dict[str, str]
-ScaleMappingDictTuple = Tuple[ScaleMappingDict, ScaleMappingDict]
+ScaleMappingDict = dict[str, str]
+ScaleMappingDictTuple = tuple[ScaleMappingDict, ScaleMappingDict]
 # Parameter mapping for combination of preequilibration and simulation
 # conditions, for parameter and scale mapping
-ParMappingDictQuadruple = Tuple[
+ParMappingDictQuadruple = tuple[
     ParMappingDict, ParMappingDict, ScaleMappingDict, ScaleMappingDict
 ]
 
@@ -68,7 +69,7 @@ def get_optimization_to_simulation_parameter_mapping(
     fill_fixed_parameters: bool = True,
     allow_timepoint_specific_numeric_noise_parameters: bool = False,
     model: Model = None,
-) -> List[ParMappingDictQuadruple]:
+) -> list[ParMappingDictQuadruple]:
     """
     Create list of mapping dicts from PEtab-problem to model parameters.
 
@@ -312,13 +313,13 @@ def get_parameter_mapping_for_condition(
     condition_df: pd.DataFrame = None,
     parameter_df: pd.DataFrame = None,
     mapping_df: Optional[pd.DataFrame] = None,
-    simulation_parameters: Optional[Dict[str, str]] = None,
+    simulation_parameters: Optional[dict[str, str]] = None,
     warn_unmapped: bool = True,
     scaled_parameters: bool = False,
     fill_fixed_parameters: bool = True,
     allow_timepoint_specific_numeric_noise_parameters: bool = False,
     model: Model = None,
-) -> Tuple[ParMappingDict, ScaleMappingDict]:
+) -> tuple[ParMappingDict, ScaleMappingDict]:
     """
     Create dictionary of parameter value and parameter scale mappings from
     PEtab-problem to SBML parameters for the given condition.
@@ -478,7 +479,7 @@ def _apply_overrides_for_observable(
     mapping: ParMappingDict,
     observable_id: str,
     override_type: Literal["observable", "noise"],
-    overrides: List[str],
+    overrides: list[str],
 ) -> None:
     """
     Apply parameter-overrides for observables and noises to mapping
@@ -767,7 +768,7 @@ def merge_preeq_and_sim_pars_condition(
 def merge_preeq_and_sim_pars(
     parameter_mappings: Iterable[ParMappingDictTuple],
     scale_mappings: Iterable[ScaleMappingDictTuple],
-) -> Tuple[List[ParMappingDictTuple], List[ScaleMappingDictTuple]]:
+) -> tuple[list[ParMappingDictTuple], list[ScaleMappingDictTuple]]:
     """Merge preequilibration and simulation parameters and scales for a list
     of conditions while checking for compatibility.
 
@@ -787,7 +788,7 @@ def merge_preeq_and_sim_pars(
     for ic, (
         (map_preeq, map_sim),
         (scale_map_preeq, scale_map_sim),
-    ) in enumerate(zip(parameter_mappings, scale_mappings)):
+    ) in enumerate(zip(parameter_mappings, scale_mappings, strict=False)):
         merge_preeq_and_sim_pars_condition(
             condition_map_preeq=map_preeq,
             condition_map_sim=map_sim,

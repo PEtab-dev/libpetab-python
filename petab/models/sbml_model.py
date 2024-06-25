@@ -1,8 +1,9 @@
 """Functions for handling SBML models"""
 
 import itertools
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Optional
 
 import libsbml
 import sympy as sp
@@ -100,7 +101,7 @@ class SbmlModel(Model):
 
     def get_free_parameter_ids_with_values(
         self,
-    ) -> Iterable[Tuple[str, float]]:
+    ) -> Iterable[tuple[str, float]]:
         rule_targets = {
             ar.getVariable() for ar in self.sbml_model.getListOfRules()
         }
@@ -136,7 +137,7 @@ class SbmlModel(Model):
             if p.getId() not in rule_targets
         )
 
-    def get_parameter_ids_with_values(self) -> Iterable[Tuple[str, float]]:
+    def get_parameter_ids_with_values(self) -> Iterable[tuple[str, float]]:
         rule_targets = {
             ar.getVariable() for ar in self.sbml_model.getListOfRules()
         }

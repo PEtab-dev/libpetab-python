@@ -1,7 +1,7 @@
 """PEtab visualization plotter classes"""
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import matplotlib.axes
 import matplotlib.ticker as mtick
@@ -52,7 +52,7 @@ class Plotter(ABC):
     @abstractmethod
     def generate_figure(
         self, subplot_dir: Optional[str] = None
-    ) -> Optional[Dict[str, plt.Subplot]]:
+    ) -> Optional[dict[str, plt.Subplot]]:
         pass
 
 
@@ -92,7 +92,7 @@ class MPLPlotter(Plotter):
         dataplot: DataPlot,
         plotTypeData: str,
         splitaxes_params: dict,
-    ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
+    ) -> tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Generate line plot.
 
@@ -141,7 +141,14 @@ class MPLPlotter(Plotter):
                 )
                 # sorts according to ascending order of conditions
                 cond, replicates = zip(
-                    *sorted(zip(measurements_to_plot.conditions, replicates))
+                    *sorted(
+                        zip(
+                            measurements_to_plot.conditions,
+                            replicates,
+                            strict=False,
+                        )
+                    ),
+                    strict=False,
                 )
                 replicates = np.stack(replicates)
 
@@ -173,8 +180,10 @@ class MPLPlotter(Plotter):
                             measurements_to_plot.conditions,
                             measurements_to_plot.data_to_plot["mean"],
                             measurements_to_plot.data_to_plot[noise_col],
+                            strict=False,
                         )
-                    )
+                    ),
+                    strict=False,
                 )
 
                 if np.inf in scond:
@@ -225,8 +234,10 @@ class MPLPlotter(Plotter):
                         zip(
                             simulations_to_plot.conditions,
                             simulations_to_plot.data_to_plot["mean"],
+                            strict=False,
                         )
-                    )
+                    ),
+                    strict=False,
                 ),
             )
 
@@ -397,7 +408,7 @@ class MPLPlotter(Plotter):
 
             # get rid of duplicate legends
             handles, labels = ax.get_legend_handles_labels()
-            by_label = dict(zip(labels, handles))
+            by_label = dict(zip(labels, handles, strict=False))
             ax.legend(by_label.values(), by_label.keys())
 
             x_names = [x.legendEntry for x in subplot.data_plots]
@@ -477,7 +488,7 @@ class MPLPlotter(Plotter):
         self,
         subplot_dir: Optional[str] = None,
         format_: str = "png",
-    ) -> Optional[Dict[str, plt.Subplot]]:
+    ) -> Optional[dict[str, plt.Subplot]]:
         """
         Generate the full figure based on the markup in the figure attribute.
 
@@ -511,7 +522,11 @@ class MPLPlotter(Plotter):
                 ax.remove()
 
             axes = dict(
-                zip([plot.plotId for plot in self.figure.subplots], axes.flat)
+                zip(
+                    [plot.plotId for plot in self.figure.subplots],
+                    axes.flat,
+                    strict=False,
+                )
             )
 
         for subplot in self.figure.subplots:
@@ -543,7 +558,7 @@ class MPLPlotter(Plotter):
 
     @staticmethod
     def _square_plot_equal_ranges(
-        ax: "matplotlib.pyplot.Axes", lim: Optional[Union[List, Tuple]] = None
+        ax: "matplotlib.pyplot.Axes", lim: Optional[Union[list, tuple]] = None
     ) -> "matplotlib.pyplot.Axes":
         """
         Square plot with equal range for scatter plots.
@@ -577,7 +592,7 @@ class MPLPlotter(Plotter):
         label_base: str,
         split_axes_params: dict,
         color=None,
-    ) -> Tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
+    ) -> tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
         """
         Plot data at t=inf.
 
@@ -759,7 +774,7 @@ class MPLPlotter(Plotter):
         fig: matplotlib.figure.Figure,
         ax: matplotlib.axes.Axes,
         subplot: Subplot,
-    ) -> Dict:
+    ) -> dict:
         """
         Prepare splitaxes if data at t=inf should be plotted: compute left and
         right limits for the axis where the data corresponding to the finite
@@ -769,7 +784,7 @@ class MPLPlotter(Plotter):
 
         def check_data_to_plot(
             data_to_plot: DataSeries,
-        ) -> Tuple[bool, Optional[float], float]:
+        ) -> tuple[bool, Optional[float], float]:
             """
             Check if there is data available at t=inf and compute maximum and
             minimum finite time points that need to be plotted corresponding
@@ -861,5 +876,5 @@ class SeabornPlotter(Plotter):
 
     def generate_figure(
         self, subplot_dir: Optional[str] = None
-    ) -> Optional[Dict[str, plt.Subplot]]:
+    ) -> Optional[dict[str, plt.Subplot]]:
         pass

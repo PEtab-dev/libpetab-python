@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import jsonschema
 import numpy as np
@@ -33,7 +33,7 @@ __all__ = [
 
 
 def validate(
-    yaml_config: Union[Dict, str, Path],
+    yaml_config: Union[dict, str, Path],
     path_prefix: Union[None, str, Path] = None,
 ):
     """Validate syntax and semantics of PEtab config YAML
@@ -51,7 +51,7 @@ def validate(
 
 
 def validate_yaml_syntax(
-    yaml_config: Union[Dict, str, Path], schema: Union[None, Dict, str] = None
+    yaml_config: Union[dict, str, Path], schema: Union[None, dict, str] = None
 ):
     """Validate PEtab YAML file syntax
 
@@ -85,7 +85,7 @@ def validate_yaml_syntax(
 
 
 def validate_yaml_semantics(
-    yaml_config: Union[Dict, str, Path],
+    yaml_config: Union[dict, str, Path],
     path_prefix: Union[None, str, Path] = None,
 ):
     """Validate PEtab YAML file semantics
@@ -142,7 +142,7 @@ def validate_yaml_semantics(
                     _check_file(os.path.join(path_prefix, filename), field)
 
 
-def load_yaml(yaml_config: Union[Dict, Path, str]) -> Dict:
+def load_yaml(yaml_config: Union[dict, Path, str]) -> dict:
     """Load YAML
 
     Convenience function to allow for providing YAML inputs as filename, URL
@@ -165,7 +165,7 @@ def load_yaml(yaml_config: Union[Dict, Path, str]) -> Dict:
     return data
 
 
-def is_composite_problem(yaml_config: Union[Dict, str, Path]) -> bool:
+def is_composite_problem(yaml_config: Union[dict, str, Path]) -> bool:
     """Does this YAML file comprise multiple models?
 
     Arguments:
@@ -175,7 +175,7 @@ def is_composite_problem(yaml_config: Union[Dict, str, Path]) -> bool:
     return len(yaml_config[PROBLEMS]) > 1
 
 
-def assert_single_condition_and_sbml_file(problem_config: Dict) -> None:
+def assert_single_condition_and_sbml_file(problem_config: dict) -> None:
     """Check that there is only a single condition file and a single SBML
     file specified.
 
@@ -200,7 +200,7 @@ def assert_single_condition_and_sbml_file(problem_config: Dict) -> None:
 
 
 def write_yaml(
-    yaml_config: Dict[str, Any], filename: Union[str, Path]
+    yaml_config: dict[str, Any], filename: Union[str, Path]
 ) -> None:
     """Write PEtab YAML file
 
@@ -215,17 +215,17 @@ def write_yaml(
 
 
 def create_problem_yaml(
-    sbml_files: Union[str, Path, List[Union[str, Path]]],
-    condition_files: Union[str, Path, List[Union[str, Path]]],
-    measurement_files: Union[str, Path, List[Union[str, Path]]],
+    sbml_files: Union[str, Path, list[Union[str, Path]]],
+    condition_files: Union[str, Path, list[Union[str, Path]]],
+    measurement_files: Union[str, Path, list[Union[str, Path]]],
     parameter_file: Union[str, Path],
-    observable_files: Union[str, Path, List[Union[str, Path]]],
+    observable_files: Union[str, Path, list[Union[str, Path]]],
     yaml_file: Union[str, Path],
     visualization_files: Optional[
-        Union[str, Path, List[Union[str, Path]]]
+        Union[str, Path, list[Union[str, Path]]]
     ] = None,
     relative_paths: bool = True,
-    mapping_files: Union[str, Path, List[Union[str, Path]]] = None,
+    mapping_files: Union[str, Path, list[Union[str, Path]]] = None,
 ) -> None:
     """Create and write default YAML file for a single PEtab problem
 
@@ -258,7 +258,7 @@ def create_problem_yaml(
     if relative_paths:
         yaml_file_dir = Path(yaml_file).parent
 
-        def get_rel_to_yaml(paths: Union[List[str], None]):
+        def get_rel_to_yaml(paths: Union[list[str], None]):
             if paths is None:
                 return paths
             return [

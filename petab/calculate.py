@@ -2,7 +2,7 @@
 
 import numbers
 from functools import reduce
-from typing import Dict, List, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -27,13 +27,13 @@ __all__ = [
 
 
 def calculate_residuals(
-    measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    simulation_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    observable_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    parameter_dfs: Union[list[pd.DataFrame], pd.DataFrame],
     normalize: bool = True,
     scale: bool = True,
-) -> List[pd.DataFrame]:
+) -> list[pd.DataFrame]:
     """Calculate residuals.
 
     Arguments:
@@ -68,7 +68,11 @@ def calculate_residuals(
     # iterate over data frames
     residual_dfs = []
     for measurement_df, simulation_df, observable_df, parameter_df in zip(
-        measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs
+        measurement_dfs,
+        simulation_dfs,
+        observable_dfs,
+        parameter_dfs,
+        strict=False,
     ):
         residual_df = calculate_residuals_for_table(
             measurement_df,
@@ -141,7 +145,7 @@ def calculate_residuals_for_table(
     return residual_df
 
 
-def get_symbolic_noise_formulas(observable_df) -> Dict[str, sympy.Expr]:
+def get_symbolic_noise_formulas(observable_df) -> dict[str, sympy.Expr]:
     """Sympify noise formulas.
 
     Arguments:
@@ -164,7 +168,7 @@ def get_symbolic_noise_formulas(observable_df) -> Dict[str, sympy.Expr]:
 
 def evaluate_noise_formula(
     measurement: pd.Series,
-    noise_formulas: Dict[str, sympy.Expr],
+    noise_formulas: dict[str, sympy.Expr],
     parameter_df: pd.DataFrame,
     simulation: numbers.Number,
 ) -> float:
@@ -224,10 +228,10 @@ def evaluate_noise_formula(
 
 
 def calculate_chi2(
-    measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    simulation_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    observable_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    parameter_dfs: Union[list[pd.DataFrame], pd.DataFrame],
     normalize: bool = True,
     scale: bool = True,
 ) -> float:
@@ -273,10 +277,10 @@ def calculate_chi2_for_table_from_residuals(
 
 
 def calculate_llh(
-    measurement_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    simulation_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    observable_dfs: Union[List[pd.DataFrame], pd.DataFrame],
-    parameter_dfs: Union[List[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    simulation_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    observable_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    parameter_dfs: Union[list[pd.DataFrame], pd.DataFrame],
 ) -> float:
     """Calculate total log likelihood.
 
@@ -306,7 +310,11 @@ def calculate_llh(
     # iterate over data frames
     llhs = []
     for measurement_df, simulation_df, observable_df, parameter_df in zip(
-        measurement_dfs, simulation_dfs, observable_dfs, parameter_dfs
+        measurement_dfs,
+        simulation_dfs,
+        observable_dfs,
+        parameter_dfs,
+        strict=False,
     ):
         _llh = calculate_llh_for_table(
             measurement_df, simulation_df, observable_df, parameter_df

@@ -18,6 +18,7 @@ repos:
     - id: ruff
       args:
         - --fix
+        - --unsafe-fixes
         - --config
         - pyproject.toml
 

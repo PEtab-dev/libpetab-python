@@ -2,7 +2,7 @@
 Functions for plotting residuals.
 """
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -21,8 +21,8 @@ __all__ = ["plot_goodness_of_fit", "plot_residuals_vs_simulation"]
 def plot_residuals_vs_simulation(
     petab_problem: Problem,
     simulations_df: Union[str, Path, pd.DataFrame],
-    size: Optional[Tuple] = (10, 7),
-    axes: Optional[Tuple[plt.Axes, plt.Axes]] = None,
+    size: Optional[tuple] = (10, 7),
+    axes: Optional[tuple[plt.Axes, plt.Axes]] = None,
 ) -> matplotlib.axes.Axes:
     """
     Plot residuals versus simulation values for measurements with normal noise
@@ -133,7 +133,7 @@ def plot_residuals_vs_simulation(
 def plot_goodness_of_fit(
     petab_problem: Problem,
     simulations_df: Union[str, Path, pd.DataFrame],
-    size: Tuple = (10, 7),
+    size: tuple = (10, 7),
     ax: Optional[plt.Axes] = None,
 ) -> matplotlib.axes.Axes:
     """

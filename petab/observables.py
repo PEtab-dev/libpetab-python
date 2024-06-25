@@ -3,7 +3,7 @@
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Literal, Union
+from typing import Literal, Union
 
 import pandas as pd
 
@@ -79,7 +79,7 @@ def get_output_parameters(
     observables: bool = True,
     noise: bool = True,
     mapping_df: pd.DataFrame = None,
-) -> List[str]:
+) -> list[str]:
     """Get output parameters
 
     Returns IDs of parameters used in observable and noise formulas that are
@@ -131,7 +131,7 @@ def get_formula_placeholders(
     formula_string: str,
     observable_id: str,
     override_type: Literal["observable", "noise"],
-) -> List[str]:
+) -> list[str]:
     """
     Get placeholder variables in noise or observable definition for the
     given observable ID.
@@ -180,7 +180,7 @@ def get_placeholders(
     observable_df: pd.DataFrame,
     observables: bool = True,
     noise: bool = True,
-) -> List[str]:
+) -> list[str]:
     """Get all placeholder parameters from observable table observableFormulas
     and noiseFormulas
 
@@ -207,7 +207,7 @@ def get_placeholders(
     placeholders = []
     for _, row in observable_df.iterrows():
         for placeholder_type, formula_column in zip(
-            placeholder_types, formula_columns
+            placeholder_types, formula_columns, strict=False
         ):
             if formula_column not in row:
                 continue

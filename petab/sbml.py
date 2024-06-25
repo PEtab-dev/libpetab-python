@@ -4,7 +4,7 @@ import contextlib
 import logging
 from numbers import Number
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 from warnings import warn
 
 import libsbml
@@ -132,7 +132,7 @@ def globalize_parameters(
 
 def get_model_parameters(
     sbml_model: libsbml.Model, with_values=False
-) -> Union[List[str], Dict[str, float]]:
+) -> Union[list[str], dict[str, float]]:
     """Return SBML model parameters which are not Rule targets
 
     Arguments:
@@ -177,7 +177,7 @@ def write_sbml(
 
 def get_sbml_model(
     filepath_or_buffer,
-) -> Tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
+) -> tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
     """Get an SBML model from file or URL or file handle
 
     :param filepath_or_buffer:
@@ -195,7 +195,7 @@ def get_sbml_model(
 
 def load_sbml_from_string(
     sbml_string: str,
-) -> Tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
+) -> tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
     """Load SBML model from string
 
     :param sbml_string: Model as XML string
@@ -210,7 +210,7 @@ def load_sbml_from_string(
 
 def load_sbml_from_file(
     sbml_file: str,
-) -> Tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
+) -> tuple[libsbml.SBMLReader, libsbml.SBMLDocument, libsbml.Model]:
     """Load SBML model from file
 
     :param sbml_file: Filename of the SBML file
@@ -227,7 +227,7 @@ def get_model_for_condition(
     petab_problem: "petab.Problem",
     sim_condition_id: str = None,
     preeq_condition_id: Optional[str] = None,
-) -> Tuple[libsbml.SBMLDocument, libsbml.Model]:
+) -> tuple[libsbml.SBMLDocument, libsbml.Model]:
     """Create an SBML model for the given condition.
 
     Creates a copy of the model and updates parameters according to the PEtab

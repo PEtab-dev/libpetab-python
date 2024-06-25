@@ -5,7 +5,7 @@ import itertools
 import math
 import numbers
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -105,7 +105,7 @@ def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
 
 def get_rows_for_condition(
     measurement_df: pd.DataFrame,
-    condition: Union[pd.Series, pd.DataFrame, Dict],
+    condition: Union[pd.Series, pd.DataFrame, dict],
 ) -> pd.DataFrame:
     """
     Extract rows in `measurement_df` for `condition` according
@@ -143,7 +143,7 @@ def get_rows_for_condition(
     return cur_measurement_df
 
 
-def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
+def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> list[str]:
     """
     Return list of ID of parameters which occur in measurement table as
     observable or noise parameter overrides.
@@ -171,7 +171,7 @@ def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
 
 def split_parameter_replacement_list(
     list_string: Union[str, numbers.Number], delim: str = PARAMETER_SEPARATOR
-) -> List[Union[str, numbers.Number]]:
+) -> list[Union[str, numbers.Number]]:
     """
     Split values in observableParameters and noiseParameters in measurement
     table.
@@ -271,7 +271,9 @@ def assert_overrides_match_parameter_count(
             observables.get_formula_placeholders(formula, obs_id, "observable")
         )
         for obs_id, formula in zip(
-            observable_df.index.values, observable_df[OBSERVABLE_FORMULA]
+            observable_df.index.values,
+            observable_df[OBSERVABLE_FORMULA],
+            strict=False,
         )
     }
     noise_parameters_count = {
@@ -279,7 +281,9 @@ def assert_overrides_match_parameter_count(
             observables.get_formula_placeholders(formula, obs_id, "noise")
         )
         for obs_id, formula in zip(
-            observable_df.index.values, observable_df[NOISE_FORMULA]
+            observable_df.index.values,
+            observable_df[NOISE_FORMULA],
+            strict=False,
         )
     }
 

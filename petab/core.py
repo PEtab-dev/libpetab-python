@@ -2,15 +2,11 @@
 import logging
 import os
 import re
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
     Optional,
-    Sequence,
     Union,
 )
 from warnings import warn
@@ -188,7 +184,7 @@ def get_hyperparameter_replacement_id(
 
 def get_flattened_id_mappings(
     petab_problem: "petab.problem.Problem",
-) -> Dict[str, Dict[str, str]]:
+) -> dict[str, dict[str, str]]:
     """Get mapping from unflattened to flattened observable IDs.
 
     Arguments:
@@ -530,7 +526,7 @@ def create_combine_archive(
     archive.writeToFile(str(filename))
 
 
-def unique_preserve_order(seq: Sequence) -> List:
+def unique_preserve_order(seq: Sequence) -> list:
     """Return a list of unique elements in Sequence, keeping only the first
     occurrence of each element
 

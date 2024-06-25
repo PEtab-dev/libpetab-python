@@ -2,7 +2,7 @@
 the same format.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -13,8 +13,8 @@ from .plotter import MPLPlotter
 from .plotting import VisSpecParser
 
 # for typehints
-IdsList = List[str]
-NumList = List[int]
+IdsList = list[str]
+NumList = list[int]
 
 __all__ = ["plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
 
@@ -27,7 +27,7 @@ def plot_with_vis_spec(
     subplot_dir: Optional[str] = None,
     plotter_type: str = "mpl",
     format_: str = "png",
-) -> Optional[Dict[str, plt.Subplot]]:
+) -> Optional[dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. Specification of the visualization
     routines is provided in visualization table.
@@ -82,7 +82,7 @@ def plot_with_vis_spec(
 
 def plot_without_vis_spec(
     conditions_df: Union[str, pd.DataFrame],
-    grouping_list: Optional[List[IdsList]] = None,
+    grouping_list: Optional[list[IdsList]] = None,
     group_by: str = "observable",
     measurements_df: Optional[Union[str, pd.DataFrame]] = None,
     simulations_df: Optional[Union[str, pd.DataFrame]] = None,
@@ -90,7 +90,7 @@ def plot_without_vis_spec(
     subplot_dir: Optional[str] = None,
     plotter_type: str = "mpl",
     format_: str = "png",
-) -> Optional[Dict[str, plt.Subplot]]:
+) -> Optional[dict[str, plt.Subplot]]:
     """
     Plot measurements and/or simulations. What exactly should be plotted is
     specified in a grouping_list.
@@ -160,12 +160,12 @@ def plot_without_vis_spec(
 def plot_problem(
     petab_problem: problem.Problem,
     simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-    grouping_list: Optional[List[IdsList]] = None,
+    grouping_list: Optional[list[IdsList]] = None,
     group_by: str = "observable",
     plotted_noise: str = MEAN_AND_SD,
     subplot_dir: Optional[str] = None,
     plotter_type: str = "mpl",
-) -> Optional[Dict[str, plt.Subplot]]:
+) -> Optional[dict[str, plt.Subplot]]:
     """
     Visualization using petab problem.
     If Visualization table is part of the petab_problem, it will be used for

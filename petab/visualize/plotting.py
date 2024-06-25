@@ -2,7 +2,7 @@
 import warnings
 from numbers import Number, Real
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -25,8 +25,8 @@ __all__ = [
 ]
 
 # for typehints
-IdsList = List[str]
-NumList = List[int]
+IdsList = list[str]
+NumList = list[int]
 
 # The default figure size
 DEFAULT_FIGSIZE = [20, 15]
@@ -157,7 +157,7 @@ class Subplot:
         self,
         plot_id: str,
         plot_settings: dict,
-        dataplots: Optional[List[DataPlot]] = None,
+        dataplots: Optional[list[DataPlot]] = None,
     ):
         """
         Constructor.
@@ -201,7 +201,7 @@ class Subplot:
         cls,
         plot_id: str,
         vis_spec: pd.DataFrame,
-        dataplots: Optional[List[DataPlot]] = None,
+        dataplots: Optional[list[DataPlot]] = None,
     ):
         vis_spec_dict = {}
         for col in vis_spec:
@@ -268,8 +268,8 @@ class Subplot:
 
     def set_axes_limits(
         self,
-        xlim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
-        ylim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
+        xlim: Optional[tuple[Optional[Real], Optional[Real]]] = None,
+        ylim: Optional[tuple[Optional[Real], Optional[Real]]] = None,
     ):
         """
         Set axes limits for all subplots. If xlim or ylim or any of the tuple
@@ -295,9 +295,9 @@ class Figure:
 
     def __init__(
         self,
-        subplots: Optional[List[Subplot]] = None,
-        size: Tuple = DEFAULT_FIGSIZE,
-        title: Optional[Tuple] = None,
+        subplots: Optional[list[Subplot]] = None,
+        size: tuple = DEFAULT_FIGSIZE,
+        title: Optional[tuple] = None,
     ):
         """
         Constructor.
@@ -337,8 +337,8 @@ class Figure:
 
     def set_axes_limits(
         self,
-        xlim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
-        ylim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
+        xlim: Optional[tuple[Optional[Real], Optional[Real]]] = None,
+        ylim: Optional[tuple[Optional[Real], Optional[Real]]] = None,
     ) -> None:
         """
         Set axes limits for all subplots. If xlim or ylim or any of the tuple
@@ -456,7 +456,7 @@ class DataProvider:
 
     def _get_independent_var_values(
         self, data_df: pd.DataFrame, dataplot: DataPlot
-    ) -> Tuple[np.ndarray, str, pd.Series]:
+    ) -> tuple[np.ndarray, str, pd.Series]:
         """
         Get independent variable values.
 
@@ -627,7 +627,7 @@ class DataProvider:
 
     def get_data_to_plot(
         self, dataplot: DataPlot, provided_noise: bool
-    ) -> Tuple[DataSeries, DataSeries]:
+    ) -> tuple[DataSeries, DataSeries]:
         """
         Get data to plot.
 
@@ -752,7 +752,7 @@ class VisSpecParser:
     def parse_from_vis_spec(
         self,
         vis_spec: Optional[Union[str, Path, pd.DataFrame]],
-    ) -> Tuple[Figure, DataProvider]:
+    ) -> tuple[Figure, DataProvider]:
         """
         Get visualization settings from a visualization specification.
 
@@ -813,10 +813,10 @@ class VisSpecParser:
 
     def parse_from_id_list(
         self,
-        ids_per_plot: Optional[List[IdsList]] = None,
+        ids_per_plot: Optional[list[IdsList]] = None,
         group_by: str = "observable",
         plotted_noise: Optional[str] = MEAN_AND_SD,
-    ) -> Tuple[Figure, DataProvider]:
+    ) -> tuple[Figure, DataProvider]:
         """
         Get visualization settings from a list of ids and a grouping parameter.
 
@@ -912,8 +912,8 @@ class VisSpecParser:
             )
 
     def _get_vis_spec_dependent_columns_dict(
-        self, group_by: str, id_list: Optional[List[IdsList]] = None
-    ) -> Dict:
+        self, group_by: str, id_list: Optional[list[IdsList]] = None
+    ) -> dict:
         """
         Helper method for creating values for columns PLOT_ID, DATASET_ID,
         LEGEND_ENTRY, Y_VALUES for visualization specification file.

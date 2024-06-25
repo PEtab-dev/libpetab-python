@@ -226,7 +226,7 @@ def test_normalize_parameter_df():
     # check if prior parameters match
     for col in [INITIALIZATION_PRIOR_PARAMETERS, OBJECTIVE_PRIOR_PARAMETERS]:
         for (_, actual_row), (_, expected_row) in zip(
-            actual.iterrows(), expected.iterrows()
+            actual.iterrows(), expected.iterrows(), strict=False
         ):
             actual_pars = tuple(
                 [float(val) for val in actual_row[col].split(";")]
