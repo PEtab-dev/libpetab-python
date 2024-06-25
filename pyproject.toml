@@ -74,8 +74,8 @@ Repository = "https://github.com/PEtab-dev/libpetab-python"
 Documentation = "https://petab.readthedocs.io/projects/libpetab-python/"
 
 [tool.setuptools.packages.find]
-where = ["petab"]
-exclude = ["tests"]
+include = ["petab", "petab.*"]
+namespaces = false
 
 [tool.setuptools.package-data]
 petab = ["petab/schemas/*", "petab/visualize/templates/*"]
