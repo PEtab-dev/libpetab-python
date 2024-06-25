@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 
 class Model(abc.ABC):
