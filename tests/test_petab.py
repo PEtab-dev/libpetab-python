@@ -229,7 +229,7 @@ def test_get_priors_from_df():
             zip(
                 parameter_df[LOWER_BOUND],
                 parameter_df[UPPER_BOUND],
-                strict=False,
+                strict=True,
             )
         )[:4]
     )
