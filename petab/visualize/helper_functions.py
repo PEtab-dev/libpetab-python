@@ -4,22 +4,21 @@ plotting, but which are not meant to be used by non-developers and should
 hence not be directly visible/usable when using `import petab.visualize`.
 """
 
-from typing import List
 
 import pandas as pd
 
 from ..C import *
 
 # for typehints
-IdsList = List[str]
-NumList = List[int]
+IdsList = list[str]
+NumList = list[int]
 __all__ = [
     "create_dataset_id_list_new",
     "generate_dataset_id_col",
 ]
 
 
-def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
+def generate_dataset_id_col(exp_data: pd.DataFrame) -> list[str]:
     """
     Generate DATASET_ID column from condition_ids and observable_ids.
 
@@ -49,8 +48,8 @@ def generate_dataset_id_col(exp_data: pd.DataFrame) -> List[str]:
 
 
 def create_dataset_id_list_new(
-    df: pd.DataFrame, group_by: str, id_list: List[IdsList]
-) -> List[IdsList]:
+    df: pd.DataFrame, group_by: str, id_list: list[IdsList]
+) -> list[IdsList]:
     """
     Create dataset ID list from a list of simulation condition IDs or
     observable IDs.

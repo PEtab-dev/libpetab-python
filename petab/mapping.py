@@ -1,6 +1,5 @@
 """Functionality related to the PEtab entity mapping table"""
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 
@@ -16,7 +15,7 @@ __all__ = [
 
 
 def get_mapping_df(
-    mapping_file: Union[None, str, Path, pd.DataFrame],
+    mapping_file: None | str | Path | pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Read the provided mapping file into a ``pandas.Dataframe``.
@@ -30,7 +29,7 @@ def get_mapping_df(
     if mapping_file is None:
         return mapping_file
 
-    if isinstance(mapping_file, (str, Path)):
+    if isinstance(mapping_file, str | Path):
         mapping_file = pd.read_csv(
             mapping_file, sep="\t", float_precision="round_trip"
         )
@@ -56,7 +55,7 @@ def get_mapping_df(
     return mapping_file
 
 
-def write_mapping_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
+def write_mapping_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab mapping table
 
     Arguments:
@@ -69,7 +68,7 @@ def write_mapping_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 def check_mapping_df(
     df: pd.DataFrame,
-    model: Optional[Model] = None,
+    model: Model | None = None,
 ) -> None:
     """Run sanity checks on PEtab mapping table
 
@@ -99,7 +98,7 @@ def check_mapping_df(
                 )
 
 
-def resolve_mapping(mapping_df: Optional[pd.DataFrame], element: str) -> str:
+def resolve_mapping(mapping_df: pd.DataFrame | None, element: str) -> str:
     """Resolve mapping for a given element.
 
     :param element:

@@ -3,17 +3,10 @@
 import numbers
 import warnings
 from collections import OrderedDict
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import (
-    Dict,
-    Iterable,
-    List,
     Literal,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
 )
 
 import libsbml
@@ -43,10 +36,12 @@ PARAMETER_SCALE_ARGS = Literal["", "lin", "log", "log10"]
 
 
 def get_parameter_df(
-    parameter_file: Union[
-        str, Path, pd.DataFrame, Iterable[Union[str, Path, pd.DataFrame]], None
-    ],
-) -> Union[pd.DataFrame, None]:
+    parameter_file: str
+    | Path
+    | pd.DataFrame
+    | Iterable[str | Path | pd.DataFrame]
+    | None,
+) -> pd.DataFrame | None:
     """
     Read the provided parameter file into a ``pandas.Dataframe``.
 
@@ -61,7 +56,7 @@ def get_parameter_df(
         return None
     if isinstance(parameter_file, pd.DataFrame):
         parameter_df = parameter_file
-    elif isinstance(parameter_file, (str, Path)):
+    elif isinstance(parameter_file, str | Path):
         parameter_df = pd.read_csv(
             parameter_file, sep="\t", float_precision="round_trip"
         )
@@ -112,7 +107,7 @@ def _check_for_contradicting_parameter_definitions(parameter_df: pd.DataFrame):
         )
 
 
-def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
+def write_parameter_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab parameter table
 
     Arguments:
@@ -123,7 +118,7 @@ def write_parameter_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
     df.to_csv(filename, sep="\t", index=True)
 
 
-def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:
+def get_optimization_parameters(parameter_df: pd.DataFrame) -> list[str]:
     """
     Get list of optimization parameter IDs from parameter table.
 
@@ -138,7 +133,7 @@ def get_optimization_parameters(parameter_df: pd.DataFrame) -> List[str]:
 
 def get_optimization_parameter_scaling(
     parameter_df: pd.DataFrame,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Get Dictionary with optimization parameter IDs mapped to parameter scaling
     strings.
@@ -151,20 +146,22 @@ def get_optimization_parameter_scaling(
         strings.
     """
     estimated_df = parameter_df.loc[parameter_df[ESTIMATE] == 1]
-    return dict(zip(estimated_df.index, estimated_df[PARAMETER_SCALE]))
+    return dict(
+        zip(estimated_df.index, estimated_df[PARAMETER_SCALE], strict=True)
+    )
 
 
 def create_parameter_df(
-    sbml_model: Optional[libsbml.Model] = None,
-    condition_df: Optional[pd.DataFrame] = None,
-    observable_df: Optional[pd.DataFrame] = None,
-    measurement_df: Optional[pd.DataFrame] = None,
-    model: Optional[Model] = None,
+    sbml_model: libsbml.Model | None = None,
+    condition_df: pd.DataFrame | None = None,
+    observable_df: pd.DataFrame | None = None,
+    measurement_df: pd.DataFrame | None = None,
+    model: Model | None = None,
     include_optional: bool = False,
     parameter_scale: str = LOG10,
     lower_bound: Iterable = None,
     upper_bound: Iterable = None,
-    mapping_df: Optional[pd.DataFrame] = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Create a new PEtab parameter table
 
@@ -261,7 +258,7 @@ def get_required_parameters_for_parameter_table(
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     mapping_df: pd.DataFrame = None,
-) -> Set[str]:
+) -> set[str]:
     """
     Get set of parameters which need to go into the parameter table
 
@@ -351,7 +348,7 @@ def get_valid_parameters_for_parameter_table(
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     mapping_df: pd.DataFrame = None,
-) -> Set[str]:
+) -> set[str]:
     """
     Get set of parameters which may be present inside the parameter table
 
@@ -397,7 +394,7 @@ def get_valid_parameters_for_parameter_table(
 
     if mapping_df is not None:
         for from_id, to_id in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID]
+            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
         ):
             if to_id in parameter_ids.keys():
                 parameter_ids[from_id] = None
@@ -444,7 +441,7 @@ def get_priors_from_df(
     parameter_df: pd.DataFrame,
     mode: Literal["initialization", "objective"],
     parameter_ids: Sequence[str] = None,
-) -> List[Tuple]:
+) -> list[tuple]:
     """Create list with information about the parameter priors
 
     Arguments:
@@ -557,7 +554,7 @@ def unscale(
 
 def map_scale(
     parameters: Sequence[numbers.Number],
-    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS],
+    scale_strs: Iterable[PARAMETER_SCALE_ARGS] | PARAMETER_SCALE_ARGS,
 ) -> Iterable[numbers.Number]:
     """Scale the parameters, i.e. as :func:`scale`, but for Sequences.
 
@@ -574,13 +571,13 @@ def map_scale(
         scale_strs = [scale_strs] * len(parameters)
     return (
         scale(par_val, scale_str)
-        for par_val, scale_str in zip(parameters, scale_strs)
+        for par_val, scale_str in zip(parameters, scale_strs, strict=True)
     )
 
 
 def map_unscale(
     parameters: Sequence[numbers.Number],
-    scale_strs: Union[Iterable[PARAMETER_SCALE_ARGS], PARAMETER_SCALE_ARGS],
+    scale_strs: Iterable[PARAMETER_SCALE_ARGS] | PARAMETER_SCALE_ARGS,
 ) -> Iterable[numbers.Number]:
     """Unscale the parameters, i.e. as :func:`unscale`, but for Sequences.
 
@@ -598,7 +595,7 @@ def map_unscale(
         scale_strs = [scale_strs] * len(parameters)
     return (
         unscale(par_val, scale_str)
-        for par_val, scale_str in zip(parameters, scale_strs)
+        for par_val, scale_str in zip(parameters, scale_strs, strict=True)
     )
 
 
@@ -615,7 +612,9 @@ def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:
         OBJECTIVE_PRIOR_PARAMETERS,
     ]
     # iterate over initialization and objective priors
-    for prior_type_col, prior_par_col in zip(prior_type_cols, prior_par_cols):
+    for prior_type_col, prior_par_col in zip(
+        prior_type_cols, prior_par_cols, strict=True
+    ):
         # fill in default values for prior type
         if prior_type_col not in df:
             df[prior_type_col] = PARAMETER_SCALE_UNIFORM
