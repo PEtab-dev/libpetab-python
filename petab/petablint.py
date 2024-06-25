@@ -49,34 +49,35 @@ def parse_cli_args():
     )
 
     # Call with set of files
-    parser.add_argument(
+    group = parser.add_argument_group("Check individual files *DEPRECATED*")
+    group.add_argument(
         "-s", "--sbml", dest="sbml_file_name", help="SBML model filename"
     )
-    parser.add_argument(
+    group.add_argument(
         "-o",
         "--observables",
         dest="observable_file_name",
         help="Observable table",
     )
-    parser.add_argument(
+    group.add_argument(
         "-m",
         "--measurements",
         dest="measurement_file_name",
         help="Measurement table",
     )
-    parser.add_argument(
+    group.add_argument(
         "-c",
         "--conditions",
         dest="condition_file_name",
         help="Conditions table",
     )
-    parser.add_argument(
+    group.add_argument(
         "-p",
         "--parameters",
         dest="parameter_file_name",
         help="Parameter table",
     )
-    parser.add_argument(
+    group.add_argument(
         "--vis",
         "--visualizations",
         dest="visualization_file_name",
@@ -87,13 +88,18 @@ def parse_cli_args():
     group.add_argument(
         "-y",
         "--yaml",
+        dest="yaml_file_name_deprecated",
+        help="PEtab YAML problem filename. "
+        "*DEPRECATED* pass the file name as positional argument instead.",
+    )
+    group.add_argument(
         dest="yaml_file_name",
         help="PEtab YAML problem filename",
+        nargs="?",
     )
 
     args = parser.parse_args()
-
-    if args.yaml_file_name and any(
+    if (args.yaml_file_name or args.yaml_file_name_deprecated) and any(
         (
             args.sbml_file_name,
             args.condition_file_name,
@@ -102,24 +108,37 @@ def parse_cli_args():
         )
     ):
         parser.error(
-            "When providing a yaml file, no other files may " "be specified."
+            "When providing a yaml file, no other files may be specified."
         )
+
+    if args.yaml_file_name_deprecated:
+        logger.warning(
+            "The -y/--yaml option is deprecated. "
+            "Please provide the YAML file as a positional argument."
+        )
+        if args.yaml_file_name:
+            parser.error(
+                "Please provide only one of --yaml or positional argument."
+            )
+
+    args.yaml_file_name = args.yaml_file_name or args.yaml_file_name_deprecated
 
     return args
 
 
 def main():
     """Run PEtab validator"""
-    args = parse_cli_args()
     init_colorama(autoreset=True)
-
     ch = logging.StreamHandler()
+    ch.setFormatter(LintFormatter())
+    logging.basicConfig(level=logging.DEBUG, handlers=[ch])
+
+    args = parse_cli_args()
+
     if args.verbose:
         ch.setLevel(logging.DEBUG)
     else:
         ch.setLevel(logging.WARN)
-    ch.setFormatter(LintFormatter())
-    logging.basicConfig(level=logging.DEBUG, handlers=[ch])
 
     if args.yaml_file_name:
         from jsonschema.exceptions import ValidationError
@@ -143,6 +162,7 @@ def main():
         problem = petab.Problem.from_yaml(args.yaml_file_name)
 
     else:
+        # DEPRECATED
         logger.debug("Looking for...")
         if args.sbml_file_name:
             logger.debug(f"\tSBML model: {args.sbml_file_name}")
