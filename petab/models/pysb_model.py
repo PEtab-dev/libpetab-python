@@ -3,8 +3,9 @@
 import itertools
 import re
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any
 
 import pysb
 
@@ -12,7 +13,7 @@ from . import MODEL_TYPE_PYSB
 from .model import Model
 
 
-def _pysb_model_from_path(pysb_model_file: Union[str, Path]) -> pysb.Model:
+def _pysb_model_from_path(pysb_model_file: str | Path) -> pysb.Model:
     """Load a pysb model module and return the :class:`pysb.Model` instance
 
     :param pysb_model_file: Full or relative path to the PySB model module
@@ -88,7 +89,7 @@ class PySBModel(Model):
 
     def get_free_parameter_ids_with_values(
         self,
-    ) -> Iterable[Tuple[str, float]]:
+    ) -> Iterable[tuple[str, float]]:
         return ((p.name, p.value) for p in self.model.parameters)
 
     def has_entity_with_id(self, entity_id) -> bool:
@@ -158,7 +159,7 @@ class PySBModel(Model):
 
 def parse_species_name(
     name: str,
-) -> List[Tuple[str, Optional[str], Dict[str, Any]]]:
+) -> list[tuple[str, str | None, dict[str, Any]]]:
     """Parse a PySB species name
 
     :param name: Species name to parse

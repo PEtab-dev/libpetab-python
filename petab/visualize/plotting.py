@@ -2,7 +2,7 @@
 import warnings
 from numbers import Number, Real
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -25,8 +25,8 @@ __all__ = [
 ]
 
 # for typehints
-IdsList = List[str]
-NumList = List[int]
+IdsList = list[str]
+NumList = list[int]
 
 # The default figure size
 DEFAULT_FIGSIZE = [20, 15]
@@ -57,8 +57,8 @@ class DataSeries:
 
     def __init__(
         self,
-        conditions_: Optional[Union[np.ndarray, pd.Series]],
-        data_to_plot: Optional[pd.DataFrame] = None,
+        conditions_: np.ndarray | pd.Series | None,
+        data_to_plot: pd.DataFrame | None = None,
     ):
         self.data_to_plot = data_to_plot
         self.data_to_plot.sort_index(inplace=True)
@@ -157,7 +157,7 @@ class Subplot:
         self,
         plot_id: str,
         plot_settings: dict,
-        dataplots: Optional[List[DataPlot]] = None,
+        dataplots: list[DataPlot] | None = None,
     ):
         """
         Constructor.
@@ -201,7 +201,7 @@ class Subplot:
         cls,
         plot_id: str,
         vis_spec: pd.DataFrame,
-        dataplots: Optional[List[DataPlot]] = None,
+        dataplots: list[DataPlot] | None = None,
     ):
         vis_spec_dict = {}
         for col in vis_spec:
@@ -268,8 +268,8 @@ class Subplot:
 
     def set_axes_limits(
         self,
-        xlim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
-        ylim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
+        xlim: tuple[Real | None, Real | None] | None = None,
+        ylim: tuple[Real | None, Real | None] | None = None,
     ):
         """
         Set axes limits for all subplots. If xlim or ylim or any of the tuple
@@ -295,9 +295,9 @@ class Figure:
 
     def __init__(
         self,
-        subplots: Optional[List[Subplot]] = None,
-        size: Tuple = DEFAULT_FIGSIZE,
-        title: Optional[Tuple] = None,
+        subplots: list[Subplot] | None = None,
+        size: tuple = DEFAULT_FIGSIZE,
+        title: tuple | None = None,
     ):
         """
         Constructor.
@@ -337,8 +337,8 @@ class Figure:
 
     def set_axes_limits(
         self,
-        xlim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
-        ylim: Optional[Tuple[Optional[Real], Optional[Real]]] = None,
+        xlim: tuple[Real | None, Real | None] | None = None,
+        ylim: tuple[Real | None, Real | None] | None = None,
     ) -> None:
         """
         Set axes limits for all subplots. If xlim or ylim or any of the tuple
@@ -409,8 +409,8 @@ class DataProvider:
     def __init__(
         self,
         exp_conditions: pd.DataFrame,
-        measurements_data: Optional[pd.DataFrame] = None,
-        simulations_data: Optional[pd.DataFrame] = None,
+        measurements_data: pd.DataFrame | None = None,
+        simulations_data: pd.DataFrame | None = None,
     ):
         self.conditions_data = exp_conditions
 
@@ -456,7 +456,7 @@ class DataProvider:
 
     def _get_independent_var_values(
         self, data_df: pd.DataFrame, dataplot: DataPlot
-    ) -> Tuple[np.ndarray, str, pd.Series]:
+    ) -> tuple[np.ndarray, str, pd.Series]:
         """
         Get independent variable values.
 
@@ -627,7 +627,7 @@ class DataProvider:
 
     def get_data_to_plot(
         self, dataplot: DataPlot, provided_noise: bool
-    ) -> Tuple[DataSeries, DataSeries]:
+    ) -> tuple[DataSeries, DataSeries]:
         """
         Get data to plot.
 
@@ -670,18 +670,18 @@ class VisSpecParser:
 
     def __init__(
         self,
-        conditions_data: Union[str, Path, pd.DataFrame],
-        exp_data: Optional[Union[str, Path, pd.DataFrame]] = None,
-        sim_data: Optional[Union[str, Path, pd.DataFrame]] = None,
+        conditions_data: str | Path | pd.DataFrame,
+        exp_data: str | Path | pd.DataFrame | None = None,
+        sim_data: str | Path | pd.DataFrame | None = None,
     ):
-        if isinstance(conditions_data, (str, Path)):
+        if isinstance(conditions_data, str | Path):
             conditions_data = conditions.get_condition_df(conditions_data)
 
         # import from file in case experimental data is provided in file
-        if isinstance(exp_data, (str, Path)):
+        if isinstance(exp_data, str | Path):
             exp_data = measurements.get_measurement_df(exp_data)
 
-        if isinstance(sim_data, (str, Path)):
+        if isinstance(sim_data, str | Path):
             sim_data = core.get_simulation_df(sim_data)
 
         if exp_data is None and sim_data is None:
@@ -751,8 +751,8 @@ class VisSpecParser:
 
     def parse_from_vis_spec(
         self,
-        vis_spec: Optional[Union[str, Path, pd.DataFrame]],
-    ) -> Tuple[Figure, DataProvider]:
+        vis_spec: str | Path | pd.DataFrame | None,
+    ) -> tuple[Figure, DataProvider]:
         """
         Get visualization settings from a visualization specification.
 
@@ -767,7 +767,7 @@ class VisSpecParser:
         A figure template with visualization settings and a data provider
         """
         # import visualization specification, if file was specified
-        if isinstance(vis_spec, (str, Path)):
+        if isinstance(vis_spec, str | Path):
             vis_spec = core.get_visualization_df(vis_spec)
 
         if DATASET_ID not in vis_spec.columns:
@@ -813,10 +813,10 @@ class VisSpecParser:
 
     def parse_from_id_list(
         self,
-        ids_per_plot: Optional[List[IdsList]] = None,
+        ids_per_plot: list[IdsList] | None = None,
         group_by: str = "observable",
-        plotted_noise: Optional[str] = MEAN_AND_SD,
-    ) -> Tuple[Figure, DataProvider]:
+        plotted_noise: str | None = MEAN_AND_SD,
+    ) -> tuple[Figure, DataProvider]:
         """
         Get visualization settings from a list of ids and a grouping parameter.
 
@@ -912,8 +912,8 @@ class VisSpecParser:
             )
 
     def _get_vis_spec_dependent_columns_dict(
-        self, group_by: str, id_list: Optional[List[IdsList]] = None
-    ) -> Dict:
+        self, group_by: str, id_list: list[IdsList] | None = None
+    ) -> dict:
         """
         Helper method for creating values for columns PLOT_ID, DATASET_ID,
         LEGEND_ENTRY, Y_VALUES for visualization specification file.
