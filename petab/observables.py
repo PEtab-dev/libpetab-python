@@ -47,7 +47,10 @@ def get_observable_df(
     )
 
     if not isinstance(observable_file.index, pd.RangeIndex):
-        observable_file.reset_index(inplace=True)
+        observable_file.reset_index(
+            drop=observable_file.index.name != OBSERVABLE_ID,
+            inplace=True,
+        )
 
     try:
         observable_file.set_index([OBSERVABLE_ID], inplace=True)
