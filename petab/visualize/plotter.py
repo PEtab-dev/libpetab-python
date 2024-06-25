@@ -524,7 +524,7 @@ class MPLPlotter(Plotter):
                 zip(
                     [plot.plotId for plot in self.figure.subplots],
                     axes.flat,
-                    strict=True,
+                    strict=False,
                 )
             )
 
