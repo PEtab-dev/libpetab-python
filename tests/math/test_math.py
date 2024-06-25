@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import sympy as sp
 import yaml
+from sympy.logic.boolalg import Boolean
 
 from petab.math import sympify_petab
 
@@ -22,7 +23,10 @@ def read_cases():
     cases = []
     for item in data["cases"]:
         expr_str = item["expression"]
-        expected = float(item["expected"])
+        if item["expected"] is True or item["expected"] is False:
+            expected = item["expected"]
+        else:
+            expected = float(item["expected"])
         cases.append((expr_str, expected))
     return cases
 
@@ -30,10 +34,13 @@ def read_cases():
 @pytest.mark.parametrize("expr_str, expected", read_cases())
 def test_parse_cases(expr_str, expected):
     result = sympify_petab(expr_str)
-    result = float(result.evalf())
-    assert np.isclose(
-        result, expected
-    ), f"{expr_str}: Expected {expected}, got {result}"
+    if isinstance(result, Boolean):
+        assert result == expected
+    else:
+        result = float(result.evalf())
+        assert np.isclose(
+            result, expected
+        ), f"{expr_str}: Expected {expected}, got {result}"
 
 
 def test_ids():

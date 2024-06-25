@@ -1,6 +1,6 @@
 """PEtab-math to sympy conversion."""
 import sympy as sp
-from sympy.logic.boolalg import Boolean
+from sympy.logic.boolalg import BooleanFalse, BooleanTrue
 
 from ._generated.PetabMathExprParser import PetabMathExprParser
 from ._generated.PetabMathExprParserVisitor import PetabMathExprParserVisitor
@@ -76,23 +76,23 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 3:
+            operand1 = _bool2num(self.visit(ctx.getChild(0)))
+            operand2 = _bool2num(self.visit(ctx.getChild(2)))
             if ctx.MUL():
-                return self.visit(ctx.getChild(0)) * self.visit(
-                    ctx.getChild(2)
-                )
+                return operand1 * operand2
             if ctx.DIV():
-                return self.visit(ctx.getChild(0)) / self.visit(
-                    ctx.getChild(2)
-                )
+                return operand1 / operand2
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
     def visitAddExpr(self, ctx: PetabMathExprParser.AddExprContext):
         if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
+            return _bool2num(self.visit(ctx.getChild(0)))
+        op1 = _bool2num(self.visit(ctx.getChild(0)))
+        op2 = _bool2num(self.visit(ctx.getChild(2)))
         if ctx.PLUS():
-            return self.visit(ctx.getChild(0)) + self.visit(ctx.getChild(2))
+            return op1 + op2
         if ctx.MINUS():
-            return self.visit(ctx.getChild(0)) - self.visit(ctx.getChild(2))
+            return op1 - op2
         raise AssertionError(
             f"Unexpected operator: {ctx.getChild(1).getText()} "
             f"in {ctx.getText()}"
@@ -106,6 +106,11 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
         func_name = ctx.getChild(0).getText()
         args = self.visit(ctx.getChild(2))
+
+        if func_name != "piecewise":
+            # all functions except piecewise expect numerical arguments
+            args = list(map(_bool2num, args))
+
         if func_name in _trig_funcs:
             if len(args) != 1:
                 raise AssertionError(
@@ -141,15 +146,11 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            if not all(isinstance(arg, Boolean) for arg in args[1::2]):
-                raise AssertionError(
-                    f"Expected boolean conditions in {ctx.getText()}"
-                )
             # sympy's Piecewise requires an explicit condition for the final
             # `else` case
             args.append(sp.true)
             sp_args = (
-                (true_expr, condition)
+                (true_expr, _num2bool(condition))
                 for true_expr, condition in zip(
                     args[::2], args[1::2], strict=True
                 )
@@ -175,29 +176,20 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 2:
+            operand = _bool2num(self.visit(ctx.getChild(1)))
             match ctx.getChild(0).getText():
                 case "-":
-                    return -self.visit(ctx.getChild(1))
+                    return -operand
                 case "+":
-                    return self.visit(ctx.getChild(1))
+                    return operand
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
     def visitProg(self, ctx: PetabMathExprParser.ProgContext):
         return self.visit(ctx.getChild(0))
 
-    def visitBooleanAtom(self, ctx: PetabMathExprParser.BooleanAtomContext):
-        if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
-        if ctx.getChildCount() == 3 and ctx.OPEN_PAREN() and ctx.CLOSE_PAREN():
-            return self.visit(ctx.getChild(1))
-        raise AssertionError(f"Unexpected boolean atom: {ctx.getText()}")
-
     def visitComparisonExpr(
         self, ctx: PetabMathExprParser.ComparisonExprContext
     ):
-        if ctx.getChildCount() != 1:
-            raise AssertionError(f"Unexpected expression: {ctx.getText()}")
-        ctx = ctx.getChild(0)
         if ctx.getChildCount() != 3:
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
         lhs = self.visit(ctx.getChild(0))
@@ -213,6 +205,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             ">=": sp.GreaterThan,
         }
         if op in ops:
+            lhs = _bool2num(lhs)
+            rhs = _bool2num(rhs)
             return ops[op](lhs, rhs)
         raise AssertionError(f"Unexpected operator: {op}")
 
@@ -233,10 +227,13 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() != 3:
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
+        operand1 = _num2bool(self.visit(ctx.getChild(0)))
+        operand2 = _num2bool(self.visit(ctx.getChild(2)))
+
         if ctx.BOOLEAN_AND():
-            return self.visit(ctx.getChild(0)) & self.visit(ctx.getChild(2))
+            return operand1 & operand2
         if ctx.BOOLEAN_OR():
-            return self.visit(ctx.getChild(0)) | self.visit(ctx.getChild(2))
+            return operand1 | operand2
 
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
@@ -248,3 +245,24 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.FALSE():
             return sp.false
         raise AssertionError(f"Unexpected boolean literal: {ctx.getText()}")
+
+
+def _bool2num(x):
+    """Convert sympy Booleans to Floats."""
+    if isinstance(x, BooleanFalse):
+        return sp.Float(0)
+    if isinstance(x, BooleanTrue):
+        return sp.Float(1)
+    return x
+
+
+def _num2bool(x: sp.Basic):
+    """Convert sympy Floats to booleans."""
+    if isinstance(x, BooleanTrue | BooleanFalse):
+        return x
+    # Note: sp.Float(0) == 0 is False in sympy>=1.13
+    if x.is_zero is True:
+        return sp.false
+    if x.is_zero is False:
+        return sp.true
+    return sp.Piecewise((True, x != 0.0), (False, True))

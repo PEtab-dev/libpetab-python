@@ -153,3 +153,33 @@ cases:
   expected: 2.0
 - expression: piecewise(1, false, 2, false, 3)
   expected: 3.0
+- expression: 3 + true
+  expected: 4.0
+- expression: 2 * false + true
+  expected: 1.0
+- expression: piecewise(1, true == 1, 0)
+  expected: 1.0
+- expression: piecewise(1, true == 2, 0)
+  expected: 0.0
+- expression: piecewise(1, false == 1, 0)
+  expected: 0.0
+- expression: piecewise(1, false == 0, 0)
+  expected: 1.0
+- expression: sign(true)
+  expected: 1.0
+- expression: sign(false)
+  expected: 0.0
+- expression: piecewise(true, true, false)
+  expected: true
+- expression: piecewise(false, false, true)
+  expected: true
+- expression: piecewise(1, 1, 0)
+  expected: 1.0
+- expression: piecewise(1, -0.1, 0)
+  expected: 1.0
+- expression: piecewise(1, 0.0, 0)
+  expected: 0.0
+- expression: -true
+  expected: -1.0
+- expression: -false
+  expected: 0.0

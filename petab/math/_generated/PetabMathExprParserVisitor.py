@@ -14,13 +14,13 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by PetabMathExprParser#expr.
-    def visitExpr(self, ctx:PetabMathExprParser.ExprContext):
+    # Visit a parse tree produced by PetabMathExprParser#BooleanAndOrExpr.
+    def visitBooleanAndOrExpr(self, ctx:PetabMathExprParser.BooleanAndOrExprContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by PetabMathExprParser#comp_op.
-    def visitComp_op(self, ctx:PetabMathExprParser.Comp_opContext):
+    # Visit a parse tree produced by PetabMathExprParser#ComparisonExpr.
+    def visitComparisonExpr(self, ctx:PetabMathExprParser.ComparisonExprContext):
         return self.visitChildren(ctx)
 
 
@@ -34,6 +34,11 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by PetabMathExprParser#BooleanLiteral_.
+    def visitBooleanLiteral_(self, ctx:PetabMathExprParser.BooleanLiteral_Context):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by PetabMathExprParser#HatExpr.
     def visitHatExpr(self, ctx:PetabMathExprParser.HatExprContext):
         return self.visitChildren(ctx)
@@ -41,6 +46,11 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by PetabMathExprParser#AddExpr.
     def visitAddExpr(self, ctx:PetabMathExprParser.AddExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by PetabMathExprParser#BooleanNotExpr.
+    def visitBooleanNotExpr(self, ctx:PetabMathExprParser.BooleanNotExprContext):
         return self.visitChildren(ctx)
 
 
@@ -64,6 +74,11 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by PetabMathExprParser#comp_op.
+    def visitComp_op(self, ctx:PetabMathExprParser.Comp_opContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by PetabMathExprParser#argumentList.
     def visitArgumentList(self, ctx:PetabMathExprParser.ArgumentListContext):
         return self.visitChildren(ctx)
@@ -71,41 +86,6 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by PetabMathExprParser#func_expr.
     def visitFunc_expr(self, ctx:PetabMathExprParser.Func_exprContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#BooleanAtomExpr.
-    def visitBooleanAtomExpr(self, ctx:PetabMathExprParser.BooleanAtomExprContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#BooleanAndOrExpr.
-    def visitBooleanAndOrExpr(self, ctx:PetabMathExprParser.BooleanAndOrExprContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#BooleanNotExpr.
-    def visitBooleanNotExpr(self, ctx:PetabMathExprParser.BooleanNotExprContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#booleanAtom.
-    def visitBooleanAtom(self, ctx:PetabMathExprParser.BooleanAtomContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#comparisonExpr.
-    def visitComparisonExpr(self, ctx:PetabMathExprParser.ComparisonExprContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#boolComparisonExpr.
-    def visitBoolComparisonExpr(self, ctx:PetabMathExprParser.BoolComparisonExprContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#floatComparisonExpr.
-    def visitFloatComparisonExpr(self, ctx:PetabMathExprParser.FloatComparisonExprContext):
         return self.visitChildren(ctx)
 
 

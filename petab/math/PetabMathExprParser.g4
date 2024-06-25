@@ -8,8 +8,18 @@ prog:
     expr EOF ;
 
 expr:
-    arithmeticExpr
-    | booleanExpr
+    <assoc=right> expr '^' expr             # HatExpr
+    | ('+'|'-') expr                        # UnaryExpr
+    | '!' expr                              # BooleanNotExpr
+    | expr ('*'|'/') expr                   # MultExpr
+    | expr ('+'|'-') expr                   # AddExpr
+    | '(' expr ')'                          # ParenExpr
+    | expr comp_op expr                     # ComparisonExpr
+    | expr (BOOLEAN_AND | BOOLEAN_OR) expr  # BooleanAndOrExpr
+    | number                                # Number_
+    | booleanLiteral                        # BooleanLiteral_
+    | func_expr                             # FuncExpr_
+    | var                                   # VarExpr_
     ;
 
 comp_op:
@@ -21,38 +31,9 @@ comp_op:
     | NEQ
     ;
 
-arithmeticExpr:
-    <assoc=right> arithmeticExpr '^' arithmeticExpr  # HatExpr
-    | ('+'|'-') arithmeticExpr                       # UnaryExpr
-    | arithmeticExpr ('*'|'/') arithmeticExpr        # MultExpr
-    | arithmeticExpr ('+'|'-') arithmeticExpr        # AddExpr
-    | '(' arithmeticExpr ')'                         # ParenExpr
-    | number                                         # Number_
-    | func_expr                                      # FuncExpr_
-    | var                                            # VarExpr_
-    ;
-
 argumentList: expr (',' expr)* ;
 func_expr: NAME OPEN_PAREN argumentList CLOSE_PAREN ;
 
-booleanExpr:
-    '!' booleanAtom                                       # BooleanNotExpr
-    | booleanExpr (BOOLEAN_AND | BOOLEAN_OR) booleanExpr  # BooleanAndOrExpr
-    | booleanAtom                                         # BooleanAtomExpr
-;
-
-booleanAtom:
-    booleanLiteral
-    | '(' booleanExpr ')'
-    | comparisonExpr
-    | var
-    ;
-comparisonExpr:
-    floatComparisonExpr
-    | boolComparisonExpr
-    ;
-boolComparisonExpr: booleanLiteral comp_op booleanLiteral;
-floatComparisonExpr: arithmeticExpr comp_op arithmeticExpr;
 booleanLiteral:
     TRUE
     | FALSE
