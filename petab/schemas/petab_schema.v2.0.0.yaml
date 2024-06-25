@@ -21,7 +21,6 @@ properties:
     anyof:
       - $ref: "#/definitions/version_number"
       - type: integer
-
     description: Version of the PEtab format
 
   parameter_file:
