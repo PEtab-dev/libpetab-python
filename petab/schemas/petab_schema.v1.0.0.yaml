@@ -1,12 +1,26 @@
-# For syntax see: https://json-schema.org/understanding-json-schema/index.html
+# For syntax see: https://json-schema.org/understanding-json-schema
 #$schema: "https://json-schema.org/draft/2019-09/meta/core"
 $schema: "http://json-schema.org/draft-06/schema"
 description: PEtab parameter estimation problem config file schema
 
+definitions:
+  list_of_files:
+    type: array
+    description: List of files.
+    items:
+      type: string
+      description: File name or URL.
+  version_number:
+    type: string
+    pattern: ^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$
+    description: Version number (corresponding to PEP 440).
+
 properties:
 
   format_version:
-    type: integer
+    anyof:
+      - $ref: "#/definitions/version_number"
+      - type: integer
     description: Version of the PEtab format (e.g. 1).
 
   parameter_file:
@@ -35,44 +49,24 @@ properties:
       properties:
 
         sbml_files:
-          type: array
-          description: List of PEtab SBML files.
-
-          items:
-            type: string
-            description: PEtab SBML file name or URL.
+          $ref: "#/definitions/list_of_files"
+          description: List of SBML model files.
 
         measurement_files:
-          type: array
+          $ref: "#/definitions/list_of_files"
           description: List of PEtab measurement files.
 
-          items:
-            type: string
-            description: PEtab measurement file name or URL.
-
         condition_files:
-          type: array
+          $ref: "#/definitions/list_of_files"
           description: List of PEtab condition files.
 
-          items:
-            type: string
-            description: PEtab condition file name or URL.
-
         observable_files:
-          type: array
+          $ref: "#/definitions/list_of_files"
           description: List of PEtab observable files.
 
-          items:
-            type: string
-            description: PEtab observable file name or URL.
-
         visualization_files:
-          type: array
+          $ref: "#/definitions/list_of_files"
           description: List of PEtab visualization files.
-
-          items:
-            type: string
-            description: PEtab visualization file name or URL.
 
       required:
         - sbml_files
