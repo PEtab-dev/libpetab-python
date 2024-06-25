@@ -147,7 +147,7 @@ def get_optimization_parameter_scaling(
     """
     estimated_df = parameter_df.loc[parameter_df[ESTIMATE] == 1]
     return dict(
-        zip(estimated_df.index, estimated_df[PARAMETER_SCALE], strict=False)
+        zip(estimated_df.index, estimated_df[PARAMETER_SCALE], strict=True)
     )
 
 
@@ -394,7 +394,7 @@ def get_valid_parameters_for_parameter_table(
 
     if mapping_df is not None:
         for from_id, to_id in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=False
+            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
         ):
             if to_id in parameter_ids.keys():
                 parameter_ids[from_id] = None
@@ -571,7 +571,7 @@ def map_scale(
         scale_strs = [scale_strs] * len(parameters)
     return (
         scale(par_val, scale_str)
-        for par_val, scale_str in zip(parameters, scale_strs, strict=False)
+        for par_val, scale_str in zip(parameters, scale_strs, strict=True)
     )
 
 
@@ -595,7 +595,7 @@ def map_unscale(
         scale_strs = [scale_strs] * len(parameters)
     return (
         unscale(par_val, scale_str)
-        for par_val, scale_str in zip(parameters, scale_strs, strict=False)
+        for par_val, scale_str in zip(parameters, scale_strs, strict=True)
     )
 
 
@@ -613,7 +613,7 @@ def normalize_parameter_df(parameter_df: pd.DataFrame) -> pd.DataFrame:
     ]
     # iterate over initialization and objective priors
     for prior_type_col, prior_par_col in zip(
-        prior_type_cols, prior_par_cols, strict=False
+        prior_type_cols, prior_par_cols, strict=True
     ):
         # fill in default values for prior type
         if prior_type_col not in df:

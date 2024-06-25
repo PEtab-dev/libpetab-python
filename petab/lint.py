@@ -194,7 +194,7 @@ def check_measurement_df(
             # If the above is not checked, in the following loop
             # trafo may become a pandas Series
             for measurement, obs_id in zip(
-                df[MEASUREMENT], df[OBSERVABLE_ID], strict=False
+                df[MEASUREMENT], df[OBSERVABLE_ID], strict=True
             ):
                 trafo = observable_df.loc[obs_id, OBSERVABLE_TRANSFORMATION]
                 if measurement <= 0.0 and trafo in [LOG, LOG10]:
@@ -392,7 +392,7 @@ def assert_all_parameters_present_in_parameter_df(
     if missing and mapping_df is not None:
         model_to_petab_mapping = {}
         for map_from, map_to in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=False
+            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
         ):
             if map_to in model_to_petab_mapping:
                 model_to_petab_mapping[map_to].append(map_from)
@@ -597,9 +597,7 @@ def assert_parameter_prior_parameters_are_valid(
     ]
 
     # perform test for both priors
-    for type_col, par_col in zip(
-        prior_type_cols, prior_par_cols, strict=False
-    ):
+    for type_col, par_col in zip(prior_type_cols, prior_par_cols, strict=True):
         # iterate over rows
         for _, row in parameter_df.iterrows():
             # get type
@@ -1018,7 +1016,7 @@ def assert_model_parameters_in_condition_or_parameter_table(
             for from_id, to_id in zip(
                 mapping_df.index.values,
                 mapping_df[MODEL_ENTITY_ID],
-                strict=False,
+                strict=True,
             )
             # mapping table entities mapping to already allowed parameters
             if to_id in allowed_in_condition_cols

@@ -207,7 +207,7 @@ def get_placeholders(
     placeholders = []
     for _, row in observable_df.iterrows():
         for placeholder_type, formula_column in zip(
-            placeholder_types, formula_columns, strict=False
+            placeholder_types, formula_columns, strict=True
         ):
             if formula_column not in row:
                 continue

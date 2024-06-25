@@ -272,7 +272,7 @@ def assert_overrides_match_parameter_count(
         for obs_id, formula in zip(
             observable_df.index.values,
             observable_df[OBSERVABLE_FORMULA],
-            strict=False,
+            strict=True,
         )
     }
     noise_parameters_count = {
@@ -282,7 +282,7 @@ def assert_overrides_match_parameter_count(
         for obs_id, formula in zip(
             observable_df.index.values,
             observable_df[NOISE_FORMULA],
-            strict=False,
+            strict=True,
         )
     }
 

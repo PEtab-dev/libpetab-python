@@ -71,7 +71,7 @@ def calculate_residuals(
         simulation_dfs,
         observable_dfs,
         parameter_dfs,
-        strict=False,
+        strict=True,
     ):
         residual_df = calculate_residuals_for_table(
             measurement_df,
@@ -313,7 +313,7 @@ def calculate_llh(
         simulation_dfs,
         observable_dfs,
         parameter_dfs,
-        strict=False,
+        strict=True0,
     ):
         _llh = calculate_llh_for_table(
             measurement_df, simulation_df, observable_df, parameter_df

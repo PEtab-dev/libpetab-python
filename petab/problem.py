@@ -946,7 +946,7 @@ class Problem:
             parameter values.
         """
         return [
-            dict(zip(self.x_free_ids, parameter_values, strict=False))
+            dict(zip(self.x_free_ids, parameter_values, strict=True))
             for parameter_values in self.sample_parameter_startpoints(
                 n_starts=n_starts
             )

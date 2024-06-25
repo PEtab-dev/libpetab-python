@@ -144,10 +144,10 @@ class MPLPlotter(Plotter):
                         zip(
                             measurements_to_plot.conditions,
                             replicates,
-                            strict=False,
+                            strict=True,
                         )
                     ),
-                    strict=False,
+                    strict=True,
                 )
                 replicates = np.stack(replicates)
 
@@ -179,10 +179,10 @@ class MPLPlotter(Plotter):
                             measurements_to_plot.conditions,
                             measurements_to_plot.data_to_plot["mean"],
                             measurements_to_plot.data_to_plot[noise_col],
-                            strict=False,
+                            strict=True,
                         )
                     ),
-                    strict=False,
+                    strict=True,
                 )
 
                 if np.inf in scond:
@@ -233,10 +233,10 @@ class MPLPlotter(Plotter):
                         zip(
                             simulations_to_plot.conditions,
                             simulations_to_plot.data_to_plot["mean"],
-                            strict=False,
+                            strict=True,
                         )
                     ),
-                    strict=False,
+                    strict=True,
                 ),
             )
 
@@ -407,7 +407,7 @@ class MPLPlotter(Plotter):
 
             # get rid of duplicate legends
             handles, labels = ax.get_legend_handles_labels()
-            by_label = dict(zip(labels, handles, strict=False))
+            by_label = dict(zip(labels, handles, strict=True))
             ax.legend(by_label.values(), by_label.keys())
 
             x_names = [x.legendEntry for x in subplot.data_plots]
@@ -524,7 +524,7 @@ class MPLPlotter(Plotter):
                 zip(
                     [plot.plotId for plot in self.figure.subplots],
                     axes.flat,
-                    strict=False,
+                    strict=True,
                 )
             )
 

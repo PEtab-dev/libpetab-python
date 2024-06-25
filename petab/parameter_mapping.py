@@ -788,7 +788,7 @@ def merge_preeq_and_sim_pars(
     for ic, (
         (map_preeq, map_sim),
         (scale_map_preeq, scale_map_sim),
-    ) in enumerate(zip(parameter_mappings, scale_mappings, strict=False)):
+    ) in enumerate(zip(parameter_mappings, scale_mappings, strict=True)):
         merge_preeq_and_sim_pars_condition(
             condition_map_preeq=map_preeq,
             condition_map_sim=map_sim,
