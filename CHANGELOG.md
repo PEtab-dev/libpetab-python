@@ -1,5 +1,29 @@
 # PEtab changelog
 
+## 0.3 series
+
+### 0.3.0
+
+**This release requires `python>=3.10`**
+
+**Features**
+* Visualization: Make line plot lines configurable via
+  `petab.visualize.plotter.measurement_line_kwargs and
+  `petab.visualize.plotter.simulation_line_kwargs`
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/254
+* Validator: check that `datasetId`s referenced in visualization tables exists
+  in measurement tables
+  by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/255
+
+**Fixes**
+* Drop an index if it's reset
+  by @dilpath in https://github.com/PEtab-dev/libpetab-python/pull/262
+
+## New Contributors
+* @PaulJonasJost made their first contribution in https://github.com/PEtab-dev/libpetab-python/pull/250
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.2.9...v0.3.0
+
 ## 0.2 series
 
 ### 0.2.9
