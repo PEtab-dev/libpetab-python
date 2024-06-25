@@ -49,7 +49,7 @@ def parse_cli_args():
     )
 
     # Call with set of files
-    group = parser.add_argument_group("Check individual files *DEPRECATED*")
+    group = parser.add_argument_group("Check individual files *DEPRECATED*. Please contact us via GitHub issues, if you need this.")
     group.add_argument(
         "-s", "--sbml", dest="sbml_file_name", help="SBML model filename"
     )
