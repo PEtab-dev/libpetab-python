@@ -2,7 +2,6 @@
 
 import numbers
 from functools import reduce
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -27,10 +26,10 @@ __all__ = [
 
 
 def calculate_residuals(
-    measurement_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    simulation_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    observable_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    parameter_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: list[pd.DataFrame] | pd.DataFrame,
+    simulation_dfs: list[pd.DataFrame] | pd.DataFrame,
+    observable_dfs: list[pd.DataFrame] | pd.DataFrame,
+    parameter_dfs: list[pd.DataFrame] | pd.DataFrame,
     normalize: bool = True,
     scale: bool = True,
 ) -> list[pd.DataFrame]:
@@ -228,10 +227,10 @@ def evaluate_noise_formula(
 
 
 def calculate_chi2(
-    measurement_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    simulation_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    observable_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    parameter_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: list[pd.DataFrame] | pd.DataFrame,
+    simulation_dfs: list[pd.DataFrame] | pd.DataFrame,
+    observable_dfs: list[pd.DataFrame] | pd.DataFrame,
+    parameter_dfs: list[pd.DataFrame] | pd.DataFrame,
     normalize: bool = True,
     scale: bool = True,
 ) -> float:
@@ -277,10 +276,10 @@ def calculate_chi2_for_table_from_residuals(
 
 
 def calculate_llh(
-    measurement_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    simulation_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    observable_dfs: Union[list[pd.DataFrame], pd.DataFrame],
-    parameter_dfs: Union[list[pd.DataFrame], pd.DataFrame],
+    measurement_dfs: list[pd.DataFrame] | pd.DataFrame,
+    simulation_dfs: list[pd.DataFrame] | pd.DataFrame,
+    observable_dfs: list[pd.DataFrame] | pd.DataFrame,
+    parameter_dfs: list[pd.DataFrame] | pd.DataFrame,
 ) -> float:
     """Calculate total log likelihood.
 

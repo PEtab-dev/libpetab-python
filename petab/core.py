@@ -6,8 +6,6 @@ from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import (
     Any,
-    Optional,
-    Union,
 )
 from warnings import warn
 
@@ -43,7 +41,7 @@ POSSIBLE_GROUPVARS_FLATTENED_PROBLEM = [
 ]
 
 
-def get_simulation_df(simulation_file: Union[str, Path]) -> pd.DataFrame:
+def get_simulation_df(simulation_file: str | Path) -> pd.DataFrame:
     """Read PEtab simulation table
 
     Arguments:
@@ -57,7 +55,7 @@ def get_simulation_df(simulation_file: Union[str, Path]) -> pd.DataFrame:
     )
 
 
-def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
+def write_simulation_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab simulation table
 
     Arguments:
@@ -68,8 +66,8 @@ def write_simulation_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 
 def get_visualization_df(
-    visualization_file: Union[str, Path, pd.DataFrame, None],
-) -> Union[pd.DataFrame, None]:
+    visualization_file: str | Path | pd.DataFrame | None,
+) -> pd.DataFrame | None:
     """Read PEtab visualization table
 
     Arguments:
@@ -105,9 +103,7 @@ def get_visualization_df(
     return vis_spec
 
 
-def write_visualization_df(
-    df: pd.DataFrame, filename: Union[str, Path]
-) -> None:
+def write_visualization_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab visualization table
 
     Arguments:
@@ -337,10 +333,8 @@ def unflatten_simulation_df(
 
 
 def concat_tables(
-    tables: Union[
-        str, Path, pd.DataFrame, Iterable[Union[pd.DataFrame, str, Path]]
-    ],
-    file_parser: Optional[Callable] = None,
+    tables: str | Path | pd.DataFrame | Iterable[pd.DataFrame | str | Path],
+    file_parser: Callable | None = None,
 ) -> pd.DataFrame:
     """Concatenate DataFrames provided as DataFrames or filenames, and a parser
 
@@ -357,14 +351,14 @@ def concat_tables(
     if isinstance(tables, pd.DataFrame):
         return tables
 
-    if isinstance(tables, (str, Path)):
+    if isinstance(tables, str | Path):
         return file_parser(tables)
 
     df = pd.DataFrame()
 
     for tmp_df in tables:
         # load from file, if necessary
-        if isinstance(tmp_df, (str, Path)):
+        if isinstance(tmp_df, str | Path):
             tmp_df = file_parser(tmp_df)
 
         df = pd.concat(
@@ -404,12 +398,12 @@ def is_empty(val) -> bool:
 
 
 def create_combine_archive(
-    yaml_file: Union[str, Path],
-    filename: Union[str, Path],
-    family_name: Optional[str] = None,
-    given_name: Optional[str] = None,
-    email: Optional[str] = None,
-    organization: Optional[str] = None,
+    yaml_file: str | Path,
+    filename: str | Path,
+    family_name: str | None = None,
+    given_name: str | None = None,
+    email: str | None = None,
+    organization: str | None = None,
 ) -> None:
     """Create COMBINE archive (https://co.mbine.org/documents/archive) based
     on PEtab YAML file.

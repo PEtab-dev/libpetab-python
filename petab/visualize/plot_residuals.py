@@ -2,7 +2,6 @@
 Functions for plotting residuals.
 """
 from pathlib import Path
-from typing import Optional, Union
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -20,9 +19,9 @@ __all__ = ["plot_goodness_of_fit", "plot_residuals_vs_simulation"]
 
 def plot_residuals_vs_simulation(
     petab_problem: Problem,
-    simulations_df: Union[str, Path, pd.DataFrame],
-    size: Optional[tuple] = (10, 7),
-    axes: Optional[tuple[plt.Axes, plt.Axes]] = None,
+    simulations_df: str | Path | pd.DataFrame,
+    size: tuple | None = (10, 7),
+    axes: tuple[plt.Axes, plt.Axes] | None = None,
 ) -> matplotlib.axes.Axes:
     """
     Plot residuals versus simulation values for measurements with normal noise
@@ -44,7 +43,7 @@ def plot_residuals_vs_simulation(
     -------
         ax: Axis object of the created plot.
     """
-    if isinstance(simulations_df, (str, Path)):
+    if isinstance(simulations_df, str | Path):
         simulations_df = get_simulation_df(simulations_df)
 
     if NOISE_DISTRIBUTION in petab_problem.observable_df:
@@ -132,9 +131,9 @@ def plot_residuals_vs_simulation(
 
 def plot_goodness_of_fit(
     petab_problem: Problem,
-    simulations_df: Union[str, Path, pd.DataFrame],
+    simulations_df: str | Path | pd.DataFrame,
     size: tuple = (10, 7),
-    ax: Optional[plt.Axes] = None,
+    ax: plt.Axes | None = None,
 ) -> matplotlib.axes.Axes:
     """
     Plot goodness of fit.
@@ -155,7 +154,7 @@ def plot_goodness_of_fit(
     -------
         ax: Axis object of the created plot.
     """
-    if isinstance(simulations_df, (str, Path)):
+    if isinstance(simulations_df, str | Path):
         simulations_df = get_simulation_df(simulations_df)
 
     if simulations_df is None or petab_problem.measurement_df is None:

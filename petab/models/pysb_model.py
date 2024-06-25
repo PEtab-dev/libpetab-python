@@ -5,7 +5,7 @@ import re
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import pysb
 
@@ -13,7 +13,7 @@ from . import MODEL_TYPE_PYSB
 from .model import Model
 
 
-def _pysb_model_from_path(pysb_model_file: Union[str, Path]) -> pysb.Model:
+def _pysb_model_from_path(pysb_model_file: str | Path) -> pysb.Model:
     """Load a pysb model module and return the :class:`pysb.Model` instance
 
     :param pysb_model_file: Full or relative path to the PySB model module
@@ -159,7 +159,7 @@ class PySBModel(Model):
 
 def parse_species_name(
     name: str,
-) -> list[tuple[str, Optional[str], dict[str, Any]]]:
+) -> list[tuple[str, str | None, dict[str, Any]]]:
     """Parse a PySB species name
 
     :param name: Species name to parse

@@ -3,7 +3,7 @@
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import pandas as pd
 
@@ -23,8 +23,8 @@ __all__ = [
 
 
 def get_observable_df(
-    observable_file: Union[str, pd.DataFrame, Path, None],
-) -> Union[pd.DataFrame, None]:
+    observable_file: str | pd.DataFrame | Path | None,
+) -> pd.DataFrame | None:
     """
     Read the provided observable file into a ``pandas.Dataframe``.
 
@@ -37,7 +37,7 @@ def get_observable_df(
     if observable_file is None:
         return observable_file
 
-    if isinstance(observable_file, (str, Path)):
+    if isinstance(observable_file, str | Path):
         observable_file = pd.read_csv(
             observable_file, sep="\t", float_precision="round_trip"
         )
@@ -62,7 +62,7 @@ def get_observable_df(
     return observable_file
 
 
-def write_observable_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
+def write_observable_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab observable table
 
     Arguments:

@@ -4,7 +4,6 @@ import contextlib
 import logging
 from numbers import Number
 from pathlib import Path
-from typing import Optional, Union
 from warnings import warn
 
 import libsbml
@@ -132,7 +131,7 @@ def globalize_parameters(
 
 def get_model_parameters(
     sbml_model: libsbml.Model, with_values=False
-) -> Union[list[str], dict[str, float]]:
+) -> list[str] | dict[str, float]:
     """Return SBML model parameters which are not Rule targets
 
     Arguments:
@@ -157,9 +156,7 @@ def get_model_parameters(
     }
 
 
-def write_sbml(
-    sbml_doc: libsbml.SBMLDocument, filename: Union[Path, str]
-) -> None:
+def write_sbml(sbml_doc: libsbml.SBMLDocument, filename: Path | str) -> None:
     """Write PEtab visualization table
 
     Arguments:
@@ -226,7 +223,7 @@ def load_sbml_from_file(
 def get_model_for_condition(
     petab_problem: "petab.Problem",
     sim_condition_id: str = None,
-    preeq_condition_id: Optional[str] = None,
+    preeq_condition_id: str | None = None,
 ) -> tuple[libsbml.SBMLDocument, libsbml.Model]:
     """Create an SBML model for the given condition.
 

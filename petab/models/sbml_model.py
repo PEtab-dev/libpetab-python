@@ -3,7 +3,6 @@
 import itertools
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional
 
 import libsbml
 import sympy as sp
@@ -33,9 +32,9 @@ class SbmlModel(Model):
     ):
         super().__init__()
 
-        self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
-        self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
-        self.sbml_model: Optional[libsbml.Model] = sbml_model
+        self.sbml_reader: libsbml.SBMLReader | None = sbml_reader
+        self.sbml_document: libsbml.SBMLDocument | None = sbml_document
+        self.sbml_model: libsbml.Model | None = sbml_model
 
         self._model_id = model_id or sbml_model.getIdAttribute()
 

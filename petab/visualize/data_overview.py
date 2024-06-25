@@ -4,7 +4,6 @@ Functions for creating an overview report of a PEtab problem
 
 from pathlib import Path
 from shutil import copyfile
-from typing import Union
 
 import pandas as pd
 
@@ -15,7 +14,7 @@ __all__ = ["create_report"]
 
 
 def create_report(
-    problem: petab.Problem, model_name: str, output_path: Union[str, Path] = ""
+    problem: petab.Problem, model_name: str, output_path: str | Path = ""
 ) -> None:
     """Create an HTML overview data / model overview report
 

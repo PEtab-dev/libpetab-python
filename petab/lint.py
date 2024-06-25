@@ -6,7 +6,7 @@ import numbers
 import re
 from collections import Counter
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -91,9 +91,9 @@ def assert_no_leading_trailing_whitespace(
 
 def check_condition_df(
     df: pd.DataFrame,
-    model: Optional[Model] = None,
-    observable_df: Optional[pd.DataFrame] = None,
-    mapping_df: Optional[pd.DataFrame] = None,
+    model: Model | None = None,
+    observable_df: pd.DataFrame | None = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> None:
     """Run sanity checks on PEtab condition table
 
@@ -155,7 +155,7 @@ def check_condition_df(
 
 
 def check_measurement_df(
-    df: pd.DataFrame, observable_df: Optional[pd.DataFrame] = None
+    df: pd.DataFrame, observable_df: pd.DataFrame | None = None
 ) -> None:
     """Run sanity checks on PEtab measurement table
 
@@ -210,11 +210,11 @@ def check_measurement_df(
 
 def check_parameter_df(
     df: pd.DataFrame,
-    model: Optional[Model] = None,
-    observable_df: Optional[pd.DataFrame] = None,
-    measurement_df: Optional[pd.DataFrame] = None,
-    condition_df: Optional[pd.DataFrame] = None,
-    mapping_df: Optional[pd.DataFrame] = None,
+    model: Model | None = None,
+    observable_df: pd.DataFrame | None = None,
+    measurement_df: pd.DataFrame | None = None,
+    condition_df: pd.DataFrame | None = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> None:
     """Run sanity checks on PEtab parameter table
 
@@ -676,7 +676,7 @@ def is_scalar_float(x: Any):
 
 
 def measurement_table_has_timepoint_specific_mappings(
-    measurement_df: Optional[pd.DataFrame],
+    measurement_df: pd.DataFrame | None,
     allow_scalar_numeric_noise_parameters: bool = False,
     allow_scalar_numeric_observable_parameters: bool = False,
 ) -> bool:
@@ -748,7 +748,7 @@ def measurement_table_has_timepoint_specific_mappings(
 
 
 def observable_table_has_nontrivial_noise_formula(
-    observable_df: Optional[pd.DataFrame],
+    observable_df: pd.DataFrame | None,
 ) -> bool:
     """
     Does any observable have a noise formula that is not just a single

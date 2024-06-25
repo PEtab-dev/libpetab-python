@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import jsonschema
 import numpy as np
@@ -33,8 +33,8 @@ __all__ = [
 
 
 def validate(
-    yaml_config: Union[dict, str, Path],
-    path_prefix: Union[None, str, Path] = None,
+    yaml_config: dict | str | Path,
+    path_prefix: None | str | Path = None,
 ):
     """Validate syntax and semantics of PEtab config YAML
 
@@ -51,7 +51,7 @@ def validate(
 
 
 def validate_yaml_syntax(
-    yaml_config: Union[dict, str, Path], schema: Union[None, dict, str] = None
+    yaml_config: dict | str | Path, schema: None | dict | str = None
 ):
     """Validate PEtab YAML file syntax
 
@@ -85,8 +85,8 @@ def validate_yaml_syntax(
 
 
 def validate_yaml_semantics(
-    yaml_config: Union[dict, str, Path],
-    path_prefix: Union[None, str, Path] = None,
+    yaml_config: dict | str | Path,
+    path_prefix: None | str | Path = None,
 ):
     """Validate PEtab YAML file semantics
 
@@ -106,7 +106,7 @@ def validate_yaml_semantics(
         AssertionError: in case of problems
     """
     if not path_prefix:
-        if isinstance(yaml_config, (str, Path)):
+        if isinstance(yaml_config, str | Path):
             path_prefix = os.path.dirname(str(yaml_config))
         else:
             path_prefix = ""
@@ -142,7 +142,7 @@ def validate_yaml_semantics(
                     _check_file(os.path.join(path_prefix, filename), field)
 
 
-def load_yaml(yaml_config: Union[dict, Path, str]) -> dict:
+def load_yaml(yaml_config: dict | Path | str) -> dict:
     """Load YAML
 
     Convenience function to allow for providing YAML inputs as filename, URL
@@ -165,7 +165,7 @@ def load_yaml(yaml_config: Union[dict, Path, str]) -> dict:
     return data
 
 
-def is_composite_problem(yaml_config: Union[dict, str, Path]) -> bool:
+def is_composite_problem(yaml_config: dict | str | Path) -> bool:
     """Does this YAML file comprise multiple models?
 
     Arguments:
@@ -199,9 +199,7 @@ def assert_single_condition_and_sbml_file(problem_config: dict) -> None:
         )
 
 
-def write_yaml(
-    yaml_config: dict[str, Any], filename: Union[str, Path]
-) -> None:
+def write_yaml(yaml_config: dict[str, Any], filename: str | Path) -> None:
     """Write PEtab YAML file
 
     Arguments:
@@ -215,17 +213,15 @@ def write_yaml(
 
 
 def create_problem_yaml(
-    sbml_files: Union[str, Path, list[Union[str, Path]]],
-    condition_files: Union[str, Path, list[Union[str, Path]]],
-    measurement_files: Union[str, Path, list[Union[str, Path]]],
-    parameter_file: Union[str, Path],
-    observable_files: Union[str, Path, list[Union[str, Path]]],
-    yaml_file: Union[str, Path],
-    visualization_files: Optional[
-        Union[str, Path, list[Union[str, Path]]]
-    ] = None,
+    sbml_files: str | Path | list[str | Path],
+    condition_files: str | Path | list[str | Path],
+    measurement_files: str | Path | list[str | Path],
+    parameter_file: str | Path,
+    observable_files: str | Path | list[str | Path],
+    yaml_file: str | Path,
+    visualization_files: str | Path | list[str | Path] | None = None,
     relative_paths: bool = True,
-    mapping_files: Union[str, Path, list[Union[str, Path]]] = None,
+    mapping_files: str | Path | list[str | Path] = None,
 ) -> None:
     """Create and write default YAML file for a single PEtab problem
 
@@ -244,21 +240,21 @@ def create_problem_yaml(
             unchanged.
         mapping_files: Path of mapping file
     """
-    if isinstance(sbml_files, (Path, str)):
+    if isinstance(sbml_files, Path | str):
         sbml_files = [sbml_files]
-    if isinstance(condition_files, (Path, str)):
+    if isinstance(condition_files, Path | str):
         condition_files = [condition_files]
-    if isinstance(measurement_files, (Path, str)):
+    if isinstance(measurement_files, Path | str):
         measurement_files = [measurement_files]
-    if isinstance(observable_files, (Path, str)):
+    if isinstance(observable_files, Path | str):
         observable_files = [observable_files]
-    if isinstance(visualization_files, (Path, str)):
+    if isinstance(visualization_files, Path | str):
         visualization_files = [visualization_files]
 
     if relative_paths:
         yaml_file_dir = Path(yaml_file).parent
 
-        def get_rel_to_yaml(paths: Union[list[str], None]):
+        def get_rel_to_yaml(paths: list[str] | None):
             if paths is None:
                 return paths
             return [

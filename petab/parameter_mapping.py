@@ -8,7 +8,7 @@ import os
 import re
 import warnings
 from collections.abc import Iterable
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 import libsbml
 import numpy as np
@@ -42,7 +42,7 @@ __all__ = [
 
 
 # Parameter mapping for condition
-ParMappingDict = dict[str, Union[str, numbers.Number]]
+ParMappingDict = dict[str, str | numbers.Number]
 # Parameter mapping for combination of preequilibration and simulation
 # condition
 ParMappingDictTuple = tuple[ParMappingDict, ParMappingDict]
@@ -59,12 +59,12 @@ ParMappingDictQuadruple = tuple[
 def get_optimization_to_simulation_parameter_mapping(
     condition_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
-    parameter_df: Optional[pd.DataFrame] = None,
-    observable_df: Optional[pd.DataFrame] = None,
-    mapping_df: Optional[pd.DataFrame] = None,
+    parameter_df: pd.DataFrame | None = None,
+    observable_df: pd.DataFrame | None = None,
+    mapping_df: pd.DataFrame | None = None,
     sbml_model: libsbml.Model = None,
-    simulation_conditions: Optional[pd.DataFrame] = None,
-    warn_unmapped: Optional[bool] = True,
+    simulation_conditions: pd.DataFrame | None = None,
+    warn_unmapped: bool | None = True,
     scaled_parameters: bool = False,
     fill_fixed_parameters: bool = True,
     allow_timepoint_specific_numeric_noise_parameters: bool = False,
@@ -308,12 +308,12 @@ def _map_condition(packed_args):
 def get_parameter_mapping_for_condition(
     condition_id: str,
     is_preeq: bool,
-    cur_measurement_df: Optional[pd.DataFrame] = None,
+    cur_measurement_df: pd.DataFrame | None = None,
     sbml_model: libsbml.Model = None,
     condition_df: pd.DataFrame = None,
     parameter_df: pd.DataFrame = None,
-    mapping_df: Optional[pd.DataFrame] = None,
-    simulation_parameters: Optional[dict[str, str]] = None,
+    mapping_df: pd.DataFrame | None = None,
+    simulation_parameters: dict[str, str] | None = None,
     warn_unmapped: bool = True,
     scaled_parameters: bool = False,
     fill_fixed_parameters: bool = True,
@@ -502,7 +502,7 @@ def _apply_condition_parameters(
     condition_id: str,
     condition_df: pd.DataFrame,
     model: Model,
-    mapping_df: Optional[pd.DataFrame] = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
@@ -547,7 +547,7 @@ def _apply_condition_parameters(
 def _apply_parameter_table(
     par_mapping: ParMappingDict,
     scale_mapping: ScaleMappingDict,
-    parameter_df: Optional[pd.DataFrame] = None,
+    parameter_df: pd.DataFrame | None = None,
     scaled_parameters: bool = False,
     fill_fixed_parameters: bool = True,
 ) -> None:

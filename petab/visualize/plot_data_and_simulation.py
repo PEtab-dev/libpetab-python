@@ -2,7 +2,6 @@
 the same format.
 """
 
-from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,14 +19,14 @@ __all__ = ["plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
 
 
 def plot_with_vis_spec(
-    vis_spec_df: Union[str, pd.DataFrame],
-    conditions_df: Union[str, pd.DataFrame],
-    measurements_df: Optional[Union[str, pd.DataFrame]] = None,
-    simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-    subplot_dir: Optional[str] = None,
+    vis_spec_df: str | pd.DataFrame,
+    conditions_df: str | pd.DataFrame,
+    measurements_df: str | pd.DataFrame | None = None,
+    simulations_df: str | pd.DataFrame | None = None,
+    subplot_dir: str | None = None,
     plotter_type: str = "mpl",
     format_: str = "png",
-) -> Optional[dict[str, plt.Subplot]]:
+) -> dict[str, plt.Subplot] | None:
     """
     Plot measurements and/or simulations. Specification of the visualization
     routines is provided in visualization table.
@@ -81,16 +80,16 @@ def plot_with_vis_spec(
 
 
 def plot_without_vis_spec(
-    conditions_df: Union[str, pd.DataFrame],
-    grouping_list: Optional[list[IdsList]] = None,
+    conditions_df: str | pd.DataFrame,
+    grouping_list: list[IdsList] | None = None,
     group_by: str = "observable",
-    measurements_df: Optional[Union[str, pd.DataFrame]] = None,
-    simulations_df: Optional[Union[str, pd.DataFrame]] = None,
+    measurements_df: str | pd.DataFrame | None = None,
+    simulations_df: str | pd.DataFrame | None = None,
     plotted_noise: str = MEAN_AND_SD,
-    subplot_dir: Optional[str] = None,
+    subplot_dir: str | None = None,
     plotter_type: str = "mpl",
     format_: str = "png",
-) -> Optional[dict[str, plt.Subplot]]:
+) -> dict[str, plt.Subplot] | None:
     """
     Plot measurements and/or simulations. What exactly should be plotted is
     specified in a grouping_list.
@@ -159,13 +158,13 @@ def plot_without_vis_spec(
 
 def plot_problem(
     petab_problem: problem.Problem,
-    simulations_df: Optional[Union[str, pd.DataFrame]] = None,
-    grouping_list: Optional[list[IdsList]] = None,
+    simulations_df: str | pd.DataFrame | None = None,
+    grouping_list: list[IdsList] | None = None,
     group_by: str = "observable",
     plotted_noise: str = MEAN_AND_SD,
-    subplot_dir: Optional[str] = None,
+    subplot_dir: str | None = None,
     plotter_type: str = "mpl",
-) -> Optional[dict[str, plt.Subplot]]:
+) -> dict[str, plt.Subplot] | None:
     """
     Visualization using petab problem.
     If Visualization table is part of the petab_problem, it will be used for

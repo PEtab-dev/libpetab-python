@@ -2,7 +2,6 @@
 
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -19,7 +18,7 @@ __all__ = [
 
 
 def get_condition_df(
-    condition_file: Union[str, pd.DataFrame, Path, None],
+    condition_file: str | pd.DataFrame | Path | None,
 ) -> pd.DataFrame:
     """Read the provided condition file into a ``pandas.Dataframe``
 
@@ -31,7 +30,7 @@ def get_condition_df(
     if condition_file is None:
         return condition_file
 
-    if isinstance(condition_file, (str, Path)):
+    if isinstance(condition_file, str | Path):
         condition_file = pd.read_csv(
             condition_file, sep="\t", float_precision="round_trip"
         )
@@ -56,7 +55,7 @@ def get_condition_df(
     return condition_file
 
 
-def write_condition_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
+def write_condition_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab condition table
 
     Arguments:
@@ -68,7 +67,7 @@ def write_condition_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
 
 
 def create_condition_df(
-    parameter_ids: Iterable[str], condition_ids: Optional[Iterable[str]] = None
+    parameter_ids: Iterable[str], condition_ids: Iterable[str] | None = None
 ) -> pd.DataFrame:
     """Create empty condition DataFrame
 

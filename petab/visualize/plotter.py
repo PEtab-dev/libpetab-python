@@ -1,7 +1,6 @@
 """PEtab visualization plotter classes"""
 import os
 from abc import ABC, abstractmethod
-from typing import Optional, Union
 
 import matplotlib.axes
 import matplotlib.ticker as mtick
@@ -51,8 +50,8 @@ class Plotter(ABC):
 
     @abstractmethod
     def generate_figure(
-        self, subplot_dir: Optional[str] = None
-    ) -> Optional[dict[str, plt.Subplot]]:
+        self, subplot_dir: str | None = None
+    ) -> dict[str, plt.Subplot] | None:
         pass
 
 
@@ -65,7 +64,7 @@ class MPLPlotter(Plotter):
         super().__init__(figure, data_provider)
 
     @staticmethod
-    def _error_column_for_plot_type_data(plot_type_data: str) -> Optional[str]:
+    def _error_column_for_plot_type_data(plot_type_data: str) -> str | None:
         """Translate PEtab plotTypeData value to column name of internal
         data representation
 
@@ -486,9 +485,9 @@ class MPLPlotter(Plotter):
 
     def generate_figure(
         self,
-        subplot_dir: Optional[str] = None,
+        subplot_dir: str | None = None,
         format_: str = "png",
-    ) -> Optional[dict[str, plt.Subplot]]:
+    ) -> dict[str, plt.Subplot] | None:
         """
         Generate the full figure based on the markup in the figure attribute.
 
@@ -558,7 +557,7 @@ class MPLPlotter(Plotter):
 
     @staticmethod
     def _square_plot_equal_ranges(
-        ax: "matplotlib.pyplot.Axes", lim: Optional[Union[list, tuple]] = None
+        ax: "matplotlib.pyplot.Axes", lim: list | tuple | None = None
     ) -> "matplotlib.pyplot.Axes":
         """
         Square plot with equal range for scatter plots.
@@ -784,7 +783,7 @@ class MPLPlotter(Plotter):
 
         def check_data_to_plot(
             data_to_plot: DataSeries,
-        ) -> tuple[bool, Optional[float], float]:
+        ) -> tuple[bool, float | None, float]:
             """
             Check if there is data available at t=inf and compute maximum and
             minimum finite time points that need to be plotted corresponding
@@ -875,6 +874,6 @@ class SeabornPlotter(Plotter):
         super().__init__(figure, data_provider)
 
     def generate_figure(
-        self, subplot_dir: Optional[str] = None
-    ) -> Optional[dict[str, plt.Subplot]]:
+        self, subplot_dir: str | None = None
+    ) -> dict[str, plt.Subplot] | None:
         pass
