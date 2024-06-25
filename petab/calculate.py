@@ -313,7 +313,7 @@ def calculate_llh(
         simulation_dfs,
         observable_dfs,
         parameter_dfs,
-        strict=True0,
+        strict=True,
     ):
         _llh = calculate_llh_for_table(
             measurement_df, simulation_df, observable_df, parameter_df
