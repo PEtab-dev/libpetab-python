@@ -49,7 +49,11 @@ def parse_cli_args():
     )
 
     # Call with set of files
-    group = parser.add_argument_group("Check individual files *DEPRECATED*. Please contact us via GitHub issues, if you need this.")
+    group = parser.add_argument_group(
+        "Check individual files *DEPRECATED*. Please contact us via "
+        "https://github.com/PEtab-dev/libpetab-python/issues, "
+        "if you need this."
+    )
     group.add_argument(
         "-s", "--sbml", dest="sbml_file_name", help="SBML model filename"
     )
@@ -99,7 +103,7 @@ def parse_cli_args():
     )
 
     args = parser.parse_args()
-    if (args.yaml_file_name or args.yaml_file_name_deprecated) and any(
+    if any(
         (
             args.sbml_file_name,
             args.condition_file_name,
@@ -107,9 +111,17 @@ def parse_cli_args():
             args.parameter_file_name,
         )
     ):
-        parser.error(
-            "When providing a yaml file, no other files may be specified."
+        logger.warning(
+            "Passing individual tables to petablint is deprecated, please "
+            "provide a PEtab YAML file instead. "
+            "Please contact us via "
+            "https://github.com/PEtab-dev/libpetab-python/issues, "
+            "if you need this."
         )
+        if args.yaml_file_name or args.yaml_file_name_deprecated:
+            parser.error(
+                "When providing a yaml file, no other files may be specified."
+            )
 
     if args.yaml_file_name_deprecated:
         logger.warning(
