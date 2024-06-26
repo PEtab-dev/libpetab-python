@@ -303,8 +303,7 @@ def get_path_prefix(yaml_path: Path | str) -> str:
         The path prefix for retrieving any referenced files with relative
         paths.
     """
-    if isinstance(yaml_path, Path):
-        yaml_path = str(yaml_path)
+    yaml_path = str(yaml_path)
 
     # yaml_config may be path or URL
     path_url = urlparse(yaml_path)
