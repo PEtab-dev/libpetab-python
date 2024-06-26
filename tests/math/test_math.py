@@ -62,5 +62,10 @@ def test_ids():
 
 
 def test_syntax_error():
+    # parser error
     with pytest.raises(ValueError, match="Syntax error"):
         sympify_petab("1 + ")
+
+    # lexer error
+    with pytest.raises(ValueError, match="Syntax error"):
+        sympify_petab("0.")

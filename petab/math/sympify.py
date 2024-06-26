@@ -25,6 +25,9 @@ def sympify_petab(expr: str | int | float) -> sp.Expr:
 
     input_stream = InputStream(expr)
     lexer = PetabMathExprLexer(input_stream)
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(MathErrorListener())
+
     stream = CommonTokenStream(lexer)
     parser = PetabMathExprParser(stream)
     parser.removeErrorListeners()
