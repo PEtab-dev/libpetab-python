@@ -214,7 +214,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         self, ctx: PetabMathExprParser.BooleanNotExprContext
     ):
         if ctx.getChildCount() == 2:
-            return ~self.visit(ctx.getChild(1))
+            return ~num2bool(self.visit(ctx.getChild(1)))
         elif ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
