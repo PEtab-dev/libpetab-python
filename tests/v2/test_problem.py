@@ -1,5 +1,3 @@
-import pytest
-
 from petab.v2 import Problem
 
 
@@ -18,8 +16,11 @@ def test_load_remote():
 
     assert petab_problem.validate() == []
 
-    yaml_url = yaml_url.replace("2.0.0", "1.0.0")
-    with pytest.raises(
-        ValueError, match="Provided PEtab files are of unsupported version"
-    ):
-        Problem.from_yaml(yaml_url)
+
+def test_auto_upgrade():
+    yaml_url = (
+        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
+        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+    )
+    problem = Problem.from_yaml(yaml_url)
+    assert isinstance(problem, Problem)
