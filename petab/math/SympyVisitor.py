@@ -76,8 +76,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 3:
-            operand1 = _bool2num(self.visit(ctx.getChild(0)))
-            operand2 = _bool2num(self.visit(ctx.getChild(2)))
+            operand1 = bool2num(self.visit(ctx.getChild(0)))
+            operand2 = bool2num(self.visit(ctx.getChild(2)))
             if ctx.MUL():
                 return operand1 * operand2
             if ctx.DIV():
@@ -86,9 +86,9 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
     def visitAddExpr(self, ctx: PetabMathExprParser.AddExprContext):
         if ctx.getChildCount() == 1:
-            return _bool2num(self.visit(ctx.getChild(0)))
-        op1 = _bool2num(self.visit(ctx.getChild(0)))
-        op2 = _bool2num(self.visit(ctx.getChild(2)))
+            return bool2num(self.visit(ctx.getChild(0)))
+        op1 = bool2num(self.visit(ctx.getChild(0)))
+        op2 = bool2num(self.visit(ctx.getChild(2)))
         if ctx.PLUS():
             return op1 + op2
         if ctx.MINUS():
@@ -109,7 +109,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
         if func_name != "piecewise":
             # all functions except piecewise expect numerical arguments
-            args = list(map(_bool2num, args))
+            args = list(map(bool2num, args))
 
         if func_name in _trig_funcs:
             if len(args) != 1:
@@ -150,7 +150,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             # `else` case
             args.append(sp.true)
             sp_args = (
-                (true_expr, _num2bool(condition))
+                (true_expr, num2bool(condition))
                 for true_expr, condition in zip(
                     args[::2], args[1::2], strict=True
                 )
@@ -176,7 +176,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() == 1:
             return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 2:
-            operand = _bool2num(self.visit(ctx.getChild(1)))
+            operand = bool2num(self.visit(ctx.getChild(1)))
             match ctx.getChild(0).getText():
                 case "-":
                     return -operand
@@ -205,8 +205,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             ">=": sp.GreaterThan,
         }
         if op in ops:
-            lhs = _bool2num(lhs)
-            rhs = _bool2num(rhs)
+            lhs = bool2num(lhs)
+            rhs = bool2num(rhs)
             return ops[op](lhs, rhs)
         raise AssertionError(f"Unexpected operator: {op}")
 
@@ -227,8 +227,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() != 3:
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
-        operand1 = _num2bool(self.visit(ctx.getChild(0)))
-        operand2 = _num2bool(self.visit(ctx.getChild(2)))
+        operand1 = num2bool(self.visit(ctx.getChild(0)))
+        operand2 = num2bool(self.visit(ctx.getChild(2)))
 
         if ctx.BOOLEAN_AND():
             return operand1 & operand2
@@ -247,7 +247,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         raise AssertionError(f"Unexpected boolean literal: {ctx.getText()}")
 
 
-def _bool2num(x):
+def bool2num(x: sp.Basic):
     """Convert sympy Booleans to Floats."""
     if isinstance(x, BooleanFalse):
         return sp.Float(0)
@@ -256,7 +256,7 @@ def _bool2num(x):
     return x
 
 
-def _num2bool(x: sp.Basic):
+def num2bool(x: sp.Basic):
     """Convert sympy Floats to booleans."""
     if isinstance(x, BooleanTrue | BooleanFalse):
         return x

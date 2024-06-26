@@ -6,7 +6,7 @@ from antlr4.error.ErrorListener import ErrorListener
 
 from petab.math._generated.PetabMathExprLexer import PetabMathExprLexer
 from petab.math._generated.PetabMathExprParser import PetabMathExprParser
-from petab.math.SympyVisitor import MathVisitorSympy
+from petab.math.SympyVisitor import MathVisitorSympy, bool2num
 
 
 def sympify_petab(expr: str | int | float) -> sp.Expr:
@@ -34,7 +34,10 @@ def sympify_petab(expr: str | int | float) -> sp.Expr:
     except ValueError as e:
         raise ValueError(f"Error parsing {expr!r}: {e.args[0]}") from None
     visitor = MathVisitorSympy()
-    return visitor.visit(tree)
+
+    expr = visitor.visit(tree)
+
+    return bool2num(expr)
 
 
 class MathErrorListener(ErrorListener):

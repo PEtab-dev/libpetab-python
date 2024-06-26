@@ -170,9 +170,9 @@ cases:
 - expression: sign(false)
   expected: 0.0
 - expression: piecewise(true, true, false)
-  expected: true
+  expected: 1.0
 - expression: piecewise(false, false, true)
-  expected: true
+  expected: 1.0
 - expression: piecewise(1, 1, 0)
   expected: 1.0
 - expression: piecewise(1, -0.1, 0)
