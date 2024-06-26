@@ -557,6 +557,17 @@ def check_parameter_bounds(parameter_df: pd.DataFrame) -> None:
                     f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "
                     f"{ row.name} must be positive."
                 )
+            if (
+                row.get(PARAMETER_SCALE, LIN) in [LOG, LOG10]
+                and (row[LOWER_BOUND] == 0.0 or row[UPPER_BOUND] == 0.0)
+                and not row.get(INITIALIZATION_PRIOR_TYPE)
+            ):
+                raise AssertionError(
+                    f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "
+                    f"{row.name} must be positive if no "
+                    f"{INITIALIZATION_PRIOR_TYPE} is provided. "
+                    "Cannot sample from unbounded interval."
+                )
 
 
 def assert_parameter_prior_type_is_valid(parameter_df: pd.DataFrame) -> None:
