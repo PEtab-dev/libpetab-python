@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import sympy as sp
 import yaml
+from sympy.abc import _clash
 from sympy.logic.boolalg import Boolean
 
 from petab.math import sympify_petab
@@ -20,13 +21,17 @@ def test_parse_simple():
 def read_cases():
     with open(Path(__file__).parent / "math_tests.yaml") as file:
         data = yaml.safe_load(file)
+
     cases = []
     for item in data["cases"]:
         expr_str = item["expression"]
         if item["expected"] is True or item["expected"] is False:
             expected = item["expected"]
         else:
-            expected = float(item["expected"])
+            try:
+                expected = float(item["expected"])
+            except ValueError:
+                expected = sp.sympify(item["expected"], locals=_clash)
         cases.append((expr_str, expected))
     return cases
 
@@ -37,10 +42,15 @@ def test_parse_cases(expr_str, expected):
     if isinstance(result, Boolean):
         assert result == expected
     else:
-        result = float(result.evalf())
-        assert np.isclose(
-            result, expected
-        ), f"{expr_str}: Expected {expected}, got {result}"
+        try:
+            result = float(result.evalf())
+            assert np.isclose(
+                result, expected
+            ), f"{expr_str}: Expected {expected}, got {result}"
+        except TypeError:
+            assert (
+                result == expected
+            ), f"{expr_str}: Expected {expected}, got {result}"
 
 
 def test_ids():
