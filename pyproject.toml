@@ -21,6 +21,7 @@ dependencies = [
     "colorama",
     "pyyaml",
     "jsonschema",
+    "antlr4-python3-runtime==4.13.1",
 ]
 license = {text = "MIT License"}
 authors = [
@@ -95,9 +96,17 @@ lint.extend-select = [
     # TODO: "ANN001", "D",  # pydocstyle (PEP 257)
 ]
 lint.extend-ignore = ["F403", "F405", "S101"]
+lint.exclude = [
+    "petab/math/_generated/*",  # auto-generated
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T201"]
+
+[tool.ruff.format]
+exclude = [
+    "petab/math/_generated/*",  # auto-generated
+]
