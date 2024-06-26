@@ -647,6 +647,18 @@ def assert_parameter_prior_parameters_are_valid(
                     f"{PARAMETER_SEPARATOR}par2' for all prior types)."
                 )
 
+            # we can't sample uniformly from [log(0)=-inf, ...]
+            if (
+                row.get(type_col, "") == PARAMETER_SCALE_UNIFORM
+                and row.get(PARAMETER_SCALE, LIN) in [LOG, LOG10]
+                and (pars[0] == 0.0 or pars[1] == 0.0)
+            ):
+                raise AssertionError(
+                    f"{prior_par_cols} for {row[PARAMETER_SCALE]} scaled "
+                    f"parameter {row.name} must be positive if "
+                    f"{type_col}={PARAMETER_SCALE_UNIFORM}."
+                )
+
 
 def assert_parameter_estimate_is_boolean(parameter_df: pd.DataFrame) -> None:
     """
