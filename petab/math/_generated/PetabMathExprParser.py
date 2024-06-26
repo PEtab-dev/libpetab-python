@@ -60,17 +60,17 @@ class PetabMathExprParser ( Parser ):
                       "PLUS", "MINUS", "ASTERISK", "SLASH", "CARET", "EXCLAMATION_MARK",
                       "COMMA" ]
 
-    RULE_prog = 0
+    RULE_petabExpression = 0
     RULE_expr = 1
     RULE_comp_op = 2
     RULE_argumentList = 3
-    RULE_func_expr = 4
+    RULE_functionCall = 4
     RULE_booleanLiteral = 5
     RULE_number = 6
     RULE_var = 7
 
-    ruleNames =  [ "prog", "expr", "comp_op", "argumentList", "func_expr",
-                   "booleanLiteral", "number", "var" ]
+    ruleNames =  [ "petabExpression", "expr", "comp_op", "argumentList",
+                   "functionCall", "booleanLiteral", "number", "var" ]
 
     EOF = Token.EOF
     NUMBER=1
@@ -110,7 +110,7 @@ class PetabMathExprParser ( Parser ):
 
 
 
-    class ProgContext(ParserRuleContext):
+    class PetabExpressionContext(ParserRuleContext):
         __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -125,21 +125,21 @@ class PetabMathExprParser ( Parser ):
             return self.getToken(PetabMathExprParser.EOF, 0)
 
         def getRuleIndex(self):
-            return PetabMathExprParser.RULE_prog
+            return PetabMathExprParser.RULE_petabExpression
 
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitProg" ):
-                return visitor.visitProg(self)
+            if hasattr( visitor, "visitPetabExpression" ):
+                return visitor.visitPetabExpression(self)
             else:
                 return visitor.visitChildren(self)
 
 
 
 
-    def prog(self):
+    def petabExpression(self):
 
-        localctx = PetabMathExprParser.ProgContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 0, self.RULE_prog)
+        localctx = PetabMathExprParser.PetabExpressionContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 0, self.RULE_petabExpression)
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 16
@@ -169,6 +169,28 @@ class PetabMathExprParser ( Parser ):
 
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
+
+
+    class PowerExprContext(ExprContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.ExprContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expr(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(PetabMathExprParser.ExprContext)
+            else:
+                return self.getTypedRuleContext(PetabMathExprParser.ExprContext,i)
+
+        def CARET(self):
+            return self.getToken(PetabMathExprParser.CARET, 0)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitPowerExpr" ):
+                return visitor.visitPowerExpr(self)
+            else:
+                return visitor.visitChildren(self)
 
 
     class BooleanAndOrExprContext(ExprContext):
@@ -218,23 +240,6 @@ class PetabMathExprParser ( Parser ):
                 return visitor.visitChildren(self)
 
 
-    class FuncExpr_Context(ExprContext):
-
-        def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.ExprContext
-            super().__init__(parser)
-            self.copyFrom(ctx)
-
-        def func_expr(self):
-            return self.getTypedRuleContext(PetabMathExprParser.Func_exprContext,0)
-
-
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitFuncExpr_" ):
-                return visitor.visitFuncExpr_(self)
-            else:
-                return visitor.visitChildren(self)
-
-
     class MultExprContext(ExprContext):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.ExprContext
@@ -272,28 +277,6 @@ class PetabMathExprParser ( Parser ):
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitBooleanLiteral_" ):
                 return visitor.visitBooleanLiteral_(self)
-            else:
-                return visitor.visitChildren(self)
-
-
-    class HatExprContext(ExprContext):
-
-        def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.ExprContext
-            super().__init__(parser)
-            self.copyFrom(ctx)
-
-        def expr(self, i:int=None):
-            if i is None:
-                return self.getTypedRuleContexts(PetabMathExprParser.ExprContext)
-            else:
-                return self.getTypedRuleContext(PetabMathExprParser.ExprContext,i)
-
-        def CARET(self):
-            return self.getToken(PetabMathExprParser.CARET, 0)
-
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitHatExpr" ):
-                return visitor.visitHatExpr(self)
             else:
                 return visitor.visitChildren(self)
 
@@ -358,6 +341,23 @@ class PetabMathExprParser ( Parser ):
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitParenExpr" ):
                 return visitor.visitParenExpr(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class FunctionCall_Context(ExprContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a PetabMathExprParser.ExprContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def functionCall(self):
+            return self.getTypedRuleContext(PetabMathExprParser.FunctionCallContext,0)
+
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitFunctionCall_" ):
+                return visitor.visitFunctionCall_(self)
             else:
                 return visitor.visitChildren(self)
 
@@ -486,11 +486,11 @@ class PetabMathExprParser ( Parser ):
                 pass
 
             elif la_ == 6:
-                localctx = PetabMathExprParser.FuncExpr_Context(self, localctx)
+                localctx = PetabMathExprParser.FunctionCall_Context(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 30
-                self.func_expr()
+                self.functionCall()
                 pass
 
             elif la_ == 7:
@@ -515,7 +515,7 @@ class PetabMathExprParser ( Parser ):
                     self._errHandler.sync(self)
                     la_ = self._interp.adaptivePredict(self._input,1,self._ctx)
                     if la_ == 1:
-                        localctx = PetabMathExprParser.HatExprContext(self, PetabMathExprParser.ExprContext(self, _parentctx, _parentState))
+                        localctx = PetabMathExprParser.PowerExprContext(self, PetabMathExprParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
                         self.state = 34
                         if not self.precpred(self._ctx, 12):
@@ -730,7 +730,7 @@ class PetabMathExprParser ( Parser ):
         return localctx
 
 
-    class Func_exprContext(ParserRuleContext):
+    class FunctionCallContext(ParserRuleContext):
         __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -751,21 +751,21 @@ class PetabMathExprParser ( Parser ):
             return self.getToken(PetabMathExprParser.CLOSE_PAREN, 0)
 
         def getRuleIndex(self):
-            return PetabMathExprParser.RULE_func_expr
+            return PetabMathExprParser.RULE_functionCall
 
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitFunc_expr" ):
-                return visitor.visitFunc_expr(self)
+            if hasattr( visitor, "visitFunctionCall" ):
+                return visitor.visitFunctionCall(self)
             else:
                 return visitor.visitChildren(self)
 
 
 
 
-    def func_expr(self):
+    def functionCall(self):
 
-        localctx = PetabMathExprParser.Func_exprContext(self, self._ctx, self.state)
-        self.enterRule(localctx, 8, self.RULE_func_expr)
+        localctx = PetabMathExprParser.FunctionCallContext(self, self._ctx, self.state)
+        self.enterRule(localctx, 8, self.RULE_functionCall)
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 65

@@ -9,8 +9,13 @@ else:
 
 class PetabMathExprParserVisitor(ParseTreeVisitor):
 
-    # Visit a parse tree produced by PetabMathExprParser#prog.
-    def visitProg(self, ctx:PetabMathExprParser.ProgContext):
+    # Visit a parse tree produced by PetabMathExprParser#petabExpression.
+    def visitPetabExpression(self, ctx:PetabMathExprParser.PetabExpressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by PetabMathExprParser#PowerExpr.
+    def visitPowerExpr(self, ctx:PetabMathExprParser.PowerExprContext):
         return self.visitChildren(ctx)
 
 
@@ -24,11 +29,6 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by PetabMathExprParser#FuncExpr_.
-    def visitFuncExpr_(self, ctx:PetabMathExprParser.FuncExpr_Context):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by PetabMathExprParser#MultExpr.
     def visitMultExpr(self, ctx:PetabMathExprParser.MultExprContext):
         return self.visitChildren(ctx)
@@ -36,11 +36,6 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by PetabMathExprParser#BooleanLiteral_.
     def visitBooleanLiteral_(self, ctx:PetabMathExprParser.BooleanLiteral_Context):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by PetabMathExprParser#HatExpr.
-    def visitHatExpr(self, ctx:PetabMathExprParser.HatExprContext):
         return self.visitChildren(ctx)
 
 
@@ -56,6 +51,11 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by PetabMathExprParser#ParenExpr.
     def visitParenExpr(self, ctx:PetabMathExprParser.ParenExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by PetabMathExprParser#functionCall_.
+    def visitFunctionCall_(self, ctx:PetabMathExprParser.FunctionCall_Context):
         return self.visitChildren(ctx)
 
 
@@ -84,8 +84,8 @@ class PetabMathExprParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by PetabMathExprParser#func_expr.
-    def visitFunc_expr(self, ctx:PetabMathExprParser.Func_exprContext):
+    # Visit a parse tree produced by PetabMathExprParser#functionCall.
+    def visitFunctionCall(self, ctx:PetabMathExprParser.FunctionCallContext):
         return self.visitChildren(ctx)
 
 

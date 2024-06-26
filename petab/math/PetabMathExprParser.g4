@@ -4,11 +4,11 @@ parser grammar PetabMathExprParser;
 
 options { tokenVocab=PetabMathExprLexer; }
 
-prog:
+petabExpression:
     expr EOF ;
 
 expr:
-    <assoc=right> expr '^' expr             # HatExpr
+    <assoc=right> expr '^' expr             # PowerExpr
     | ('+'|'-') expr                        # UnaryExpr
     | '!' expr                              # BooleanNotExpr
     | expr ('*'|'/') expr                   # MultExpr
@@ -18,7 +18,7 @@ expr:
     | expr (BOOLEAN_AND | BOOLEAN_OR) expr  # BooleanAndOrExpr
     | number                                # Number_
     | booleanLiteral                        # BooleanLiteral_
-    | func_expr                             # FuncExpr_
+    | functionCall                          # functionCall_
     | var                                   # VarExpr_
     ;
 
@@ -32,7 +32,7 @@ comp_op:
     ;
 
 argumentList: expr (',' expr)* ;
-func_expr: NAME OPEN_PAREN argumentList CLOSE_PAREN ;
+functionCall: NAME OPEN_PAREN argumentList CLOSE_PAREN ;
 
 booleanLiteral:
     TRUE

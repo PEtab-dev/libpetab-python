@@ -43,7 +43,7 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
 
     # Parse expression
     try:
-        tree = parser.prog()
+        tree = parser.petabExpression()
     except ValueError as e:
         raise ValueError(f"Error parsing {expr!r}: {e.args[0]}") from None
 

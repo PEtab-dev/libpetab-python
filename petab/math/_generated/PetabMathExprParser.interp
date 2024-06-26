@@ -59,11 +59,11 @@ EXCLAMATION_MARK
 COMMA
 
 rule names:
-prog
+petabExpression
 expr
 comp_op
 argumentList
-func_expr
+functionCall
 booleanLiteral
 number
 var
