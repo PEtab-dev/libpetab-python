@@ -5,9 +5,8 @@ import os
 import tempfile
 from collections.abc import Iterable
 from math import nan
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlparse, urlunparse
 from warnings import warn
 
 import pandas as pd
@@ -29,6 +28,7 @@ from .C import *  # noqa: F403
 from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
 from .models.sbml_model import SbmlModel
+from .yaml import get_path_prefix
 
 if TYPE_CHECKING:
     import libsbml
@@ -263,34 +263,9 @@ class Problem:
 
         get_path = lambda filename: filename  # noqa: E731
         if isinstance(yaml_config, str):
-            yaml_path = yaml_config
+            path_prefix = get_path_prefix(yaml_config)
             yaml_config = yaml.load_yaml(yaml_config)
-
-            # yaml_config may be path or URL
-            path_url = urlparse(yaml_path)
-            if not path_url.scheme or (
-                path_url.scheme != "file" and not path_url.netloc
-            ):
-                # a regular file path string
-                path_prefix = Path(yaml_path).parent
-                get_path = lambda filename: path_prefix / filename  # noqa: E731
-            else:
-                # a URL
-                # extract parent path from
-                url_path = unquote(urlparse(yaml_path).path)
-                parent_path = str(PurePosixPath(url_path).parent)
-                path_prefix = urlunparse(
-                    (
-                        path_url.scheme,
-                        path_url.netloc,
-                        parent_path,
-                        path_url.params,
-                        path_url.query,
-                        path_url.fragment,
-                    )
-                )
-                # need "/" on windows, not "\"
-                get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
+            get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(

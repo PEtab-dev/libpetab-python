@@ -1,8 +1,10 @@
 """Code regarding the PEtab YAML config files"""
+from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import unquote, urlparse, urlunparse
 
 import jsonschema
 import numpy as np
@@ -286,3 +288,43 @@ def create_problem_yaml(
         PROBLEMS: [problem_dic],
     }
     write_yaml(yaml_dic, yaml_file)
+
+
+def get_path_prefix(yaml_path: Path | str) -> str:
+    """Get the path prefix from a PEtab problem yaml file.
+
+    Get the path prefix to retrieve any files with relative paths referenced
+    in the given PEtab problem yaml file.
+
+    Arguments:
+        yaml_path: PEtab problem YAML file path (local or URL).
+
+    Returns:
+        The path prefix for retrieving any referenced files with relative
+        paths.
+    """
+    yaml_path = str(yaml_path)
+
+    # yaml_config may be path or URL
+    path_url = urlparse(yaml_path)
+    if not path_url.scheme or (
+        path_url.scheme != "file" and not path_url.netloc
+    ):
+        # a regular file path string
+        return str(Path(yaml_path).parent)
+
+    # a URL
+    # extract parent path
+    url_path = unquote(urlparse(yaml_path).path)
+    parent_path = str(PurePosixPath(url_path).parent)
+    path_prefix = urlunparse(
+        (
+            path_url.scheme,
+            path_url.netloc,
+            parent_path,
+            path_url.params,
+            path_url.query,
+            path_url.fragment,
+        )
+    )
+    return path_prefix
