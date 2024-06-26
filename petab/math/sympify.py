@@ -40,9 +40,7 @@ def sympify_petab(expr: str | int | float) -> sp.Expr:
 
     expr = visitor.visit(tree)
     expr = bool2num(expr)
-    if not expr.is_real:
-        if hasattr(expr, "is_infinite") and expr.is_infinite:
-            return expr
+    if not expr.is_extended_real:
         raise ValueError(f"Expression {expr} is not real-valued.")
 
     return expr
