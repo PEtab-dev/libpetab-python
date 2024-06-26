@@ -35,8 +35,8 @@ _trig_funcs = {
 }
 _unary_funcs = {
     "exp": sp.exp,
-    "log10": lambda x: sp.log(x, 10),
-    "log2": lambda x: sp.log(x, 2),
+    "log10": lambda x: -sp.oo if x.is_zero is True else sp.log(x, 10),
+    "log2": lambda x: -sp.oo if x.is_zero is True else sp.log(x, 2),
     "ln": sp.log,
     "sqrt": sp.sqrt,
     "abs": sp.Abs,
@@ -138,7 +138,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            return sp.log(*args)
+            return -sp.oo if args[0].is_zero is True else sp.log(*args)
 
         if func_name == "piecewise":
             if (len(args) - 1) % 2 != 0:
