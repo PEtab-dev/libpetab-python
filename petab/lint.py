@@ -279,6 +279,7 @@ def check_parameter_df(
     assert_unique_parameter_ids(df)
     check_parameter_bounds(df)
     assert_parameter_prior_type_is_valid(df)
+    assert_parameter_prior_parameters_are_valid(df)
 
     if model and measurement_df is not None and condition_df is not None:
         assert_all_parameters_present_in_parameter_df(
