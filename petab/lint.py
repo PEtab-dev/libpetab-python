@@ -5,7 +5,8 @@ import logging
 import numbers
 import re
 from collections import Counter
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -90,9 +91,9 @@ def assert_no_leading_trailing_whitespace(
 
 def check_condition_df(
     df: pd.DataFrame,
-    model: Optional[Model] = None,
-    observable_df: Optional[pd.DataFrame] = None,
-    mapping_df: Optional[pd.DataFrame] = None,
+    model: Model | None = None,
+    observable_df: pd.DataFrame | None = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> None:
     """Run sanity checks on PEtab condition table
 
@@ -154,7 +155,7 @@ def check_condition_df(
 
 
 def check_measurement_df(
-    df: pd.DataFrame, observable_df: Optional[pd.DataFrame] = None
+    df: pd.DataFrame, observable_df: pd.DataFrame | None = None
 ) -> None:
     """Run sanity checks on PEtab measurement table
 
@@ -192,7 +193,9 @@ def check_measurement_df(
             assert_unique_observable_ids(observable_df)
             # If the above is not checked, in the following loop
             # trafo may become a pandas Series
-            for measurement, obs_id in zip(df[MEASUREMENT], df[OBSERVABLE_ID]):
+            for measurement, obs_id in zip(
+                df[MEASUREMENT], df[OBSERVABLE_ID], strict=True
+            ):
                 trafo = observable_df.loc[obs_id, OBSERVABLE_TRANSFORMATION]
                 if measurement <= 0.0 and trafo in [LOG, LOG10]:
                     raise ValueError(
@@ -207,11 +210,11 @@ def check_measurement_df(
 
 def check_parameter_df(
     df: pd.DataFrame,
-    model: Optional[Model] = None,
-    observable_df: Optional[pd.DataFrame] = None,
-    measurement_df: Optional[pd.DataFrame] = None,
-    condition_df: Optional[pd.DataFrame] = None,
-    mapping_df: Optional[pd.DataFrame] = None,
+    model: Model | None = None,
+    observable_df: pd.DataFrame | None = None,
+    measurement_df: pd.DataFrame | None = None,
+    condition_df: pd.DataFrame | None = None,
+    mapping_df: pd.DataFrame | None = None,
 ) -> None:
     """Run sanity checks on PEtab parameter table
 
@@ -389,7 +392,7 @@ def assert_all_parameters_present_in_parameter_df(
     if missing and mapping_df is not None:
         model_to_petab_mapping = {}
         for map_from, map_to in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID]
+            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
         ):
             if map_to in model_to_petab_mapping:
                 model_to_petab_mapping[map_to].append(map_from)
@@ -594,7 +597,7 @@ def assert_parameter_prior_parameters_are_valid(
     ]
 
     # perform test for both priors
-    for type_col, par_col in zip(prior_type_cols, prior_par_cols):
+    for type_col, par_col in zip(prior_type_cols, prior_par_cols, strict=True):
         # iterate over rows
         for _, row in parameter_df.iterrows():
             # get type
@@ -671,7 +674,7 @@ def is_scalar_float(x: Any):
 
 
 def measurement_table_has_timepoint_specific_mappings(
-    measurement_df: Optional[pd.DataFrame],
+    measurement_df: pd.DataFrame | None,
     allow_scalar_numeric_noise_parameters: bool = False,
     allow_scalar_numeric_observable_parameters: bool = False,
 ) -> bool:
@@ -743,7 +746,7 @@ def measurement_table_has_timepoint_specific_mappings(
 
 
 def observable_table_has_nontrivial_noise_formula(
-    observable_df: Optional[pd.DataFrame],
+    observable_df: pd.DataFrame | None,
 ) -> bool:
     """
     Does any observable have a noise formula that is not just a single
@@ -1011,7 +1014,9 @@ def assert_model_parameters_in_condition_or_parameter_table(
         allowed_in_condition_cols |= {
             from_id
             for from_id, to_id in zip(
-                mapping_df.index.values, mapping_df[MODEL_ENTITY_ID]
+                mapping_df.index.values,
+                mapping_df[MODEL_ENTITY_ID],
+                strict=True,
             )
             # mapping table entities mapping to already allowed parameters
             if to_id in allowed_in_condition_cols

@@ -225,7 +225,13 @@ def test_get_priors_from_df():
     bounds = [entry[3] for entry in prior_list]
     assert (
         bounds
-        == list(zip(parameter_df[LOWER_BOUND], parameter_df[UPPER_BOUND]))[:4]
+        == list(
+            zip(
+                parameter_df[LOWER_BOUND],
+                parameter_df[UPPER_BOUND],
+                strict=True,
+            )
+        )[:4]
     )
 
     # give correct value for empty

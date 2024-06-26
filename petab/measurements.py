@@ -5,7 +5,6 @@ import itertools
 import math
 import numbers
 from pathlib import Path
-from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -28,7 +27,7 @@ __all__ = [
 
 
 def get_measurement_df(
-    measurement_file: Union[None, str, Path, pd.DataFrame],
+    measurement_file: None | str | Path | pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Read the provided measurement file into a ``pandas.Dataframe``.
@@ -42,7 +41,7 @@ def get_measurement_df(
     if measurement_file is None:
         return measurement_file
 
-    if isinstance(measurement_file, (str, Path)):
+    if isinstance(measurement_file, str | Path):
         measurement_file = pd.read_csv(
             measurement_file, sep="\t", float_precision="round_trip"
         )
@@ -54,7 +53,7 @@ def get_measurement_df(
     return measurement_file
 
 
-def write_measurement_df(df: pd.DataFrame, filename: Union[str, Path]) -> None:
+def write_measurement_df(df: pd.DataFrame, filename: str | Path) -> None:
     """Write PEtab measurement table
 
     Arguments:
@@ -105,7 +104,7 @@ def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
 
 def get_rows_for_condition(
     measurement_df: pd.DataFrame,
-    condition: Union[pd.Series, pd.DataFrame, Dict],
+    condition: pd.Series | pd.DataFrame | dict,
 ) -> pd.DataFrame:
     """
     Extract rows in `measurement_df` for `condition` according
@@ -143,7 +142,7 @@ def get_rows_for_condition(
     return cur_measurement_df
 
 
-def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
+def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> list[str]:
     """
     Return list of ID of parameters which occur in measurement table as
     observable or noise parameter overrides.
@@ -170,8 +169,8 @@ def get_measurement_parameter_ids(measurement_df: pd.DataFrame) -> List[str]:
 
 
 def split_parameter_replacement_list(
-    list_string: Union[str, numbers.Number], delim: str = PARAMETER_SEPARATOR
-) -> List[Union[str, numbers.Number]]:
+    list_string: str | numbers.Number, delim: str = PARAMETER_SEPARATOR
+) -> list[str | numbers.Number]:
     """
     Split values in observableParameters and noiseParameters in measurement
     table.
@@ -271,7 +270,9 @@ def assert_overrides_match_parameter_count(
             observables.get_formula_placeholders(formula, obs_id, "observable")
         )
         for obs_id, formula in zip(
-            observable_df.index.values, observable_df[OBSERVABLE_FORMULA]
+            observable_df.index.values,
+            observable_df[OBSERVABLE_FORMULA],
+            strict=True,
         )
     }
     noise_parameters_count = {
@@ -279,7 +280,9 @@ def assert_overrides_match_parameter_count(
             observables.get_formula_placeholders(formula, obs_id, "noise")
         )
         for obs_id, formula in zip(
-            observable_df.index.values, observable_df[NOISE_FORMULA]
+            observable_df.index.values,
+            observable_df[NOISE_FORMULA],
+            strict=True,
         )
     }
 
