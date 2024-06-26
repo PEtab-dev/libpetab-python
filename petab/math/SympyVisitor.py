@@ -73,8 +73,6 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         return sp.Symbol(ctx.getText(), real=True)
 
     def visitMultExpr(self, ctx: PetabMathExprParser.MultExprContext):
-        if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 3:
             operand1 = bool2num(self.visit(ctx.getChild(0)))
             operand2 = bool2num(self.visit(ctx.getChild(2)))
@@ -85,8 +83,6 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
     def visitAddExpr(self, ctx: PetabMathExprParser.AddExprContext):
-        if ctx.getChildCount() == 1:
-            return bool2num(self.visit(ctx.getChild(0)))
         op1 = bool2num(self.visit(ctx.getChild(0)))
         op2 = bool2num(self.visit(ctx.getChild(2)))
         if ctx.PLUS():
@@ -163,8 +159,6 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         return self.visit(ctx.getChild(1))
 
     def visitHatExpr(self, ctx: PetabMathExprParser.HatExprContext):
-        if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
         if ctx.getChildCount() != 3:
             raise AssertionError(
                 f"Unexpected number of children: {ctx.getChildCount()} "
@@ -175,8 +169,6 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         return sp.Pow(operand1, operand2)
 
     def visitUnaryExpr(self, ctx: PetabMathExprParser.UnaryExprContext):
-        if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
         if ctx.getChildCount() == 2:
             operand = bool2num(self.visit(ctx.getChild(1)))
             match ctx.getChild(0).getText():
@@ -217,15 +209,12 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     ):
         if ctx.getChildCount() == 2:
             return ~num2bool(self.visit(ctx.getChild(1)))
-        elif ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
+
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
     def visitBooleanAndOrExpr(
         self, ctx: PetabMathExprParser.BooleanAndOrExprContext
     ):
-        if ctx.getChildCount() == 1:
-            return self.visit(ctx.getChild(0))
         if ctx.getChildCount() != 3:
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
