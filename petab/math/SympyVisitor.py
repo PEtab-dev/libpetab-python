@@ -62,7 +62,7 @@ _reserved_names = {
 
 class MathVisitorSympy(PetabMathExprParserVisitor):
     """
-    ANTRL4 visitor for PEtab-math-to-sympy conversion.
+    ANTLR4 visitor for PEtab-math-to-sympy conversion.
 
     Visitor for PEtab math expression AST generated using ANTLR4.
     Converts PEtab math expressions to sympy expressions.
