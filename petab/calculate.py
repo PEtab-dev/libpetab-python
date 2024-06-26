@@ -5,7 +5,7 @@ from functools import reduce
 
 import numpy as np
 import pandas as pd
-import sympy
+import sympy as sp
 
 import petab
 
@@ -144,7 +144,7 @@ def calculate_residuals_for_table(
     return residual_df
 
 
-def get_symbolic_noise_formulas(observable_df) -> dict[str, sympy.Expr]:
+def get_symbolic_noise_formulas(observable_df) -> dict[str, sp.Expr]:
     """Sympify noise formulas.
 
     Arguments:
@@ -167,7 +167,7 @@ def get_symbolic_noise_formulas(observable_df) -> dict[str, sympy.Expr]:
 
 def evaluate_noise_formula(
     measurement: pd.Series,
-    noise_formulas: dict[str, sympy.Expr],
+    noise_formulas: dict[str, sp.Expr],
     parameter_df: pd.DataFrame,
     simulation: numbers.Number,
 ) -> float:
@@ -192,16 +192,18 @@ def evaluate_noise_formula(
     )
     # fill in measurement specific parameters
     overrides = {
-        f"noiseParameter{i_obs_par + 1}_{observable_id}": obs_par
+        sp.Symbol(
+            f"noiseParameter{i_obs_par + 1}_{observable_id}", real=True
+        ): obs_par
         for i_obs_par, obs_par in enumerate(observable_parameter_overrides)
     }
 
     # fill in observables
-    overrides[observable_id] = simulation
+    overrides[sp.Symbol(observable_id, real=True)] = simulation
 
     # fill in general parameters
     for row in parameter_df.itertuples():
-        overrides[row.Index] = row.nominalValue
+        overrides[sp.Symbol(row.Index, real=True)] = row.nominalValue
 
     # replace parametric measurement specific parameters
     for key, value in overrides.items():
