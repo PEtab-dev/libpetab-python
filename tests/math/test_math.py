@@ -12,6 +12,7 @@ from petab.math import sympify_petab
 
 
 def test_parse_simple():
+    """Test simple numeric expressions."""
     assert float(sympify_petab("1 + 2")) == 3
     assert float(sympify_petab("1 + 2 * 3")) == 7
     assert float(sympify_petab("(1 + 2) * 3")) == 9
@@ -20,6 +21,7 @@ def test_parse_simple():
 
 
 def read_cases():
+    """Read test cases from YAML file in the petab_test_suite package."""
     yaml_file = importlib.resources.files("petabtests.cases").joinpath(
         str(Path("v2.0.0", "math", "math_tests.yaml"))
     )
@@ -48,6 +50,7 @@ def read_cases():
 
 @pytest.mark.parametrize("expr_str, expected", read_cases())
 def test_parse_cases(expr_str, expected):
+    """Test PEtab math expressions for the PEtab test suite."""
     result = sympify_petab(expr_str)
     if isinstance(result, Boolean):
         assert result == expected
@@ -64,10 +67,12 @@ def test_parse_cases(expr_str, expected):
 
 
 def test_ids():
+    """Test symbols in expressions."""
     assert sympify_petab("bla * 2") == 2.0 * sp.Symbol("bla", real=True)
 
 
 def test_syntax_error():
+    """Test exceptions upon syntax errors."""
     # parser error
     with pytest.raises(ValueError, match="Syntax error"):
         sympify_petab("1 + ")
@@ -78,6 +83,7 @@ def test_syntax_error():
 
 
 def test_complex():
+    """Test expressions producing (unsupported) complex numbers."""
     with pytest.raises(ValueError, match="not real-valued"):
         sympify_petab("sqrt(-1)")
     with pytest.raises(ValueError, match="not real-valued"):
