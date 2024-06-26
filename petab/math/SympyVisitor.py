@@ -78,9 +78,9 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() == 3:
             operand1 = bool2num(self.visit(ctx.getChild(0)))
             operand2 = bool2num(self.visit(ctx.getChild(2)))
-            if ctx.MUL():
+            if ctx.ASTERISK():
                 return operand1 * operand2
-            if ctx.DIV():
+            if ctx.SLASH():
                 return operand1 / operand2
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
@@ -170,7 +170,9 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                 f"Unexpected number of children: {ctx.getChildCount()} "
                 f"in {ctx.getText()}"
             )
-        return sp.Pow(self.visit(ctx.getChild(0)), self.visit(ctx.getChild(2)))
+        operand1 = bool2num(self.visit(ctx.getChild(0)))
+        operand2 = bool2num(self.visit(ctx.getChild(2)))
+        return sp.Pow(operand1, operand2)
 
     def visitUnaryExpr(self, ctx: PetabMathExprParser.UnaryExprContext):
         if ctx.getChildCount() == 1:

@@ -96,10 +96,10 @@ class PetabMathExprLexer(Lexer):
     NEQ = 20
     PLUS = 21
     MINUS = 22
-    MUL = 23
-    DIV = 24
-    HAT = 25
-    NOT = 26
+    ASTERISK = 23
+    SLASH = 24
+    CARET = 25
+    EXCLAMATION_MARK = 26
     COMMA = 27
 
     channelNames = [ u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN" ]
@@ -115,13 +115,15 @@ class PetabMathExprLexer(Lexer):
             "NUMBER", "INTEGER", "EXPONENT_FLOAT", "POINT_FLOAT", "FLOAT_NUMBER",
             "WS", "TRUE", "FALSE", "INF", "NAME", "OPEN_PAREN", "CLOSE_PAREN",
             "BOOLEAN_OR", "BOOLEAN_AND", "GT", "LT", "GTE", "LTE", "EQ",
-            "NEQ", "PLUS", "MINUS", "MUL", "DIV", "HAT", "NOT", "COMMA" ]
+            "NEQ", "PLUS", "MINUS", "ASTERISK", "SLASH", "CARET", "EXCLAMATION_MARK",
+            "COMMA" ]
 
     ruleNames = [ "NUMBER", "INTEGER", "EXPONENT_FLOAT", "POINT_FLOAT",
                   "EXPONENT", "FLOAT_NUMBER", "DIGITS", "WS", "TRUE", "FALSE",
                   "INF", "NAME", "OPEN_PAREN", "CLOSE_PAREN", "BOOLEAN_OR",
                   "BOOLEAN_AND", "GT", "LT", "GTE", "LTE", "EQ", "NEQ",
-                  "PLUS", "MINUS", "MUL", "DIV", "HAT", "NOT", "COMMA" ]
+                  "PLUS", "MINUS", "ASTERISK", "SLASH", "CARET", "EXCLAMATION_MARK",
+                  "COMMA" ]
 
     grammarFileName = "PetabMathExprLexer.g4"
 

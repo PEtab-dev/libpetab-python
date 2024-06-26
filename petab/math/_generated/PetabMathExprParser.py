@@ -57,7 +57,8 @@ class PetabMathExprParser ( Parser ):
                       "POINT_FLOAT", "FLOAT_NUMBER", "WS", "TRUE", "FALSE",
                       "INF", "NAME", "OPEN_PAREN", "CLOSE_PAREN", "BOOLEAN_OR",
                       "BOOLEAN_AND", "GT", "LT", "GTE", "LTE", "EQ", "NEQ",
-                      "PLUS", "MINUS", "MUL", "DIV", "HAT", "NOT", "COMMA" ]
+                      "PLUS", "MINUS", "ASTERISK", "SLASH", "CARET", "EXCLAMATION_MARK",
+                      "COMMA" ]
 
     RULE_prog = 0
     RULE_expr = 1
@@ -94,10 +95,10 @@ class PetabMathExprParser ( Parser ):
     NEQ=20
     PLUS=21
     MINUS=22
-    MUL=23
-    DIV=24
-    HAT=25
-    NOT=26
+    ASTERISK=23
+    SLASH=24
+    CARET=25
+    EXCLAMATION_MARK=26
     COMMA=27
 
     def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
@@ -246,10 +247,10 @@ class PetabMathExprParser ( Parser ):
             else:
                 return self.getTypedRuleContext(PetabMathExprParser.ExprContext,i)
 
-        def MUL(self):
-            return self.getToken(PetabMathExprParser.MUL, 0)
-        def DIV(self):
-            return self.getToken(PetabMathExprParser.DIV, 0)
+        def ASTERISK(self):
+            return self.getToken(PetabMathExprParser.ASTERISK, 0)
+        def SLASH(self):
+            return self.getToken(PetabMathExprParser.SLASH, 0)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitMultExpr" ):
@@ -287,8 +288,8 @@ class PetabMathExprParser ( Parser ):
             else:
                 return self.getTypedRuleContext(PetabMathExprParser.ExprContext,i)
 
-        def HAT(self):
-            return self.getToken(PetabMathExprParser.HAT, 0)
+        def CARET(self):
+            return self.getToken(PetabMathExprParser.CARET, 0)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitHatExpr" ):
@@ -327,8 +328,8 @@ class PetabMathExprParser ( Parser ):
             super().__init__(parser)
             self.copyFrom(ctx)
 
-        def NOT(self):
-            return self.getToken(PetabMathExprParser.NOT, 0)
+        def EXCLAMATION_MARK(self):
+            return self.getToken(PetabMathExprParser.EXCLAMATION_MARK, 0)
         def expr(self):
             return self.getTypedRuleContext(PetabMathExprParser.ExprContext,0)
 
@@ -451,7 +452,7 @@ class PetabMathExprParser ( Parser ):
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 22
-                self.match(PetabMathExprParser.NOT)
+                self.match(PetabMathExprParser.EXCLAMATION_MARK)
                 self.state = 23
                 self.expr(10)
                 pass
@@ -521,7 +522,7 @@ class PetabMathExprParser ( Parser ):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 12)")
                         self.state = 35
-                        self.match(PetabMathExprParser.HAT)
+                        self.match(PetabMathExprParser.CARET)
                         self.state = 36
                         self.expr(12)
                         pass
