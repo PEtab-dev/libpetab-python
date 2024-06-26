@@ -88,8 +88,8 @@ def test_create_problem_yaml():
 
 
 def test_get_path_prefix_local():
-    assert get_path_prefix("/some/dir/file.yaml") == "/some/dir"
-    assert get_path_prefix("some/dir/file.yaml") == "some/dir"
+    assert get_path_prefix("/some/dir/file.yaml") == str(Path("/some/dir"))
+    assert get_path_prefix("some/dir/file.yaml") == str(Path("some/dir"))
     assert (
         get_path_prefix("https://petab.rocks/dir/file.yaml")
         == "https://petab.rocks/dir"
