@@ -1,3 +1,4 @@
+import importlib.resources
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +20,10 @@ def test_parse_simple():
 
 
 def read_cases():
-    with open(Path(__file__).parent / "math_tests.yaml") as file:
+    yaml_file = importlib.resources.files("petabtests.cases").joinpath(
+        str(Path("v2.0.0", "math", "math_tests.yaml"))
+    )
+    with importlib.resources.as_file(yaml_file) as file, open(file) as file:
         data = yaml.safe_load(file)
 
     cases = []
