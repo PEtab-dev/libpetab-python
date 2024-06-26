@@ -70,7 +70,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     def visitVar(self, ctx: PetabMathExprParser.VarContext):
         if ctx.getText().lower() in _reserved_names:
             raise ValueError(f"Use of reserved name {ctx.getText()!r}")
-        return sp.Symbol(ctx.getText())
+        return sp.Symbol(ctx.getText(), real=True)
 
     def visitMultExpr(self, ctx: PetabMathExprParser.MultExprContext):
         if ctx.getChildCount() == 1:

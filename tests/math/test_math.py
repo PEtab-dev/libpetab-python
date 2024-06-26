@@ -12,11 +12,11 @@ from petab.math import sympify_petab
 
 
 def test_parse_simple():
-    assert sympify_petab("1 + 2") == 3
-    assert sympify_petab("1 + 2 * 3") == 7
-    assert sympify_petab("(1 + 2) * 3") == 9
-    assert sympify_petab("1 + 2 * (3 + 4)") == 15
-    assert sympify_petab("1 + 2 * (3 + 4) / 2") == 8
+    assert float(sympify_petab("1 + 2")) == 3
+    assert float(sympify_petab("1 + 2 * 3")) == 7
+    assert float(sympify_petab("(1 + 2) * 3")) == 9
+    assert float(sympify_petab("1 + 2 * (3 + 4)")) == 15
+    assert float(sympify_petab("1 + 2 * (3 + 4) / 2")) == 8
 
 
 def read_cases():
@@ -36,6 +36,12 @@ def read_cases():
                 expected = float(item["expected"])
             except ValueError:
                 expected = sp.sympify(item["expected"], locals=_clash)
+                expected = expected.subs(
+                    {
+                        s: sp.Symbol(s.name, real=True)
+                        for s in expected.free_symbols
+                    }
+                )
         cases.append((expr_str, expected))
     return cases
 
@@ -58,7 +64,7 @@ def test_parse_cases(expr_str, expected):
 
 
 def test_ids():
-    assert sympify_petab("bla * 2") == 2.0 * sp.Symbol("bla")
+    assert sympify_petab("bla * 2") == 2.0 * sp.Symbol("bla", real=True)
 
 
 def test_syntax_error():
@@ -69,3 +75,10 @@ def test_syntax_error():
     # lexer error
     with pytest.raises(ValueError, match="Syntax error"):
         sympify_petab("0.")
+
+
+def test_complex():
+    with pytest.raises(ValueError, match="not real-valued"):
+        sympify_petab("sqrt(-1)")
+    with pytest.raises(ValueError, match="not real-valued"):
+        sympify_petab("arctanh(inf)")
