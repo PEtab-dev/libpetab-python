@@ -7,7 +7,7 @@ import pandas as pd
 import petab
 from petab.C import *
 from petab.models.sbml_model import SbmlModel
-from petab.parameter_mapping import _apply_parameter_table
+from petab.v1.parameter_mapping import _apply_parameter_table
 
 # import fixtures
 pytest_plugins = [

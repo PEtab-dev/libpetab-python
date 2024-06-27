@@ -8,24 +8,52 @@ Attributes:
         PEtab should use for operations that can be performed in parallel.
         By default, all operations are performed sequentially.
 """
+import functools
+import warnings
+from warnings import warn
+
+# deprecated imports
+from petab.v1 import *  # noqa: F403, F401, E402
+
+from .v1.format_version import __format_version__  # noqa: F401, E402
+
+# __all__ = [
+#     'ENV_NUM_THREADS',
+# ]
 
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
 
-from .C import *  # noqa: F403, F401, E402
-from .calculate import *  # noqa: F403, F401, E402
-from .composite_problem import *  # noqa: F403, F401, E402
-from .conditions import *  # noqa: F403, F401, E402
-from .core import *  # noqa: F403, F401, E402
-from .format_version import __format_version__  # noqa: F401, E402
-from .lint import *  # noqa: F403, F401, E402
-from .mapping import *  # noqa: F403, F401, E402
-from .measurements import *  # noqa: F403, F401, E402
-from .observables import *  # noqa: F403, F401, E402
-from .parameter_mapping import *  # noqa: F403, F401, E402
-from .parameters import *  # noqa: F403, F401, E402
-from .problem import *  # noqa: F403, F401, E402
-from .sampling import *  # noqa: F403, F401, E402
-from .sbml import *  # noqa: F403, F401, E402
-from .simulate import *  # noqa: F403, F401, E402
-from .version import __version__  # noqa: F401, E402
-from .yaml import *  # noqa: F403, F401, E402
+
+def _deprecated_v1(func):
+    """Decorator for deprecation warnings for functions."""
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.warn(
+            f"petab.{func.__name__} is deprecated, "
+            f"please use petab.v1.{func.__name__} instead.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return func(*args, **kwargs)
+
+    return new_func
+
+
+def _deprecated_import_v1(module_name: str):
+    """Decorator for deprecation warnings for modules."""
+    warn(
+        f"The '{module_name}' module is deprecated and will be removed "
+        f"in the next major release. Please use "
+        f"'petab.v1.{module_name.removeprefix('petab.')}' "
+        "instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
+# apply decorator to all functions in the module
+for name in dir():
+    obj = globals().get(name)
+    if callable(obj):
+        globals()[name] = _deprecated_v1(obj)

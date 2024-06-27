@@ -60,6 +60,7 @@ doc = [
     "myst-nb>=0.14.0",
     # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
     "ipython>=7.21.0, !=8.7.0",
+    "pysb",
 ]
 vis = [
     "matplotlib>=3.6.0",
@@ -69,7 +70,7 @@ vis = [
 
 [project.scripts]
 petablint = "petab.petablint:main"
-petab_visualize = "petab.visualize.cli:_petab_visualize_main"
+petab_visualize = "petab.v1.visualize.cli:_petab_visualize_main"
 
 [project.urls]
 Repository = "https://github.com/PEtab-dev/libpetab-python"
@@ -98,7 +99,7 @@ lint.extend-select = [
 ]
 lint.extend-ignore = ["F403", "F405", "S101"]
 lint.exclude = [
-    "petab/math/_generated/*",  # auto-generated
+    "petab/v1/math/_generated/*",  # auto-generated
 ]
 
 [tool.ruff.lint.pydocstyle]
