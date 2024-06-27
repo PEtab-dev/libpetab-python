@@ -51,7 +51,8 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
     visitor = MathVisitorSympy()
     expr = visitor.visit(tree)
     expr = bool2num(expr)
-    if not expr.is_extended_real:
+    # check for `False`, we'll accept both `True` and `None`
+    if expr.is_extended_real is False:
         raise ValueError(f"Expression {expr} is not real-valued.")
 
     return expr
