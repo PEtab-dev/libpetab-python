@@ -11,6 +11,7 @@ __all__ = [
     "get_mapping_df",
     "write_mapping_df",
     "check_mapping_df",
+    "resolve_mapping",
 ]
 
 
