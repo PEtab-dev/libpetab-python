@@ -30,6 +30,7 @@ authors = [
 maintainers = [
     {name = "Daniel Weindl", email = "sci@danielweindl.de"},
     {name = "Dilan Pathirana", email = "dilan.pathirana@uni-bonn.de"},
+    {name = "Maren Philipps", email = "maren.philipps@uni-bonn.de"},
 ]
 
 [project.optional-dependencies]
