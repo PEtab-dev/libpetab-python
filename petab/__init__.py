@@ -53,16 +53,17 @@ def _deprecated_import_v1(module_name: str):
     )
 
 
-# apply decorator to all functions in the module
-for name in dir():
-    obj = globals().get(name)
-    if callable(obj):
-        globals()[name] = _deprecated_v1(obj)
-del name, obj
-
 __all__ = [
     x
     for x in dir(sys.modules[__name__])
     if not x.startswith("_")
     and x not in {"sys", "warnings", "functools", "warn"}
 ]
+
+
+# apply decorator to all functions in the module
+for name in __all__:
+    obj = globals().get(name)
+    if callable(obj):
+        globals()[name] = _deprecated_v1(obj)
+del name, obj
