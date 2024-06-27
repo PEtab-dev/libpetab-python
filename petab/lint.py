@@ -649,7 +649,8 @@ def assert_parameter_prior_parameters_are_valid(
 
             # we can't sample uniformly from [log(0)=-inf, ...]
             if (
-                row.get(type_col, "") == PARAMETER_SCALE_UNIFORM
+                type_col == INITIALIZATION_PRIOR_TYPE
+                and row.get(type_col, "") == PARAMETER_SCALE_UNIFORM
                 and row.get(PARAMETER_SCALE, LIN) in [LOG, LOG10]
                 and (pars[0] == 0.0 or pars[1] == 0.0)
             ):
