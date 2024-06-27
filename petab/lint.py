@@ -558,6 +558,17 @@ def check_parameter_bounds(parameter_df: pd.DataFrame) -> None:
                     f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "
                     f"{ row.name} must be positive."
                 )
+            if (
+                row.get(PARAMETER_SCALE, LIN) in [LOG, LOG10]
+                and (row[LOWER_BOUND] == 0.0 or row[UPPER_BOUND] == 0.0)
+                and not row.get(INITIALIZATION_PRIOR_TYPE)
+            ):
+                raise AssertionError(
+                    f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "
+                    f"{row.name} must be positive if no "
+                    f"{INITIALIZATION_PRIOR_TYPE} is provided. "
+                    "Cannot sample from unbounded interval."
+                )
 
 
 def assert_parameter_prior_type_is_valid(parameter_df: pd.DataFrame) -> None:
@@ -634,6 +645,19 @@ def assert_parameter_prior_parameters_are_valid(
                     f"The prior parameters '{pars}' do not contain the "
                     "expected number of entries (currently 'par1"
                     f"{PARAMETER_SEPARATOR}par2' for all prior types)."
+                )
+
+            # we can't sample uniformly from [log(0)=-inf, ...]
+            if (
+                type_col == INITIALIZATION_PRIOR_TYPE
+                and row.get(type_col, "") == PARAMETER_SCALE_UNIFORM
+                and row.get(PARAMETER_SCALE, LIN) in [LOG, LOG10]
+                and (pars[0] == 0.0 or pars[1] == 0.0)
+            ):
+                raise AssertionError(
+                    f"{prior_par_cols} for {row[PARAMETER_SCALE]} scaled "
+                    f"parameter {row.name} must be positive if "
+                    f"{type_col}={PARAMETER_SCALE_UNIFORM}."
                 )
 
 
