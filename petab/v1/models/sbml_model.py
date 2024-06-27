@@ -17,6 +17,8 @@ from ..sbml import (
 from . import MODEL_TYPE_SBML
 from .model import Model
 
+__all__ = ["SbmlModel"]
+
 
 class SbmlModel(Model):
     """PEtab wrapper for SBML models"""

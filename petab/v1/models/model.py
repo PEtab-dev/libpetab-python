@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+__all__ = ["Model"]
+
 
 class Model(abc.ABC):
     """Base class for wrappers for any PEtab-supported model type"""
@@ -78,8 +80,9 @@ class Model(abc.ABC):
         """Check if there is a model entity with the given ID
 
         :param entity_id: ID to check for
-        :returns: ``True``, if there is an entity with the given ID,
-        ``False`` otherwise
+        :returns:
+            ``True``, if there is an entity with the given ID,
+            ``False`` otherwise
         """
         ...
 
@@ -114,8 +117,9 @@ class Model(abc.ABC):
     def is_valid(self) -> bool:
         """Validate this model
 
-        :returns: `True` if the model is valid, `False` if there are errors in
-        this model
+        :returns:
+            `True` if the model is valid, `False` if there are errors in
+            this model
         """
         ...
 

@@ -2,8 +2,8 @@
 """
 This file contains constant definitions.
 """
-
 import math as _math
+import sys
 
 # MEASUREMENTS
 
@@ -363,3 +363,10 @@ NOISE_VALUE = "noiseValue"
 
 # separator for multiple parameter values (bounds, observableParameters, ...)
 PARAMETER_SEPARATOR = ";"
+
+
+__all__ = [
+    x
+    for x in dir(sys.modules[__name__])
+    if not x.startswith("_") and x not in {"sys", "math"}
+]

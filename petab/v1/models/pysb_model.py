@@ -12,6 +12,8 @@ import pysb
 from . import MODEL_TYPE_PYSB
 from .model import Model
 
+__all__ = ["PySBModel", "parse_species_name", "pattern_from_string"]
+
 
 def _pysb_model_from_path(pysb_model_file: str | Path) -> pysb.Model:
     """Load a pysb model module and return the :class:`pysb.Model` instance

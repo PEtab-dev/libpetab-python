@@ -1,4 +1,6 @@
 """Validation of PEtab visualization files"""
+from __future__ import annotations
+
 import logging
 
 import pandas as pd
@@ -7,6 +9,8 @@ from .. import C, Problem
 from ..C import VISUALIZATION_DF_REQUIRED_COLS
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["validate_visualization_df"]
 
 
 def validate_visualization_df(problem: Problem) -> bool:
