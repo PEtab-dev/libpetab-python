@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
@@ -308,8 +309,8 @@ class CheckParameterTable(ValidationTask):
 
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
-    """A task to check that all model parameters are present in the parameter
-    table."""
+    """Ensure all required parameters are contained in the parameter table
+    with no additional ones."""
 
     def run(self, problem: Problem) -> ValidationResult | None:
         if (
@@ -320,20 +321,58 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
         ):
             return
 
-        from petab.v1 import assert_all_parameters_present_in_parameter_df
+        from petab.v1.C import MODEL_ENTITY_ID
+        from petab.v1.parameters import (
+            get_valid_parameters_for_parameter_table,
+        )
 
-        try:
-            assert_all_parameters_present_in_parameter_df(
-                problem.parameter_df,
-                problem.model,
-                problem.observable_df,
-                problem.measurement_df,
-                problem.condition_df,
-                problem.mapping_df,
+        required = get_required_parameters_for_parameter_table(problem)
+
+        allowed = get_valid_parameters_for_parameter_table(
+            model=problem.model,
+            condition_df=problem.condition_df,
+            observable_df=problem.observable_df,
+            measurement_df=problem.measurement_df,
+            mapping_df=problem.mapping_df,
+        )
+
+        actual = set(problem.parameter_df.index)
+        missing = required - actual
+        extraneous = actual - allowed
+
+        # missing parameters might be present under a different name based on
+        # the mapping table
+        if missing and problem.mapping_df is not None:
+            model_to_petab_mapping = {}
+            for map_from, map_to in zip(
+                problem.mapping_df.index.values,
+                problem.mapping_df[MODEL_ENTITY_ID],
+                strict=True,
+            ):
+                if map_to in model_to_petab_mapping:
+                    model_to_petab_mapping[map_to].append(map_from)
+                else:
+                    model_to_petab_mapping[map_to] = [map_from]
+            missing = {
+                missing_id
+                for missing_id in missing
+                if missing_id not in model_to_petab_mapping
+                or all(
+                    mapping_parameter not in actual
+                    for mapping_parameter in model_to_petab_mapping[missing_id]
+                )
+            }
+
+        if missing:
+            return ValidationError(
+                "Missing parameter(s) in the model or the "
+                "parameters table: " + str(missing)
             )
-        except AssertionError as e:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR, message=str(e)
+
+        if extraneous:
+            return ValidationError(
+                "Extraneous parameter(s) in parameter table: "
+                + str(extraneous)
             )
 
 
@@ -380,6 +419,93 @@ class CheckVisualizationTable(ValidationTask):
                 level=ValidationEventLevel.ERROR,
                 message="Visualization table is invalid.",
             )
+
+
+def get_required_parameters_for_parameter_table(
+    problem: Problem,
+) -> set[str]:
+    """
+    Get set of parameters which need to go into the parameter table
+
+    Arguments:
+        problem: The PEtab problem
+    Returns:
+        Set of parameter IDs which PEtab requires to be present in the
+        parameter table. That is all {observable,noise}Parameters from the
+        measurement table as well as all parametric condition table overrides
+        that are not defined in the model.
+    """
+    from petab.C import NOISE_PARAMETERS, OBSERVABLE_PARAMETERS
+    from petab.v1.conditions import get_parametric_overrides
+    from petab.v1.measurements import split_parameter_replacement_list
+    from petab.v1.observables import get_output_parameters, get_placeholders
+
+    # use ordered dict as proxy for ordered set
+    parameter_ids = OrderedDict()
+
+    # Add parameters from measurement table, unless they are fixed parameters
+    def append_overrides(overrides):
+        for p in overrides:
+            if isinstance(p, str) and p not in problem.condition_df.columns:
+                parameter_ids[p] = None
+
+    for _, row in problem.measurement_df.iterrows():
+        # we trust that the number of overrides matches
+        append_overrides(
+            split_parameter_replacement_list(
+                row.get(OBSERVABLE_PARAMETERS, None)
+            )
+        )
+        append_overrides(
+            split_parameter_replacement_list(row.get(NOISE_PARAMETERS, None))
+        )
+
+    # Add output parameters except for placeholders
+    for formula_type, placeholder_sources in (
+        (
+            # Observable formulae
+            {"observables": True, "noise": False},
+            # can only contain observable placeholders
+            {"noise": False, "observables": True},
+        ),
+        (
+            # Noise formulae
+            {"observables": False, "noise": True},
+            # can contain noise and observable placeholders
+            {"noise": True, "observables": True},
+        ),
+    ):
+        output_parameters = get_output_parameters(
+            problem.observable_df,
+            problem.model,
+            mapping_df=problem.mapping_df,
+            **formula_type,
+        )
+        placeholders = get_placeholders(
+            problem.observable_df,
+            **placeholder_sources,
+        )
+        for p in output_parameters:
+            if p not in placeholders and p not in problem.observable_df.index:
+                parameter_ids[p] = None
+
+    # Add condition table parametric overrides unless already defined in the
+    #  model
+    for p in get_parametric_overrides(problem.condition_df):
+        if not problem.model.has_entity_with_id(p):
+            parameter_ids[p] = None
+
+    # remove parameters that occur in the condition table and are overridden
+    #  for ALL conditions
+    for p in problem.condition_df.columns[
+        ~problem.condition_df.isnull().any()
+    ]:
+        try:
+            del parameter_ids[p]
+        except KeyError:
+            pass
+
+    return parameter_ids.keys()
 
 
 #: Validation tasks that should be run on any PEtab problem
