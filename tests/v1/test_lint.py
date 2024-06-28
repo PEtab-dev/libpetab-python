@@ -12,7 +12,7 @@ from petab.C import *
 
 # import fixtures
 pytest_plugins = [
-    "tests.test_petab",
+    "tests.v1.test_petab",
 ]
 
 
@@ -427,8 +427,8 @@ def test_petablint_succeeds():
     """Run petablint and ensure we exit successfully for a file that should
     contain no errors
     """
-    dir_isensee = "../doc/example/example_Isensee/"
-    dir_fujita = "../doc/example/example_Fujita/"
+    dir_isensee = "../../doc/example/example_Isensee/"
+    dir_fujita = "../../doc/example/example_Fujita/"
 
     # run with measurement file
     script_path = os.path.abspath(os.path.dirname(__file__))

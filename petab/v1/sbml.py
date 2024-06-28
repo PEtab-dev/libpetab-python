@@ -213,9 +213,15 @@ def load_sbml_from_file(
     :param sbml_file: Filename of the SBML file
     :return: The SBML reader, document, model
     """
+    if not Path(sbml_file).is_file():
+        raise FileNotFoundError(f"File not found: {sbml_file}")
+
     sbml_reader = libsbml.SBMLReader()
     sbml_document = sbml_reader.readSBML(sbml_file)
     sbml_model = sbml_document.getModel()
+
+    if sbml_model is None:
+        raise ValueError(f"SBML model could not be loaded from {sbml_file}")
 
     return sbml_reader, sbml_document, sbml_model
 

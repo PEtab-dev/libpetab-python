@@ -111,7 +111,7 @@ def petab_problem():
 
 @pytest.fixture
 def fujita_model_scaling():
-    path = Path(__file__).parent.parent / "doc" / "example" / "example_Fujita"
+    path = Path(__file__).parents[2] / "doc" / "example" / "example_Fujita"
 
     sbml_file = path / "Fujita_model.xml"
     condition_file = path / "Fujita_experimentalCondition.tsv"

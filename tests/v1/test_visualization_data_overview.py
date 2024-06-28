@@ -10,7 +10,7 @@ def test_data_overview():
     repository"""
     with TemporaryDirectory() as temp_dir:
         outfile = Path(temp_dir) / "Fujita.html"
-        repo_root = Path(__file__).parent.parent
+        repo_root = Path(__file__).parents[2]
         yaml_filename = (
             repo_root / "doc" / "example" / "example_Fujita" / "Fujita.yaml"
         )
