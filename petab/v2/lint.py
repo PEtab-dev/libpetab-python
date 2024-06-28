@@ -58,7 +58,7 @@ __all__ = [
     "ValidationResultList",
     "ValidationError",
     "ValidationTask",
-    "ModelValidationTask",
+    "CheckModel",
     "CheckTableExists",
     "CheckMeasurementTable",
     "CheckConditionTable",
@@ -175,7 +175,7 @@ class ValidationTask(ABC):
         return self.run(*args, **kwargs)
 
 
-class ModelValidationTask(ValidationTask):
+class CheckModel(ValidationTask):
     """A task to validate the model of a PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
@@ -537,7 +537,7 @@ default_validation_tasks = [
     CheckTableExists("measurement"),
     CheckTableExists("observable"),
     CheckTableExists("parameter"),
-    ModelValidationTask(),
+    CheckModel(),
     CheckMeasurementTable(),
     CheckConditionTable(),
     CheckObservableTable(),
