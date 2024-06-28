@@ -53,8 +53,8 @@ from .problem import Problem
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "ValidationEventLevel",
-    "ValidationResult",
+    "ValidationIssueSeverity",
+    "ValidationIssue",
     "ValidationResultList",
     "ValidationError",
     "ValidationTask",
@@ -72,8 +72,8 @@ __all__ = [
 ]
 
 
-class ValidationEventLevel(IntEnum):
-    """The level of a validation event."""
+class ValidationIssueSeverity(IntEnum):
+    """The severity of a validation issue."""
 
     # INFO: Informational message, no action required
     INFO = 10
@@ -86,7 +86,7 @@ class ValidationEventLevel(IntEnum):
 
 
 @dataclass
-class ValidationResult:
+class ValidationIssue:
     """The result of a validation task.
 
     Attributes:
@@ -94,36 +94,38 @@ class ValidationResult:
         message: The message of the validation event.
     """
 
-    level: ValidationEventLevel
+    level: ValidationIssueSeverity
     message: str
 
     def __str__(self):
         return f"{self.level.name}: {self.message}"
 
 
-class ValidationError(ValidationResult):
+class ValidationError(ValidationIssue):
     """A validation result with level ERROR."""
 
     def __init__(self, message: str):
-        super().__init__(ValidationEventLevel.ERROR, message)
+        super().__init__(ValidationIssueSeverity.ERROR, message)
 
 
-class ValidationResultList(list[ValidationResult]):
+class ValidationResultList(list[ValidationIssue]):
     """A list of validation results.
 
     Contains all issues found during the validation of a PEtab problem.
     """
 
-    def log(self, min_level: ValidationEventLevel = ValidationEventLevel.INFO):
+    def log(
+        self, min_level: ValidationIssueSeverity = ValidationIssueSeverity.INFO
+    ):
         """Log the validation results."""
         for result in self:
             if result.level < min_level:
                 continue
-            if result.level == ValidationEventLevel.INFO:
+            if result.level == ValidationIssueSeverity.INFO:
                 logger.info(result.message)
-            elif result.level == ValidationEventLevel.WARNING:
+            elif result.level == ValidationIssueSeverity.WARNING:
                 logger.warning(result.message)
-            elif result.level >= ValidationEventLevel.ERROR:
+            elif result.level >= ValidationIssueSeverity.ERROR:
                 logger.error(result.message)
 
         if not self:
@@ -132,7 +134,7 @@ class ValidationResultList(list[ValidationResult]):
     def has_errors(self) -> bool:
         """Check if there are any errors in the validation results."""
         return any(
-            result.level >= ValidationEventLevel.ERROR for result in self
+            result.level >= ValidationIssueSeverity.ERROR for result in self
         )
 
 
@@ -156,7 +158,7 @@ class ValidationTask(ABC):
     """A task to validate a PEtab problem."""
 
     @abstractmethod
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         """Run the validation task.
 
         Arguments:
@@ -173,11 +175,9 @@ class ValidationTask(ABC):
 class ModelValidationTask(ValidationTask):
     """A task to validate the model of a PEtab problem."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.model is None:
-            return ValidationError(
-                "Model is missing.",
-            )
+            return ValidationError("Model is missing.")
 
         if not problem.model.is_valid():
             # TODO get actual model validation messages
@@ -197,7 +197,7 @@ class CheckTableExists(ValidationTask):
             )
         self.table_name = table_name
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if getattr(problem, f"{self.table_name}_df") is None:
             return ValidationError(f"{self.table_name} table is missing.")
 
@@ -205,7 +205,7 @@ class CheckTableExists(ValidationTask):
 class CheckMeasurementTable(ValidationTask):
     """A task to validate the measurement table of a PEtab problem."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.measurement_df is None:
             return
 
@@ -224,7 +224,7 @@ class CheckMeasurementTable(ValidationTask):
 class CheckConditionTable(ValidationTask):
     """A task to validate the condition table of a PEtab problem."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.condition_df is None:
             return
 
@@ -251,15 +251,15 @@ class CheckObservableTable(ValidationTask):
                 problem.observable_df,
             )
         except AssertionError as e:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR, message=str(e)
+            return ValidationIssue(
+                level=ValidationIssueSeverity.ERROR, message=str(e)
             )
 
 
 class CheckObservablesDoNotShadowModelEntities(ValidationTask):
     """A task to check that observable IDs do not shadow model entities."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.observable_df is None or problem.model is None:
             return
 
@@ -277,7 +277,7 @@ class CheckObservablesDoNotShadowModelEntities(ValidationTask):
 class CheckParameterTable(ValidationTask):
     """A task to validate the parameter table of a PEtab problem."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.parameter_df is None:
             return
 
@@ -346,7 +346,7 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
     """Ensure all required parameters are contained in the parameter table
     with no additional ones."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if (
             problem.model is None
             or problem.parameter_df is None
@@ -409,7 +409,7 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
     """A task to check that all required and only allowed model parameters are
     present in the condition or parameter table."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if (
             problem.model is None
             or problem.condition_df is None
@@ -425,23 +425,23 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
                 problem.mapping_df,
             )
         except AssertionError as e:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR, message=str(e)
+            return ValidationIssue(
+                level=ValidationIssueSeverity.ERROR, message=str(e)
             )
 
 
 class CheckVisualizationTable(ValidationTask):
     """A task to validate the visualization table of a PEtab problem."""
 
-    def run(self, problem: Problem) -> ValidationResult | None:
+    def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.visualization_df is None:
             return
 
         from petab.visualize.lint import validate_visualization_df
 
         if validate_visualization_df(problem):
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
+            return ValidationIssue(
+                level=ValidationIssueSeverity.ERROR,
                 message="Visualization table is invalid.",
             )
 

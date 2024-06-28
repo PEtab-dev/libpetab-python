@@ -25,7 +25,7 @@ from ..v1.yaml import get_path_prefix
 
 if TYPE_CHECKING:
     from ..v2.lint import (
-        ValidationResult,
+        ValidationIssue,
         ValidationResultList,
     )
 
@@ -635,13 +635,13 @@ class Problem:
 
     def validate(self) -> ValidationResultList:
         """Validate the PEtab problem."""
-        from ..v2.lint import ValidationEventLevel, ValidationResultList
+        from ..v2.lint import ValidationIssueSeverity, ValidationResultList
 
         validation_results = ValidationResultList()
         if self.extensions_config:
             validation_results.append(
-                ValidationResult(
-                    ValidationEventLevel.WARNING,
+                ValidationIssue(
+                    ValidationIssueSeverity.WARNING,
                     "Validation of PEtab extensions is not yet implemented, "
                     "but the given problem uses the following extensions: "
                     f"{'', ''.join(self.extensions_config.keys())}",
@@ -652,15 +652,15 @@ class Problem:
             try:
                 cur_result = task.run(self)
             except Exception as e:
-                cur_result = ValidationResult(
-                    ValidationEventLevel.CRITICAL,
+                cur_result = ValidationIssue(
+                    ValidationIssueSeverity.CRITICAL,
                     f"Validation task {task} failed with exception: {e}",
                 )
 
             if cur_result:
                 validation_results.append(cur_result)
 
-                if cur_result.level == ValidationEventLevel.CRITICAL:
+                if cur_result.level == ValidationIssueSeverity.CRITICAL:
                     break
 
         return validation_results
