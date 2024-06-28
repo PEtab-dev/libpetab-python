@@ -28,6 +28,50 @@ class ValidationEventLevel(IntEnum):
     CRITICAL = 40
 
 
+@dataclass
+class ValidationResult:
+    """The result of a validation task.
+
+    Attributes:
+        level: The level of the validation event.
+        message: The message of the validation event.
+    """
+
+    level: ValidationEventLevel
+    message: str
+
+    def __str__(self):
+        return f"{self.level.name}: {self.message}"
+
+
+class ValidationResultList(list[ValidationResult]):
+    """A list of validation results.
+
+    Contains all issues found during the validation of a PEtab problem.
+    """
+
+    def log(self, min_level: ValidationEventLevel = ValidationEventLevel.INFO):
+        """Log the validation results."""
+        for result in self:
+            if result.level < min_level:
+                continue
+            if result.level == ValidationEventLevel.INFO:
+                logger.info(result.message)
+            elif result.level == ValidationEventLevel.WARNING:
+                logger.warning(result.message)
+            elif result.level >= ValidationEventLevel.ERROR:
+                logger.error(result.message)
+
+        if not self:
+            logger.info("PEtab format check completed successfully.")
+
+    def has_errors(self) -> bool:
+        """Check if there are any errors in the validation results."""
+        return any(
+            result.level >= ValidationEventLevel.ERROR for result in self
+        )
+
+
 def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
     """Validate a PEtab problem.
 
@@ -80,15 +124,33 @@ class ModelValidationTask(ValidationTask):
             )
 
 
-class MeasurementTableValidationTask(ValidationTask):
+class CheckTableExists(ValidationTask):
+    """A task to check if a table exists in the PEtab problem."""
+
+    def __init__(self, table_name: str):
+        if table_name not in ["measurement", "observable", "parameter"]:
+            # all others are optional
+            raise ValueError(
+                f"Table name {table_name} is not supported. "
+                "Supported table names are 'measurement', 'observable', "
+                "'parameter'."
+            )
+        self.table_name = table_name
+
+    def run(self, problem: Problem) -> ValidationResult | None:
+        if getattr(problem, f"{self.table_name}_df") is None:
+            return ValidationResult(
+                level=ValidationEventLevel.ERROR,
+                message=f"{self.table_name} table is missing.",
+            )
+
+
+class CheckMeasurementTable(ValidationTask):
     """A task to validate the measurement table of a PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationResult | None:
-        if problem.measurement_df is None or problem.measurement_df.empty:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
-                message="Measurement table is missing or empty.",
-            )
+        if problem.measurement_df is None:
+            return
 
         try:
             from ..v1 import (
@@ -99,6 +161,7 @@ class MeasurementTableValidationTask(ValidationTask):
             check_measurement_df(problem.measurement_df, problem.observable_df)
 
             if problem.condition_df is not None:
+                # TODO: handle missing condition_df
                 assert_measurement_conditions_present_in_condition_table(
                     problem.measurement_df, problem.condition_df
                 )
@@ -108,19 +171,16 @@ class MeasurementTableValidationTask(ValidationTask):
             )
 
 
-class ConditionTableValidationTask(ValidationTask):
+class CheckConditionTable(ValidationTask):
     """A task to validate the condition table of a PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationResult | None:
-        if problem.condition_df is None or problem.condition_df.empty:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
-                message="Condition table is missing or empty.",
-            )
+        if problem.condition_df is None:
+            return
+
+        from ..v1 import check_condition_df
 
         try:
-            from ..v1 import check_condition_df
-
             check_condition_df(
                 problem.condition_df,
                 model=problem.model,
@@ -133,19 +193,16 @@ class ConditionTableValidationTask(ValidationTask):
             )
 
 
-class ObservableTableValidationTask(ValidationTask):
+class CheckObservableTable(ValidationTask):
     """A task to validate the observable table of a PEtab problem."""
 
     def run(self, problem: Problem):
-        if problem.observable_df is None or problem.observable_df.empty:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
-                message="Observable table is missing or empty.",
-            )
+        if problem.observable_df is None:
+            return
+
+        from ..v1 import check_observable_df
 
         try:
-            from ..v1 import check_observable_df
-
             check_observable_df(
                 problem.observable_df,
             )
@@ -153,54 +210,56 @@ class ObservableTableValidationTask(ValidationTask):
             return ValidationResult(
                 level=ValidationEventLevel.ERROR, message=str(e)
             )
+
         if problem.model is not None:
-            for obs_id in problem.observable_df.index:
-                if problem.model.has_entity_with_id(obs_id):
-                    return ValidationResult(
-                        level=ValidationEventLevel.ERROR,
-                        message=f"Observable ID {obs_id} shadows model "
-                        "entity.",
-                    )
+            shadowed_entities = [
+                obs_id
+                for obs_id in problem.observable_df.index
+                if problem.model.has_entity_with_id(obs_id)
+            ]
+            if shadowed_entities:
+                return ValidationResult(
+                    level=ValidationEventLevel.ERROR,
+                    message=f"Observable IDs {shadowed_entities} shadow model "
+                    "entities.",
+                )
 
 
-class ParameterTableValidationTask(ValidationTask):
+class CheckParameterTable(ValidationTask):
     """A task to validate the parameter table of a PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationResult | None:
-        if problem.parameter_df is None or problem.parameter_df.empty:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
-                message="Parameter table is missing or empty.",
-            )
-        try:
-            from petab.v1.C import (
-                ESTIMATE,
-                NOMINAL_VALUE,
-                PARAMETER_DF_REQUIRED_COLS,
-                PARAMETER_ID,
-            )
-            from petab.v1.lint import (
-                _check_df,
-                assert_all_parameters_present_in_parameter_df,
-                assert_no_leading_trailing_whitespace,
-                assert_parameter_bounds_are_numeric,
-                assert_parameter_estimate_is_boolean,
-                assert_parameter_id_is_string,
-                assert_parameter_prior_parameters_are_valid,
-                assert_parameter_prior_type_is_valid,
-                assert_parameter_scale_is_valid,
-                assert_unique_parameter_ids,
-                check_ids,
-                check_parameter_bounds,
-            )
+        if problem.parameter_df is None:
+            return
+        from petab.v1.C import (
+            ESTIMATE,
+            NOMINAL_VALUE,
+            PARAMETER_DF_REQUIRED_COLS,
+            PARAMETER_ID,
+        )
+        from petab.v1.lint import (
+            _check_df,
+            assert_no_leading_trailing_whitespace,
+            assert_parameter_bounds_are_numeric,
+            assert_parameter_estimate_is_boolean,
+            assert_parameter_id_is_string,
+            assert_parameter_prior_parameters_are_valid,
+            assert_parameter_prior_type_is_valid,
+            assert_parameter_scale_is_valid,
+            assert_unique_parameter_ids,
+            check_ids,
+            check_parameter_bounds,
+        )
 
+        try:
             df = problem.parameter_df
             _check_df(df, PARAMETER_DF_REQUIRED_COLS[1:], "parameter")
 
             if df.index.name != PARAMETER_ID:
-                raise AssertionError(
-                    f"Parameter table has wrong index {df.index.name}."
-                    f"expected {PARAMETER_ID}."
+                return ValidationResult(
+                    level=ValidationEventLevel.ERROR,
+                    message=f"Parameter table has wrong index {df.index.name}."
+                    " Expected {PARAMETER_ID}.",
                 )
 
             check_ids(df.index.values, kind="parameter")
@@ -250,30 +309,45 @@ class ParameterTableValidationTask(ValidationTask):
             assert_parameter_prior_type_is_valid(df)
             assert_parameter_prior_parameters_are_valid(df)
 
-            if (
-                problem.model
-                and problem.measurement_df is not None
-                and problem.condition_df is not None
-            ):
-                assert_all_parameters_present_in_parameter_df(
-                    df,
-                    problem.model,
-                    problem.observable_df,
-                    problem.measurement_df,
-                    problem.condition_df,
-                    problem.mapping_df,
-                )
-
         except AssertionError as e:
             return ValidationResult(
                 level=ValidationEventLevel.ERROR, message=str(e)
             )
 
 
-class MiscValidationTask(ValidationTask):
-    """A task to perform miscellaneous validation checks."""
+class CheckAllParametersPresentInParameterTable(ValidationTask):
+    """A task to check that all model parameters are present in the parameter
+    table."""
 
-    # TODO split further
+    def run(self, problem: Problem) -> ValidationResult | None:
+        if (
+            problem.model is None
+            or problem.parameter_df is None
+            or problem.observable_df is None
+            or problem.measurement_df is None
+        ):
+            return
+
+        from petab.v1 import assert_all_parameters_present_in_parameter_df
+
+        try:
+            assert_all_parameters_present_in_parameter_df(
+                problem.parameter_df,
+                problem.model,
+                problem.observable_df,
+                problem.measurement_df,
+                problem.condition_df,
+                problem.mapping_df,
+            )
+        except AssertionError as e:
+            return ValidationResult(
+                level=ValidationEventLevel.ERROR, message=str(e)
+            )
+
+
+class CheckValidParameterInConditionOrParameterTable(ValidationTask):
+    """A task to check that all required and only allowed model parameters are
+    present in the condition or parameter table."""
 
     def run(self, problem: Problem) -> ValidationResult | None:
         from petab.v1 import (
@@ -281,101 +355,52 @@ class MiscValidationTask(ValidationTask):
         )
 
         if (
-            problem.model is not None
-            and problem.condition_df is not None
-            and problem.parameter_df is not None
-        ):
-            try:
-                assert_model_parameters_in_condition_or_parameter_table(
-                    problem.model,
-                    problem.condition_df,
-                    problem.parameter_df,
-                    problem.mapping_df,
-                )
-            except AssertionError as e:
-                return ValidationResult(
-                    level=ValidationEventLevel.ERROR, message=str(e)
-                )
-
-        if problem.visualization_df is not None:
-            from petab.visualize.lint import validate_visualization_df
-
-            # TODO: don't log directly
-            if validate_visualization_df(problem):
-                return ValidationResult(
-                    level=ValidationEventLevel.ERROR,
-                    message="Visualization table is invalid.",
-                )
-        else:
-            return ValidationResult(
-                level=ValidationEventLevel.WARNING,
-                message="Visualization table is missing.",
-            )
-
-        if (
-            problem.measurement_df is None
+            problem.model is None
             or problem.condition_df is None
-            or problem.model is None
             or problem.parameter_df is None
-            or problem.observable_df is None
         ):
+            return
+
+        try:
+            assert_model_parameters_in_condition_or_parameter_table(
+                problem.model,
+                problem.condition_df,
+                problem.parameter_df,
+                problem.mapping_df,
+            )
+        except AssertionError as e:
             return ValidationResult(
-                level=ValidationEventLevel.WARNING,
-                message="Not all files of the PEtab problem definition "
-                "could be checked.",
+                level=ValidationEventLevel.ERROR, message=str(e)
             )
 
 
-@dataclass
-class ValidationResult:
-    """The result of a validation task.
+class CheckVisualizationTable(ValidationTask):
+    """A task to validate the visualization table of a PEtab problem."""
 
-    Attributes:
-        level: The level of the validation event.
-        message: The message of the validation event.
-    """
+    def run(self, problem: Problem) -> ValidationResult | None:
+        if problem.visualization_df is None:
+            return
 
-    level: ValidationEventLevel
-    message: str
+        from petab.visualize.lint import validate_visualization_df
 
-    def __str__(self):
-        return f"{self.level.name}: {self.message}"
-
-
-class ValidationResultList(list[ValidationResult]):
-    """A list of validation results.
-
-    Contains all issues found during the validation of a PEtab problem.
-    """
-
-    def log(self, min_level: ValidationEventLevel = ValidationEventLevel.INFO):
-        """Log the validation results."""
-        for result in self:
-            if result.level < min_level:
-                continue
-            if result.level == ValidationEventLevel.INFO:
-                logger.info(result.message)
-            elif result.level == ValidationEventLevel.WARNING:
-                logger.warning(result.message)
-            elif result.level >= ValidationEventLevel.ERROR:
-                logger.error(result.message)
-
-        if not self:
-            logger.info("PEtab format check completed successfully.")
-
-    def has_errors(self) -> bool:
-        """Check if there are any errors in the validation results."""
-        return any(
-            result.level >= ValidationEventLevel.ERROR for result in self
-        )
+        if validate_visualization_df(problem):
+            return ValidationResult(
+                level=ValidationEventLevel.ERROR,
+                message="Visualization table is invalid.",
+            )
 
 
 #: Validation tasks that should be run on any PEtab problem
 default_validation_tasks = [
+    CheckTableExists("measurement"),
+    CheckTableExists("observable"),
+    CheckTableExists("parameter"),
     ModelValidationTask(),
-    MeasurementTableValidationTask(),
-    ConditionTableValidationTask(),
-    ObservableTableValidationTask(),
-    ParameterTableValidationTask(),
-    MiscValidationTask(),
+    CheckMeasurementTable(),
+    CheckConditionTable(),
+    CheckObservableTable(),
+    CheckParameterTable(),
+    CheckAllParametersPresentInParameterTable(),
+    CheckVisualizationTable(),
+    CheckValidParameterInConditionOrParameterTable(),
 ]

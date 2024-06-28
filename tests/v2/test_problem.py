@@ -16,7 +16,7 @@ def test_load_remote():
         and not petab_problem.measurement_df.empty
     )
 
-    petab_problem.validate()
+    assert petab_problem.validate() == []
 
     yaml_url = yaml_url.replace("2.0.0", "1.0.0")
     with pytest.raises(
