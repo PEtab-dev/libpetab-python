@@ -649,13 +649,18 @@ class Problem:
             )
 
         for task in self.validation_tasks:
-            cur_results = task.run(self)
-            validation_results.extend(cur_results)
+            try:
+                cur_result = task.run(self)
+            except Exception as e:
+                cur_result = ValidationResult(
+                    ValidationEventLevel.CRITICAL,
+                    f"Validation task {task} failed with exception: {e}",
+                )
 
-            if any(
-                result.level == ValidationEventLevel.CRITICAL
-                for result in cur_results
-            ):
-                break
+            if cur_result:
+                validation_results.append(cur_result)
+
+                if cur_result.level == ValidationEventLevel.CRITICAL:
+                    break
 
         return validation_results
