@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-__all__ = ["Model"]
+__all__ = ["Model", "model_factory"]
 
 
 class Model(abc.ABC):
