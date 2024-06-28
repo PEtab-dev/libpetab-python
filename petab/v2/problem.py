@@ -68,7 +68,7 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
-        from ..v2.lint import ValidationTask, default_validation_taks
+        from ..v2.lint import ValidationTask, default_validation_tasks
 
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
@@ -80,7 +80,7 @@ class Problem:
         self.extensions_config = extensions_config or {}
         self.validation_tasks: list[
             ValidationTask
-        ] = default_validation_taks.copy()
+        ] = default_validation_tasks.copy()
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"

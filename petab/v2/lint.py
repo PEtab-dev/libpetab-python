@@ -321,7 +321,7 @@ class ValidationEventLevel(IntEnum):
     CRITICAL = 40
 
 
-default_validation_taks = [
+default_validation_tasks = [
     ModelValidationTask(),
     MeasurementTableValidationTask(),
     ConditionTableValidationTask(),
