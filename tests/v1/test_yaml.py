@@ -17,7 +17,7 @@ def test_validate():
 
     # should be well-formed
     file_ = (
-        Path(__file__).parents[1]
+        Path(__file__).parents[2]
         / "doc"
         / "example"
         / "example_Fujita"
