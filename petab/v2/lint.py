@@ -11,9 +11,65 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from petab.C import NOISE_PARAMETERS, OBSERVABLE_PARAMETERS
+from petab.v1 import (
+    assert_model_parameters_in_condition_or_parameter_table,
+)
+from petab.v1.C import (
+    ESTIMATE,
+    MODEL_ENTITY_ID,
+    NOMINAL_VALUE,
+    PARAMETER_DF_REQUIRED_COLS,
+    PARAMETER_ID,
+)
+from petab.v1.conditions import get_parametric_overrides
+from petab.v1.lint import (
+    _check_df,
+    assert_no_leading_trailing_whitespace,
+    assert_parameter_bounds_are_numeric,
+    assert_parameter_estimate_is_boolean,
+    assert_parameter_id_is_string,
+    assert_parameter_prior_parameters_are_valid,
+    assert_parameter_prior_type_is_valid,
+    assert_parameter_scale_is_valid,
+    assert_unique_parameter_ids,
+    check_ids,
+    check_parameter_bounds,
+)
+from petab.v1.measurements import split_parameter_replacement_list
+from petab.v1.observables import get_output_parameters, get_placeholders
+from petab.v1.parameters import (
+    get_valid_parameters_for_parameter_table,
+)
+
+from ..v1 import (
+    assert_measurement_conditions_present_in_condition_table,
+    check_condition_df,
+    check_measurement_df,
+    check_observable_df,
+)
 from .problem import Problem
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "ValidationEventLevel",
+    "ValidationResult",
+    "ValidationResultList",
+    "ValidationError",
+    "ValidationTask",
+    "ModelValidationTask",
+    "CheckTableExists",
+    "CheckMeasurementTable",
+    "CheckConditionTable",
+    "CheckObservableTable",
+    "CheckParameterTable",
+    "CheckAllParametersPresentInParameterTable",
+    "CheckValidParameterInConditionOrParameterTable",
+    "CheckVisualizationTable",
+    "lint_problem",
+    "default_validation_tasks",
+]
 
 
 class ValidationEventLevel(IntEnum):
@@ -154,11 +210,6 @@ class CheckMeasurementTable(ValidationTask):
             return
 
         try:
-            from ..v1 import (
-                assert_measurement_conditions_present_in_condition_table,
-                check_measurement_df,
-            )
-
             check_measurement_df(problem.measurement_df, problem.observable_df)
 
             if problem.condition_df is not None:
@@ -177,8 +228,6 @@ class CheckConditionTable(ValidationTask):
         if problem.condition_df is None:
             return
 
-        from ..v1 import check_condition_df
-
         try:
             check_condition_df(
                 problem.condition_df,
@@ -196,8 +245,6 @@ class CheckObservableTable(ValidationTask):
     def run(self, problem: Problem):
         if problem.observable_df is None:
             return
-
-        from ..v1 import check_observable_df
 
         try:
             check_observable_df(
@@ -227,25 +274,6 @@ class CheckParameterTable(ValidationTask):
     def run(self, problem: Problem) -> ValidationResult | None:
         if problem.parameter_df is None:
             return
-        from petab.v1.C import (
-            ESTIMATE,
-            NOMINAL_VALUE,
-            PARAMETER_DF_REQUIRED_COLS,
-            PARAMETER_ID,
-        )
-        from petab.v1.lint import (
-            _check_df,
-            assert_no_leading_trailing_whitespace,
-            assert_parameter_bounds_are_numeric,
-            assert_parameter_estimate_is_boolean,
-            assert_parameter_id_is_string,
-            assert_parameter_prior_parameters_are_valid,
-            assert_parameter_prior_type_is_valid,
-            assert_parameter_scale_is_valid,
-            assert_unique_parameter_ids,
-            check_ids,
-            check_parameter_bounds,
-        )
 
         try:
             df = problem.parameter_df
@@ -321,11 +349,6 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
         ):
             return
 
-        from petab.v1.C import MODEL_ENTITY_ID
-        from petab.v1.parameters import (
-            get_valid_parameters_for_parameter_table,
-        )
-
         required = get_required_parameters_for_parameter_table(problem)
 
         allowed = get_valid_parameters_for_parameter_table(
@@ -388,10 +411,6 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
         ):
             return
 
-        from petab.v1 import (
-            assert_model_parameters_in_condition_or_parameter_table,
-        )
-
         try:
             assert_model_parameters_in_condition_or_parameter_table(
                 problem.model,
@@ -435,10 +454,6 @@ def get_required_parameters_for_parameter_table(
         measurement table as well as all parametric condition table overrides
         that are not defined in the model.
     """
-    from petab.C import NOISE_PARAMETERS, OBSERVABLE_PARAMETERS
-    from petab.v1.conditions import get_parametric_overrides
-    from petab.v1.measurements import split_parameter_replacement_list
-    from petab.v1.observables import get_output_parameters, get_placeholders
 
     # use ordered dict as proxy for ordered set
     parameter_ids = OrderedDict()
