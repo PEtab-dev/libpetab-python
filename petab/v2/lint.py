@@ -44,6 +44,13 @@ class ValidationResult:
         return f"{self.level.name}: {self.message}"
 
 
+class ValidationError(ValidationResult):
+    """A validation result with level ERROR."""
+
+    def __init__(self, message: str):
+        super().__init__(ValidationEventLevel.ERROR, message)
+
+
 class ValidationResultList(list[ValidationResult]):
     """A list of validation results.
 
@@ -111,17 +118,13 @@ class ModelValidationTask(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationResult | None:
         if problem.model is None:
-            return ValidationResult(
-                level=ValidationEventLevel.WARNING,
-                message="Model is missing.",
+            return ValidationError(
+                "Model is missing.",
             )
 
         if not problem.model.is_valid():
             # TODO get actual model validation messages
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
-                message="Model is invalid.",
-            )
+            return ValidationError("Model is invalid.")
 
 
 class CheckTableExists(ValidationTask):
@@ -139,10 +142,7 @@ class CheckTableExists(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationResult | None:
         if getattr(problem, f"{self.table_name}_df") is None:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR,
-                message=f"{self.table_name} table is missing.",
-            )
+            return ValidationError(f"{self.table_name} table is missing.")
 
 
 class CheckMeasurementTable(ValidationTask):
@@ -166,9 +166,7 @@ class CheckMeasurementTable(ValidationTask):
                     problem.measurement_df, problem.condition_df
                 )
         except AssertionError as e:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR, message=str(e)
-            )
+            return ValidationError(str(e))
 
 
 class CheckConditionTable(ValidationTask):
@@ -188,9 +186,7 @@ class CheckConditionTable(ValidationTask):
                 mapping_df=problem.mapping_df,
             )
         except AssertionError as e:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR, message=str(e)
-            )
+            return ValidationError(str(e))
 
 
 class CheckObservableTable(ValidationTask):
@@ -218,10 +214,9 @@ class CheckObservableTable(ValidationTask):
                 if problem.model.has_entity_with_id(obs_id)
             ]
             if shadowed_entities:
-                return ValidationResult(
-                    level=ValidationEventLevel.ERROR,
-                    message=f"Observable IDs {shadowed_entities} shadow model "
-                    "entities.",
+                return ValidationError(
+                    f"Observable IDs {shadowed_entities} shadow model "
+                    "entities."
                 )
 
 
@@ -256,9 +251,8 @@ class CheckParameterTable(ValidationTask):
             _check_df(df, PARAMETER_DF_REQUIRED_COLS[1:], "parameter")
 
             if df.index.name != PARAMETER_ID:
-                return ValidationResult(
-                    level=ValidationEventLevel.ERROR,
-                    message=f"Parameter table has wrong index {df.index.name}."
+                return ValidationError(
+                    f"Parameter table has wrong index {df.index.name}."
                     " Expected {PARAMETER_ID}.",
                 )
 
@@ -285,7 +279,7 @@ class CheckParameterTable(ValidationTask):
             )
             if non_estimated_par_ids:
                 if NOMINAL_VALUE not in df:
-                    raise AssertionError(
+                    return ValidationError(
                         "Parameter table contains parameters "
                         f"{non_estimated_par_ids} that are not "
                         "specified to be estimated, "
@@ -293,12 +287,12 @@ class CheckParameterTable(ValidationTask):
                     )
                 try:
                     df.loc[non_estimated_par_ids, NOMINAL_VALUE].apply(float)
-                except ValueError as e:
-                    raise AssertionError(
+                except ValueError:
+                    return ValidationError(
                         f"Expected numeric values for `{NOMINAL_VALUE}` "
                         "in parameter table "
                         "for all non-estimated parameters."
-                    ) from e
+                    )
 
             assert_parameter_id_is_string(df)
             assert_parameter_scale_is_valid(df)
@@ -310,9 +304,7 @@ class CheckParameterTable(ValidationTask):
             assert_parameter_prior_parameters_are_valid(df)
 
         except AssertionError as e:
-            return ValidationResult(
-                level=ValidationEventLevel.ERROR, message=str(e)
-            )
+            return ValidationError(str(e))
 
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
@@ -350,16 +342,16 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
     present in the condition or parameter table."""
 
     def run(self, problem: Problem) -> ValidationResult | None:
-        from petab.v1 import (
-            assert_model_parameters_in_condition_or_parameter_table,
-        )
-
         if (
             problem.model is None
             or problem.condition_df is None
             or problem.parameter_df is None
         ):
             return
+
+        from petab.v1 import (
+            assert_model_parameters_in_condition_or_parameter_table,
+        )
 
         try:
             assert_model_parameters_in_condition_or_parameter_table(
