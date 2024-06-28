@@ -8,6 +8,7 @@ from urllib.parse import unquote, urlparse, urlunparse
 
 import jsonschema
 import numpy as np
+import pandas as pd
 import yaml
 from pandas.io.common import get_handle
 
@@ -117,10 +118,29 @@ def validate_yaml_semantics(
     yaml_config = load_yaml(yaml_config)
 
     def _check_file(_filename: str, _field: str):
-        if not os.path.isfile(_filename):
+        # this could be a regular path or some local or remote URL
+        # the simplest check is just trying to load the respective table or
+        # sbml model
+        if _field == SBML_FILES:
+            from ..models.sbml_model import SbmlModel
+
+            try:
+                SbmlModel.from_file(_filename)
+            except Exception as e:
+                raise AssertionError(
+                    f"Failed to read '{_filename}' provided as '{_field}'."
+                ) from e
+            return
+
+        try:
+            pd.read_csv(_filename, sep="\t")
+        except pd.errors.EmptyDataError:
+            # at this stage, we don't care about the content
+            pass
+        except Exception as e:
             raise AssertionError(
-                f"File '{_filename}' provided as '{_field}' " "does not exist."
-            )
+                f"Failed to read '{_filename}' provided as '{_field}'."
+            ) from e
 
     # Handles both a single parameter file, and a parameter file that has been
     # split into multiple subset files.
