@@ -283,6 +283,12 @@ class Problem:
             )
         if yaml_config[FORMAT_VERSION] == "2.0.0":
             warn("Support for PEtab2.0 is experimental!", stacklevel=2)
+            warn(
+                "Using petab.v1.Problem with PEtab2.0 is deprecated. "
+                "Use petab.v2.Problem instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         problem0 = yaml_config["problems"][0]
 
