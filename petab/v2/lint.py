@@ -12,12 +12,27 @@ from .problem import Problem
 logger = logging.getLogger(__name__)
 
 
+class ValidationEventLevel(IntEnum):
+    """The level of a validation event."""
+
+    # INFO: Informational message, no action required
+    INFO = 10
+    # WARNING: Warning message, potential issues
+    WARNING = 20
+    # ERROR: Error message, action required
+    ERROR = 30
+    # CRITICAL: Critical error message, stops further validation
+    CRITICAL = 40
+
+
 def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
     """Validate a PEtab problem.
 
     Arguments:
         problem: PEtab problem to check. Instance of :class:`Problem` or path
         to a PEtab problem yaml file.
+    Returns:
+        A list of validation results. Empty if no issues were found.
     """
 
     if isinstance(problem, str | Path):
@@ -35,6 +50,8 @@ class ValidationTask(ABC):
 
         Arguments:
             problem: PEtab problem to check.
+        Returns:
+            A list of validation results. Empty if no issues were found.
         """
         ...
 
@@ -56,6 +73,7 @@ class ModelValidationTask(ValidationTask):
         if problem.model.is_valid():
             return []
 
+        # TODO get actual model validation messages
         return ValidationResultList(
             [
                 ValidationResult(
@@ -218,6 +236,8 @@ class ParameterTableValidationTask(ValidationTask):
 class MiscValidationTask(ValidationTask):
     """A task to perform miscellaneous validation checks."""
 
+    # TODO split further
+
     def run(self, problem: Problem):
         result = ValidationResultList()
         from petab.v1 import (
@@ -281,18 +301,31 @@ class MiscValidationTask(ValidationTask):
 
 @dataclass
 class ValidationResult:
-    """The result of a validation task."""
+    """The result of a validation task.
+
+    Attributes:
+        level: The level of the validation event.
+        message: The message of the validation event.
+    """
 
     level: ValidationEventLevel
     message: str
 
+    def __str__(self):
+        return f"{self.level.name}: {self.message}"
+
 
 class ValidationResultList(list[ValidationResult]):
-    """A list of validation results."""
+    """A list of validation results.
 
-    def log(self, min_):
+    Contains all issues found during the validation of a PEtab problem.
+    """
+
+    def log(self, min_level: ValidationEventLevel = ValidationEventLevel.INFO):
         """Log the validation results."""
         for result in self:
+            if result.level < min_level:
+                continue
             if result.level == ValidationEventLevel.INFO:
                 logger.info(result.message)
             elif result.level == ValidationEventLevel.WARNING:
@@ -308,17 +341,6 @@ class ValidationResultList(list[ValidationResult]):
         return any(
             result.level >= ValidationEventLevel.ERROR for result in self
         )
-
-
-class ValidationEventLevel(IntEnum):
-    # INFO: Informational message, no action required
-    INFO = 10
-    # WARNING: Warning message, potential issues
-    WARNING = 20
-    # ERROR: Error message, action required
-    ERROR = 30
-    # CRITICAL: Critical error message, stops further validation
-    CRITICAL = 40
 
 
 default_validation_tasks = [
