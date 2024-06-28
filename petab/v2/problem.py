@@ -4,6 +4,7 @@ import os
 import tempfile
 from math import nan
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -21,6 +22,13 @@ from ..v1 import (
 )
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
+
+if TYPE_CHECKING:
+    from ..v2.lint import (
+        ValidationResult,
+        ValidationResultList,
+    )
+
 
 __all__ = ["Problem"]
 
@@ -52,7 +60,6 @@ class Problem:
     def __init__(
         self,
         model: Model = None,
-        model_id: str = None,
         condition_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
@@ -61,6 +68,8 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
+        from ..v2.lint import ValidationTask, default_validation_taks
+
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
         self.parameter_df: pd.DataFrame | None = parameter_df
@@ -69,6 +78,9 @@ class Problem:
         self.mapping_df: pd.DataFrame | None = mapping_df
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
+        self.validation_tasks: list[
+            ValidationTask
+        ] = default_validation_taks.copy()
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -620,3 +632,30 @@ class Problem:
             return 0
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
+
+    def validate(self) -> ValidationResultList:
+        """Validate the PEtab problem."""
+        from ..v2.lint import ValidationEventLevel, ValidationResultList
+
+        validation_results = ValidationResultList()
+        if self.extensions_config:
+            validation_results.append(
+                ValidationResult(
+                    ValidationEventLevel.WARNING,
+                    "Validation of PEtab extensions is not yet implemented, "
+                    "but the given problem uses the following extensions: "
+                    f"{'', ''.join(self.extensions_config.keys())}",
+                )
+            )
+
+        for task in self.validation_tasks:
+            cur_results = task.run(self)
+            validation_results.extend(cur_results)
+
+            if any(
+                result.level == ValidationEventLevel.CRITICAL
+                for result in cur_results
+            ):
+                break
+
+        return validation_results
