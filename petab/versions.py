@@ -31,7 +31,7 @@ def is_v1_problem(problem: str | dict | Path | V1Problem | V2Problem) -> bool:
         raise ValueError(f"Unsupported argument type: {type(problem)}")
 
     version = str(version)
-    if version.startswith("1.") or version == "1":
+    if version.split(".")[0] == "1":
         return True
 
 

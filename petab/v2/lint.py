@@ -304,8 +304,7 @@ class CheckParameterTable(ValidationTask):
                         df[column_name].values, column_name
                     )
 
-            # nominal value is generally optional, but required if any for any
-            #  parameter estimate != 1
+            # nominal value is required for non-estimated parameters
             non_estimated_par_ids = list(
                 df.index[
                     (df[ESTIMATE] != 1)
@@ -315,6 +314,8 @@ class CheckParameterTable(ValidationTask):
                     )
                 ]
             )
+            # TODO implement as validators `assert_has_fixed_parameter_nominal_values`
+            # and `assert_correct_table_dtypes`
             if non_estimated_par_ids:
                 if NOMINAL_VALUE not in df:
                     return ValidationError(
