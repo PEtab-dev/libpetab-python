@@ -148,7 +148,9 @@ def validate_yaml_semantics(
         np.array(yaml_config[PARAMETER_FILE]).flat
     ):
         _check_file(
-            os.path.join(path_prefix, parameter_subset_file),
+            f"{path_prefix}/{parameter_subset_file}"
+            if path_prefix
+            else parameter_subset_file,
             parameter_subset_file,
         )
 
@@ -162,7 +164,12 @@ def validate_yaml_semantics(
         ]:
             if field in problem_config:
                 for filename in problem_config[field]:
-                    _check_file(os.path.join(path_prefix, filename), field)
+                    _check_file(
+                        f"{path_prefix}/{filename}"
+                        if path_prefix
+                        else filename,
+                        field,
+                    )
 
 
 def load_yaml(yaml_config: dict | Path | str) -> dict:
