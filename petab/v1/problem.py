@@ -50,7 +50,7 @@ class Problem:
 
     Optionally it may contain visualization tables.
 
-    Attributes:
+    Parameters:
         condition_df: PEtab condition table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table

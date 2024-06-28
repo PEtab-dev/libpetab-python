@@ -13,6 +13,7 @@ import pytest
 from yaml import safe_load
 
 import petab
+import petab.v1
 from petab.C import *
 from petab.models.sbml_model import SbmlModel
 
@@ -310,7 +311,7 @@ def test_create_parameter_df(
     # Test old API with passing libsbml.Model directly
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        parameter_df = petab.create_parameter_df(
+        parameter_df = petab.v1.create_parameter_df(
             ss_model.model,
             condition_df_2_conditions,
             observable_df,

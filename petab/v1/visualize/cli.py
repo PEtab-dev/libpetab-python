@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from .. import Problem, get_simulation_df, get_visualization_df
 from .plot_data_and_simulation import plot_problem
 
+__all__ = []
+
 
 def _parse_cli_args():
     """Parse command-line arguments."""
