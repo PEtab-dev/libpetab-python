@@ -485,7 +485,7 @@ class Problem:
 
         if prefix_path is None:
             return filenames["yaml_file"]
-        return str(prefix_path / filenames["yaml_file"])
+        return (prefix_path / filenames["yaml_file"]).as_posix()
 
     def to_files(
         self,
