@@ -5,7 +5,7 @@ import os
 import tempfile
 from collections.abc import Iterable
 from math import nan
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 from warnings import warn
 
@@ -485,7 +485,7 @@ class Problem:
 
         if prefix_path is None:
             return filenames["yaml_file"]
-        return str(prefix_path / filenames["yaml_file"])
+        return str(PurePosixPath(prefix_path, filenames["yaml_file"]))
 
     def to_files(
         self,
