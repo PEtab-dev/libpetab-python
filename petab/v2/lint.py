@@ -255,17 +255,23 @@ class CheckObservableTable(ValidationTask):
                 level=ValidationEventLevel.ERROR, message=str(e)
             )
 
-        if problem.model is not None:
-            shadowed_entities = [
-                obs_id
-                for obs_id in problem.observable_df.index
-                if problem.model.has_entity_with_id(obs_id)
-            ]
-            if shadowed_entities:
-                return ValidationError(
-                    f"Observable IDs {shadowed_entities} shadow model "
-                    "entities."
-                )
+
+class CheckObservablesDoNotShadowModelEntities(ValidationTask):
+    """A task to check that observable IDs do not shadow model entities."""
+
+    def run(self, problem: Problem) -> ValidationResult | None:
+        if problem.observable_df is None or problem.model is None:
+            return
+
+        shadowed_entities = [
+            obs_id
+            for obs_id in problem.observable_df.index
+            if problem.model.has_entity_with_id(obs_id)
+        ]
+        if shadowed_entities:
+            return ValidationError(
+                f"Observable IDs {shadowed_entities} shadow model entities."
+            )
 
 
 class CheckParameterTable(ValidationTask):
@@ -282,7 +288,7 @@ class CheckParameterTable(ValidationTask):
             if df.index.name != PARAMETER_ID:
                 return ValidationError(
                     f"Parameter table has wrong index {df.index.name}."
-                    " Expected {PARAMETER_ID}.",
+                    f" Expected {PARAMETER_ID}.",
                 )
 
             check_ids(df.index.values, kind="parameter")
@@ -532,6 +538,7 @@ default_validation_tasks = [
     CheckMeasurementTable(),
     CheckConditionTable(),
     CheckObservableTable(),
+    CheckObservablesDoNotShadowModelEntities(),
     CheckParameterTable(),
     CheckAllParametersPresentInParameterTable(),
     CheckVisualizationTable(),
