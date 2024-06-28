@@ -26,7 +26,7 @@ class TestSimulator(petab.simulate.Simulator):
 def petab_problem() -> petab.Problem:
     """Create a PEtab problem for use in tests."""
     petab_yaml_path = (
-        Path(__file__).parent.parent.absolute()
+        Path(__file__).parents[2].absolute()
         / "doc"
         / "example"
         / "example_Fujita"
