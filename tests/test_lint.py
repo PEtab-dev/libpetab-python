@@ -642,3 +642,18 @@ def test_parameter_ids_are_unique():
     parameter_df.index = ["par0", "par1"]
     parameter_df.index.name = "parameterId"
     lint.check_parameter_df(parameter_df)
+
+
+def test_check_positive_bounds_for_scaled_parameters():
+    parameter_df = pd.DataFrame(
+        {
+            PARAMETER_ID: ["par"],
+            PARAMETER_SCALE: [LOG10],
+            ESTIMATE: [1],
+            LOWER_BOUND: [0.0],
+            UPPER_BOUND: [1],
+        }
+    ).set_index(PARAMETER_ID)
+
+    with pytest.raises(AssertionError, match="positive"):
+        lint.check_parameter_df(parameter_df)
