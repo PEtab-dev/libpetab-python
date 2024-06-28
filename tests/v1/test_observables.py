@@ -10,7 +10,7 @@ from petab.C import *
 
 # import fixtures
 pytest_plugins = [
-    "tests.test_petab",
+    "tests.v1.test_petab",
 ]
 
 

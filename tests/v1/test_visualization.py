@@ -20,7 +20,7 @@ from petab.visualize.plotting import VisSpecParser
 # Avoid errors when plotting without X server
 plt.switch_backend("agg")
 
-EXAMPLE_DIR = Path(__file__).parents[1] / "doc" / "example"
+EXAMPLE_DIR = Path(__file__).parents[2] / "doc" / "example"
 
 
 @pytest.fixture(scope="function")
