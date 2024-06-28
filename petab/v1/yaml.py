@@ -111,7 +111,7 @@ def validate_yaml_semantics(
     """
     if not path_prefix:
         if isinstance(yaml_config, str | Path):
-            path_prefix = os.path.dirname(str(yaml_config))
+            path_prefix = get_path_prefix(yaml_config)
         else:
             path_prefix = ""
 
