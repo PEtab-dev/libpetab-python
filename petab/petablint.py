@@ -8,8 +8,13 @@ import sys
 
 from colorama import Fore
 from colorama import init as init_colorama
+from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 import petab
+from petab.v1.C import FORMAT_VERSION
+from petab.v2.lint import lint_problem
+from petab.versions import is_v1_problem, is_v2_problem
+from petab.yaml import validate
 
 logger = logging.getLogger(__name__)
 
@@ -153,13 +158,9 @@ def main():
         ch.setLevel(logging.WARN)
 
     if args.yaml_file_name:
-        from jsonschema.exceptions import ValidationError
-
-        from petab.yaml import validate
-
         try:
             validate(args.yaml_file_name)
-        except ValidationError as e:
+        except SchemaValidationError as e:
             logger.error(
                 "Provided YAML file does not adhere to PEtab " f"schema: {e}"
             )
@@ -171,38 +172,52 @@ def main():
             #  problem = petab.CompositeProblem.from_yaml(args.yaml_file_name)
             return
 
-        problem = petab.Problem.from_yaml(args.yaml_file_name)
-
-    else:
-        # DEPRECATED
-        logger.debug("Looking for...")
-        if args.sbml_file_name:
-            logger.debug(f"\tSBML model: {args.sbml_file_name}")
-        if args.condition_file_name:
-            logger.debug(f"\tCondition table: {args.condition_file_name}")
-        if args.observable_file_name:
-            logger.debug(f"\tObservable table: {args.observable_file_name}")
-        if args.measurement_file_name:
-            logger.debug(f"\tMeasurement table: {args.measurement_file_name}")
-        if args.parameter_file_name:
-            logger.debug(f"\tParameter table: {args.parameter_file_name}")
-        if args.visualization_file_name:
-            logger.debug(
-                "\tVisualization table: " f"{args.visualization_file_name}"
+        if is_v1_problem(args.yaml_file_name):
+            problem = petab.Problem.from_yaml(args.yaml_file_name)
+            ret = petab.lint.lint_problem(problem)
+            sys.exit(ret)
+        elif is_v2_problem(args.yaml_file_name):
+            validation_issues = lint_problem(args.yaml_file_name)
+            if validation_issues:
+                validation_issues.log(logger=logger)
+                sys.exit(1)
+            logger.info("PEtab format check completed successfully.")
+            sys.exit(0)
+        else:
+            logger.error(
+                "The provided PEtab files are of unsupported version "
+                f"or the `{FORMAT_VERSION}` field is missing in the yaml file."
             )
 
-        try:
-            problem = petab.Problem.from_files(
-                sbml_file=args.sbml_file_name,
-                condition_file=args.condition_file_name,
-                measurement_file=args.measurement_file_name,
-                parameter_file=args.parameter_file_name,
-                observable_files=args.observable_file_name,
-                visualization_files=args.visualization_file_name,
-            )
-        except FileNotFoundError as e:
-            logger.error(e)
-            sys.exit(1)
+    # DEPRECATED - only supported for v1
+    logger.debug("Looking for...")
+    if args.sbml_file_name:
+        logger.debug(f"\tSBML model: {args.sbml_file_name}")
+    if args.condition_file_name:
+        logger.debug(f"\tCondition table: {args.condition_file_name}")
+    if args.observable_file_name:
+        logger.debug(f"\tObservable table: {args.observable_file_name}")
+    if args.measurement_file_name:
+        logger.debug(f"\tMeasurement table: {args.measurement_file_name}")
+    if args.parameter_file_name:
+        logger.debug(f"\tParameter table: {args.parameter_file_name}")
+    if args.visualization_file_name:
+        logger.debug(
+            "\tVisualization table: " f"{args.visualization_file_name}"
+        )
+
+    try:
+        problem = petab.Problem.from_files(
+            sbml_file=args.sbml_file_name,
+            condition_file=args.condition_file_name,
+            measurement_file=args.measurement_file_name,
+            parameter_file=args.parameter_file_name,
+            observable_files=args.observable_file_name,
+            visualization_files=args.visualization_file_name,
+        )
+    except FileNotFoundError as e:
+        logger.error(e)
+        sys.exit(1)
 
     ret = petab.lint.lint_problem(problem)
     sys.exit(ret)

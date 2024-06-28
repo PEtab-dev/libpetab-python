@@ -115,7 +115,10 @@ class ValidationResultList(list[ValidationIssue]):
     """
 
     def log(
-        self, min_level: ValidationIssueSeverity = ValidationIssueSeverity.INFO
+        self,
+        *,
+        logger: logging.Logger = logger,
+        min_level: ValidationIssueSeverity = ValidationIssueSeverity.INFO,
     ):
         """Log the validation results."""
         for result in self:
