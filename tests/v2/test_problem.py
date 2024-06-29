@@ -16,6 +16,8 @@ def test_load_remote():
         and not petab_problem.measurement_df.empty
     )
 
+    assert petab_problem.validate() == []
+
     yaml_url = yaml_url.replace("2.0.0", "1.0.0")
     with pytest.raises(
         ValueError, match="Provided PEtab files are of unsupported version"

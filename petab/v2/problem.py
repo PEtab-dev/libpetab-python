@@ -4,6 +4,7 @@ import os
 import tempfile
 from math import nan
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -21,6 +22,10 @@ from ..v1 import (
 )
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
+
+if TYPE_CHECKING:
+    from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
+
 
 __all__ = ["Problem"]
 
@@ -52,7 +57,6 @@ class Problem:
     def __init__(
         self,
         model: Model = None,
-        model_id: str = None,
         condition_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
@@ -61,6 +65,8 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
+        from ..v2.lint import default_validation_tasks
+
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
         self.parameter_df: pd.DataFrame | None = parameter_df
@@ -69,6 +75,9 @@ class Problem:
         self.mapping_df: pd.DataFrame | None = mapping_df
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
+        self.validation_tasks: list[
+            ValidationTask
+        ] = default_validation_tasks.copy()
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -261,6 +270,27 @@ class Problem:
         archive.cleanUp()
 
         return problem
+
+    @staticmethod
+    def get_problem(problem: str | Path | Problem):
+        """Get a PEtab problem from a file or a problem object.
+
+        Arguments:
+            problem: Path to a PEtab problem file or a PEtab problem object.
+
+        Returns:
+            A PEtab problem object.
+        """
+        if isinstance(problem, Problem):
+            return problem
+
+        if isinstance(problem, str | Path):
+            return Problem.from_yaml(problem)
+
+        raise TypeError(
+            "The argument `problem` must be a path to a PEtab problem file "
+            "or a PEtab problem object."
+        )
 
     def get_optimization_parameters(self):
         """
@@ -620,3 +650,44 @@ class Problem:
             return 0
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
+
+    def validate(
+        self, validation_tasks: list[ValidationTask] = None
+    ) -> ValidationResultList:
+        """Validate the PEtab problem.
+
+        Arguments:
+            validation_tasks: List of validation tasks to run. If ``None``
+             or empty, :attr:Problem.validation_tasks` are used.
+        Returns:
+            A list of validation results.
+        """
+        from ..v2.lint import ValidationIssueSeverity, ValidationResultList
+
+        validation_results = ValidationResultList()
+        if self.extensions_config:
+            validation_results.append(
+                ValidationIssue(
+                    ValidationIssueSeverity.WARNING,
+                    "Validation of PEtab extensions is not yet implemented, "
+                    "but the given problem uses the following extensions: "
+                    f"{'', ''.join(self.extensions_config.keys())}",
+                )
+            )
+
+        for task in validation_tasks or self.validation_tasks:
+            try:
+                cur_result = task.run(self)
+            except Exception as e:
+                cur_result = ValidationIssue(
+                    ValidationIssueSeverity.CRITICAL,
+                    f"Validation task {task} failed with exception: {e}",
+                )
+
+            if cur_result:
+                validation_results.append(cur_result)
+
+                if cur_result.level == ValidationIssueSeverity.CRITICAL:
+                    break
+
+        return validation_results

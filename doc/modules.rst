@@ -28,3 +28,6 @@ API Reference
    petab.v1.simplify
    petab.v1.visualize
    petab.v1.yaml
+   petab.v2
+   petab.v2.lint
+   petab.v2.problem
