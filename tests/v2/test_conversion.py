@@ -11,6 +11,8 @@ def test_petab1to2_remote():
     )
 
     with tempfile.TemporaryDirectory(prefix="test_petab1to2") as tmpdirname:
+        # TODO verify that the v2 files match "ground truth"
+        # in `petabtests/cases/v2.0.0/sbml/0001/_0001.yaml`
         petab1to2(yaml_url, tmpdirname)
 
 

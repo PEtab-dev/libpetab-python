@@ -23,4 +23,5 @@ def test_auto_upgrade():
         "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
     problem = Problem.from_yaml(yaml_url)
+    # TODO check something specifically different in a v2 problem
     assert isinstance(problem, Problem)
