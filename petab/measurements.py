@@ -1,3 +1,6 @@
+"""Deprecated module for measurement tables.
+
+Use petab.v1.measurements instead."""
 from petab import _deprecated_import_v1
 from petab.v1.measurements import *  # noqa: F403, F401, E402
 

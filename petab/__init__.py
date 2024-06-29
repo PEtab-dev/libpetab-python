@@ -2,6 +2,9 @@
 PEtab global
 ============
 
+All functions in here are deprecated. Use the respective functions from
+:mod:`petab.v1` instead.
+
 Attributes:
     ENV_NUM_THREADS:
         Name of environment variable to set number of threads or processes
