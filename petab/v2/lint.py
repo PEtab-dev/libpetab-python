@@ -158,8 +158,7 @@ def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
         A list of validation results. Empty if no issues were found.
     """
 
-    if isinstance(problem, str | Path):
-        problem = Problem.from_yaml(str(problem))
+    problem = Problem.get_problem(problem)
 
     return problem.validate()
 

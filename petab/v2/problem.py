@@ -271,6 +271,27 @@ class Problem:
 
         return problem
 
+    @staticmethod
+    def get_problem(problem: str | Path | Problem):
+        """Get a PEtab problem from a file or a problem object.
+
+        Arguments:
+            problem: Path to a PEtab problem file or a PEtab problem object.
+
+        Returns:
+            A PEtab problem object.
+        """
+        if isinstance(problem, Problem):
+            return problem
+
+        if isinstance(problem, str | Path):
+            return Problem.from_yaml(problem)
+
+        raise TypeError(
+            "The argument `problem` must be a path to a PEtab problem file "
+            "or a PEtab problem object."
+        )
+
     def get_optimization_parameters(self):
         """
         Return list of optimization parameter IDs.
