@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 from math import nan
@@ -125,13 +126,37 @@ class Problem:
         if isinstance(yaml_config, Path):
             yaml_config = str(yaml_config)
 
-        get_path = lambda filename: filename  # noqa: E731
         if isinstance(yaml_config, str):
-            path_prefix = get_path_prefix(yaml_config)
+            yaml_file = yaml_config
+            path_prefix = get_path_prefix(yaml_file)
             yaml_config = yaml.load_yaml(yaml_config)
             get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
+        else:
+            yaml_file = None
+            get_path = lambda filename: filename  # noqa: E731
 
         if yaml_config[FORMAT_VERSION] not in {"2.0.0"}:
+            # If we got a path to a v1 yaml file, try to auto-upgrade
+            from tempfile import TemporaryDirectory
+
+            from ..versions import get_major_version
+            from .petab1to2 import petab1to2
+
+            if get_major_version(yaml_config) == 1 and yaml_file:
+                logging.debug(
+                    "Auto-upgrading problem from PEtab 1.0 to PEtab 2.0"
+                )
+                with TemporaryDirectory() as tmpdirname:
+                    try:
+                        petab1to2(yaml_file, output_dir=tmpdirname)
+                    except Exception as e:
+                        raise ValueError(
+                            "Failed to auto-upgrade PEtab 1.0 problem to "
+                            "PEtab 2.0"
+                        ) from e
+                    return Problem.from_yaml(
+                        Path(tmpdirname) / Path(yaml_file).name
+                    )
             raise ValueError(
                 "Provided PEtab files are of unsupported version "
                 f"{yaml_config[FORMAT_VERSION]}. Expected 2.0.0."
