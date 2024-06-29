@@ -152,8 +152,9 @@ def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
     """Validate a PEtab problem.
 
     Arguments:
-        problem: PEtab problem to check. Instance of :class:`Problem` or path
-        to a PEtab problem yaml file.
+        problem:
+            PEtab problem to check. Instance of :class:`Problem` or path
+            to a PEtab problem yaml file.
     Returns:
         A list of validation results. Empty if no issues were found.
     """
