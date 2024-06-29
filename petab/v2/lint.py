@@ -97,6 +97,12 @@ class ValidationIssue:
     level: ValidationIssueSeverity
     message: str
 
+    def __post_init__(self):
+        if not isinstance(self.level, ValidationIssueSeverity):
+            raise TypeError(
+                "`level` must be an instance of ValidationIssueSeverity."
+            )
+
     def __str__(self):
         return f"{self.level.name}: {self.message}"
 
@@ -314,8 +320,9 @@ class CheckParameterTable(ValidationTask):
                     )
                 ]
             )
-            # TODO implement as validators `assert_has_fixed_parameter_nominal_values`
-            # and `assert_correct_table_dtypes`
+            # TODO implement as validators
+            #  `assert_has_fixed_parameter_nominal_values`
+            #   and `assert_correct_table_dtypes`
             if non_estimated_par_ids:
                 if NOMINAL_VALUE not in df:
                     return ValidationError(

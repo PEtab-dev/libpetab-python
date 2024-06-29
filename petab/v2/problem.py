@@ -24,10 +24,7 @@ from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 
 if TYPE_CHECKING:
-    from ..v2.lint import (
-        ValidationIssue,
-        ValidationResultList,
-    )
+    from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
 
 
 __all__ = ["Problem"]
@@ -68,7 +65,7 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
-        from ..v2.lint import ValidationTask, default_validation_tasks
+        from ..v2.lint import default_validation_tasks
 
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
@@ -633,8 +630,17 @@ class Problem:
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
 
-    def validate(self) -> ValidationResultList:
-        """Validate the PEtab problem."""
+    def validate(
+        self, validation_tasks: list[ValidationTask] = None
+    ) -> ValidationResultList:
+        """Validate the PEtab problem.
+
+        Arguments:
+            validation_tasks: List of validation tasks to run. If ``None``
+             or empty, :attr:Problem.validation_tasks` are used.
+        Returns:
+            A list of validation results.
+        """
         from ..v2.lint import ValidationIssueSeverity, ValidationResultList
 
         validation_results = ValidationResultList()
@@ -648,7 +654,7 @@ class Problem:
                 )
             )
 
-        for task in self.validation_tasks:
+        for task in validation_tasks or self.validation_tasks:
             try:
                 cur_result = task.run(self)
             except Exception as e:
