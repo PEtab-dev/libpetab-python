@@ -11,7 +11,7 @@ from petab.v1.parameter_mapping import _apply_parameter_table
 
 # import fixtures
 pytest_plugins = [
-    "tests.test_petab",
+    "tests.v1.test_petab",
 ]
 
 

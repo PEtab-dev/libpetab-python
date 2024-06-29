@@ -17,7 +17,7 @@ def test_validate():
 
     # should be well-formed
     file_ = (
-        Path(__file__).parents[1]
+        Path(__file__).parents[2]
         / "doc"
         / "example"
         / "example_Fujita"
@@ -37,8 +37,10 @@ def test_create_problem_yaml():
         observable_file = Path(outdir, "observables.tsv")
         yaml_file = Path(outdir, "problem.yaml")
         visualization_file = Path(outdir, "visualization.tsv")
+
+        _create_dummy_sbml_model(sbml_file)
+
         for file in (
-            sbml_file,
             condition_file,
             measurement_file,
             parameter_file,
@@ -65,12 +67,13 @@ def test_create_problem_yaml():
         observable_file2 = Path(outdir, "observables2.tsv")
         yaml_file2 = Path(outdir, "problem2.yaml")
         for file in (
-            sbml_file2,
             condition_file2,
             measurement_file2,
             observable_file2,
         ):
             file.touch()
+
+        _create_dummy_sbml_model(sbml_file2)
 
         sbml_files = [sbml_file, sbml_file2]
         condition_files = [condition_file, condition_file2]
@@ -87,10 +90,27 @@ def test_create_problem_yaml():
         validate(yaml_file2)
 
 
-def test_get_path_prefix_local():
+def test_get_path_prefix():
     assert get_path_prefix("/some/dir/file.yaml") == str(Path("/some/dir"))
     assert get_path_prefix("some/dir/file.yaml") == str(Path("some/dir"))
     assert (
         get_path_prefix("https://petab.rocks/dir/file.yaml")
         == "https://petab.rocks/dir"
     )
+
+
+def test_validate_remote():
+    yaml_url = (
+        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
+        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+    )
+
+    validate(yaml_url)
+
+
+def _create_dummy_sbml_model(sbml_file: Path | str):
+    import libsbml
+
+    sbml_doc = libsbml.SBMLDocument()
+    sbml_doc.createModel()
+    libsbml.writeSBMLToFile(sbml_doc, str(sbml_file))

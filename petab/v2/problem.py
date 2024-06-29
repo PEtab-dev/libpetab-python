@@ -1,37 +1,30 @@
-"""PEtab Problem class"""
 from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import Iterable
 from math import nan
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import pandas as pd
 
-from . import (
+from ..C import *  # noqa: F403
+from ..v1 import (
     conditions,
     core,
-    format_version,
     mapping,
     measurements,
     observables,
     parameter_mapping,
     parameters,
     sampling,
-    sbml,
     yaml,
 )
-from .C import *  # noqa: F403
-from .models import MODEL_TYPE_SBML
-from .models.model import Model, model_factory
-from .models.sbml_model import SbmlModel
-from .yaml import get_path_prefix
+from ..v1.models.model import Model, model_factory
+from ..v1.yaml import get_path_prefix
 
 if TYPE_CHECKING:
-    import libsbml
+    from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
 
 
 __all__ = ["Problem"]
@@ -58,19 +51,12 @@ class Problem:
         visualization_df: PEtab visualization table
         mapping_df: PEtab mapping table
         model: The underlying model
-        sbml_reader: Stored to keep object alive (deprecated).
-        sbml_document: Stored to keep object alive (deprecated).
-        sbml_model: PEtab SBML model (deprecated)
         extensions_config: Information on the extensions used
     """
 
     def __init__(
         self,
-        sbml_model: libsbml.Model = None,
-        sbml_reader: libsbml.SBMLReader = None,
-        sbml_document: libsbml.SBMLDocument = None,
         model: Model = None,
-        model_id: str = None,
         condition_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
@@ -79,59 +65,19 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
+        from ..v2.lint import default_validation_tasks
+
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
         self.parameter_df: pd.DataFrame | None = parameter_df
         self.visualization_df: pd.DataFrame | None = visualization_df
         self.observable_df: pd.DataFrame | None = observable_df
         self.mapping_df: pd.DataFrame | None = mapping_df
-
-        if any(
-            (sbml_model, sbml_document, sbml_reader),
-        ):
-            warn(
-                "Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
-                "to petab.Problem is deprecated and will be removed in a "
-                "future version. Use `model=petab.models.sbml_model."
-                "SbmlModel(...)` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if model:
-                raise ValueError(
-                    "Must only provide one of (`sbml_model`, "
-                    "`sbml_document`, `sbml_reader`) or `model`."
-                )
-
-            model = SbmlModel(
-                sbml_model=sbml_model,
-                sbml_reader=sbml_reader,
-                sbml_document=sbml_document,
-                model_id=model_id,
-            )
-
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
-
-    def __getattr__(self, name):
-        # For backward-compatibility, allow access to SBML model related
-        #  attributes now stored in self.model
-        if name in {"sbml_model", "sbml_reader", "sbml_document"}:
-            return getattr(self.model, name) if self.model else None
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no " f"attribute '{name}'"
-        )
-
-    def __setattr__(self, name, value):
-        # For backward-compatibility, allow access to SBML model related
-        #  attributes now stored in self.model
-        if name in {"sbml_model", "sbml_reader", "sbml_document"}:
-            if self.model:
-                setattr(self.model, name, value)
-            else:
-                self.model = SbmlModel(**{name: value})
-        else:
-            super().__setattr__(name, value)
+        self.validation_tasks: list[
+            ValidationTask
+        ] = default_validation_tasks.copy()
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -169,88 +115,6 @@ class Problem:
         )
 
     @staticmethod
-    def from_files(
-        sbml_file: str | Path = None,
-        condition_file: str | Path | Iterable[str | Path] = None,
-        measurement_file: str | Path | Iterable[str | Path] = None,
-        parameter_file: str | Path | Iterable[str | Path] = None,
-        visualization_files: str | Path | Iterable[str | Path] = None,
-        observable_files: str | Path | Iterable[str | Path] = None,
-        model_id: str = None,
-        extensions_config: dict = None,
-    ) -> Problem:
-        """
-        Factory method to load model and tables from files.
-
-        Arguments:
-            sbml_file: PEtab SBML model
-            condition_file: PEtab condition table
-            measurement_file: PEtab measurement table
-            parameter_file: PEtab parameter table
-            visualization_files: PEtab visualization tables
-            observable_files: PEtab observables tables
-            model_id: PEtab ID of the model
-            extensions_config: Information on the extensions used
-        """
-        warn(
-            "petab.Problem.from_files is deprecated and will be removed in a "
-            "future version. Use `petab.Problem.from_yaml instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        model = (
-            model_factory(sbml_file, MODEL_TYPE_SBML, model_id=model_id)
-            if sbml_file
-            else None
-        )
-
-        condition_df = (
-            core.concat_tables(condition_file, conditions.get_condition_df)
-            if condition_file
-            else None
-        )
-
-        # If there are multiple tables, we will merge them
-        measurement_df = (
-            core.concat_tables(
-                measurement_file, measurements.get_measurement_df
-            )
-            if measurement_file
-            else None
-        )
-
-        parameter_df = (
-            parameters.get_parameter_df(parameter_file)
-            if parameter_file
-            else None
-        )
-
-        # If there are multiple tables, we will merge them
-        visualization_df = (
-            core.concat_tables(visualization_files, core.get_visualization_df)
-            if visualization_files
-            else None
-        )
-
-        # If there are multiple tables, we will merge them
-        observable_df = (
-            core.concat_tables(observable_files, observables.get_observable_df)
-            if observable_files
-            else None
-        )
-
-        return Problem(
-            model=model,
-            condition_df=condition_df,
-            measurement_df=measurement_df,
-            parameter_df=parameter_df,
-            observable_df=observable_df,
-            visualization_df=visualization_df,
-            extensions_config=extensions_config,
-        )
-
-    @staticmethod
     def from_yaml(yaml_config: dict | Path | str) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
@@ -267,27 +131,18 @@ class Problem:
             yaml_config = yaml.load_yaml(yaml_config)
             get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
 
+        if yaml_config[FORMAT_VERSION] not in {"2.0.0"}:
+            raise ValueError(
+                "Provided PEtab files are of unsupported version "
+                f"{yaml_config[FORMAT_VERSION]}. Expected 2.0.0."
+            )
+
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(
                 "petab.Problem.from_yaml() can only be used for "
                 "yaml files comprising a single model. "
                 "Consider using "
                 "petab.CompositeProblem.from_yaml() instead."
-            )
-
-        if yaml_config[FORMAT_VERSION] not in {"1", 1, "1.0.0", "2.0.0"}:
-            raise ValueError(
-                "Provided PEtab files are of unsupported version "
-                f"{yaml_config[FORMAT_VERSION]}. Expected "
-                f"{format_version.__format_version__}."
-            )
-        if yaml_config[FORMAT_VERSION] == "2.0.0":
-            warn("Support for PEtab2.0 is experimental!", stacklevel=2)
-            warn(
-                "Using petab.v1.Problem with PEtab2.0 is deprecated. "
-                "Use petab.v2.Problem instead.",
-                DeprecationWarning,
-                stacklevel=2,
             )
 
         problem0 = yaml_config["problems"][0]
@@ -305,39 +160,20 @@ class Problem:
                 else None
             )
 
-        if yaml_config[FORMAT_VERSION] in [1, "1", "1.0.0"]:
-            if len(problem0[SBML_FILES]) > 1:
-                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-                raise NotImplementedError(
-                    "Support for multiple models is not yet implemented."
-                )
-
-            model = (
-                model_factory(
-                    get_path(problem0[SBML_FILES][0]),
-                    MODEL_TYPE_SBML,
-                    model_id=None,
-                )
-                if problem0[SBML_FILES]
-                else None
+        if len(problem0[MODEL_FILES]) > 1:
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+            raise NotImplementedError(
+                "Support for multiple models is not yet implemented."
             )
+        if not problem0[MODEL_FILES]:
+            model = None
         else:
-            if len(problem0[MODEL_FILES]) > 1:
-                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-                raise NotImplementedError(
-                    "Support for multiple models is not yet implemented."
-                )
-            if not problem0[MODEL_FILES]:
-                model = None
-            else:
-                model_id, model_info = next(
-                    iter(problem0[MODEL_FILES].items())
-                )
-                model = model_factory(
-                    get_path(model_info[MODEL_LOCATION]),
-                    model_info[MODEL_LANGUAGE],
-                    model_id=model_id,
-                )
+            model_id, model_info = next(iter(problem0[MODEL_FILES].items()))
+            model = model_factory(
+                get_path(model_info[MODEL_LOCATION]),
+                model_info[MODEL_LANGUAGE],
+                model_id=model_id,
+            )
 
         measurement_files = [
             get_path(f) for f in problem0.get(MEASUREMENT_FILES, [])
@@ -435,199 +271,26 @@ class Problem:
 
         return problem
 
-    def to_files_generic(
-        self,
-        prefix_path: str | Path,
-    ) -> str:
-        """Save a PEtab problem to generic file names.
-
-        The PEtab problem YAML file is always created. PEtab data files are
-        only created if the PEtab problem contains corresponding data (e.g. a
-        PEtab visualization TSV file is only created if the PEtab problem has
-        one).
+    @staticmethod
+    def get_problem(problem: str | Path | Problem):
+        """Get a PEtab problem from a file or a problem object.
 
         Arguments:
-            prefix_path:
-                Specify a prefix to all paths, to avoid specifying the
-                prefix for all paths individually. NB: the prefix is added to
-                paths before ``relative_paths`` is handled downstream in
-                :func:`petab.yaml.create_problem_yaml`.
+            problem: Path to a PEtab problem file or a PEtab problem object.
 
         Returns:
-            The path to the PEtab problem YAML file.
+            A PEtab problem object.
         """
-        prefix_path = Path(prefix_path)
+        if isinstance(problem, Problem):
+            return problem
 
-        # Generate generic filenames for data tables in the PEtab problem that
-        # contain data.
-        filenames = {}
-        for table_name in [
-            "condition",
-            "measurement",
-            "parameter",
-            "observable",
-            "visualization",
-            "mapping",
-        ]:
-            if getattr(self, f"{table_name}_df") is not None:
-                filenames[f"{table_name}_file"] = f"{table_name}s.tsv"
+        if isinstance(problem, str | Path):
+            return Problem.from_yaml(problem)
 
-        if self.model:
-            if not isinstance(self.model, SbmlModel):
-                raise NotImplementedError(
-                    "Saving non-SBML models is " "currently not supported."
-                )
-            filenames["model_file"] = "model.xml"
-
-        filenames["yaml_file"] = "problem.yaml"
-
-        self.to_files(**filenames, prefix_path=prefix_path)
-
-        if prefix_path is None:
-            return filenames["yaml_file"]
-        return str(PurePosixPath(prefix_path, filenames["yaml_file"]))
-
-    def to_files(
-        self,
-        sbml_file: None | str | Path = None,
-        condition_file: None | str | Path = None,
-        measurement_file: None | str | Path = None,
-        parameter_file: None | str | Path = None,
-        visualization_file: None | str | Path = None,
-        observable_file: None | str | Path = None,
-        yaml_file: None | str | Path = None,
-        prefix_path: None | str | Path = None,
-        relative_paths: bool = True,
-        model_file: None | str | Path = None,
-        mapping_file: None | str | Path = None,
-    ) -> None:
-        """
-        Write PEtab tables to files for this problem
-
-        Writes PEtab files for those entities for which a destination was
-        passed.
-
-        NOTE: If this instance was created from multiple measurement or
-        visualization tables, they will be merged and written to a single file.
-
-        Arguments:
-            sbml_file: SBML model destination (deprecated)
-            model_file: Model destination
-            condition_file: Condition table destination
-            measurement_file: Measurement table destination
-            parameter_file: Parameter table destination
-            visualization_file: Visualization table destination
-            observable_file: Observables table destination
-            mapping_file: Mapping table destination
-            yaml_file: YAML file destination
-            prefix_path:
-                Specify a prefix to all paths, to avoid specifying the
-                prefix for all paths individually. NB: the prefix is added to
-                paths before ``relative_paths`` is handled.
-            relative_paths:
-                whether all paths in the YAML file should be
-                relative to the location of the YAML file. If ``False``, then
-                paths are left unchanged.
-
-        Raises:
-            ValueError:
-                If a destination was provided for a non-existing entity.
-        """
-        if sbml_file:
-            warn(
-                "The `sbml_file` argument is deprecated and will be "
-                "removed in a future version. Use `model_file` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-            if model_file:
-                raise ValueError(
-                    "Must provide either `sbml_file` or "
-                    "`model_file` argument, but not both."
-                )
-
-            model_file = sbml_file
-
-        if prefix_path is not None:
-            prefix_path = Path(prefix_path)
-
-            def add_prefix(path0: None | str | Path) -> str:
-                return path0 if path0 is None else str(prefix_path / path0)
-
-            model_file = add_prefix(model_file)
-            condition_file = add_prefix(condition_file)
-            measurement_file = add_prefix(measurement_file)
-            parameter_file = add_prefix(parameter_file)
-            observable_file = add_prefix(observable_file)
-            visualization_file = add_prefix(visualization_file)
-            mapping_file = add_prefix(mapping_file)
-            yaml_file = add_prefix(yaml_file)
-
-        if model_file:
-            self.model.to_file(model_file)
-
-        def error(name: str) -> ValueError:
-            return ValueError(f"Unable to save non-existent {name} table")
-
-        if condition_file:
-            if self.condition_df is not None:
-                conditions.write_condition_df(
-                    self.condition_df, condition_file
-                )
-            else:
-                raise error("condition")
-
-        if measurement_file:
-            if self.measurement_df is not None:
-                measurements.write_measurement_df(
-                    self.measurement_df, measurement_file
-                )
-            else:
-                raise error("measurement")
-
-        if parameter_file:
-            if self.parameter_df is not None:
-                parameters.write_parameter_df(
-                    self.parameter_df, parameter_file
-                )
-            else:
-                raise error("parameter")
-
-        if observable_file:
-            if self.observable_df is not None:
-                observables.write_observable_df(
-                    self.observable_df, observable_file
-                )
-            else:
-                raise error("observable")
-
-        if visualization_file:
-            if self.visualization_df is not None:
-                core.write_visualization_df(
-                    self.visualization_df, visualization_file
-                )
-            else:
-                raise error("visualization")
-
-        if mapping_file:
-            if self.mapping_df is not None:
-                mapping.write_mapping_df(self.mapping_df, mapping_file)
-            else:
-                raise error("mapping")
-
-        if yaml_file:
-            yaml.create_problem_yaml(
-                sbml_files=model_file,
-                condition_files=condition_file,
-                measurement_files=measurement_file,
-                parameter_file=parameter_file,
-                observable_files=observable_file,
-                yaml_file=yaml_file,
-                visualization_files=visualization_file,
-                relative_paths=relative_paths,
-                mapping_files=mapping_file,
-            )
+        raise TypeError(
+            "The argument `problem` must be a path to a PEtab problem file "
+            "or a PEtab problem object."
+        )
 
     def get_optimization_parameters(self):
         """
@@ -644,17 +307,6 @@ class Problem:
         See :py:func:`petab.parameters.get_optimization_parameters`.
         """
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
-
-    def get_model_parameters(self):
-        """See :py:func:`petab.sbml.get_model_parameters`"""
-        warn(
-            "petab.Problem.get_model_parameters is deprecated and will be "
-            "removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return sbml.get_model_parameters(self.sbml_model)
 
     def get_observable_ids(self):
         """
@@ -998,3 +650,44 @@ class Problem:
             return 0
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
+
+    def validate(
+        self, validation_tasks: list[ValidationTask] = None
+    ) -> ValidationResultList:
+        """Validate the PEtab problem.
+
+        Arguments:
+            validation_tasks: List of validation tasks to run. If ``None``
+             or empty, :attr:Problem.validation_tasks` are used.
+        Returns:
+            A list of validation results.
+        """
+        from ..v2.lint import ValidationIssueSeverity, ValidationResultList
+
+        validation_results = ValidationResultList()
+        if self.extensions_config:
+            validation_results.append(
+                ValidationIssue(
+                    ValidationIssueSeverity.WARNING,
+                    "Validation of PEtab extensions is not yet implemented, "
+                    "but the given problem uses the following extensions: "
+                    f"{'', ''.join(self.extensions_config.keys())}",
+                )
+            )
+
+        for task in validation_tasks or self.validation_tasks:
+            try:
+                cur_result = task.run(self)
+            except Exception as e:
+                cur_result = ValidationIssue(
+                    ValidationIssueSeverity.CRITICAL,
+                    f"Validation task {task} failed with exception: {e}",
+                )
+
+            if cur_result:
+                validation_results.append(cur_result)
+
+                if cur_result.level == ValidationIssueSeverity.CRITICAL:
+                    break
+
+        return validation_results
