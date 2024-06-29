@@ -1,3 +1,4 @@
+"""PEtab v2 problems."""
 from __future__ import annotations
 
 import logging
@@ -297,7 +298,7 @@ class Problem:
         return problem
 
     @staticmethod
-    def get_problem(problem: str | Path | Problem):
+    def get_problem(problem: str | Path | Problem) -> Problem:
         """Get a PEtab problem from a file or a problem object.
 
         Arguments:
@@ -317,7 +318,7 @@ class Problem:
             "or a PEtab problem object."
         )
 
-    def get_optimization_parameters(self):
+    def get_optimization_parameters(self) -> list[str]:
         """
         Return list of optimization parameter IDs.
 
@@ -325,7 +326,7 @@ class Problem:
         """
         return parameters.get_optimization_parameters(self.parameter_df)
 
-    def get_optimization_parameter_scales(self):
+    def get_optimization_parameter_scales(self) -> dict[str, str]:
         """
         Return list of optimization parameter scaling strings.
 
@@ -333,7 +334,7 @@ class Problem:
         """
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
 
-    def get_observable_ids(self):
+    def get_observable_ids(self) -> list[str]:
         """
         Returns dictionary of observable ids.
         """
@@ -548,8 +549,8 @@ class Problem:
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val == 0]
 
-    def get_simulation_conditions_from_measurement_df(self):
-        """See petab.get_simulation_conditions"""
+    def get_simulation_conditions_from_measurement_df(self) -> pd.DataFrame:
+        """See :func:`petab.get_simulation_conditions`."""
         return measurements.get_simulation_conditions(self.measurement_df)
 
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
@@ -569,7 +570,7 @@ class Problem:
             )
         )
 
-    def create_parameter_df(self, **kwargs):
+    def create_parameter_df(self, **kwargs) -> pd.DataFrame:
         """Create a new PEtab parameter table
 
         See :py:func:`create_parameter_df`.
@@ -683,7 +684,7 @@ class Problem:
 
         Arguments:
             validation_tasks: List of validation tasks to run. If ``None``
-             or empty, :attr:Problem.validation_tasks` are used.
+             or empty, :attr:`Problem.validation_tasks` are used.
         Returns:
             A list of validation results.
         """

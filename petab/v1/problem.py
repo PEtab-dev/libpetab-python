@@ -629,7 +629,7 @@ class Problem:
                 mapping_files=mapping_file,
             )
 
-    def get_optimization_parameters(self):
+    def get_optimization_parameters(self) -> list[str]:
         """
         Return list of optimization parameter IDs.
 
@@ -637,7 +637,7 @@ class Problem:
         """
         return parameters.get_optimization_parameters(self.parameter_df)
 
-    def get_optimization_parameter_scales(self):
+    def get_optimization_parameter_scales(self) -> dict[str, str]:
         """
         Return list of optimization parameter scaling strings.
 
@@ -645,7 +645,7 @@ class Problem:
         """
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
 
-    def get_model_parameters(self):
+    def get_model_parameters(self) -> list[str] | dict[str, float]:
         """See :py:func:`petab.sbml.get_model_parameters`"""
         warn(
             "petab.Problem.get_model_parameters is deprecated and will be "
@@ -656,7 +656,7 @@ class Problem:
 
         return sbml.get_model_parameters(self.sbml_model)
 
-    def get_observable_ids(self):
+    def get_observable_ids(self) -> list[str]:
         """
         Returns dictionary of observable ids.
         """
