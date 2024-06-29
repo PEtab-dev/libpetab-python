@@ -1,4 +1,4 @@
-"""Deprecated module. Use petab.pysb_model instead."""
+"""Deprecated module. Use petab.v1.models.sbml_model instead."""
 from petab import _deprecated_import_v1
 from petab.v1.models.sbml_model import *  # noqa: F403, F401, E402
 
