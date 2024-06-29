@@ -1,14 +1,13 @@
 API Reference
 =============
 
-.. automodule:: petab
-
 .. rubric:: Modules
 
 .. autosummary::
    :toctree: build/_autosummary
    :recursive:
 
+   petab
    petab.v1
    petab.v1.C
    petab.v1.calculate
