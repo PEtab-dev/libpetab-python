@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
 
@@ -107,11 +107,13 @@ class ValidationIssue:
         return f"{self.level.name}: {self.message}"
 
 
+@dataclass
 class ValidationError(ValidationIssue):
     """A validation result with level ERROR."""
 
-    def __init__(self, message: str):
-        super().__init__(ValidationIssueSeverity.ERROR, message)
+    level: ValidationIssueSeverity = field(
+        default=ValidationIssueSeverity.ERROR, init=False
+    )
 
 
 class ValidationResultList(list[ValidationIssue]):
