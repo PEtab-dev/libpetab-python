@@ -13,7 +13,7 @@ from jsonschema.exceptions import ValidationError as SchemaValidationError
 import petab
 from petab.v1.C import FORMAT_VERSION
 from petab.v2.lint import lint_problem
-from petab.versions import is_v1_problem, is_v2_problem
+from petab.versions import get_major_version
 from petab.yaml import validate
 
 logger = logging.getLogger(__name__)
@@ -172,22 +172,24 @@ def main():
             #  problem = petab.CompositeProblem.from_yaml(args.yaml_file_name)
             return
 
-        if is_v1_problem(args.yaml_file_name):
-            problem = petab.Problem.from_yaml(args.yaml_file_name)
-            ret = petab.lint.lint_problem(problem)
-            sys.exit(ret)
-        elif is_v2_problem(args.yaml_file_name):
-            validation_issues = lint_problem(args.yaml_file_name)
-            if validation_issues:
-                validation_issues.log(logger=logger)
-                sys.exit(1)
-            logger.info("PEtab format check completed successfully.")
-            sys.exit(0)
-        else:
-            logger.error(
-                "The provided PEtab files are of unsupported version "
-                f"or the `{FORMAT_VERSION}` field is missing in the yaml file."
-            )
+        match get_major_version(args.yaml_file_name):
+            case 1:
+                problem = petab.Problem.from_yaml(args.yaml_file_name)
+                ret = petab.lint.lint_problem(problem)
+                sys.exit(ret)
+            case 2:
+                validation_issues = lint_problem(args.yaml_file_name)
+                if validation_issues:
+                    validation_issues.log(logger=logger)
+                    sys.exit(1)
+                logger.info("PEtab format check completed successfully.")
+                sys.exit(0)
+            case _:
+                logger.error(
+                    "The provided PEtab files are of unsupported version "
+                    f"or the `{FORMAT_VERSION}` field is missing in the yaml "
+                    "file."
+                )
 
     # DEPRECATED - only supported for v1
     logger.debug("Looking for...")

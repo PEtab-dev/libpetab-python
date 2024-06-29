@@ -9,18 +9,19 @@ from petab.v1.yaml import load_yaml
 from petab.v2 import Problem as V2Problem
 
 __all__ = [
-    "is_v1_problem",
-    "is_v2_problem",
+    "get_major_version",
 ]
 
 
-def is_v1_problem(problem: str | dict | Path | V1Problem | V2Problem) -> bool:
-    """Check if the given problem is a PEtab v1 problem."""
+def get_major_version(
+    problem: str | dict | Path | V1Problem | V2Problem,
+) -> int:
+    """Get the major version number of the given problem."""
     if isinstance(problem, V1Problem):
-        return True
+        return 1
 
     if isinstance(problem, V2Problem):
-        return False
+        return 2
 
     if isinstance(problem, str | Path):
         yaml_config = load_yaml(problem)
@@ -31,26 +32,4 @@ def is_v1_problem(problem: str | dict | Path | V1Problem | V2Problem) -> bool:
         raise ValueError(f"Unsupported argument type: {type(problem)}")
 
     version = str(version)
-    if version.split(".")[0] == "1":
-        return True
-
-
-def is_v2_problem(problem: str | dict | Path | V1Problem | V2Problem) -> bool:
-    """Check if the given problem is a PEtab v2 problem."""
-    if isinstance(problem, V1Problem):
-        return False
-
-    if isinstance(problem, V2Problem):
-        return True
-
-    if isinstance(problem, str | Path):
-        yaml_config = load_yaml(problem)
-        version = yaml_config.get(FORMAT_VERSION)
-    elif isinstance(problem, dict):
-        version = problem.get(FORMAT_VERSION)
-    else:
-        raise ValueError(f"Unsupported argument type: {type(problem)}")
-
-    version = str(version)
-    if version.startswith("2.") or version == "2":
-        return True
+    return int(version.split(".")[0])
