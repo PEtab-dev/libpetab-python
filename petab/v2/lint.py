@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
@@ -473,15 +472,15 @@ def get_required_parameters_for_parameter_table(
         measurement table as well as all parametric condition table overrides
         that are not defined in the model.
     """
-
-    # use ordered dict as proxy for ordered set
-    parameter_ids = OrderedDict()
+    parameter_ids = set()
 
     # Add parameters from measurement table, unless they are fixed parameters
     def append_overrides(overrides):
-        for p in overrides:
-            if isinstance(p, str) and p not in problem.condition_df.columns:
-                parameter_ids[p] = None
+        parameter_ids.update(
+            p
+            for p in overrides
+            if isinstance(p, str) and p not in problem.condition_df.columns
+        )
 
     for _, row in problem.measurement_df.iterrows():
         # we trust that the number of overrides matches
@@ -493,6 +492,11 @@ def get_required_parameters_for_parameter_table(
         append_overrides(
             split_parameter_replacement_list(row.get(NOISE_PARAMETERS, None))
         )
+
+    # remove `observable_ids` when
+    # `get_output_parameters` is updated for PEtab v2/v1.1, where
+    # observable IDs are allowed in observable formulae
+    observable_ids = set(problem.observable_df.index)
 
     # Add output parameters except for placeholders
     for formula_type, placeholder_sources in (
@@ -519,15 +523,19 @@ def get_required_parameters_for_parameter_table(
             problem.observable_df,
             **placeholder_sources,
         )
-        for p in output_parameters:
-            if p not in placeholders and p not in problem.observable_df.index:
-                parameter_ids[p] = None
+        parameter_ids.update(
+            p
+            for p in output_parameters
+            if p not in placeholders and p not in observable_ids
+        )
 
     # Add condition table parametric overrides unless already defined in the
     #  model
-    for p in get_parametric_overrides(problem.condition_df):
-        if not problem.model.has_entity_with_id(p):
-            parameter_ids[p] = None
+    parameter_ids.update(
+        p
+        for p in get_parametric_overrides(problem.condition_df)
+        if not problem.model.has_entity_with_id(p)
+    )
 
     # remove parameters that occur in the condition table and are overridden
     #  for ALL conditions
@@ -535,11 +543,11 @@ def get_required_parameters_for_parameter_table(
         ~problem.condition_df.isnull().any()
     ]:
         try:
-            del parameter_ids[p]
+            parameter_ids.remove(p)
         except KeyError:
             pass
 
-    return parameter_ids.keys()
+    return parameter_ids
 
 
 #: Validation tasks that should be run on any PEtab problem
