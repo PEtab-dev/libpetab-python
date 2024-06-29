@@ -10,7 +10,8 @@ from petab.models import MODEL_TYPE_SBML
 from petab.v2.lint import lint_problem as lint_v2_problem
 from petab.yaml import get_path_prefix
 
-from .. import lint_problem
+from .. import lint_problem as lint_v1_problem
+from ..versions import get_major_version
 from ..yaml import load_yaml, validate, write_yaml
 
 __all__ = ["petab1to2"]
@@ -55,11 +56,10 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     # Validate original PEtab problem
     validate(yaml_config, path_prefix=path_prefix)
-    if str(yaml_config[petab.C.FORMAT_VERSION]) != "1":
-        # TODO: Other valid version numbers?
+    if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
     petab_problem = petab.Problem.from_yaml(yaml_file or yaml_config)
-    if lint_problem(petab_problem):
+    if lint_v1_problem(petab_problem):
         raise ValueError("PEtab problem does not pass linting.")
 
     # Update YAML file
