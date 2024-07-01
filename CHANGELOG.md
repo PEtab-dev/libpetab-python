@@ -25,7 +25,6 @@ Validation will become increasingly atomic and OOP, to support extension-specifi
 * Fix validation for remote files by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/287
 * New validation API by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/288
 
-
 **Documentation**
 
 * Fixed formatting / missing type annotations by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/292
