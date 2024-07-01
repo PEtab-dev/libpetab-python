@@ -34,12 +34,13 @@ def __getattr__(name):
 
 
 def v1getattr(name, module):
-    warn(
-        f"Accessing `petab.{name}` is deprecated and will be removed in "
-        f"the next major release. Please use `petab.v1.{name}` instead.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
+    if name != "__path__":
+        warn(
+            f"Accessing `petab.{name}` is deprecated and will be removed in "
+            f"the next major release. Please use `petab.v1.{name}` instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
     try:
         return module.__dict__[name]
     except KeyError:
