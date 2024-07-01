@@ -10,7 +10,7 @@ from colorama import Fore
 from colorama import init as init_colorama
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 
-import petab
+import petab.v1 as petab
 from petab.v1.C import FORMAT_VERSION
 from petab.v2.lint import lint_problem
 from petab.versions import get_major_version

@@ -38,7 +38,7 @@ def test_assert_measured_observables_present():
 
 def test_condition_table_is_parameter_free():
     with patch(
-        "petab.get_parametric_overrides"
+        "petab.v1.get_parametric_overrides"
     ) as mock_get_parametric_overrides:
         mock_get_parametric_overrides.return_value = []
         assert lint.condition_table_is_parameter_free(pd.DataFrame()) is True

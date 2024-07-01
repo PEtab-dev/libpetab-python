@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import sympy as sp
 
-import petab
+import petab.v1 as petab
 
 __all__ = ["Simulator", "sample_noise"]
 

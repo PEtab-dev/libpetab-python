@@ -9,7 +9,7 @@ from warnings import warn
 import libsbml
 from pandas.io.common import get_handle, is_file_like, is_url
 
-import petab
+import petab.v1 as petab
 
 logger = logging.getLogger(__name__)
 __all__ = [

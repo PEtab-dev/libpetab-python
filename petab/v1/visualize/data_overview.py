@@ -7,8 +7,13 @@ from shutil import copyfile
 
 import pandas as pd
 
-import petab
-from petab.C import *
+import petab.v1 as petab
+from petab.v1.C import (
+    MEASUREMENT,
+    OBSERVABLE_ID,
+    PREEQUILIBRATION_CONDITION_ID,
+    SIMULATION_CONDITION_ID,
+)
 
 __all__ = ["create_report"]
 
