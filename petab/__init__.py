@@ -10,6 +10,7 @@ Attributes:
 """
 import importlib
 import sys
+from functools import partial
 from pathlib import Path
 from warnings import warn
 
@@ -20,6 +21,8 @@ __all__ = ["ENV_NUM_THREADS"]
 def __getattr__(name):
     if attr := globals().get(name):
         return attr
+    if name == "v1":
+        return importlib.import_module("petab.v1")
     warn(
         f"Accessing `petab.{name}` is deprecated and will be removed in "
         f"the next major release. Please use `petab.v1.{name}` instead.",
@@ -29,11 +32,33 @@ def __getattr__(name):
     return getattr(importlib.import_module("petab.v1"), name)
 
 
+def v1getattr(name, module):
+    if name == "__path__":
+        return None  # not sure what to do here
+    warn(
+        f"Accessing `petab.{name}` is deprecated and will be removed in "
+        f"the next major release. Please use `petab.v1.{name}` instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+    return module.__dict__[name]
+
+
 # Create dummy modules for all old modules
 v1_root = Path(__file__).resolve().parent / "v1"
 v1_objects = [f.relative_to(v1_root) for f in v1_root.rglob("*")]
 for v1_object in v1_objects:
+    if "__pycache__" in str(v1_object):
+        continue
+    if v1_object.suffix not in ["", ".py"]:
+        continue
     if not (v1_root / v1_object).exists():
         raise ValueError(v1_root / v1_object)
-    module_name = ".".join(["petab", *v1_object.parts[:-1], v1_object.stem])
-    sys.modules[module_name] = globals().get(module_name)
+    v1_object_parts = [*v1_object.parts[:-1], v1_object.stem]
+    module_name = ".".join(["petab", *v1_object_parts])
+
+    real_module = importlib.import_module(
+        f"petab.v1.{'.'.join(v1_object_parts)}"
+    )
+    real_module.__getattr__ = partial(v1getattr, module=real_module)
+    sys.modules[module_name] = real_module
