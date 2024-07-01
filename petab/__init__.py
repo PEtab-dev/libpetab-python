@@ -23,12 +23,13 @@ def __getattr__(name):
         return attr
     if name == "v1":
         return importlib.import_module("petab.v1")
-    warn(
-        f"Accessing `petab.{name}` is deprecated and will be removed in "
-        f"the next major release. Please use `petab.v1.{name}` instead.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
+    if name != "__path__":
+        warn(
+            f"Accessing `petab.{name}` is deprecated and will be removed in "
+            f"the next major release. Please use `petab.v1.{name}` instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
     return getattr(importlib.import_module("petab.v1"), name)
 
 
