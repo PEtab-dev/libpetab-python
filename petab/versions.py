@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from petab.C import FORMAT_VERSION
 from petab.v1 import Problem as V1Problem
+from petab.v1.C import FORMAT_VERSION
 from petab.v1.yaml import load_yaml
 from petab.v2 import Problem as V2Problem
 
