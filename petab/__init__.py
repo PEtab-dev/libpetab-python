@@ -41,7 +41,10 @@ def v1getattr(name, module):
         DeprecationWarning,
         stacklevel=3,
     )
-    return module.__dict__[name]
+    try:
+        return module.__dict__[name]
+    except KeyError:
+        raise AttributeError(name) from None
 
 
 # Create dummy modules for all old modules
