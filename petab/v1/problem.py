@@ -14,6 +14,7 @@ import pandas as pd
 from . import (
     conditions,
     core,
+    experiments,
     format_version,
     mapping,
     measurements,
@@ -43,6 +44,7 @@ class Problem:
 
     - model
     - condition table
+    - experiment table
     - measurement table
     - parameter table
     - observables table
@@ -52,6 +54,7 @@ class Problem:
 
     Parameters:
         condition_df: PEtab condition table
+        experiment_df: PEtab experiment table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
@@ -78,6 +81,7 @@ class Problem:
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
+        experiment_df: pd.DataFrame = None,
     ):
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
@@ -85,6 +89,7 @@ class Problem:
         self.visualization_df: pd.DataFrame | None = visualization_df
         self.observable_df: pd.DataFrame | None = observable_df
         self.mapping_df: pd.DataFrame | None = mapping_df
+        self.experiment_df: pd.DataFrame | None = experiment_df
 
         if any(
             (sbml_model, sbml_document, sbml_reader),
@@ -141,6 +146,12 @@ class Problem:
             else "without conditions table"
         )
 
+        experiments = (
+            f"{self.experiment_df.shape[0]} experiments"
+            if self.experiment_df is not None
+            else "without experiments table"
+        )
+
         observables = (
             f"{self.observable_df.shape[0]} observables"
             if self.observable_df is not None
@@ -164,8 +175,8 @@ class Problem:
             parameters = "without parameter_df table"
 
         return (
-            f"PEtab Problem {model}, {conditions}, {observables}, "
-            f"{measurements}, {parameters}"
+            f"PEtab Problem {model}, {conditions}, {experiments}, "
+            f"{observables}, {measurements}, {parameters}"
         )
 
     @staticmethod
@@ -178,6 +189,7 @@ class Problem:
         observable_files: str | Path | Iterable[str | Path] = None,
         model_id: str = None,
         extensions_config: dict = None,
+        experiment_file: str | Path | Iterable[str | Path] = None,
     ) -> Problem:
         """
         Factory method to load model and tables from files.
@@ -191,6 +203,7 @@ class Problem:
             observable_files: PEtab observables tables
             model_id: PEtab ID of the model
             extensions_config: Information on the extensions used
+            experiment_file: PEtab experiment table
         """
         warn(
             "petab.Problem.from_files is deprecated and will be removed in a "
@@ -208,6 +221,13 @@ class Problem:
         condition_df = (
             core.concat_tables(condition_file, conditions.get_condition_df)
             if condition_file
+            else None
+        )
+
+        # FIXME deprecate method instead
+        experiment_df = (
+            core.concat_tables(experiment_file, experiments.get_experiment_df)
+            if experiment_file
             else None
         )
 
@@ -248,6 +268,7 @@ class Problem:
             observable_df=observable_df,
             visualization_df=visualization_df,
             extensions_config=extensions_config,
+            experiment_df=experiment_df,
         )
 
     @staticmethod
@@ -361,6 +382,16 @@ class Problem:
             else None
         )
 
+        experiment_files = [
+            get_path(f) for f in problem0.get(EXPERIMENT_FILES, [])
+        ]
+        # If there are multiple tables, we will merge them
+        experiment_df = (
+            core.concat_tables(experiment_files, experiments.get_experiment_df)
+            if experiment_files
+            else None
+        )
+
         visualization_files = [
             get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])
         ]
@@ -398,6 +429,7 @@ class Problem:
             visualization_df=visualization_df,
             mapping_df=mapping_df,
             extensions_config=yaml_config.get(EXTENSIONS, {}),
+            experiment_df=experiment_df,
         )
 
     @staticmethod
@@ -463,6 +495,7 @@ class Problem:
         filenames = {}
         for table_name in [
             "condition",
+            "experiment",
             "measurement",
             "parameter",
             "observable",
@@ -500,6 +533,7 @@ class Problem:
         relative_paths: bool = True,
         model_file: None | str | Path = None,
         mapping_file: None | str | Path = None,
+        experiment_file: None | str | Path = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -514,6 +548,7 @@ class Problem:
             sbml_file: SBML model destination (deprecated)
             model_file: Model destination
             condition_file: Condition table destination
+            experiment_file: Experiment table destination
             measurement_file: Measurement table destination
             parameter_file: Parameter table destination
             visualization_file: Visualization table destination
@@ -557,6 +592,7 @@ class Problem:
 
             model_file = add_prefix(model_file)
             condition_file = add_prefix(condition_file)
+            experiment_file = add_prefix(experiment_file)
             measurement_file = add_prefix(measurement_file)
             parameter_file = add_prefix(parameter_file)
             observable_file = add_prefix(observable_file)
@@ -577,6 +613,14 @@ class Problem:
                 )
             else:
                 raise error("condition")
+
+        if experiment_file:
+            if self.experiment_df is not None:
+                experiments.write_experiment_df(
+                    self.experiment_df, experiment_file
+                )
+            else:
+                raise error("experiment")
 
         if measurement_file:
             if self.measurement_df is not None:
@@ -627,6 +671,7 @@ class Problem:
                 visualization_files=visualization_file,
                 relative_paths=relative_paths,
                 mapping_files=mapping_file,
+                experiment_files=experiment_file,
             )
 
     def get_optimization_parameters(self) -> list[str]:
@@ -873,7 +918,11 @@ class Problem:
 
     def get_simulation_conditions_from_measurement_df(self):
         """See petab.get_simulation_conditions"""
-        return measurements.get_simulation_conditions(self.measurement_df)
+        # TODO provide a minimal set of simulated periods for each
+        #      timepoint. e.g., if multiple experiments use the same
+        #      preequilibration period, this period only needs to be
+        #      simulated once
+        return sorted(self.measurement_df[EXPERIMENT].unique())
 
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """

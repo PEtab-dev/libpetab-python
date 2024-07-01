@@ -13,7 +13,7 @@ import petab.v1 as petab
 
 logger = logging.getLogger(__name__)
 __all__ = [
-    "get_model_for_condition",
+    "get_period_model",
     "get_model_parameters",
     "get_sbml_model",
     "globalize_parameters",
@@ -226,46 +226,46 @@ def load_sbml_from_file(
     return sbml_reader, sbml_document, sbml_model
 
 
-def get_model_for_condition(
+def get_period_model(
     petab_problem: "petab.Problem",
-    sim_condition_id: str = None,
-    preeq_condition_id: str | None = None,
+    experiment_id: str,
+    period_index: int,
 ) -> tuple[libsbml.SBMLDocument, libsbml.Model]:
-    """Create an SBML model for the given condition.
+    """Create an SBML model for the given period.
 
     Creates a copy of the model and updates parameters according to the PEtab
     files. Estimated parameters are set to their ``nominalValue``.
     Observables defined in the observables table are not added to the model.
 
     :param petab_problem: PEtab problem
-    :param sim_condition_id: Simulation ``conditionId`` for which to generate a
-        model
-    :param preeq_condition_id: Preequilibration ``conditionId`` of the settings
-        for which to generate a model. This is only used to determine the
-        relevant output parameter overrides. Preequilibration is not encoded
-        in the resulting model.
+    :param experiment_id: The experiment that contains the period.
+    :param period_index: The index of the period in the experiment period
+        sequence. N.B.: this is the index in the denested period sequence.
     :return: The generated SBML document, and SBML model
     """
     from .models.sbml_model import SbmlModel
 
     assert isinstance(petab_problem.model, SbmlModel)
 
-    condition_dict = {petab.SIMULATION_CONDITION_ID: sim_condition_id}
-    if preeq_condition_id:
-        condition_dict[
-            petab.PREEQUILIBRATION_CONDITION_ID
-        ] = preeq_condition_id
-    cur_measurement_df = petab.measurements.get_rows_for_condition(
-        measurement_df=petab_problem.measurement_df,
-        condition=condition_dict,
+    experiment = petab.experiments.Experiment.from_df(
+        experiment_df=petab_problem.experiment_df,
+        experiment_id=experiment_id,
     )
+
+    period = experiment.periods[period_index]
+
+    condition_id = period.condition_id
+    period_measurement_df = period.get_measurements(
+        measurement_df=petab_problem.measurement_df
+    )
+
     (
         parameter_map,
         scale_map,
     ) = petab.parameter_mapping.get_parameter_mapping_for_condition(
-        condition_id=sim_condition_id,
-        is_preeq=False,
-        cur_measurement_df=cur_measurement_df,
+        condition_id=condition_id,
+        is_initial_period=period_index == 0,
+        cur_measurement_df=period_measurement_df,
         model=petab_problem.model,
         condition_df=petab_problem.condition_df,
         parameter_df=petab_problem.parameter_df,
@@ -326,7 +326,7 @@ def get_model_for_condition(
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
-            petab_problem.condition_df.loc[sim_condition_id, component_id]
+            petab_problem.condition_df.loc[condition_id, component_id]
         )
         if not isinstance(new_value, Number):
             # parameter reference in condition table
@@ -351,7 +351,7 @@ def get_model_for_condition(
 
         # set initial concentration/amount
         new_value = petab.to_float_if_float(
-            petab_problem.condition_df.loc[sim_condition_id, component_id]
+            petab_problem.condition_df.loc[condition_id, component_id]
         )
         if not isinstance(new_value, Number):
             # parameter reference in condition table

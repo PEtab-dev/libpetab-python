@@ -24,10 +24,6 @@ from petab.v1 import *  # noqa: F403, F401, E402
 
 from .v1.format_version import __format_version__  # noqa: F401, E402
 
-# __all__ = [
-#     'ENV_NUM_THREADS',
-# ]
-
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
 
 
