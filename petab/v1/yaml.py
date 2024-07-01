@@ -122,7 +122,7 @@ def validate_yaml_semantics(
         # the simplest check is just trying to load the respective table or
         # sbml model
         if _field == SBML_FILES:
-            from ..models.sbml_model import SbmlModel
+            from .models.sbml_model import SbmlModel
 
             try:
                 SbmlModel.from_file(_filename)
