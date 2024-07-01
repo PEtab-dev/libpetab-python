@@ -33,13 +33,7 @@ def __getattr__(name):
 v1_root = Path(__file__).resolve().parent / "v1"
 v1_objects = [f.relative_to(v1_root) for f in v1_root.rglob("*")]
 for v1_object in v1_objects:
-    abs_v1_object = v1_root / v1_object
-    if abs_v1_object.is_file():
-        module_name = ".".join(
-            ["petab", *v1_object.parts[:-1], v1_object.stem]
-        )
-    elif abs_v1_object.is_dir():
-        module_name = ".".join(["petab", *v1_object.parts])
-    else:
-        raise ValueError(abs_v1_object)
+    if not (v1_root / v1_object).exists():
+        raise ValueError(v1_root / v1_object)
+    module_name = ".".join(["petab", *v1_object.parts[:-1], v1_object.stem])
     sys.modules[module_name] = globals().get(module_name)
