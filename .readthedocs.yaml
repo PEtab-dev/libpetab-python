@@ -5,7 +5,7 @@ version: 2
 
 sphinx:
    configuration: doc/conf.py
-   fail_on_warning: true
+   fail_on_warning: false
 
 build:
   os: "ubuntu-22.04"

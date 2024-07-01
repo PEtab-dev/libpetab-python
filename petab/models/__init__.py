@@ -1,9 +1,7 @@
-MODEL_TYPE_SBML = "sbml"
-MODEL_TYPE_PYSB = "pysb"
+"""Deprecated module for PEtab models.
 
-known_model_types = {
-    MODEL_TYPE_SBML,
-    MODEL_TYPE_PYSB,
-}
+Use petab.v1.models instead"""
+from petab import _deprecated_import_v1
+from petab.v1.models import *  # noqa: F403, F401, E402
 
-from .model import Model  # noqa F401
+_deprecated_import_v1(__name__)

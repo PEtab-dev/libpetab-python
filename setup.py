@@ -1,7 +1,7 @@
 import os
 import re
 
-from setuptools import find_namespace_packages, setup
+from setuptools import setup
 
 
 def read(fname):
@@ -35,69 +35,10 @@ version_file = os.path.join("petab", "version.py")
 # sets __version__
 exec(read(version_file))  # pylint: disable=W0122 # nosec # noqa: S102
 
-ENTRY_POINTS = {
-    "console_scripts": [
-        "petablint = petab.petablint:main",
-        "petab_visualize = petab.visualize.cli:_petab_visualize_main",
-    ]
-}
-
 # project metadata
 # noinspection PyUnresolvedReferences
 setup(
-    name="petab",
-    version=__version__,
-    description="Parameter estimation tabular data",
     long_description=absolute_links(read("README.md")),
     long_description_content_type="text/markdown",
-    author="The PEtab developers",
-    author_email="daniel.weindl@helmholtz-muenchen.de",
-    url="https://github.com/PEtab-dev/libpetab-python",
-    packages=find_namespace_packages(exclude=["doc*", "test*"]),
-    install_requires=[
-        "numpy>=1.15.1",
-        "pandas>=1.2.0",
-        # remove when pandas >= 3, see also
-        # https://github.com/pandas-dev/pandas/issues/54466
-        "pyarrow",
-        "python-libsbml>=5.17.0",
-        "sympy",
-        "colorama",
-        "pyyaml",
-        "jsonschema",
-        "more_itertools",
-    ],
-    include_package_data=True,
-    python_requires=">=3.10.0",
-    entry_points=ENTRY_POINTS,
-    extras_require={
-        "tests": [
-            "pytest",
-            "pytest-cov",
-            "simplesbml",
-            "scipy",
-            "pysb",
-        ],
-        "quality": [
-            "pre-commit",
-        ],
-        "reports": [
-            # https://github.com/spatialaudio/nbsphinx/issues/641
-            "Jinja2==3.0.3",
-        ],
-        "combine": [
-            "python-libcombine>=0.2.6",
-        ],
-        "doc": [
-            "sphinx>=3.5.3, !=5.1.0",
-            "sphinxcontrib-napoleon>=0.7",
-            "sphinx-markdown-tables>=0.0.15",
-            "sphinx-rtd-theme>=0.5.1",
-            "m2r2",
-            "myst-nb>=0.14.0",
-            # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
-            "ipython>=7.21.0, !=8.7.0",
-        ],
-        "vis": ["matplotlib>=3.6.0", "seaborn", "scipy"],
-    },
+    version=__version__,
 )
