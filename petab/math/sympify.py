@@ -1,20 +1,5 @@
-"""PEtab math to sympy conversion."""
+"""Deprecated module. Use petab.math.sympify instead."""
+from petab import _deprecated_import_v1
+from petab.v1.math.sympify import *  # noqa: F403, F401, E402
 
-import sympy as sp
-from sympy.abc import _clash
-
-
-def sympify_petab(expr: str) -> sp.Expr:
-    """
-    Convert a PEtab math expression to a sympy expression.
-
-    Parameters
-    ----------
-    expr:
-        The PEtab math expression.
-
-    Returns
-    -------
-    The sympy expression corresponding to ``expr``.
-    """
-    return sp.sympify(expr, locals=_clash)
+_deprecated_import_v1(__name__)

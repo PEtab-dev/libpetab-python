@@ -14,6 +14,7 @@
    Changelog <CHANGELOG.md>
    how_to_cite
    license
+   development
 
 .. toctree::
    :maxdepth: 2

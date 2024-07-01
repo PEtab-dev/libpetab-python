@@ -39,11 +39,11 @@ be:
     entrypoints to be available as a shell command from anywhere, called
     `petablint`
 
-  - [`petab.create_parameter_df`](https://petab.readthedocs.io/projects/libpetab-python/en/latest/build/_autosummary/petab.parameters.html#petab.parameters.create_parameter_df)
+  - [petab.create_parameter_df](https://petab.readthedocs.io/projects/libpetab-python/en/latest/build/_autosummary/petab.parameters.html#petab.parameters.create_parameter_df)
     to create the parameter table, once you have set up the model,
     condition table, observable table and measurement table
 
-  - [`petab.create_combine_archive`](https://petab.readthedocs.io/projects/libpetab-python/en/latest/build/_autosummary/petab.core.html#petab.core.create_combine_archive)
+  - [petab.create_combine_archive](https://petab.readthedocs.io/projects/libpetab-python/en/latest/build/_autosummary/petab.core.html#petab.core.create_combine_archive)
     to create a [COMBINE Archive](https://combinearchive.org/index/) from PEtab
     files
 
