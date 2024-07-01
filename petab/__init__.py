@@ -70,9 +70,6 @@ __all__ = [
 # apply decorator to all functions in the module
 for name in __all__:
     obj = globals().get(name)
-    if callable(obj):
-        if inspect.isclass(obj):
-            obj.__init__ = _deprecated_v1(obj.__init__)
-        elif inspect.isfunction(obj):
-            globals()[name] = _deprecated_v1(obj)
+    if callable(obj) and inspect.isfunction(obj):
+        globals()[name] = _deprecated_v1(obj)
 del name, obj

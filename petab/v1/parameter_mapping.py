@@ -129,7 +129,7 @@ def get_optimization_to_simulation_parameter_mapping(
             DeprecationWarning,
             stacklevel=2,
         )
-        from petab.models.sbml_model import SbmlModel
+        from .models.sbml_model import SbmlModel
 
         if model:
             raise ValueError(
@@ -379,7 +379,7 @@ def get_parameter_mapping_for_condition(
             DeprecationWarning,
             stacklevel=2,
         )
-        from petab.models.sbml_model import SbmlModel
+        from .models.sbml_model import SbmlModel
 
         if model:
             raise ValueError(
