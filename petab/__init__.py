@@ -33,8 +33,6 @@ def __getattr__(name):
 
 
 def v1getattr(name, module):
-    if name == "__path__":
-        return None  # not sure what to do here
     warn(
         f"Accessing `petab.{name}` is deprecated and will be removed in "
         f"the next major release. Please use `petab.v1.{name}` instead.",
