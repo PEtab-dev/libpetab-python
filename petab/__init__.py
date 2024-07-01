@@ -62,7 +62,7 @@ def _deprecated_import_v1(module_name: str):
         f"'petab.v1.{module_name.removeprefix('petab.')}' "
         "instead.",
         DeprecationWarning,
-        stacklevel=2,
+        stacklevel=3,
     )
 
 
