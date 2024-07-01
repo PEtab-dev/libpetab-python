@@ -31,6 +31,13 @@ from .v1.format_version import __format_version__  # noqa: F401, E402
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
 
 
+class DeprecatedProblem(Problem):
+    deprecated_use = True
+
+
+Problem = DeprecatedProblem
+
+
 def _deprecated_v1(func):
     """Decorator for deprecation warnings for functions."""
 

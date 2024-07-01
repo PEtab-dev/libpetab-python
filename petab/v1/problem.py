@@ -79,6 +79,13 @@ class Problem:
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
+        if getattr(self, "deprecated_use", False):
+            warn(
+                "It looks like you are using the `Problem` class like "
+                "`from petab import Problem`. Please change to "
+                "`from petab.v1 import Problem`.",
+                stacklevel=1,
+            )
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
         self.parameter_df: pd.DataFrame | None = parameter_df
