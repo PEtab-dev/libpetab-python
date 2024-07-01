@@ -1,5 +1,6 @@
 """PEtab math to sympy conversion."""
 
+import numpy as np
 import sympy as sp
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
@@ -25,9 +26,9 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
         The sympy expression corresponding to `expr`.
         Boolean values are converted to numeric values.
     """
-    if isinstance(expr, int):
+    if isinstance(expr, int) or isinstance(expr, np.integer):
         return sp.Integer(expr)
-    if isinstance(expr, float):
+    if isinstance(expr, float) or isinstance(expr, np.floating):
         return sp.Float(expr)
 
     # Set error listeners
