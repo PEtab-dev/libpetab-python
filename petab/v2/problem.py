@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..C import *  # noqa: F403
 from ..v1 import (
     conditions,
     core,
@@ -22,6 +21,7 @@ from ..v1 import (
     sampling,
     yaml,
 )
+from ..v1.C import *  # noqa: F403
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 

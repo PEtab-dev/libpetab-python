@@ -5,14 +5,15 @@ from pathlib import Path
 
 from pandas.io.common import get_handle, is_url
 
-import petab.C
+import petab.v1.C as C
 from petab.models import MODEL_TYPE_SBML
+from petab.v1 import Problem as ProblemV1
 from petab.v2.lint import lint_problem as lint_v2_problem
 from petab.yaml import get_path_prefix
 
-from .. import lint_problem as lint_v1_problem
+from ..v1 import lint_problem as lint_v1_problem
+from ..v1.yaml import load_yaml, validate, write_yaml
 from ..versions import get_major_version
-from ..yaml import load_yaml, validate, write_yaml
 
 __all__ = ["petab1to2"]
 
@@ -58,7 +59,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     validate(yaml_config, path_prefix=path_prefix)
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
-    petab_problem = petab.Problem.from_yaml(yaml_file or yaml_config)
+    petab_problem = ProblemV1.from_yaml(yaml_file or yaml_config)
     if lint_v1_problem(petab_problem):
         raise ValueError("PEtab problem does not pass linting.")
 
@@ -74,21 +75,19 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     # Update tables
     # condition tables, observable tables, SBML files, parameter table:
     #  no changes - just copy
-    file = yaml_config[petab.C.PARAMETER_FILE]
+    file = yaml_config[C.PARAMETER_FILE]
     _copy_file(get_src_path(file), get_dest_path(file))
 
-    for problem_config in yaml_config[petab.C.PROBLEMS]:
+    for problem_config in yaml_config[C.PROBLEMS]:
         for file in chain(
-            problem_config.get(petab.C.CONDITION_FILES, []),
-            problem_config.get(petab.C.OBSERVABLE_FILES, []),
+            problem_config.get(C.CONDITION_FILES, []),
+            problem_config.get(C.OBSERVABLE_FILES, []),
             (
-                model[petab.C.MODEL_LOCATION]
-                for model in problem_config.get(
-                    petab.C.MODEL_FILES, {}
-                ).values()
+                model[C.MODEL_LOCATION]
+                for model in problem_config.get(C.MODEL_FILES, {}).values()
             ),
-            problem_config.get(petab.C.MEASUREMENT_FILES, []),
-            problem_config.get(petab.C.VISUALIZATION_FILES, []),
+            problem_config.get(C.MEASUREMENT_FILES, []),
+            problem_config.get(C.VISUALIZATION_FILES, []),
         ):
             _copy_file(get_src_path(file), get_dest_path(file))
 
@@ -111,23 +110,23 @@ def _update_yaml(yaml_config: dict) -> dict:
     yaml_config = yaml_config.copy()
 
     # Update format_version
-    yaml_config[petab.C.FORMAT_VERSION] = "2.0.0"
+    yaml_config[C.FORMAT_VERSION] = "2.0.0"
 
     # Add extensions
-    yaml_config[petab.C.EXTENSIONS] = []
+    yaml_config[C.EXTENSIONS] = []
 
     # Move models and set IDs (filename for now)
-    for problem in yaml_config[petab.C.PROBLEMS]:
-        problem[petab.C.MODEL_FILES] = {}
-        models = problem[petab.C.MODEL_FILES]
-        for sbml_file in problem[petab.C.SBML_FILES]:
+    for problem in yaml_config[C.PROBLEMS]:
+        problem[C.MODEL_FILES] = {}
+        models = problem[C.MODEL_FILES]
+        for sbml_file in problem[C.SBML_FILES]:
             model_id = sbml_file.split("/")[-1].split(".")[0]
             models[model_id] = {
-                petab.C.MODEL_LANGUAGE: MODEL_TYPE_SBML,
-                petab.C.MODEL_LOCATION: sbml_file,
+                C.MODEL_LANGUAGE: MODEL_TYPE_SBML,
+                C.MODEL_LOCATION: sbml_file,
             }
-            problem[petab.C.MODEL_FILES] = problem.get(petab.C.MODEL_FILES, {})
-        del problem[petab.C.SBML_FILES]
+            problem[C.MODEL_FILES] = problem.get(C.MODEL_FILES, {})
+        del problem[C.SBML_FILES]
 
     return yaml_config
 

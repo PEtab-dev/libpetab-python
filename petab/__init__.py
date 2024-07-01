@@ -14,6 +14,7 @@ Attributes:
         By default, all operations are performed sequentially.
 """
 import functools
+import inspect
 import sys
 import warnings
 from warnings import warn
@@ -62,13 +63,13 @@ __all__ = [
     x
     for x in dir(sys.modules[__name__])
     if not x.startswith("_")
-    and x not in {"sys", "warnings", "functools", "warn"}
+    and x not in {"sys", "warnings", "functools", "warn", "inspect"}
 ]
 
 
 # apply decorator to all functions in the module
 for name in __all__:
     obj = globals().get(name)
-    if callable(obj):
+    if callable(obj) and inspect.isfunction(obj):
         globals()[name] = _deprecated_v1(obj)
 del name, obj

@@ -195,7 +195,7 @@ def create_parameter_df(
             DeprecationWarning,
             stacklevel=2,
         )
-        from petab.models.sbml_model import SbmlModel
+        from .models.sbml_model import SbmlModel
 
         if model:
             raise ValueError(

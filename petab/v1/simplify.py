@@ -3,7 +3,7 @@ from math import nan
 
 import pandas as pd
 
-import petab
+import petab.v1 as petab
 
 from . import Problem
 from .C import *  # noqa: F403

@@ -10,14 +10,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from petab.C import NOISE_PARAMETERS, OBSERVABLE_PARAMETERS
 from petab.v1 import (
     assert_model_parameters_in_condition_or_parameter_table,
 )
 from petab.v1.C import (
     ESTIMATE,
     MODEL_ENTITY_ID,
+    NOISE_PARAMETERS,
     NOMINAL_VALUE,
+    OBSERVABLE_PARAMETERS,
     PARAMETER_DF_REQUIRED_COLS,
     PARAMETER_ID,
 )
@@ -40,6 +41,7 @@ from petab.v1.observables import get_output_parameters, get_placeholders
 from petab.v1.parameters import (
     get_valid_parameters_for_parameter_table,
 )
+from petab.v1.visualize.lint import validate_visualization_df
 
 from ..v1 import (
     assert_measurement_conditions_present_in_condition_table,
@@ -448,8 +450,6 @@ class CheckVisualizationTable(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.visualization_df is None:
             return
-
-        from petab.visualize.lint import validate_visualization_df
 
         if validate_visualization_df(problem):
             return ValidationIssue(

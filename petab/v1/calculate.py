@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import sympy as sp
 
-import petab
+import petab.v1 as petab
 
 from .C import *
 from .math import sympify_petab
