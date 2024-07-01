@@ -1,5 +1,46 @@
 # PEtab changelog
 
+## 0.4 series
+
+### 0.4.0
+
+**Prepare for PEtab v2**
+To enable ongoing support for PEtab v1, while "forking" the v1 code for PEtab v2, the old code base is now available at `petab.v1`, and the new code base will be at `petab.v2`. For now, old `import petab.*` statements still work, but are marked as deprecated, and `import petab.v1.*` should be used instead. `petablint` will be designed for use with only full PEtab problems in future too, rather than individual tables -- partial problems will be supported to validate individual tables.
+
+* Add PEtab math parser and sympy converter by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/260
+* Deprecate petablint with individual tables by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/274
+* Introduce petab.v1 package by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/282
+* Separate v1 and v2 tests by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/284
+* Add petab.v2.Problem by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/285
+* PEtab v1 to v2 converter by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/281
+* Fix imports related to v1 subpackage by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/293
+
+**Validation**
+Validation will become increasingly atomic and OOP, to support extension-specific validation in PEtab v2.
+
+* Validator: check for positive bounds for log-scaled parameter by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/278
+* Validator: check prior parameters by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/279
+* Fix validation for remote files by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/287
+* New validation API by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/288
+
+**Packaging and CI**
+* setup.py -> pyproject.toml by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/275
+* Ruff pyupgrade: python3.10 by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/276
+
+**Documentation**
+* Doc: fix formatting / missing type annotations by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/292
+* Doc: versioning and deprecation policy by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/277
+
+**Other changes**
+* Simplify yaml schema by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/264
+* Handle numpy types in sympify_petab by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/294
+* New `get_path_prefix` method to get the base path for relative paths in PEtab problem YAML by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/280
+
+**New Contributors**
+* @dependabot made their first contribution in https://github.com/PEtab-dev/libpetab-python/pull/267
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.3.0...v0.4.0
+
 ## 0.3 series
 
 ### 0.3.0
