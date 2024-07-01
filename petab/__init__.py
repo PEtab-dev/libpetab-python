@@ -9,6 +9,8 @@ Attributes:
         By default, all operations are performed sequentially.
 """
 import importlib
+import sys
+from pathlib import Path
 from warnings import warn
 
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
@@ -26,3 +28,12 @@ def __getattr__(name):
         stacklevel=3,
     )
     return getattr(importlib.import_module("petab.v1"), name)
+
+
+deprecated_modules = [
+    f.stem for f in (Path(__file__).parent / "v1").glob("*") if f.is_file()
+]
+for deprecated_module in deprecated_modules:
+    sys.modules[f"petab.{deprecated_module}"] = globals().get(
+        deprecated_module
+    )
