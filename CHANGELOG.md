@@ -32,8 +32,8 @@ Validation will become increasingly atomic and OOP, to support extension-specifi
 
 **Documentation**
 
-* Doc: fix formatting / missing type annotations by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/292
-* Doc: versioning and deprecation policy by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/277
+* Fixed formatting / missing type annotations by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/292
+* Added versioning and deprecation policy by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/277
 
 **Other changes**
 
