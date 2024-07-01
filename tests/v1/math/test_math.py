@@ -11,6 +11,10 @@ from sympy.logic.boolalg import Boolean
 from petab.math import sympify_petab
 
 
+def test_sympify_numpy():
+    assert sympify_petab(np.float64(1.0)) == sp.Float(1.0)
+
+
 def test_parse_simple():
     """Test simple numeric expressions."""
     assert float(sympify_petab("1 + 2")) == 3
