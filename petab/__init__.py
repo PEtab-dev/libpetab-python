@@ -20,7 +20,6 @@ __all__ = ["ENV_NUM_THREADS"]
 def __getattr__(name):
     if attr := globals().get(name):
         return attr
-
     warn(
         f"Accessing `petab.{name}` is deprecated and will be removed in "
         f"the next major release. Please use `petab.v1.{name}` instead.",
@@ -30,10 +29,17 @@ def __getattr__(name):
     return getattr(importlib.import_module("petab.v1"), name)
 
 
-deprecated_modules = [
-    f.stem for f in (Path(__file__).parent / "v1").glob("*") if f.is_file()
-]
-for deprecated_module in deprecated_modules:
-    sys.modules[f"petab.{deprecated_module}"] = globals().get(
-        deprecated_module
-    )
+# Create dummy modules for all old modules
+v1_root = Path(__file__).resolve().parent / "v1"
+v1_objects = [f.relative_to(v1_root) for f in v1_root.rglob("*")]
+for v1_object in v1_objects:
+    abs_v1_object = v1_root / v1_object
+    if abs_v1_object.is_file():
+        module_name = ".".join(
+            ["petab", *v1_object.parts[:-1], v1_object.stem]
+        )
+    elif abs_v1_object.is_dir():
+        module_name = ".".join(["petab", *v1_object.parts])
+    else:
+        raise ValueError(abs_v1_object)
+    sys.modules[module_name] = globals().get(module_name)
