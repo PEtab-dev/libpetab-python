@@ -70,5 +70,10 @@ __all__ = [
 for name in __all__:
     obj = globals().get(name)
     if callable(obj):
-        globals()[name] = _deprecated_v1(obj)
+        if type(obj) is type:
+            # classes
+            obj.__init__ = _deprecated_v1(obj.__init__)
+        else:
+            # functions
+            globals()[name] = _deprecated_v1(obj)
 del name, obj
