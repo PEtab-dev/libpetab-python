@@ -15,6 +15,8 @@ def test_deprecated_global():
     with pytest.warns(DeprecationWarning):
         import petab.parameters
 
+        petab.parameters  # noqa
+
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         from petab.v1 import Problem  # noqa
