@@ -60,8 +60,11 @@ for v1_object in v1_objects:
     v1_object_parts = [*v1_object.parts[:-1], v1_object.stem]
     module_name = ".".join(["petab", *v1_object_parts])
 
-    real_module = importlib.import_module(
-        f"petab.v1.{'.'.join(v1_object_parts)}"
-    )
-    real_module.__getattr__ = partial(v1getattr, module=real_module)
-    sys.modules[module_name] = real_module
+    try:
+        real_module = importlib.import_module(
+            f"petab.v1.{'.'.join(v1_object_parts)}"
+        )
+        real_module.__getattr__ = partial(v1getattr, module=real_module)
+        sys.modules[module_name] = real_module
+    except ModuleNotFoundError:
+        pass
