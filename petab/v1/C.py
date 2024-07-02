@@ -115,9 +115,9 @@ PARAMETER_DF_COLS = [
     *PARAMETER_DF_OPTIONAL_COLS[1:],
 ]
 
-#: Type of prior: initialization prior
+#: Initialization-type prior
 INITIALIZATION = "initialization"
-#: Type of prior: objective prior
+#: Objective-type prior
 OBJECTIVE = "objective"
 
 
@@ -287,11 +287,11 @@ VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS = [
     DATASET_ID,
 ]
 
-#: Plot type value in the visualization table: line plot
+#: Plot type value in the visualization table for line plot
 LINE_PLOT = "LinePlot"
-#: Plot type value in the visualization table: bar plot
+#: Plot type value in the visualization table for bar plot
 BAR_PLOT = "BarPlot"
-#: Plot type value in the visualization table: scatter plot
+#: Plot type value in the visualization table for scatter plot
 SCATTER_PLOT = "ScatterPlot"
 #: Supported plot types
 PLOT_TYPES_SIMULATION = [LINE_PLOT, BAR_PLOT, SCATTER_PLOT]
@@ -303,14 +303,15 @@ X_SCALES = [LIN, LOG, LOG10]
 Y_SCALES = [LIN, LOG, LOG10]
 
 
-#: Plot type "data" value in the visualization table: mean and standard
+#: Plot type "data" value in the visualization table for mean and standard
 #  deviation
 MEAN_AND_SD = "MeanAndSD"
-#: Plot type "data" value in the visualization table: mean and standard error
+#: Plot type "data" value in the visualization table for mean and standard
+#  error
 MEAN_AND_SEM = "MeanAndSEM"
-#: Plot type "data" value in the visualization table: replicates
+#: Plot type "data" value in the visualization table for replicates
 REPLICATE = "replicate"
-#: Plot type "data" value in the visualization table: provided noise values
+#: Plot type "data" value in the visualization table for provided noise values
 PROVIDED = "provided"
 #: Supported settings for handling replicates
 PLOT_TYPES_DATA = [MEAN_AND_SD, MEAN_AND_SEM, REPLICATE, PROVIDED]
@@ -352,11 +353,14 @@ EXTENSIONS = "extensions"
 
 # MAPPING
 
-#: Mapping table column: PEtab entity ID
+#: PEtab entity ID column in the mapping table
+#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
 PETAB_ENTITY_ID = "petabEntityId"
-#: Mapping table column: model entity ID
+#: Model entity ID column in the mapping table
+#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
 MODEL_ENTITY_ID = "modelEntityId"
 #: Required columns of the mapping table
+#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
 MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
 # MORE
