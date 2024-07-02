@@ -2,6 +2,15 @@
 
 ## 0.4 series
 
+This series contains many changes related to the new `petab.v2` subpackage. `petab.v2` should not be considered stable; the `petab.v2` API may change rapidly until we release libpetab-python v1.0.0.
+
+### 0.4.1
+
+* Fix: keep previously-optional dependencies optional by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/298
+* Add petab.v2.C by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/299
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.4.0...v0.4.1
+
 ### 0.4.0
 
 **Prepare for PEtab v2**
