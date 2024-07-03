@@ -3,6 +3,8 @@
 Setting data types, adding missing columns and replacing NA by default values.
 """
 
+from typing import TypeVar
+
 import pandas as pd
 
 from .C import *
@@ -13,10 +15,12 @@ __all__ = [
     "normalize_condition_df",
 ]
 
+DataFrameOrNone = TypeVar("DataFrameOrNone", pd.DataFrame, None)
+
 
 def normalize_parameter_df(
-    df: pd.DataFrame, inplace: bool = False
-) -> pd.DataFrame:
+    df: DataFrameOrNone, inplace: bool = False
+) -> DataFrameOrNone:
     """Normalize parameter table.
 
     Arguments:
@@ -25,6 +29,9 @@ def normalize_parameter_df(
     Returns:
         The updated DataFrame
     """
+    if df is None:
+        return
+
     if not inplace:
         df = df.copy()
 
@@ -51,8 +58,8 @@ def normalize_parameter_df(
 
 
 def normalize_measurement_df(
-    df: pd.DataFrame, inplace: bool = False
-) -> pd.DataFrame:
+    df: DataFrameOrNone, inplace: bool = False
+) -> DataFrameOrNone:
     """Normalize measurement table.
 
     Arguments:
@@ -61,6 +68,9 @@ def normalize_measurement_df(
     Returns:
         The updated DataFrame
     """
+    if df is None:
+        return
+
     if not inplace:
         df = df.copy()
 
@@ -83,8 +93,8 @@ def normalize_measurement_df(
 
 
 def normalize_condition_df(
-    df: pd.DataFrame, inplace: bool = False
-) -> pd.DataFrame:
+    df: DataFrameOrNone, inplace: bool = False
+) -> DataFrameOrNone:
     """Normalize condition table.
 
     Arguments:
@@ -93,6 +103,9 @@ def normalize_condition_df(
     Returns:
         The updated DataFrame
     """
+    if df is None:
+        return
+
     if not inplace:
         df = df.copy()
 
