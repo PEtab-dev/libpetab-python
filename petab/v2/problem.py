@@ -24,6 +24,7 @@ from ..v1 import (
 from ..v1.C import *  # noqa: F403
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
+from .normalize import *
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
@@ -717,3 +718,22 @@ class Problem:
                     break
 
         return validation_results
+
+    def normalize(self):
+        """Normalize tables.
+
+        This function normalizes the tables in the PEtab problem.
+        It sets data types, adds missing columns, and replaces NA by default
+        values.
+        """
+        normalize_condition_df(self.condition_df, inplace=True)
+        normalize_measurement_df(self.measurement_df, inplace=True)
+        normalize_parameter_df(self.parameter_df, inplace=True)
+        normalize_observable_df(self.observable_df, inplace=True)
+        # TODO
+        # normalize_mapping_df(self.mapping_df, inplace=True)
+
+        if self.visualization_df is not None:
+            from petab.v1.visualize.lint import _apply_defaults
+
+            _apply_defaults(self.visualization_df)
