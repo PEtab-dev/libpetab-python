@@ -729,8 +729,8 @@ class Problem:
         normalize_condition_df(self.condition_df, inplace=True)
         normalize_measurement_df(self.measurement_df, inplace=True)
         normalize_parameter_df(self.parameter_df, inplace=True)
+        normalize_observable_df(self.observable_df, inplace=True)
         # TODO
-        # normalize_observable_df(self.observable_df, inplace=True)
         # normalize_mapping_df(self.mapping_df, inplace=True)
 
         if self.visualization_df is not None:
