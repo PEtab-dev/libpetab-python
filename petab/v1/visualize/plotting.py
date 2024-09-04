@@ -63,10 +63,9 @@ class DataSeries:
         self.data_to_plot = data_to_plot
         self.data_to_plot.sort_index(inplace=True)
 
-        try:
-            self.conditions = conditions_.copy()
-        except AttributeError:
-            self.conditions = conditions_
+        self.conditions = conditions_
+        if self.conditions is not None:
+            self.conditions = self.conditions.copy()
         self.inf_point = (
             np.inf in self.conditions if self.conditions is not None else False
         )
