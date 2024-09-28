@@ -38,6 +38,7 @@ class Problem:
 
     - model
     - condition table
+    - experiment table
     - measurement table
     - parameter table
     - observables table
@@ -47,6 +48,7 @@ class Problem:
 
     Parameters:
         condition_df: PEtab condition table
+        experiment_df: PEtab experiment table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
@@ -66,6 +68,7 @@ class Problem:
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
+        experiment_df: pd.DataFrame = None,
     ):
         from ..v2.lint import default_validation_tasks
 
@@ -75,6 +78,7 @@ class Problem:
         self.visualization_df: pd.DataFrame | None = visualization_df
         self.observable_df: pd.DataFrame | None = observable_df
         self.mapping_df: pd.DataFrame | None = mapping_df
+        self.experiment_df: pd.DataFrame | None = experiment_df
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
         self.validation_tasks: list[
@@ -87,6 +91,12 @@ class Problem:
             f"{self.condition_df.shape[0]} conditions"
             if self.condition_df is not None
             else "without conditions table"
+        )
+
+        experiments = (
+            f"{self.experiment_df.shape[0]} experiments"
+            if self.experiment_df is not None
+            else "without experiments table"
         )
 
         observables = (
@@ -223,6 +233,16 @@ class Problem:
             else None
         )
 
+        experiment_files = [
+            get_path(f) for f in problem0.get(EXPERIMENT_FILES, [])
+        ]
+        # If there are multiple tables, we will merge them
+        experiment_df = (
+            core.concat_tables(experiment_files, experiments.get_experiment_df)
+            if experiment_files
+            else None
+        )
+
         visualization_files = [
             get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])
         ]
@@ -260,6 +280,7 @@ class Problem:
             visualization_df=visualization_df,
             mapping_df=mapping_df,
             extensions_config=yaml_config.get(EXTENSIONS, {}),
+            experiment_df=experiment_df,
         )
 
     @staticmethod
@@ -549,9 +570,13 @@ class Problem:
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val == 0]
 
-    def get_simulation_conditions_from_measurement_df(self) -> pd.DataFrame:
-        """See :func:`petab.get_simulation_conditions`."""
-        return measurements.get_simulation_conditions(self.measurement_df)
+    def get_simulation_conditions_from_measurement_df(self):
+        """See petab.get_simulation_conditions"""
+        # TODO provide a minimal set of simulated periods for each
+        #      timepoint. e.g., if multiple experiments use the same
+        #      preequilibration period, this period only needs to be
+        #      simulated once
+        return sorted(self.measurement_df[EXPERIMENT].unique())
 
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """

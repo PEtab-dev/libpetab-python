@@ -62,6 +62,7 @@ __all__ = [
     "CheckModel",
     "CheckTableExists",
     "CheckMeasurementTable",
+    "CheckMeasurementExperimentsDefined",
     "CheckConditionTable",
     "CheckObservableTable",
     "CheckParameterTable",
@@ -212,6 +213,19 @@ class CheckTableExists(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         if getattr(problem, f"{self.table_name}_df") is None:
             return ValidationError(f"{self.table_name} table is missing.")
+
+
+class CheckMeasurementExperimentsDefined(ValidationTask):
+    """Ensure all ``experimentId``s in the measurement table are defined."""
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        used_experiment_ids = set(problem.measurement_df[EXPERIMENT_ID].values)
+        available_experiment_ids = set(problem.experiment_df.index.values)
+        if missing_ids := (used_experiment_ids - available_experiment_ids):
+            return ValidationError(
+                "Measurement table references experiments that "
+                "are not specified in the experiment table: "
+                + str(missing_ids)
+            )
 
 
 class CheckMeasurementTable(ValidationTask):
@@ -557,6 +571,7 @@ default_validation_tasks = [
     CheckTableExists("parameter"),
     CheckModel(),
     CheckMeasurementTable(),
+    CheckMeasurementExperimentsDefined(),
     CheckConditionTable(),
     CheckObservableTable(),
     CheckObservablesDoNotShadowModelEntities(),

@@ -8,6 +8,9 @@ from ..v1 import *  # noqa: F403, F401, E402
 
 # import after v1
 from .problem import Problem  # noqa: F401
+from .core import *  # noqa: F403, F401, E402
+from .experiments import *  # noqa: F403, F401, E402
+from .measurements import *  # noqa: F403, F401, E402
 
 warn(
     "Support for PEtab2.0 and all of petab.v2 is experimental "

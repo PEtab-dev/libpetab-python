@@ -129,6 +129,32 @@ CONDITION_ID = "conditionId"
 CONDITION_NAME = "conditionName"
 
 
+# EXPERIMENTS
+
+#: Experiment ID column in the experiment table
+EXPERIMENT_ID = "experiment_id"
+#: Input ID column in the experiment table.
+INPUT_ID = "input_id"
+#: Input ID column in the experiment table.
+INPUT_VALUE = "input_value"
+#: Repeat every column in the experiment table.
+REPEAT_EVERY = "repeat_every"
+#: Priority column in the experiment table.
+PRIORITY = "priority"
+
+#: Required columns in the experiment table.
+EXPERIMENT_DF_REQUIRED_COLS = [
+    EXPERIMENT_ID,
+    INPUT_ID,
+]
+#: Optional columns in the experiment table.
+EXPERIMENT_DF_OPTIONAL_COLS = [
+    TIME,
+    REPEAT_EVERY,
+    PRIORITY,
+]
+
+
 # OBSERVABLES
 
 #: Observable name column in the observables table
@@ -332,6 +358,8 @@ MODEL_LOCATION = "location"
 MODEL_LANGUAGE = "language"
 #: Condition files key in the YAML file
 CONDITION_FILES = "condition_files"
+#: Experiment files key in the YAML file
+EXPERIMENT_FILES = "experiment_files"
 #: Measurement files key in the YAML file
 MEASUREMENT_FILES = "measurement_files"
 #: Observable files key in the YAML file
