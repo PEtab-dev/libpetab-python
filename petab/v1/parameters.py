@@ -458,7 +458,7 @@ def get_priors_from_df(
     # get types and parameters of priors from dataframe
     par_to_estimate = parameter_df.loc[parameter_df[ESTIMATE] == 1]
 
-    if parameter_ids:
+    if parameter_ids is not None:
         try:
             par_to_estimate = par_to_estimate.loc[parameter_ids, :]
         except KeyError as e:
