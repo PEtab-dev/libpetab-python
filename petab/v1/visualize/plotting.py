@@ -64,6 +64,8 @@ class DataSeries:
         self.data_to_plot.sort_index(inplace=True)
 
         self.conditions = conditions_
+        if self.conditions is not None:
+            self.conditions = self.conditions.copy()
         self.inf_point = (
             np.inf in self.conditions if self.conditions is not None else False
         )
