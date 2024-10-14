@@ -36,8 +36,9 @@ def priors_to_measurements(problem: Problem):
     """Convert priors to measurements.
 
     Reformulate the given problem such that the objective priors are converted
-    to measurements. This is done by adding a new observable for each prior
-    and adding a corresponding measurement to the measurement table.
+    to measurements. This is done by adding a new observable
+    ``prior_{parameter_id}`` for each estimated parameter that has an objective
+    prior, and adding a corresponding measurement to the measurement table.
     The new measurement is the prior distribution itself. The resulting
     optimization problem will be equivalent to the original problem.
     This is meant to be used for tools that do not support priors.
@@ -74,7 +75,9 @@ def priors_to_measurements(problem: Problem):
             return f"log10({parameter_id})"
         raise ValueError(f"Unknown parameter scale {parameter_scale}.")
 
-    for i, row in par_df_tmp.iterrows():
+    new_measurement_dicts = []
+    new_observable_dicts = []
+    for _, row in par_df_tmp.iterrows():
         prior_type = row[OBJECTIVE_PRIOR_TYPE]
         parameter_scale = row.get(PARAMETER_SCALE, LIN)
         if pd.isna(prior_type):
@@ -98,13 +101,14 @@ def priors_to_measurements(problem: Problem):
         assert len(prior_parameters) == 2
 
         # create new observable
-        new_obs_id = f"prior_{i}"
+        new_obs_id = f"prior_{parameter_id}"
         if new_obs_id in new_problem.observable_df.index:
             raise ValueError(
                 f"Observable ID {new_obs_id}, which is to be "
                 "created, already exists."
             )
         new_observable = {
+            OBSERVABLE_ID: new_obs_id,
             OBSERVABLE_FORMULA: scaled_observable_formula(
                 parameter_id,
                 parameter_scale if "parameterScale" in prior_type else LIN,
@@ -126,31 +130,21 @@ def priors_to_measurements(problem: Problem):
                 f"Objective prior type {prior_type} is not implemented."
             )
 
-        new_problem.observable_df = pd.concat(
-            [
-                pd.DataFrame([new_observable], index=[new_obs_id]),
-                new_problem.observable_df,
-            ]
-        )
+        new_observable_dicts.append(new_observable)
 
         # add measurement
         # we can just use any condition and time point since the parameter
         # value is constant
         sim_cond_id = new_problem.condition_df.index[0]
-        new_problem.measurement_df = pd.concat(
-            [
-                pd.DataFrame(
-                    {
-                        OBSERVABLE_ID: new_obs_id,
-                        TIME: 0,
-                        MEASUREMENT: prior_parameters[0],
-                        NOISE_PARAMETERS: prior_parameters[1],
-                        SIMULATION_CONDITION_ID: sim_cond_id,
-                    },
-                    index=[0],
-                ),
-                new_problem.measurement_df,
-            ]
+
+        new_measurement_dicts.append(
+            {
+                OBSERVABLE_ID: new_obs_id,
+                TIME: 0,
+                MEASUREMENT: prior_parameters[0],
+                NOISE_PARAMETERS: prior_parameters[1],
+                SIMULATION_CONDITION_ID: sim_cond_id,
+            }
         )
 
         # remove prior from parameter table
@@ -161,4 +155,19 @@ def priors_to_measurements(problem: Problem):
             parameter_id, OBJECTIVE_PRIOR_PARAMETERS
         ] = np.nan
 
+    if new_observable_dicts:
+        new_problem.observable_df = pd.concat(
+            [
+                pd.DataFrame(new_observable_dicts).set_index(OBSERVABLE_ID),
+                new_problem.observable_df,
+            ]
+        )
+    if new_measurement_dicts:
+        new_problem.measurement_df = pd.concat(
+            [
+                pd.DataFrame(new_measurement_dicts),
+                new_problem.measurement_df,
+            ],
+            ignore_index=True,
+        )
     return new_problem

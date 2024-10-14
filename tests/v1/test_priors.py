@@ -7,8 +7,6 @@ import pytest
 from scipy.stats import norm
 
 import petab.v1
-
-# from pypesto.petab import PetabImporter
 from petab.v1.priors import priors_to_measurements
 
 
