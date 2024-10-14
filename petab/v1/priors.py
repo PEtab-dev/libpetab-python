@@ -42,12 +42,18 @@ def priors_to_measurements(problem: Problem):
     The new measurement is the prior distribution itself. The resulting
     optimization problem will be equivalent to the original problem.
     This is meant to be used for tools that do not support priors.
-    
-    The conversion involves the probability density function (PDF) of the prior, the parameters (e.g. location and scale) of that prior PDF, and the scale and value of the estimated parameter. Currently, `uniform` priors are not supported by this method. This method creates observables with:
+
+    The conversion involves the probability density function (PDF) of the
+    prior, the parameters (e.g., location and scale) of that prior PDF, and the
+    scale and value of the estimated parameter. Currently, `uniform` priors are
+    not supported by this method. This method creates observables with:
+
     - `observableFormula`: the parameter value on the `parameterScale`
-    - `observableTransformation`: `log` for `logNormal`/`logLaplace` distributions, `lin` otherwise
+    - `observableTransformation`: `log` for `logNormal`/`logLaplace`
+      distributions, `lin` otherwise
 
     and measurements with:
+
     - `measurement`: the PDF location
     - `noiseFormula`: the PDF scale
 
