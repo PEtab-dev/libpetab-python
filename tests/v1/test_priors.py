@@ -43,7 +43,7 @@ def test_priors_to_measurements(problem_id):
         > petab_problem_priors.measurement_df.shape[0]
     )
 
-    # verity that the objective function value is the same
+    # verify that the objective function value is the same
 
     # load/construct the simulation results
     simulation_df_priors = petab.v1.get_simulation_df(
