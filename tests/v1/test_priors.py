@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 
 import benchmark_models_petab
@@ -7,6 +8,7 @@ import pytest
 from scipy.stats import norm
 
 import petab.v1
+from petab.v1 import get_simulation_conditions
 from petab.v1.priors import priors_to_measurements
 
 
@@ -27,8 +29,23 @@ def test_priors_to_measurements(problem_id):
             petab_problem_priors
         )
         assert petab.v1.lint_problem(petab_problem_priors) is False
+    original_problem = deepcopy(petab_problem_priors)
 
     petab_problem_measurements = priors_to_measurements(petab_problem_priors)
+
+    # check that the original problem is not modified
+    for attr in [
+        "condition_df",
+        "parameter_df",
+        "observable_df",
+        "measurement_df",
+    ]:
+        assert (
+            diff := getattr(petab_problem_priors, attr).compare(
+                getattr(original_problem, attr)
+            )
+        ).empty, diff
+    # check that measurements and observables were added
     assert petab.v1.lint_problem(petab_problem_measurements) is False
     assert (
         petab_problem_measurements.parameter_df.shape[0]
@@ -42,6 +59,10 @@ def test_priors_to_measurements(problem_id):
         petab_problem_measurements.measurement_df.shape[0]
         > petab_problem_priors.measurement_df.shape[0]
     )
+    # ensure we didn't introduce any new conditions
+    assert len(
+        get_simulation_conditions(petab_problem_measurements.measurement_df)
+    ) == len(get_simulation_conditions(petab_problem_priors.measurement_df))
 
     # verify that the objective function value is the same
 
