@@ -4,6 +4,7 @@ import copy
 import numpy as np
 import pandas as pd
 
+from ..v2.C import PREEQUILIBRATION_CONDITION_ID
 from . import (
     ESTIMATE,
     LAPLACE,
@@ -155,19 +156,28 @@ def priors_to_measurements(problem: Problem):
         new_observable_dicts.append(new_observable)
 
         # add measurement
-        # we can just use any condition and time point since the parameter
-        # value is constant
-        sim_cond_id = new_problem.condition_df.index[0]
-
-        new_measurement_dicts.append(
-            {
-                OBSERVABLE_ID: new_obs_id,
-                TIME: 0,
-                MEASUREMENT: prior_parameters[0],
-                NOISE_PARAMETERS: prior_parameters[1],
-                SIMULATION_CONDITION_ID: sim_cond_id,
-            }
-        )
+        # we could just use any condition and time point since the parameter
+        # value is constant. however, using an existing timepoint and
+        # (preequilibrationConditionId+)simulationConditionId will avoid
+        # requiring extra simulations and solver stops in tools that do not
+        # check for time dependency of the observable. we use the first
+        # condition/timepoint from the measurement table
+        new_measurement = {
+            OBSERVABLE_ID: new_obs_id,
+            TIME: problem.measurement_df[TIME].iloc[0],
+            MEASUREMENT: prior_parameters[0],
+            NOISE_PARAMETERS: prior_parameters[1],
+            SIMULATION_CONDITION_ID: new_problem.measurement_df[
+                SIMULATION_CONDITION_ID
+            ].iloc[0],
+        }
+        if PREEQUILIBRATION_CONDITION_ID in new_problem.measurement_df:
+            new_measurement[
+                PREEQUILIBRATION_CONDITION_ID
+            ] = new_problem.measurement_df[PREEQUILIBRATION_CONDITION_ID].iloc[
+                0
+            ]
+        new_measurement_dicts.append(new_measurement)
 
         # remove prior from parameter table
         new_problem.parameter_df.loc[
@@ -177,19 +187,17 @@ def priors_to_measurements(problem: Problem):
             parameter_id, OBJECTIVE_PRIOR_PARAMETERS
         ] = np.nan
 
-    if new_observable_dicts:
-        new_problem.observable_df = pd.concat(
-            [
-                pd.DataFrame(new_observable_dicts).set_index(OBSERVABLE_ID),
-                new_problem.observable_df,
-            ]
-        )
-    if new_measurement_dicts:
-        new_problem.measurement_df = pd.concat(
-            [
-                pd.DataFrame(new_measurement_dicts),
-                new_problem.measurement_df,
-            ],
-            ignore_index=True,
-        )
+    new_problem.observable_df = pd.concat(
+        [
+            pd.DataFrame(new_observable_dicts).set_index(OBSERVABLE_ID),
+            new_problem.observable_df,
+        ]
+    )
+    new_problem.measurement_df = pd.concat(
+        [
+            pd.DataFrame(new_measurement_dicts),
+            new_problem.measurement_df,
+        ],
+        ignore_index=True,
+    )
     return new_problem
