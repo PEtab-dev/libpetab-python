@@ -95,7 +95,11 @@ def priors_to_measurements(problem: Problem):
         prior_type = row[OBJECTIVE_PRIOR_TYPE]
         parameter_scale = row.get(PARAMETER_SCALE, LIN)
         if pd.isna(prior_type):
-            assert pd.isna(row[OBJECTIVE_PRIOR_PARAMETERS])
+            if not pd.isna(row[OBJECTIVE_PRIOR_PARAMETERS]):
+                raise AssertionError(
+                    "Objective prior parameters are set, but prior type is "
+                    "not specified."
+                )
             continue
 
         if "uniform" in prior_type.lower():
@@ -112,7 +116,11 @@ def priors_to_measurements(problem: Problem):
                 row[OBJECTIVE_PRIOR_PARAMETERS].split(PARAMETER_SEPARATOR),
             )
         )
-        assert len(prior_parameters) == 2
+        if len(prior_parameters) != 2:
+            raise AssertionError(
+                "Expected two objective prior parameters for parameter "
+                f"{parameter_id}, but got {prior_parameters}."
+            )
 
         # create new observable
         new_obs_id = f"prior_{parameter_id}"
