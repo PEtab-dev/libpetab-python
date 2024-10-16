@@ -4,7 +4,7 @@ import copy
 import numpy as np
 import pandas as pd
 
-from ..v2.C import PREEQUILIBRATION_CONDITION_ID
+from ..v1.C import PREEQUILIBRATION_CONDITION_ID
 from . import (
     ESTIMATE,
     LAPLACE,
