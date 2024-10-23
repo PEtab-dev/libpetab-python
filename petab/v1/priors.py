@@ -32,6 +32,8 @@ from . import (
     Problem,
 )
 
+__all__ = ["priors_to_measurements"]
+
 
 def priors_to_measurements(problem: Problem):
     """Convert priors to measurements.
