@@ -15,6 +15,7 @@ from pandas.api.types import is_string_dtype
 
 from . import yaml
 from .C import *  # noqa: F403
+from .visualize.lint import validate_visualization_df
 
 logger = logging.getLogger(__name__)
 __all__ = [
@@ -298,6 +299,10 @@ def flatten_timepoint_specific_output_overrides(
     petab_problem.observable_df = pd.concat(new_observable_dfs, axis=1).T
     petab_problem.observable_df.index.name = OBSERVABLE_ID
     petab_problem.measurement_df = pd.concat(new_measurement_dfs)
+
+    # remove visualization df if it is invalid
+    if not validate_visualization_df(petab_problem):
+        petab_problem.visualization_df = None
 
 
 def unflatten_simulation_df(
