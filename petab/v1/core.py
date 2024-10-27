@@ -301,7 +301,7 @@ def flatten_timepoint_specific_output_overrides(
     petab_problem.measurement_df = pd.concat(new_measurement_dfs)
 
     # remove visualization df if it is invalid
-    if not validate_visualization_df(petab_problem):
+    if validate_visualization_df(petab_problem):
         petab_problem.visualization_df = None
 
 
