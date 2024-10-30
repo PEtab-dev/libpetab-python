@@ -303,6 +303,7 @@ def flatten_timepoint_specific_output_overrides(
     # remove visualization df if it is invalid
     if validate_visualization_df(petab_problem):
         petab_problem.visualization_df = None
+        logger.warning("Removing visualization table from flattened PEtab problem.")
 
 
 def unflatten_simulation_df(
