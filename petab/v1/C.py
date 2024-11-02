@@ -62,6 +62,18 @@ MEASUREMENT_DF_COLS = [
     *MEASUREMENT_DF_OPTIONAL_COLS[1:],
 ]
 
+#: Required columns that determine replicates
+MEASUREMENT_DF_REQUIRED_COLS_REPLICATES = [
+    OBSERVABLE_ID,
+    SIMULATION_CONDITION_ID,
+    TIME,
+]
+
+#: Optional columns that determine replicates
+MEASUREMENT_DF_OPTIONAL_COLS_REPLICATES = [
+    PREEQUILIBRATION_CONDITION_ID,
+]
+
 
 # PARAMETERS
 

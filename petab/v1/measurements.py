@@ -8,12 +8,14 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from more_itertools import one
 
 from . import core, lint, observables
 from .C import *  # noqa: F403
 
 __all__ = [
     "assert_overrides_match_parameter_count",
+    "average_replicates",
     "create_measurement_df",
     "get_measurement_df",
     "get_measurement_parameter_ids",
@@ -349,3 +351,48 @@ def measurement_is_at_steady_state(time: float) -> bool:
         Whether the measurement is at steady state.
     """
     return math.isinf(time)
+
+
+def average_replicates(measurement_df: pd.DataFrame) -> pd.DataFrame:
+    """Replace replicates with their mean and standard error.
+
+    Other columns that contain multiple unique values between replicates will
+    be concatenated.
+
+    Arguments:
+        measurement_df:
+            The measurement table.
+
+    Returns:
+        The measurement table, with averaged replicates.
+    """
+    replicate_defining_columns = MEASUREMENT_DF_REQUIRED_COLS_REPLICATES
+    for optional_column in MEASUREMENT_DF_OPTIONAL_COLS_REPLICATES:
+        if optional_column in measurement_df:
+            replicate_defining_columns.append(optional_column)
+
+    data = []
+    for _, df in measurement_df.groupby(replicate_defining_columns):
+        datum = {}
+        for column in df.columns:
+            values = df[column]
+            mean = df[MEASUREMENT].mean()
+            sem = df[MEASUREMENT].sem()
+            if column in replicate_defining_columns:
+                datum[column] = one(values.unique())
+            elif column == MEASUREMENT:
+                datum[column] = mean
+            elif column == NOISE_FORMULA:
+                datum[column] = sem
+            elif column in [REPLICATE_ID, DATASET_ID]:
+                datum[column] = PARAMETER_SEPARATOR.join(values.unique())
+            else:
+                try:
+                    datum[column] = one(values.unique())
+                except ValueError:
+                    datum[column] = PARAMETER_SEPARATOR.join(values.unique())
+        if NOISE_FORMULA not in datum and "standard_error_mean" not in datum:
+            datum["standard_error_mean"] = sem
+        data.append(datum)
+
+    return get_measurement_df(pd.DataFrame(data=data))

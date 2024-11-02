@@ -144,3 +144,32 @@ def test_get_simulation_conditions():
     )
     actual = petab.get_simulation_conditions(measurement_df)
     assert actual.equals(expected)
+
+
+def test_average_replicates():
+    """Test measurements.average_replicates."""
+    measurement_df = petab.get_measurement_df(
+        pd.DataFrame(
+            data={
+                OBSERVABLE_ID: ["obs1", "obs1", "obs1", "obs2", "obs2"],
+                SIMULATION_CONDITION_ID: "dummy_condition",
+                TIME: [0, 0, 1, 0, 1],
+                MEASUREMENT: [1, 10, 100, 1000, 10000],
+            }
+        )
+    )
+
+    expected_df = petab.get_measurement_df(
+        pd.DataFrame(
+            data={
+                OBSERVABLE_ID: ["obs1", "obs1", "obs2", "obs2"],
+                SIMULATION_CONDITION_ID: "dummy_condition",
+                TIME: [0, 1, 0, 1],
+                MEASUREMENT: [5.5, 100, 1000, 10000],
+            }
+        )
+    )
+
+    test_df = petab.average_replicates(measurement_df)
+
+    pd.testing.assert_frame_equal(test_df, expected_df)
