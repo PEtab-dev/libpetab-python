@@ -191,14 +191,14 @@ def priors_to_measurements(problem: Problem):
 
     new_problem.observable_df = pd.concat(
         [
-            pd.DataFrame(new_observable_dicts).set_index(OBSERVABLE_ID),
             new_problem.observable_df,
+            pd.DataFrame(new_observable_dicts).set_index(OBSERVABLE_ID),
         ]
     )
     new_problem.measurement_df = pd.concat(
         [
-            pd.DataFrame(new_measurement_dicts),
             new_problem.measurement_df,
+            pd.DataFrame(new_measurement_dicts),
         ],
         ignore_index=True,
     )
