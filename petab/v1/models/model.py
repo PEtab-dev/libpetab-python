@@ -16,6 +16,9 @@ class Model(abc.ABC):
     def __init__(self):
         ...
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.model_id!r}>"
+
     @staticmethod
     @abc.abstractmethod
     def from_file(filepath_or_buffer: Any, model_id: str) -> Model:
