@@ -9,6 +9,7 @@ from typing import Any
 
 import pysb
 
+from .. import is_valid_identifier
 from . import MODEL_TYPE_PYSB
 from .model import Model
 
@@ -53,14 +54,21 @@ class PySBModel(Model):
 
     type_id = MODEL_TYPE_PYSB
 
-    def __init__(self, model: pysb.Model, model_id: str):
+    def __init__(self, model: pysb.Model, model_id: str = None):
         super().__init__()
 
         self.model = model
-        self._model_id = model_id
+        self._model_id = model_id or self.model.name
+
+        if not is_valid_identifier(self._model_id):
+            raise ValueError(
+                f"Model ID '{self._model_id}' is not a valid identifier. "
+                "Either provide a valid identifier or change the model name "
+                "to a valid PEtab model identifier."
+            )
 
     @staticmethod
-    def from_file(filepath_or_buffer, model_id: str):
+    def from_file(filepath_or_buffer, model_id: str = None):
         return PySBModel(
             model=_pysb_model_from_path(filepath_or_buffer), model_id=model_id
         )
