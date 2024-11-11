@@ -299,6 +299,20 @@ def flatten_timepoint_specific_output_overrides(
     petab_problem.observable_df.index.name = OBSERVABLE_ID
     petab_problem.measurement_df = pd.concat(new_measurement_dfs)
 
+    # remove visualization df if it uses observables that are not in the
+    # flattened PEtab problem
+    if petab_problem.visualization_df is not None:
+        assert petab_problem.observable_df.index.name == OBSERVABLE_ID
+        if not all(
+            petab_problem.observable_df.index.isin(
+                petab_problem.visualization_df[Y_VALUES]
+            )
+        ):
+            petab_problem.visualization_df = None
+            logger.warning(
+                "Removing visualization table from flattened PEtab problem."
+            )
+
 
 def unflatten_simulation_df(
     simulation_df: pd.DataFrame,

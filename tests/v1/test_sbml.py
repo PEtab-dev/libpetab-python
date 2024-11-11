@@ -1,8 +1,11 @@
 import os
 import sys
 
+import libsbml
 import pandas as pd
 import pytest
+
+from petab.v1.models.sbml_model import SbmlModel
 
 sys.path.append(os.getcwd())
 import petab  # noqa: E402
@@ -122,3 +125,11 @@ def test_get_condition_specific_models():
         )
 
     check_model(condition_model)
+
+
+def test_sbml_model_repr():
+    sbml_document = libsbml.SBMLDocument()
+    sbml_model = sbml_document.createModel()
+    sbml_model.setId("test")
+    petab_model = SbmlModel(sbml_model)
+    assert repr(petab_model) == "<SbmlModel 'test'>"

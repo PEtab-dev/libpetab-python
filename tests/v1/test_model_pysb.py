@@ -87,3 +87,9 @@ def test_pattern_parsing(uses_pysb):
     pattern = pysb.as_complex_pattern(B(s="a") ** c1)
     assert pattern_from_string(str(pattern), model).matches(pattern)
     assert str(pattern) == str(pattern_from_string("B(s='a') ** c1", model))
+
+
+def test_pysb_model_repr(uses_pysb):
+    model = pysb.Model(name="test")
+    petab_model = PySBModel(model)
+    assert repr(petab_model) == "<PySBModel 'test'>"
