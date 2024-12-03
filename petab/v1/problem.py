@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import pandas as pd
+from pydantic import AnyUrl, BaseModel, Field, RootModel
 
 from . import (
     conditions,
@@ -79,6 +80,7 @@ class Problem:
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
+        config: ProblemConfig = None,
     ):
         self.condition_df: pd.DataFrame | None = condition_df
         self.measurement_df: pd.DataFrame | None = measurement_df
@@ -113,6 +115,7 @@ class Problem:
 
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
+        self.config = config
 
     def __getattr__(self, name):
         # For backward-compatibility, allow access to SBML model related
@@ -262,10 +265,14 @@ class Problem:
             yaml_config: PEtab configuration as dictionary or YAML file name
             base_path: Base directory or URL to resolve relative paths
         """
+        # path to the yaml file
+        filepath = None
+
         if isinstance(yaml_config, Path):
             yaml_config = str(yaml_config)
 
         if isinstance(yaml_config, str):
+            filepath = yaml_config
             if base_path is None:
                 base_path = get_path_prefix(yaml_config)
             yaml_config = yaml.load_yaml(yaml_config)
@@ -297,24 +304,25 @@ class Problem:
                 DeprecationWarning,
                 stacklevel=2,
             )
+        config = ProblemConfig(
+            **yaml_config, base_path=base_path, filepath=filepath
+        )
+        problem0 = config.problems[0]
+        # currently required for handling PEtab v2 in here
+        problem0_ = yaml_config["problems"][0]
 
-        problem0 = yaml_config["problems"][0]
-
-        if isinstance(yaml_config[PARAMETER_FILE], list):
+        if isinstance(config.parameter_file, list):
             parameter_df = parameters.get_parameter_df(
-                [get_path(f) for f in yaml_config[PARAMETER_FILE]]
+                [get_path(f) for f in config.parameter_file]
             )
         else:
             parameter_df = (
-                parameters.get_parameter_df(
-                    get_path(yaml_config[PARAMETER_FILE])
-                )
-                if yaml_config[PARAMETER_FILE]
+                parameters.get_parameter_df(get_path(config.parameter_file))
+                if config.parameter_file
                 else None
             )
-
-        if yaml_config[FORMAT_VERSION] in [1, "1", "1.0.0"]:
-            if len(problem0[SBML_FILES]) > 1:
+        if config.format_version.root in [1, "1", "1.0.0"]:
+            if len(problem0.sbml_files) > 1:
                 # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
                 raise NotImplementedError(
                     "Support for multiple models is not yet implemented."
@@ -322,24 +330,24 @@ class Problem:
 
             model = (
                 model_factory(
-                    get_path(problem0[SBML_FILES][0]),
+                    get_path(problem0.sbml_files[0]),
                     MODEL_TYPE_SBML,
                     model_id=None,
                 )
-                if problem0[SBML_FILES]
+                if problem0.sbml_files
                 else None
             )
         else:
-            if len(problem0[MODEL_FILES]) > 1:
+            if len(problem0_[MODEL_FILES]) > 1:
                 # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
                 raise NotImplementedError(
                     "Support for multiple models is not yet implemented."
                 )
-            if not problem0[MODEL_FILES]:
+            if not problem0_[MODEL_FILES]:
                 model = None
             else:
                 model_id, model_info = next(
-                    iter(problem0[MODEL_FILES].items())
+                    iter(problem0_[MODEL_FILES].items())
                 )
                 model = model_factory(
                     get_path(model_info[MODEL_LOCATION]),
@@ -347,9 +355,7 @@ class Problem:
                     model_id=model_id,
                 )
 
-        measurement_files = [
-            get_path(f) for f in problem0.get(MEASUREMENT_FILES, [])
-        ]
+        measurement_files = [get_path(f) for f in problem0.measurement_files]
         # If there are multiple tables, we will merge them
         measurement_df = (
             core.concat_tables(
@@ -359,9 +365,7 @@ class Problem:
             else None
         )
 
-        condition_files = [
-            get_path(f) for f in problem0.get(CONDITION_FILES, [])
-        ]
+        condition_files = [get_path(f) for f in problem0.condition_files]
         # If there are multiple tables, we will merge them
         condition_df = (
             core.concat_tables(condition_files, conditions.get_condition_df)
@@ -370,7 +374,7 @@ class Problem:
         )
 
         visualization_files = [
-            get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])
+            get_path(f) for f in problem0.visualization_files
         ]
         # If there are multiple tables, we will merge them
         visualization_df = (
@@ -379,9 +383,7 @@ class Problem:
             else None
         )
 
-        observable_files = [
-            get_path(f) for f in problem0.get(OBSERVABLE_FILES, [])
-        ]
+        observable_files = [get_path(f) for f in problem0.observable_files]
         # If there are multiple tables, we will merge them
         observable_df = (
             core.concat_tables(observable_files, observables.get_observable_df)
@@ -389,7 +391,7 @@ class Problem:
             else None
         )
 
-        mapping_files = [get_path(f) for f in problem0.get(MAPPING_FILES, [])]
+        mapping_files = [get_path(f) for f in problem0_.get(MAPPING_FILES, [])]
         # If there are multiple tables, we will merge them
         mapping_df = (
             core.concat_tables(mapping_files, mapping.get_mapping_df)
@@ -406,6 +408,7 @@ class Problem:
             visualization_df=visualization_df,
             mapping_df=mapping_df,
             extensions_config=yaml_config.get(EXTENSIONS, {}),
+            config=config,
         )
 
     @staticmethod
@@ -1184,3 +1187,50 @@ class Problem:
             if self.measurement_df is not None
             else tmp_df
         )
+
+
+class VersionNumber(RootModel):
+    root: str | int
+
+
+class ListOfFiles(RootModel):
+    """List of files."""
+
+    root: list[str | AnyUrl] = Field(..., description="List of files.")
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __len__(self):
+        return len(self.root)
+
+    def __getitem__(self, index):
+        return self.root[index]
+
+
+class SubProblem(BaseModel):
+    """A `problems` object in the PEtab problem configuration."""
+
+    sbml_files: ListOfFiles = []
+    measurement_files: ListOfFiles = []
+    condition_files: ListOfFiles = []
+    observable_files: ListOfFiles = []
+    visualization_files: ListOfFiles = []
+
+
+class ProblemConfig(BaseModel):
+    """The PEtab problem configuration."""
+
+    filepath: str | AnyUrl | None = Field(
+        None,
+        description="The path to the PEtab problem configuration.",
+        exclude=True,
+    )
+    base_path: str | AnyUrl | None = Field(
+        None,
+        description="The base path to resolve relative paths.",
+        exclude=True,
+    )
+    format_version: VersionNumber = 1
+    parameter_file: str | AnyUrl | None = None
+    problems: list[SubProblem] = []
