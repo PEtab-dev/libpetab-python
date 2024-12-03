@@ -117,24 +117,31 @@ class Problem:
         )
 
     @staticmethod
-    def from_yaml(yaml_config: dict | Path | str) -> Problem:
+    def from_yaml(
+        yaml_config: dict | Path | str, base_path: str | Path = None
+    ) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
 
         Arguments:
             yaml_config: PEtab configuration as dictionary or YAML file name
+            base_path: Base directory or URL to resolve relative paths
         """
         if isinstance(yaml_config, Path):
             yaml_config = str(yaml_config)
 
         if isinstance(yaml_config, str):
             yaml_file = yaml_config
-            path_prefix = get_path_prefix(yaml_file)
-            yaml_config = yaml.load_yaml(yaml_config)
-            get_path = lambda filename: f"{path_prefix}/{filename}"  # noqa: E731
+            if base_path is None:
+                base_path = get_path_prefix(yaml_file)
+            yaml_config = yaml.load_yaml(yaml_file)
         else:
             yaml_file = None
-            get_path = lambda filename: filename  # noqa: E731
+
+        def get_path(filename):
+            if base_path is None:
+                return filename
+            return f"{base_path}/{filename}"
 
         if yaml_config[FORMAT_VERSION] not in {"2.0.0"}:
             # If we got a path to a v1 yaml file, try to auto-upgrade
@@ -186,7 +193,7 @@ class Problem:
                 else None
             )
 
-        if len(problem0[MODEL_FILES]) > 1:
+        if len(problem0[MODEL_FILES] or []) > 1:
             # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
             raise NotImplementedError(
                 "Support for multiple models is not yet implemented."
