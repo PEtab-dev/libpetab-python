@@ -897,11 +897,16 @@ def test_problem_from_yaml_v1_multiple_files():
                 observables_df, Path(tmpdir, f"observables{i}.tsv")
             )
 
-        petab_problem = petab.Problem.from_yaml(yaml_path)
+        petab_problem1 = petab.Problem.from_yaml(yaml_path)
 
-    assert petab_problem.measurement_df.shape[0] == 2
-    assert petab_problem.observable_df.shape[0] == 2
-    assert petab_problem.condition_df.shape[0] == 2
+        # test that we can load the problem from a dict with a custom base path
+        yaml_config = petab.v1.load_yaml(yaml_path)
+        petab_problem2 = petab.Problem.from_yaml(yaml_config, base_path=tmpdir)
+
+    for petab_problem in (petab_problem1, petab_problem2):
+        assert petab_problem.measurement_df.shape[0] == 2
+        assert petab_problem.observable_df.shape[0] == 2
+        assert petab_problem.condition_df.shape[0] == 2
 
 
 def test_get_required_parameters_for_parameter_table(petab_problem):

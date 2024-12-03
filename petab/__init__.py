@@ -2,70 +2,70 @@
 PEtab global
 ============
 
-.. warning::
-
-    All functions in here are deprecated. Use the respective functions from
-    :mod:`petab.v1` instead.
-
 Attributes:
     ENV_NUM_THREADS:
         Name of environment variable to set number of threads or processes
         PEtab should use for operations that can be performed in parallel.
         By default, all operations are performed sequentially.
 """
-import functools
-import inspect
+import importlib
 import sys
-import warnings
+from functools import partial
+from pathlib import Path
 from warnings import warn
 
-# deprecated imports
-from petab.v1 import *  # noqa: F403, F401, E402
-
-from .v1.format_version import __format_version__  # noqa: F401, E402
 
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
+__all__ = ["ENV_NUM_THREADS"]
 
 
-def _deprecated_v1(func):
-    """Decorator for deprecation warnings for functions."""
-
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        warnings.warn(
-            f"petab.{func.__name__} is deprecated, "
-            f"please use petab.v1.{func.__name__} instead.",
-            category=DeprecationWarning,
-            stacklevel=2,
+def __getattr__(name):
+    if attr := globals().get(name):
+        return attr
+    if name == "v1":
+        return importlib.import_module("petab.v1")
+    if name != "__path__":
+        warn(
+            f"Accessing `petab.{name}` is deprecated and will be removed in "
+            f"the next major release. Please use `petab.v1.{name}` instead.",
+            DeprecationWarning,
+            stacklevel=3,
         )
-        return func(*args, **kwargs)
-
-    return new_func
+    return getattr(importlib.import_module("petab.v1"), name)
 
 
-def _deprecated_import_v1(module_name: str):
-    """Decorator for deprecation warnings for modules."""
-    warn(
-        f"The '{module_name}' module is deprecated and will be removed "
-        f"in the next major release. Please use "
-        f"'petab.v1.{module_name.removeprefix('petab.')}' "
-        "instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+def v1getattr(name, module):
+    if name != "__path__":
+        warn(
+            f"Accessing `petab.{name}` is deprecated and will be removed in "
+            f"the next major release. Please use `petab.v1.{name}` instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+    try:
+        return module.__dict__[name]
+    except KeyError:
+        raise AttributeError(name) from None
 
 
-__all__ = [
-    x
-    for x in dir(sys.modules[__name__])
-    if not x.startswith("_")
-    and x not in {"sys", "warnings", "functools", "warn", "inspect"}
-]
+# Create dummy modules for all old modules
+v1_root = Path(__file__).resolve().parent / "v1"
+v1_objects = [f.relative_to(v1_root) for f in v1_root.rglob("*")]
+for v1_object in v1_objects:
+    if "__pycache__" in str(v1_object):
+        continue
+    if v1_object.suffix not in ["", ".py"]:
+        continue
+    if not (v1_root / v1_object).exists():
+        raise ValueError(v1_root / v1_object)
+    v1_object_parts = [*v1_object.parts[:-1], v1_object.stem]
+    module_name = ".".join(["petab", *v1_object_parts])
 
-
-# apply decorator to all functions in the module
-for name in __all__:
-    obj = globals().get(name)
-    if callable(obj) and inspect.isfunction(obj):
-        globals()[name] = _deprecated_v1(obj)
-del name, obj
+    try:
+        real_module = importlib.import_module(
+            f"petab.v1.{'.'.join(v1_object_parts)}"
+        )
+        real_module.__getattr__ = partial(v1getattr, module=real_module)
+        sys.modules[module_name] = real_module
+    except ModuleNotFoundError:
+        pass

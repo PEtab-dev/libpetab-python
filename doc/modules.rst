@@ -20,6 +20,7 @@ API Reference
    petab.v1.observables
    petab.v1.parameter_mapping
    petab.v1.parameters
+   petab.v1.priors
    petab.v1.problem
    petab.v1.sampling
    petab.v1.sbml
@@ -28,5 +29,6 @@ API Reference
    petab.v1.visualize
    petab.v1.yaml
    petab.v2
+   petab.v2.C
    petab.v2.lint
    petab.v2.problem

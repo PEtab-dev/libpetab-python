@@ -43,9 +43,7 @@ def get_mapping_df(
 
     for col in MAPPING_DF_REQUIRED_COLS:
         if col not in mapping_file.columns:
-            raise KeyError(
-                f"Mapping table missing mandatory field {PETAB_ENTITY_ID}."
-            )
+            raise KeyError(f"Mapping table missing mandatory field {col}.")
 
         lint.assert_no_leading_trailing_whitespace(
             mapping_file.reset_index()[col].values, col
