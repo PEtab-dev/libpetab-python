@@ -1,4 +1,5 @@
 """Functionality related to the PEtab entity mapping table"""
+# TODO: Move to petab.v2.mapping
 from pathlib import Path
 
 import pandas as pd

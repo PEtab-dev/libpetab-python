@@ -16,6 +16,7 @@ import petab
 import petab.v1
 from petab.C import *
 from petab.models.sbml_model import SbmlModel
+from petab.v1 import Problem
 
 
 @pytest.fixture
@@ -44,55 +45,61 @@ def petab_problem():
     model.addParameter("fixedParameter1", 0.0)
     model.addParameter("observable_1", 0.0)
 
-    measurement_df = pd.DataFrame(
-        data={
-            OBSERVABLE_ID: ["obs1", "obs2"],
-            MEASUREMENT: [0.1, 0.2],
-            OBSERVABLE_PARAMETERS: ["", "p1;p2"],
-            NOISE_PARAMETERS: ["p3;p4", "p5"],
-        }
+    petab_problem = petab.Problem()
+    petab_problem.add_measurement(
+        obs_id="obs1",
+        sim_cond_id="condition1",
+        time=1.0,
+        measurement=0.1,
+        noise_parameters=["p3", "p4"],
+    )
+    petab_problem.add_measurement(
+        obs_id="obs2",
+        sim_cond_id="condition2",
+        time=1.0,
+        measurement=0.2,
+        observable_parameters=["p1", "p2"],
+        noise_parameters=["p5"],
     )
 
-    condition_df = pd.DataFrame(
-        data={
-            CONDITION_ID: ["condition1", "condition2"],
-            CONDITION_NAME: ["", "Condition 2"],
-            "fixedParameter1": [1.0, 2.0],
-        }
-    ).set_index(CONDITION_ID)
+    petab_problem.add_condition("condition1", fixedParameter1=1.0)
+    petab_problem.add_condition(
+        "condition2", fixedParameter1=2.0, name="Condition 2"
+    )
 
-    parameter_df = pd.DataFrame(
-        data={
-            PARAMETER_ID: ["dynamicParameter1", "dynamicParameter2"],
-            PARAMETER_NAME: ["", "..."],
-            ESTIMATE: [1, 0],
-        }
-    ).set_index(PARAMETER_ID)
+    petab_problem.add_parameter("dynamicParameter1", estimate=1)
+    petab_problem.add_parameter("dynamicParameter2", estimate=0, name="...")
 
-    observable_df = pd.DataFrame(
-        data={
-            OBSERVABLE_ID: ["obs1"],
-            OBSERVABLE_NAME: ["julius"],
-            OBSERVABLE_FORMULA: ["observable_1 * observableParameter1_obs1"],
-            NOISE_FORMULA: ["0.1 * observable_1 * observableParameter1_obs1"],
-        }
-    ).set_index(OBSERVABLE_ID)
+    petab_problem.add_observable(
+        "obs1",
+        formula="observable_1 * observableParameter1_obs1",
+        noise_formula="0.1 * observable_1 * observableParameter1_obs1",
+        name="julius",
+    )
 
     with tempfile.TemporaryDirectory() as temp_dir:
         sbml_file_name = Path(temp_dir, "model.xml")
         libsbml.writeSBMLToFile(model.document, str(sbml_file_name))
 
         measurement_file_name = Path(temp_dir, "measurements.tsv")
-        petab.write_measurement_df(measurement_df, measurement_file_name)
+        petab.write_measurement_df(
+            petab_problem.measurement_df, measurement_file_name
+        )
 
         condition_file_name = Path(temp_dir, "conditions.tsv")
-        petab.write_condition_df(condition_df, condition_file_name)
+        petab.write_condition_df(
+            petab_problem.condition_df, condition_file_name
+        )
 
         parameter_file_name = Path(temp_dir, "parameters.tsv")
-        petab.write_parameter_df(parameter_df, parameter_file_name)
+        petab.write_parameter_df(
+            petab_problem.parameter_df, parameter_file_name
+        )
 
         observable_file_name = Path(temp_dir, "observables.tsv")
-        petab.write_observable_df(observable_df, observable_file_name)
+        petab.write_observable_df(
+            petab_problem.observable_df, observable_file_name
+        )
 
         with pytest.deprecated_call():
             petab_problem = petab.Problem.from_files(
@@ -822,44 +829,26 @@ def test_problem_from_yaml_v1_multiple_files():
       observable_files: [observables1.tsv, observables2.tsv]
       sbml_files: []
     """
-
     with tempfile.TemporaryDirectory() as tmpdir:
         yaml_path = Path(tmpdir, "problem.yaml")
         with open(yaml_path, "w") as f:
             f.write(yaml_config)
 
         for i in (1, 2):
-            condition_df = pd.DataFrame(
-                {
-                    CONDITION_ID: [f"condition{i}"],
-                }
-            )
-            condition_df.set_index([CONDITION_ID], inplace=True)
+            problem = Problem()
+            problem.add_condition(f"condition{i}")
             petab.write_condition_df(
-                condition_df, Path(tmpdir, f"conditions{i}.tsv")
+                problem.condition_df, Path(tmpdir, f"conditions{i}.tsv")
             )
 
-            measurement_df = pd.DataFrame(
-                {
-                    SIMULATION_CONDITION_ID: [f"condition{i}"],
-                    OBSERVABLE_ID: [f"observable{i}"],
-                    TIME: [i],
-                    MEASUREMENT: [1],
-                }
-            )
+            problem.add_measurement(f"observable{i}", f"condition{i}", 1, 1)
             petab.write_measurement_df(
-                measurement_df, Path(tmpdir, f"measurements{i}.tsv")
+                problem.measurement_df, Path(tmpdir, f"measurements{i}.tsv")
             )
 
-            observables_df = pd.DataFrame(
-                {
-                    OBSERVABLE_ID: [f"observable{i}"],
-                    OBSERVABLE_FORMULA: [1],
-                    NOISE_FORMULA: [1],
-                }
-            )
+            problem.add_observable(f"observable{i}", 1, 1)
             petab.write_observable_df(
-                observables_df, Path(tmpdir, f"observables{i}.tsv")
+                problem.observable_df, Path(tmpdir, f"observables{i}.tsv")
             )
 
         petab_problem1 = petab.Problem.from_yaml(yaml_path)
