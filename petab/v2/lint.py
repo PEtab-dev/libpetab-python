@@ -10,18 +10,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from petab.v1 import (
-    assert_model_parameters_in_condition_or_parameter_table,
-)
-from petab.v1.C import (
-    ESTIMATE,
-    MODEL_ENTITY_ID,
-    NOISE_PARAMETERS,
-    NOMINAL_VALUE,
-    OBSERVABLE_PARAMETERS,
-    PARAMETER_DF_REQUIRED_COLS,
-    PARAMETER_ID,
-)
 from petab.v1.conditions import get_parametric_overrides
 from petab.v1.lint import (
     _check_df,
@@ -42,6 +30,10 @@ from petab.v1.parameters import (
     get_valid_parameters_for_parameter_table,
 )
 from petab.v1.visualize.lint import validate_visualization_df
+from petab.v2 import (
+    assert_model_parameters_in_condition_or_parameter_table,
+)
+from petab.v2.C import *
 
 from ..v1 import (
     assert_measurement_conditions_present_in_condition_table,
@@ -61,10 +53,13 @@ __all__ = [
     "ValidationTask",
     "CheckModel",
     "CheckTableExists",
+    "CheckValidPetabIdColumn",
     "CheckMeasurementTable",
     "CheckConditionTable",
     "CheckObservableTable",
     "CheckParameterTable",
+    "CheckExperimentTable",
+    "CheckExperimentConditionsExist",
     "CheckAllParametersPresentInParameterTable",
     "CheckValidParameterInConditionOrParameterTable",
     "CheckVisualizationTable",
@@ -214,6 +209,35 @@ class CheckTableExists(ValidationTask):
             return ValidationError(f"{self.table_name} table is missing.")
 
 
+class CheckValidPetabIdColumn(ValidationTask):
+    """A task to check that a given column contains only valid PEtab IDs."""
+
+    def __init__(
+        self, table_name: str, column_name: str, required_column: bool = True
+    ):
+        self.table_name = table_name
+        self.column_name = column_name
+        self.required_column = required_column
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        df = getattr(problem, f"{self.table_name}_df")
+        if df is None:
+            return
+
+        if self.column_name not in df.columns:
+            if self.required_column:
+                return ValidationError(
+                    f"Column {self.column_name} is missing in "
+                    f"{self.table_name} table."
+                )
+            return
+
+        try:
+            check_ids(df[self.column_name].values, kind=self.column_name)
+        except ValueError as e:
+            return ValidationError(str(e))
+
+
 class CheckMeasurementTable(ValidationTask):
     """A task to validate the measurement table of a PEtab problem."""
 
@@ -354,6 +378,66 @@ class CheckParameterTable(ValidationTask):
 
         except AssertionError as e:
             return ValidationError(str(e))
+
+
+class CheckExperimentTable(ValidationTask):
+    """A task to validate the experiment table of a PEtab problem."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        if problem.experiment_df is None:
+            return
+
+        df = problem.experiment_df
+
+        try:
+            _check_df(df, EXPERIMENT_DF_REQUIRED_COLS, "experiment")
+        except AssertionError as e:
+            return ValidationError(str(e))
+
+        # valid timepoints
+        invalid = []
+        for time in df[TIME].values:
+            try:
+                time = float(time)
+                if not np.isfinite(time) and time != -np.inf:
+                    invalid.append(time)
+            except ValueError:
+                invalid.append(time)
+        if invalid:
+            return ValidationError(
+                f"Invalid timepoints in experiment table: {invalid}"
+            )
+
+
+class CheckExperimentConditionsExist(ValidationTask):
+    """A task to validate that all conditions in the experiment table exist
+    in the condition table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        if problem.experiment_df is None:
+            return
+
+        if (
+            problem.condition_df is None
+            and problem.experiment_df is not None
+            and not problem.experiment_df.empty
+        ):
+            return ValidationError(
+                "Experiment table is non-empty, "
+                "but condition table is missing."
+            )
+
+        required_conditions = problem.experiment_df[CONDITION_ID].unique()
+        existing_conditions = problem.condition_df.index
+
+        missing_conditions = set(required_conditions) - set(
+            existing_conditions
+        )
+        if missing_conditions:
+            return ValidationError(
+                f"Experiment table contains conditions that are not present "
+                f"in the condition table: {missing_conditions}"
+            )
 
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
@@ -558,6 +642,10 @@ default_validation_tasks = [
     CheckModel(),
     CheckMeasurementTable(),
     CheckConditionTable(),
+    CheckExperimentTable(),
+    CheckValidPetabIdColumn("experiment", EXPERIMENT_ID),
+    CheckValidPetabIdColumn("experiment", CONDITION_ID),
+    CheckExperimentConditionsExist(),
     CheckObservableTable(),
     CheckObservablesDoNotShadowModelEntities(),
     CheckParameterTable(),

@@ -5,6 +5,10 @@ Contains all functionality related to handling PEtab 2.0 problems.
 from warnings import warn
 
 from ..v1 import *  # noqa: F403, F401, E402
+from .experiments import (  # noqa: F401
+    get_experiment_df,
+    write_experiment_df,
+)
 
 # import after v1
 from .problem import Problem  # noqa: F401

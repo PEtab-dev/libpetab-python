@@ -60,6 +60,7 @@ def test_problem_from_yaml_multiple_files():
       measurement_files: [measurements1.tsv, measurements2.tsv]
       observable_files: [observables1.tsv, observables2.tsv]
       model_files:
+      experiment_files: [experiments1.tsv, experiments2.tsv]
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         yaml_path = Path(tmpdir, "problem.yaml")
@@ -71,6 +72,11 @@ def test_problem_from_yaml_multiple_files():
             problem.add_condition(f"condition{i}")
             petab.write_condition_df(
                 problem.condition_df, Path(tmpdir, f"conditions{i}.tsv")
+            )
+
+            problem.add_experiment(f"experiment{i}", 0, f"condition{i}")
+            petab.write_experiment_df(
+                problem.experiment_df, Path(tmpdir, f"experiments{i}.tsv")
             )
 
             problem.add_measurement(f"observable{i}", f"condition{i}", 1, 1)
@@ -93,6 +99,7 @@ def test_problem_from_yaml_multiple_files():
         assert petab_problem.measurement_df.shape[0] == 2
         assert petab_problem.observable_df.shape[0] == 2
         assert petab_problem.condition_df.shape[0] == 2
+        assert petab_problem.experiment_df.shape[0] == 2
 
 
 def test_modify_problem():
