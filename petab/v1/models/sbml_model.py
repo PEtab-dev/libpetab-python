@@ -80,6 +80,22 @@ class SbmlModel(Model):
             sbml_document=sbml_document,
             model_id=model_id,
         )
+    
+    @staticmethod
+    def from_string(sbml_string, model_id: str = None):
+        sbml_reader, sbml_document, sbml_model = load_sbml_from_string(
+            sbml_string
+        )
+
+        if not model_id:
+            model_id = sbml_model.getIdAttribute()
+
+        return SbmlModel(
+            sbml_model=sbml_model,
+            sbml_reader=sbml_reader,
+            sbml_document=sbml_document,
+            model_id=model_id,
+        )
 
     @property
     def model_id(self):
