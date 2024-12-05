@@ -10,11 +10,8 @@ import sys
 #: Observable ID column in the observable and measurement tables
 OBSERVABLE_ID = "observableId"
 
-#: Preequilibration condition ID column in the measurement table
-PREEQUILIBRATION_CONDITION_ID = "preequilibrationConditionId"
-
-#: Simulation condition ID column in the measurement table
-SIMULATION_CONDITION_ID = "simulationConditionId"
+#: Experiment ID column in the measurement table
+EXPERIMENT_ID = "experimentId"
 
 #: Measurement value column in the measurement table
 MEASUREMENT = "measurement"
@@ -40,14 +37,13 @@ REPLICATE_ID = "replicateId"
 #: Mandatory columns of measurement table
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
-    SIMULATION_CONDITION_ID,
+    EXPERIMENT_ID,
     MEASUREMENT,
     TIME,
 ]
 
 #: Optional columns of measurement table
 MEASUREMENT_DF_OPTIONAL_COLS = [
-    PREEQUILIBRATION_CONDITION_ID,
     OBSERVABLE_PARAMETERS,
     NOISE_PARAMETERS,
     DATASET_ID,
