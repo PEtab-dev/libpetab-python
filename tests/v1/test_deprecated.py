@@ -14,7 +14,7 @@ def test_problem_with_sbml_model():
     """Test that a problem can be correctly created from sbml model."""
     # retrieve test data
     (
-        ss_model,
+        model,
         condition_df,
         observable_df,
         measurement_df,
@@ -23,7 +23,7 @@ def test_problem_with_sbml_model():
 
     with pytest.deprecated_call():
         petab_problem = petab.Problem(  # noqa: F811
-            sbml_model=ss_model.model,
+            model=model,
             condition_df=condition_df,
             measurement_df=measurement_df,
             parameter_df=parameter_df,

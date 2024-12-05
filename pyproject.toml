@@ -35,11 +35,11 @@ maintainers = [
 
 [project.optional-dependencies]
 tests = [
+    "antimony>=2.14.0",
+    "pysb",
     "pytest",
     "pytest-cov",
-    "simplesbml",
     "scipy",
-    "pysb",
 ]
 quality = [
     "pre-commit",
@@ -47,6 +47,9 @@ quality = [
 reports = [
     # https://github.com/spatialaudio/nbsphinx/issues/641
     "Jinja2==3.0.3",
+]
+antimony = [
+    "antimony>=2.14.0",
 ]
 combine = [
     "python-libcombine>=0.2.6",
@@ -61,6 +64,7 @@ doc = [
     # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
     "ipython>=7.21.0, !=8.7.0",
     "pysb",
+    "antimony>=2.14.0"
 ]
 vis = [
     "matplotlib>=3.6.0",
