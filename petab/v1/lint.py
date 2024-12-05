@@ -67,7 +67,7 @@ def _check_df(df: pd.DataFrame, req_cols: Iterable, name: str) -> None:
     """
     if missing_cols := set(req_cols) - set(df.columns.values):
         raise AssertionError(
-            f"DataFrame {name} requires the columns {missing_cols}."
+            f"{name.capitalize()} table requires the columns {missing_cols}."
         )
 
 
