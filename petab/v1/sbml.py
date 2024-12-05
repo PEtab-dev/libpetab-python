@@ -46,8 +46,9 @@ def is_sbml_consistent(
     has_issues = sbml_document.checkConsistency()
 
     # we only have an issue with errors or fatals
-    has_problems = sbml_document.getNumErrors(libsbml.LIBSBML_SEV_ERROR) + \
-                   sbml_document.getNumErrors(libsbml.LIBSBML_SEV_FATAL)
+    has_problems = sbml_document.getNumErrors(
+        libsbml.LIBSBML_SEV_ERROR
+    ) + sbml_document.getNumErrors(libsbml.LIBSBML_SEV_FATAL)
     if has_issues:
         log_sbml_errors(sbml_document)
         if has_problems:
