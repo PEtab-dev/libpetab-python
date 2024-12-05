@@ -43,12 +43,18 @@ def is_sbml_consistent(
             libsbml.LIBSBML_CAT_UNITS_CONSISTENCY, False
         )
 
-    has_problems = sbml_document.checkConsistency()
-    if has_problems:
+    has_issues = sbml_document.checkConsistency()
+
+    # we only have an issue with errors or fatals
+    has_problems = sbml_document.getNumErrors(
+        libsbml.LIBSBML_SEV_ERROR
+    ) + sbml_document.getNumErrors(libsbml.LIBSBML_SEV_FATAL)
+    if has_issues:
         log_sbml_errors(sbml_document)
-        logger.warning(
-            "WARNING: Generated invalid SBML model. Check messages above."
-        )
+        if has_problems:
+            logger.warning(
+                "WARNING: Generated invalid SBML model. Check messages above."
+            )
 
     return not has_problems
 
