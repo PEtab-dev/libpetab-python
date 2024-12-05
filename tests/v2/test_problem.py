@@ -7,11 +7,11 @@ import petab.v2 as petab
 from petab.v2 import Problem
 from petab.v2.C import (
     CONDITION_ID,
+    EXPERIMENT_ID,
     MEASUREMENT,
     NOISE_FORMULA,
     OBSERVABLE_FORMULA,
     OBSERVABLE_ID,
-    SIMULATION_CONDITION_ID,
     TIME,
 )
 
@@ -72,9 +72,20 @@ def test_problem_from_yaml_multiple_files():
                 condition_df, Path(tmpdir, f"conditions{i}.tsv")
             )
 
+            experiment_df = pd.DataFrame(
+                {
+                    EXPERIMENT_ID: [f"experiment{i}"],
+                    TIME: [0],
+                    CONDITION_ID: [f"condition{i}"],
+                }
+            )
+            petab.write_experiment_df(
+                experiment_df, Path(tmpdir, f"experiments{i}.tsv")
+            )
+
             measurement_df = pd.DataFrame(
                 {
-                    SIMULATION_CONDITION_ID: [f"condition{i}"],
+                    EXPERIMENT_ID: [f"experiment{i}"],
                     OBSERVABLE_ID: [f"observable{i}"],
                     TIME: [i],
                     MEASUREMENT: [1],
@@ -105,3 +116,4 @@ def test_problem_from_yaml_multiple_files():
         assert petab_problem.measurement_df.shape[0] == 2
         assert petab_problem.observable_df.shape[0] == 2
         assert petab_problem.condition_df.shape[0] == 2
+        assert petab_problem.experiment_df.shape[0] == 2

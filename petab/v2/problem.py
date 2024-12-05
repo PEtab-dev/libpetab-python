@@ -38,6 +38,7 @@ class Problem:
 
     - model
     - condition table
+    - experiment table
     - measurement table
     - parameter table
     - observables table
@@ -47,6 +48,7 @@ class Problem:
 
     Parameters:
         condition_df: PEtab condition table
+        experiment_df: PEtab experiment table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
@@ -65,6 +67,7 @@ class Problem:
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
+        experiment_df: pd.DataFrame = None,
         extensions_config: dict = None,
     ):
         from ..v2.lint import default_validation_tasks
@@ -75,6 +78,7 @@ class Problem:
         self.visualization_df: pd.DataFrame | None = visualization_df
         self.observable_df: pd.DataFrame | None = observable_df
         self.mapping_df: pd.DataFrame | None = mapping_df
+        self.experiment_df: pd.DataFrame | None = experiment_df
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
         self.validation_tasks: list[
@@ -87,6 +91,12 @@ class Problem:
             f"{self.condition_df.shape[0]} conditions"
             if self.condition_df is not None
             else "without conditions table"
+        )
+
+        experiments = (
+            f"{self.experiment_df.shape[0]} experiments"
+            if self.experiment_df is not None
+            else "without experiments table"
         )
 
         observables = (
@@ -112,8 +122,8 @@ class Problem:
             parameters = "without parameter_df table"
 
         return (
-            f"PEtab Problem {model}, {conditions}, {observables}, "
-            f"{measurements}, {parameters}"
+            f"PEtab Problem {model}, {conditions}, {experiments}, "
+            f"{observables}, {measurements}, {parameters}"
         )
 
     @staticmethod
@@ -558,7 +568,11 @@ class Problem:
 
     def get_simulation_conditions_from_measurement_df(self) -> pd.DataFrame:
         """See :func:`petab.get_simulation_conditions`."""
-        return measurements.get_simulation_conditions(self.measurement_df)
+        # TODO provide a minimal set of simulated periods for each
+        #      timepoint. e.g., if multiple experiments use the same
+        #      preequilibration period, this period only needs to be
+        #      simulated once
+        return sorted(self.measurement_df[EXPERIMENT].unique())
 
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """
