@@ -32,16 +32,15 @@ class TestGetSimulationToOptimizationParameterMapping:
             }
         )
 
-        import simplesbml
+        model = SbmlModel.from_antimony(
+            "dynamicParameter1 = 1.0; "
+            "dynamicParameter2 = 2.0; "
+            "dynamicParameter3 = 3.0; "
+            # add species, which will have initial concentration in condition
+            #  table but which should not show up in mapping
+            "species someSpecies = 1.0"
+        )
 
-        ss_model = simplesbml.SbmlModel()
-        ss_model.addParameter("dynamicParameter1", 1.0)
-        ss_model.addParameter("dynamicParameter2", 2.0)
-        ss_model.addParameter("dynamicParameter3", 3.0)
-
-        # add species, which will have initial concentration in condition table
-        #  but which should not show up in mapping
-        ss_model.addSpecies("[someSpecies]", 1.0)
         condition_df["someSpecies"] = [0.0, 0.0]
 
         # Test without parameter table
@@ -80,7 +79,6 @@ class TestGetSimulationToOptimizationParameterMapping:
             ),
         ]
 
-        model = SbmlModel(sbml_model=ss_model.model)
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             model=model,
             measurement_df=measurement_df,
@@ -245,13 +243,9 @@ class TestGetSimulationToOptimizationParameterMapping:
     def test_all_override(condition_df_2_conditions):
         # Condition-specific parameters overriding original parameters
         condition_df = condition_df_2_conditions
-
-        import simplesbml
-
-        ss_model = simplesbml.SbmlModel()
-        ss_model.addParameter("dynamicParameter1", 0.0)
-        ss_model.addParameter("dynamicParameter2", 0.0)
-        model = SbmlModel(sbml_model=ss_model.model)
+        model = SbmlModel.from_antimony(
+            "dynamicParameter1 = 0.0; dynamicParameter2 = 0.0"
+        )
 
         measurement_df = pd.DataFrame(
             data={
@@ -364,15 +358,16 @@ class TestGetSimulationToOptimizationParameterMapping:
         )
         condition_df.set_index("conditionId", inplace=True)
 
-        import simplesbml
-
-        ss_model = simplesbml.SbmlModel()
-        ss_model.addParameter("fixedParameter1", 0.5)
-        ss_model.addParameter("fixedParameter2", 1.0)
-        ss_model.addParameter("dynamicParameter1", 0.0)
-        ss_model.addParameter("observableParameter1_obs1", 0.0)
-        ss_model.addParameter("observableParameter2_obs1", 0.0)
-        ss_model.addParameter("observableParameter1_obs2", 0.0)
+        model = SbmlModel.from_antimony(
+            """
+            fixedParameter1 = 0.5
+            fixedParameter2 = 1.0
+            dynamicParameter1 = 0.0
+            observableParameter1_obs1 = 0.0
+            observableParameter2_obs1 = 0.0
+            observableParameter1_obs2 = 0.0
+            """
+        )
 
         measurement_df = pd.DataFrame(
             data={
@@ -454,7 +449,7 @@ class TestGetSimulationToOptimizationParameterMapping:
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,
-            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            model=model,
             parameter_df=parameter_df,
         )
 
@@ -504,12 +499,9 @@ class TestGetSimulationToOptimizationParameterMapping:
         )
         parameter_df.set_index(PARAMETER_ID, inplace=True)
 
-        import simplesbml
+        model = SbmlModel.from_antimony("dynamicParameter1 = 1.0")
 
-        ss_model = simplesbml.SbmlModel()
-        ss_model.addParameter("dynamicParameter1", 1.0)
-
-        assert petab.get_model_parameters(ss_model.model) == [
+        assert petab.get_model_parameters(model.sbml_model) == [
             "dynamicParameter1"
         ]
 
@@ -517,7 +509,7 @@ class TestGetSimulationToOptimizationParameterMapping:
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            model=model,
         )
 
         expected = [
@@ -550,13 +542,10 @@ class TestGetSimulationToOptimizationParameterMapping:
         overridee_id = "overridee"
 
         # set up model
-        import simplesbml
-
-        ss_model = simplesbml.SbmlModel()
-        ss_model.addParameter(overridee_id, 2.0)
-        assert petab.get_model_parameters(ss_model.model) == [overridee_id]
+        model = SbmlModel.from_antimony(f"{overridee_id} = 2.0")
+        assert petab.get_model_parameters(model.sbml_model) == [overridee_id]
         assert petab.get_model_parameters(
-            ss_model.model, with_values=True
+            model.sbml_model, with_values=True
         ) == {overridee_id: 2.0}
 
         # set up condition table
@@ -614,7 +603,7 @@ class TestGetSimulationToOptimizationParameterMapping:
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            model=model,
         )
 
         expected = [
@@ -638,7 +627,7 @@ class TestGetSimulationToOptimizationParameterMapping:
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            model=model,
             scaled_parameters=True,
         )
 
@@ -669,7 +658,7 @@ class TestGetSimulationToOptimizationParameterMapping:
             measurement_df=measurement_df,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            model=petab.models.sbml_model.SbmlModel(ss_model.model),
+            model=model,
         )
 
         expected = [

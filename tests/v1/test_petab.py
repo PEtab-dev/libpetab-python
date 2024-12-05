@@ -6,7 +6,6 @@ from io import StringIO
 from math import nan
 from pathlib import Path
 
-import libsbml
 import numpy as np
 import pandas as pd
 import pytest
@@ -39,11 +38,8 @@ def condition_df_2_conditions():
 def petab_problem():
     """Test petab problem."""
     # create test model
-    import simplesbml
-
-    model = simplesbml.SbmlModel()
-    model.addParameter("fixedParameter1", 0.0)
-    model.addParameter("observable_1", 0.0)
+    ant_model = "fixedParameter1=0.0; observable_1=0.0"
+    model = SbmlModel.from_antimony(ant_model)
 
     petab_problem = petab.Problem()
     petab_problem.add_measurement(
@@ -79,7 +75,7 @@ def petab_problem():
 
     with tempfile.TemporaryDirectory() as temp_dir:
         sbml_file_name = Path(temp_dir, "model.xml")
-        libsbml.writeSBMLToFile(model.document, str(sbml_file_name))
+        model.to_file(sbml_file_name)
 
         measurement_file_name = Path(temp_dir, "measurements.tsv")
         petab.write_measurement_df(
@@ -285,13 +281,15 @@ def test_create_parameter_df(
     condition_df_2_conditions,
 ):  # pylint: disable=W0621
     """Test petab.create_parameter_df."""
-    import simplesbml
-
-    ss_model = simplesbml.SbmlModel()
-    ss_model.addSpecies("[x1]", 1.0)
-    ss_model.addParameter("fixedParameter1", 2.0)
-    ss_model.addParameter("p0", 3.0)
-    model = SbmlModel(sbml_model=ss_model.model)
+    ant_model = """
+    species x1 = 1.0
+    fixedParameter1 = 2.0
+    p0 = 3.0
+    # Add assignment rule target which should be ignored
+    assignment_target = 0.0
+    assignment_target := 1.0
+    """
+    model = SbmlModel.from_antimony(ant_model)
 
     observable_df = pd.DataFrame(
         data={
@@ -299,10 +297,6 @@ def test_create_parameter_df(
             OBSERVABLE_FORMULA: ["x1", "2*x1"],
         }
     ).set_index(OBSERVABLE_ID)
-
-    # Add assignment rule target which should be ignored
-    ss_model.addParameter("assignment_target", 0.0)
-    ss_model.addAssignmentRule("assignment_target", "1.0")
 
     measurement_df = pd.DataFrame(
         data={
@@ -319,10 +313,10 @@ def test_create_parameter_df(
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         parameter_df = petab.v1.create_parameter_df(
-            ss_model.model,
-            condition_df_2_conditions,
-            observable_df,
-            measurement_df,
+            sbml_model=model.sbml_model,
+            condition_df=condition_df_2_conditions,
+            observable_df=observable_df,
+            measurement_df=measurement_df,
         )
         assert len(w) == 1
         assert issubclass(w[-1].category, DeprecationWarning)

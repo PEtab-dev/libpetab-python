@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 
-import petab
+import petab.v1 as petab
 from petab.C import *
+from petab.v1.models.sbml_model import SbmlModel
 
 # import fixtures
 pytest_plugins = [
@@ -16,10 +17,7 @@ pytest_plugins = [
 def test_combine_archive():
     """Test `create_combine_archive` and `Problem.from_combine`"""
     # Create test files
-    import simplesbml
-
-    ss_model = simplesbml.SbmlModel()
-
+    model = SbmlModel.from_antimony("")
     # Create tables with arbitrary content
     measurement_df = pd.DataFrame(
         data={
@@ -80,7 +78,7 @@ def test_combine_archive():
     ) as tempdir:
         # Write test data
         outdir = Path(tempdir)
-        petab.write_sbml(ss_model.document, outdir / sbml_file_name)
+        model.to_file(outdir / sbml_file_name)
         petab.write_measurement_df(
             measurement_df, outdir / measurement_file_name
         )

@@ -18,7 +18,6 @@ pytest_plugins = [
 
 def test_assert_measured_observables_present():
     # create test model
-
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["non-existing1"],
@@ -255,15 +254,15 @@ def test_assert_no_leading_trailing_whitespace():
 
 
 def test_assert_model_parameters_in_condition_or_parameter_table():
-    import simplesbml
-
     from petab.models.sbml_model import SbmlModel
 
-    ss_model = simplesbml.SbmlModel()
-    ss_model.addParameter("parameter1", 0.0)
-    ss_model.addParameter("noiseParameter1_", 0.0)
-    ss_model.addParameter("observableParameter1_", 0.0)
-    sbml_model = SbmlModel(sbml_model=ss_model.model)
+    ant_model = """
+    parameter1 = 0.0
+    noiseParameter1_ = 0.0
+    observableParameter1_ = 0.0
+    """
+    sbml_model = SbmlModel.from_antimony(ant_model)
+    assert sbml_model.is_valid()
 
     lint.assert_model_parameters_in_condition_or_parameter_table(
         sbml_model, pd.DataFrame(columns=["parameter1"]), pd.DataFrame()
@@ -284,7 +283,10 @@ def test_assert_model_parameters_in_condition_or_parameter_table():
         sbml_model, pd.DataFrame(), pd.DataFrame()
     )
 
-    ss_model.addAssignmentRule("parameter1", "parameter2")
+    sbml_model = SbmlModel.from_antimony(
+        ant_model + "\nparameter2 = 0\nparameter1 := parameter2"
+    )
+    assert sbml_model.is_valid()
     lint.assert_model_parameters_in_condition_or_parameter_table(
         sbml_model, pd.DataFrame(), pd.DataFrame()
     )
@@ -499,12 +501,11 @@ def test_assert_measurement_conditions_present_in_condition_table():
 
 def test_check_condition_df():
     """Check that we correctly detect errors in condition table"""
-    import simplesbml
 
     from petab.models.sbml_model import SbmlModel
 
-    ss_model = simplesbml.SbmlModel()
-    model = SbmlModel(sbml_model=ss_model.model)
+    model = SbmlModel.from_antimony("")
+
     condition_df = pd.DataFrame(
         data={
             CONDITION_ID: ["condition1"],
@@ -527,7 +528,7 @@ def test_check_condition_df():
     lint.check_condition_df(condition_df, model, observable_df)
 
     # fix by adding parameter
-    ss_model.addParameter("p1", 1.0)
+    model = SbmlModel.from_antimony("p1 = 1")
     lint.check_condition_df(condition_df, model)
 
     # species missing in model
@@ -536,7 +537,7 @@ def test_check_condition_df():
         lint.check_condition_df(condition_df, model)
 
     # fix:
-    ss_model.addSpecies("[s1]", 1.0)
+    model = SbmlModel.from_antimony("p1 = 1; species s1 = 1")
     lint.check_condition_df(condition_df, model)
 
     # compartment missing in model
@@ -545,7 +546,9 @@ def test_check_condition_df():
         lint.check_condition_df(condition_df, model)
 
     # fix:
-    ss_model.addCompartment(comp_id="c2", vol=1.0)
+    model = SbmlModel.from_antimony(
+        "p1 = 1; species s1 = 1; compartment c2 = 1"
+    )
     lint.check_condition_df(condition_df, model)
 
 
