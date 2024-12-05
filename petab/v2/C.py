@@ -136,7 +136,6 @@ CONDITION_ID = "conditionId"
 # TODO: removed?
 #: Condition name column in the condition table
 CONDITION_NAME = "conditionName"
-
 #: Column in the condition table with the ID of an entity that is changed
 TARGET_ID = "targetId"
 #: Column in the condition table with the type of value that is changed
@@ -165,6 +164,8 @@ CONDITION_DF_COLS = [
     VALUE_TYPE,
     TARGET_VALUE,
 ]
+
+CONDITION_DF_REQUIRED_COLS = CONDITION_DF_COLS
 
 # EXPERIMENTS
 EXPERIMENT_DF_REQUIRED_COLS = [
