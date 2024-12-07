@@ -6,7 +6,7 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-from scipy.stats import laplace, lognorm, norm, uniform
+from scipy.stats import laplace, lognorm, norm, truncnorm, uniform
 
 from . import C
 from .parameters import scale, unscale
@@ -38,7 +38,6 @@ class Distribution(abc.ABC):
         If `True`, the parameters are assumed to be on the correct scale and
         no transformation is applied.
     :param transformation: The transformation of the distribution.
-
     """
 
     _type_to_cls: dict[str, type[Distribution]] = {}
@@ -64,19 +63,47 @@ class Distribution(abc.ABC):
                 f"Expected two bounds, got {len(bounds)}: {bounds}"
             )
 
-        self.type = type_
-        self.parameters = parameters
-        self.bounds = bounds
-        self.transformation = transformation
-        self.parameter_scale = parameter_scale
+        self._type = type_
+        self._parameters = parameters
+        self._bounds = bounds
+        self._transformation = transformation
+        self._parameter_scale = parameter_scale
+        # normalization factor for pdf/cdf of truncated distributions
+        self._truncation_normalizer = 1
+        # lower and upper bounds on the same scale as the `distribution`
+        #  parameters (not necessarily the PEtab parameter scale)
+        self._low = None
+        self._high = None
+
+        if self._bounds is not None:
+            self._low = (
+                self.lb_scaled if self._parameter_scale else self._bounds[0]
+            )
+            self._high = (
+                self.ub_scaled if self._parameter_scale else self._bounds[1]
+            )
+            try:
+                self._cd_low = self._cdf_unscaled_untruncated(self._low)
+                self._cd_high = self._cdf_unscaled_untruncated(self._high)
+                self._truncation_normalizer = 1 / (
+                    self._cd_high - self._cd_low
+                )
+            except NotImplementedError:
+                pass
 
     def __repr__(self):
         return (
             f"{self.__class__.__name__}("
-            f"{self.parameters[0]!r}, {self.parameters[1]!r},"
-            f" bounds={self.bounds!r}, transformation={self.transformation!r}"
+            f"{self._parameters[0]!r}, {self._parameters[1]!r},"
+            f" bounds={self._bounds!r}, "
+            f"transformation={self._transformation!r}"
             ")"
         )
+
+    @property
+    def bounds(self):
+        """The bounds of the distribution."""
+        return self._bounds
 
     @abc.abstractmethod
     def sample(self, shape=None) -> np.ndarray:
@@ -89,34 +116,20 @@ class Distribution(abc.ABC):
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
-        if self.parameter_scale:
+        if self._parameter_scale:
             return sample
 
-        return scale(sample, self.transformation)
-
-    def _clip_to_bounds(self, x):
-        """Clip `x` values to bounds.
-
-        :param x: The values to clip. Assumed to be on the parameter scale.
-        """
-        # TODO: replace this by proper truncation
-        if self.bounds is None:
-            return x
-
-        return np.maximum(
-            np.minimum(self.ub_scaled, x),
-            self.lb_scaled,
-        )
+        return scale(sample, self._transformation)
 
     @property
     def lb_scaled(self):
         """The lower bound on the parameter scale."""
-        return scale(self.bounds[0], self.transformation)
+        return scale(self._bounds[0], self._transformation)
 
     @property
     def ub_scaled(self):
         """The upper bound on the parameter scale."""
-        return scale(self.bounds[1], self.transformation)
+        return scale(self._bounds[1], self._transformation)
 
     @abc.abstractmethod
     def _pdf(self, x):
@@ -128,27 +141,64 @@ class Distribution(abc.ABC):
         """
         ...
 
+    def _cdf(self, x):
+        """Cumulative distribution function at x.
+
+        :param x: The value at which to evaluate the CDF.
+            ``x`` is assumed to be on the linear scale.
+        :return: The value of the CDF at ``x``.
+        """
+        raise NotImplementedError
+
+    def _cdf_unscaled_untruncated(self, x):
+        """Cumulative distribution function at x, ignoring scale and bounds.
+
+        :param x: The value at which to evaluate the CDF.
+            ``x`` is assumed to be on the parameter scale.
+        :return: The value of the CDF at ``x``.
+        """
+        raise NotImplementedError
+
     def pdf(self, x):
         """Probability density function at x.
 
         :param x: The value at which to evaluate the PDF.
             ``x`` is assumed to be on the parameter scale.
-        :return: The value of the PDF at ``x``. Note that the PDF does
-            currently not account for the clipping at the bounds.
+        :return: The value of the PDF at ``x``.
         """
-        x = x if self.parameter_scale else unscale(x, self.transformation)
+        x = x if self._parameter_scale else unscale(x, self._transformation)
 
         # scale the PDF to the parameter scale
-        if self.parameter_scale or self.transformation == C.LIN:
+        if self._parameter_scale or self._transformation == C.LIN:
             coeff = 1
-        elif self.transformation == C.LOG10:
+        elif self._transformation == C.LOG10:
             coeff = x * np.log(10)
-        elif self.transformation == C.LOG:
+        elif self._transformation == C.LOG:
             coeff = x
         else:
-            raise ValueError(f"Unknown transformation: {self.transformation}")
+            raise ValueError(f"Unknown transformation: {self._transformation}")
 
         return self._pdf(x) * coeff
+
+    def _ppf_unscaled_untruncated(self, q):
+        """Percent point function at q, ignoring scale and bounds.
+
+        :param q: The quantile at which to evaluate the PPF.
+        :return: The value of the PPF at ``q``.
+        """
+        raise NotImplementedError
+
+    def _inverse_transform_sample(self, shape):
+        """Generate an inverse transform sample for the unscaled,
+        untruncated distribution.
+
+        :param shape: The shape of the sample.
+        :return: The sample.
+        """
+        uniform_sample = np.random.uniform(
+            low=self._cd_low, high=self._cd_high, size=shape
+        )
+        return self._ppf_unscaled_untruncated(uniform_sample)
 
     def neglogprior(self, x):
         """Negative log-prior at x.
@@ -206,23 +256,45 @@ class Normal(Distribution):
         std: float,
         bounds: tuple = None,
         transformation: str = C.LIN,
+        _type=C.NORMAL,
+        _parameter_scale=False,
     ):
         super().__init__(
-            C.NORMAL,
             transformation=transformation,
             parameters=(mean, std),
             bounds=bounds,
-            parameter_scale=False,
+            parameter_scale=_parameter_scale,
+            type_=_type,
         )
 
     def sample(self, shape=None):
-        sample = np.random.normal(
-            loc=self.parameters[0], scale=self.parameters[1], size=shape
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        if self._bounds is None:
+            sample = np.random.normal(
+                loc=self._parameters[0], scale=self._parameters[1], size=shape
+            )
+        else:
+            sample = truncnorm.rvs(
+                a=(self._low - self._parameters[0]) / self._parameters[1],
+                b=(self._high - self._parameters[0]) / self._parameters[1],
+                loc=self._parameters[0],
+                scale=self._parameters[1],
+                size=shape,
+            )
+        return self._scale_sample(sample)
 
     def _pdf(self, x):
-        return norm.pdf(x, loc=self.parameters[0], scale=self.parameters[1])
+        if self._bounds is None:
+            return norm.pdf(
+                x, loc=self._parameters[0], scale=self._parameters[1]
+            )
+
+        return truncnorm.pdf(
+            x,
+            a=(self._low - self._parameters[0]) / self._parameters[1],
+            b=(self._high - self._parameters[0]) / self._parameters[1],
+            loc=self._parameters[0],
+            scale=self._parameters[1],
+        )
 
 
 class LogNormal(Distribution):
@@ -244,14 +316,30 @@ class LogNormal(Distribution):
         )
 
     def sample(self, shape=None):
-        sample = np.random.lognormal(
-            mean=self.parameters[0], sigma=self.parameters[1], size=shape
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        if self._bounds is None:
+            sample = np.random.lognormal(
+                mean=self._parameters[0], sigma=self._parameters[1], size=shape
+            )
+        else:
+            sample = self._inverse_transform_sample(shape)
+        return self._scale_sample(sample)
 
     def _pdf(self, x):
-        return lognorm.pdf(
-            x, scale=np.exp(self.parameters[0]), s=self.parameters[1]
+        return (
+            lognorm.pdf(
+                x, scale=np.exp(self._parameters[0]), s=self._parameters[1]
+            )
+            * self._truncation_normalizer
+        )
+
+    def _cdf_unscaled_untruncated(self, x):
+        return lognorm.cdf(
+            x, scale=np.exp(self._parameters[0]), s=self._parameters[1]
+        )
+
+    def _ppf_unscaled_untruncated(self, q):
+        return lognorm.ppf(
+            q, scale=np.exp(self._parameters[0]), s=self._parameters[1]
         )
 
 
@@ -264,26 +352,48 @@ class Uniform(Distribution):
         upper_bound: float,
         bounds: tuple = None,
         transformation: str = C.LIN,
+        _type=C.UNIFORM,
+        _parameter_scale=False,
     ):
         super().__init__(
-            C.UNIFORM,
+            _type,
             transformation=transformation,
             parameters=(lower_bound, upper_bound),
             bounds=bounds,
-            parameter_scale=False,
+            parameter_scale=_parameter_scale,
         )
+
+    def _low_high(self):
+        """Get the lower and upper bounds of the distribution.
+
+        Consider the bounds of the distribution and the parameter bounds.
+        The values are not scaled, unless `parameter_scale` is `True`.
+        """
+        if self._bounds is None:
+            return self._parameters
+
+        low = max(
+            self._parameters[0],
+            self.lb_scaled if self._parameter_scale else self._bounds[0],
+        )
+        high = min(
+            self._parameters[1],
+            self.ub_scaled if self._parameter_scale else self._bounds[1],
+        )
+
+        return low, high
 
     def sample(self, shape=None):
-        sample = np.random.uniform(
-            low=self.parameters[0], high=self.parameters[1], size=shape
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        low, high = self._low_high()
+        sample = np.random.uniform(low=low, high=high, size=shape)
+        return self._scale_sample(sample)
 
     def _pdf(self, x):
+        low, high = self._low_high()
         return uniform.pdf(
             x,
-            loc=self.parameters[0],
-            scale=self.parameters[1] - self.parameters[0],
+            loc=low,
+            scale=high - low,
         )
 
 
@@ -296,23 +406,48 @@ class Laplace(Distribution):
         scale: float,
         bounds: tuple = None,
         transformation: str = C.LIN,
+        _type=C.LAPLACE,
+        _parameter_scale=False,
     ):
         super().__init__(
-            C.LAPLACE,
+            _type,
             transformation=transformation,
             parameters=(mean, scale),
             bounds=bounds,
-            parameter_scale=False,
+            parameter_scale=_parameter_scale,
         )
 
     def sample(self, shape=None):
-        sample = np.random.laplace(
-            loc=self.parameters[0], scale=self.parameters[1], size=shape
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        if self._bounds is None:
+            sample = np.random.laplace(
+                loc=self._parameters[0], scale=self._parameters[1], size=shape
+            )
+        else:
+            sample = self._inverse_transform_sample(shape)
+        return self._scale_sample(sample)
 
     def _pdf(self, x):
-        return laplace.pdf(x, loc=self.parameters[0], scale=self.parameters[1])
+        return (
+            laplace.pdf(x, loc=self._parameters[0], scale=self._parameters[1])
+            * self._truncation_normalizer
+        )
+
+    def _cdf_unscaled_untruncated(self, x):
+        return laplace.cdf(
+            x, loc=self._parameters[0], scale=self._parameters[1]
+        )
+
+    def _cdf_unscaled_truncated(self, x):
+        if self._bounds is None:
+            return self._cdf_unscaled_untruncated(x)
+
+        cd_untruncated = self._cdf_unscaled_untruncated(x)
+        return (cd_untruncated - self._cd_low) * self._truncation_normalizer
+
+    def _ppf_unscaled_untruncated(self, q):
+        return laplace.ppf(
+            q, loc=self._parameters[0], scale=self._parameters[1]
+        )
 
 
 class LogLaplace(Distribution):
@@ -336,28 +471,42 @@ class LogLaplace(Distribution):
     @property
     def mean(self):
         """The mean of the underlying Laplace distribution."""
-        return self.parameters[0]
+        return self._parameters[0]
 
     @property
     def scale(self):
         """The scale of the underlying Laplace distribution."""
-        return self.parameters[1]
+        return self._parameters[1]
 
     def sample(self, shape=None):
-        sample = np.exp(
-            np.random.laplace(loc=self.mean, scale=self.scale, size=shape)
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        if self._bounds is None:
+            sample = np.exp(
+                np.random.laplace(loc=self.mean, scale=self.scale, size=shape)
+            )
+        else:
+            sample = self._inverse_transform_sample(shape)
+
+        return self._scale_sample(sample)
 
     def _pdf(self, x):
         return (
             1
             / (2 * self.scale * x)
             * np.exp(-np.abs(np.log(x) - self.mean) / self.scale)
+        ) * self._truncation_normalizer
+
+    def _cdf_unscaled_untruncated(self, x):
+        return laplace.cdf(
+            np.log(x), loc=self._parameters[0], scale=self._parameters[1]
+        )
+
+    def _ppf_unscaled_untruncated(self, q):
+        return np.exp(
+            laplace.ppf(q, loc=self._parameters[0], scale=self._parameters[1])
         )
 
 
-class ParameterScaleNormal(Distribution):
+class ParameterScaleNormal(Normal):
     """A normal distribution with parameters on the parameter scale."""
 
     def __init__(
@@ -368,18 +517,16 @@ class ParameterScaleNormal(Distribution):
         transformation: str = C.LIN,
     ):
         super().__init__(
-            C.PARAMETER_SCALE_NORMAL,
             transformation=transformation,
-            parameters=(mean, std),
+            mean=mean,
+            std=std,
             bounds=bounds,
-            parameter_scale=True,
+            _type=C.PARAMETER_SCALE_NORMAL,
+            _parameter_scale=True,
         )
 
-    sample = Normal.sample
-    _pdf = Normal._pdf
 
-
-class ParameterScaleUniform(Distribution):
+class ParameterScaleUniform(Uniform):
     """A uniform distribution with parameters on the parameter scale."""
 
     def __init__(
@@ -390,18 +537,16 @@ class ParameterScaleUniform(Distribution):
         transformation: str = C.LIN,
     ):
         super().__init__(
-            C.PARAMETER_SCALE_UNIFORM,
             transformation=transformation,
-            parameters=(lower_bound, upper_bound),
+            lower_bound=lower_bound,
+            upper_bound=upper_bound,
             bounds=bounds,
-            parameter_scale=True,
+            _type=C.PARAMETER_SCALE_UNIFORM,
+            _parameter_scale=True,
         )
 
-    sample = Uniform.sample
-    _pdf = Uniform._pdf
 
-
-class ParameterScaleLaplace(Distribution):
+class ParameterScaleLaplace(Laplace):
     """A Laplace distribution with parameters on the parameter scale."""
 
     def __init__(
@@ -412,15 +557,13 @@ class ParameterScaleLaplace(Distribution):
         transformation: str = C.LIN,
     ):
         super().__init__(
-            C.PARAMETER_SCALE_LAPLACE,
+            _type=C.PARAMETER_SCALE_LAPLACE,
             transformation=transformation,
-            parameters=(mean, scale),
+            mean=mean,
+            scale=scale,
             bounds=bounds,
-            parameter_scale=True,
+            _parameter_scale=True,
         )
-
-    sample = Laplace.sample
-    _pdf = Laplace._pdf
 
 
 Distribution._type_to_cls = {
