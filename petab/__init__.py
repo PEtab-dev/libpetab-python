@@ -14,6 +14,7 @@ from functools import partial
 from pathlib import Path
 from warnings import warn
 
+
 ENV_NUM_THREADS = "PETAB_NUM_THREADS"
 __all__ = ["ENV_NUM_THREADS"]
 

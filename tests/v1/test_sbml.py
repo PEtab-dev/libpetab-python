@@ -46,10 +46,19 @@ def create_test_data():
     )
     observable_df.set_index([petab.OBSERVABLE_ID], inplace=True)
 
+    experiment_df = petab.get_experiment_df(
+        pd.DataFrame(
+            {
+                petab.EXPERIMENT_ID: ["experiment_1"],
+                petab.EXPERIMENT: ["0:condition_1"],
+            }
+        )
+    )
+
     measurement_df = pd.DataFrame(
         {
             petab.OBSERVABLE_ID: ["observable_1"],
-            petab.SIMULATION_CONDITION_ID: ["condition_1"],
+            petab.EXPERIMENT_ID: ["experiment_1"],
             petab.TIME: [0.0],
         }
     )
@@ -68,7 +77,14 @@ def create_test_data():
     )
     parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
 
-    return ss_model, condition_df, observable_df, measurement_df, parameter_df
+    return (
+        ss_model,
+        condition_df,
+        experiment_df,
+        observable_df,
+        measurement_df,
+        parameter_df,
+    )
 
 
 def check_model(condition_model):
@@ -95,12 +111,13 @@ def check_model(condition_model):
     assert condition_model.getParameter("parameter_3").getValue() == 2.25
 
 
-def test_get_condition_specific_models():
-    """Test for petab.sbml.get_condition_specific_models"""
+def test_get_period_model():
+    """Test for petab.sbml.get_period_model"""
     # retrieve test data
     (
         ss_model,
         condition_df,
+        experiment_df,
         observable_df,
         measurement_df,
         parameter_df,
@@ -109,6 +126,7 @@ def test_get_condition_specific_models():
     petab_problem = petab.Problem(
         model=petab.models.sbml_model.SbmlModel(ss_model.model),
         condition_df=condition_df,
+        experiment_df=experiment_df,
         observable_df=observable_df,
         measurement_df=measurement_df,
         parameter_df=parameter_df,
@@ -120,11 +138,13 @@ def test_get_condition_specific_models():
         match="An SBML rule was removed to set the "
         "component species_2 to a constant value.",
     ):
-        _, condition_model = petab.get_model_for_condition(
-            petab_problem, "condition_1"
+        _, period_model = petab.get_period_model(
+            petab_problem=petab_problem,
+            experiment_id="experiment_1",
+            period_index=0,
         )
 
-    check_model(condition_model)
+    check_model(period_model)
 
 
 def test_sbml_model_repr():

@@ -75,72 +75,13 @@ def test_measurements_have_replicates():
     assert petab.measurements_have_replicates(measurement_df)
 
 
-def test_get_simulation_conditions():
-    """Test get_simulation_conditions"""
-    # only simulation condition
+def test_get_measured_experiments():
+    """Test get_measured_experiments"""
     measurement_df = pd.DataFrame(
         data={
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
+            EXPERIMENT_ID: ["c0", "c1", "c0", "c1"],
         }
     )
-    expected = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1"],
-        }
-    )
-    actual = petab.get_simulation_conditions(measurement_df)
-    assert actual.equals(expected)
-
-    # simulation and preequilibration condition
-    measurement_df = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
-            PREEQUILIBRATION_CONDITION_ID: ["c1", "c0", "c1", "c0"],
-        }
-    )
-    expected = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1"],
-            PREEQUILIBRATION_CONDITION_ID: ["c1", "c0"],
-        }
-    )
-    actual = petab.get_simulation_conditions(measurement_df)
-    assert actual.equals(expected)
-
-    # simulation with and without preequilibration
-    measurement_df = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
-            PREEQUILIBRATION_CONDITION_ID: ["", "", "c1", "c0"],
-        }
-    )
-    expected = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
-            PREEQUILIBRATION_CONDITION_ID: ["", "", "c1", "c0"],
-        }
-    ).sort_values(
-        [SIMULATION_CONDITION_ID, PREEQUILIBRATION_CONDITION_ID],
-        ignore_index=True,
-    )
-    actual = petab.get_simulation_conditions(measurement_df)
-    assert actual.equals(expected)
-
-    # simulation with and without preequilibration; NaNs
-    measurement_df = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
-            PREEQUILIBRATION_CONDITION_ID: [np.nan, np.nan, "c1", "c0"],
-        }
-    )
-    expected = pd.DataFrame(
-        data={
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
-            PREEQUILIBRATION_CONDITION_ID: ["", "", "c1", "c0"],
-        }
-    ).sort_values(
-        [SIMULATION_CONDITION_ID, PREEQUILIBRATION_CONDITION_ID],
-        ignore_index=True,
-    )
-    actual = petab.get_simulation_conditions(measurement_df)
-    assert actual.equals(expected)
+    expected = ["c0", "c1"]
+    actual = petab.get_measured_experiments(measurement_df)
+    assert actual == expected

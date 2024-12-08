@@ -16,6 +16,7 @@ def test_problem_with_sbml_model():
     (
         ss_model,
         condition_df,
+        experiment_df,
         observable_df,
         measurement_df,
         parameter_df,
@@ -25,6 +26,7 @@ def test_problem_with_sbml_model():
         petab_problem = petab.Problem(  # noqa: F811
             sbml_model=ss_model.model,
             condition_df=condition_df,
+            experiment_df=experiment_df,
             measurement_df=measurement_df,
             parameter_df=parameter_df,
         )
@@ -34,11 +36,13 @@ def test_problem_with_sbml_model():
         match="An SBML rule was removed to set the component "
         "species_2 to a constant value.",
     ):
-        _, condition_model = petab.get_model_for_condition(
-            petab_problem, "condition_1"
+        _, period_model = petab.get_period_model(
+            petab_problem=petab_problem,
+            experiment_id="experiment_1",
+            period_index=0,
         )
 
-    check_model(condition_model)
+    check_model(period_model)
 
 
 def test_to_files_with_sbml_model(petab_problem):  # noqa: F811

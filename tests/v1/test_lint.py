@@ -329,8 +329,7 @@ def test_check_measurement_df():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["0obsPar1noisePar", "2obsPar0noisePar"],
-            SIMULATION_CONDITION_ID: ["condition1", "condition1"],
-            PREEQUILIBRATION_CONDITION_ID: ["", ""],
+            EXPERIMENT_ID: ["experiment1", "experiment1"],
             TIME: [1.0, 2.0],
             MEASUREMENT: [1.0, 2.0],
             OBSERVABLE_PARAMETERS: ["", ""],
@@ -450,7 +449,7 @@ def test_petablint_succeeds():
     assert result.returncode == 0
 
 
-def test_assert_measurement_conditions_present_in_condition_table():
+def test_assert_measurement_experiments_present_in_experiment_table():
     condition_df = pd.DataFrame(
         data={
             CONDITION_ID: ["condition1", "condition2"],
@@ -460,10 +459,19 @@ def test_assert_measurement_conditions_present_in_condition_table():
     )
     condition_df.set_index(CONDITION_ID, inplace=True)
 
+    experiment_df = petab.get_experiment_df(
+        pd.DataFrame(
+            data={
+                EXPERIMENT_ID: ["experiment1"],
+                EXPERIMENT: ["0:condition1"],
+            }
+        )
+    )
+
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["", ""],
-            SIMULATION_CONDITION_ID: ["condition1", "condition1"],
+            EXPERIMENT_ID: ["experiment1", "experiment1"],
             TIME: [1.0, 2.0],
             MEASUREMENT: [1.0, 2.0],
             OBSERVABLE_PARAMETERS: ["", ""],
@@ -471,29 +479,19 @@ def test_assert_measurement_conditions_present_in_condition_table():
         }
     )
 
-    # check we can handle missing preeq condition
-    lint.assert_measurement_conditions_present_in_condition_table(
-        measurement_df=measurement_df, condition_df=condition_df
+    # check that it passes if experiments exist
+    lint.assert_measurement_experiments_present_in_experiment_table(
+        measurement_df=measurement_df, experiment_df=experiment_df
     )
 
-    # check we can handle preeq condition
-    measurement_df[PREEQUILIBRATION_CONDITION_ID] = [
-        "condition1",
-        "condition2",
-    ]
-
-    lint.assert_measurement_conditions_present_in_condition_table(
-        measurement_df=measurement_df, condition_df=condition_df
-    )
-
-    # check we detect missing condition
-    measurement_df[PREEQUILIBRATION_CONDITION_ID] = [
-        "missing_condition1",
-        "missing_condition2",
+    # check we detect missing experiments
+    measurement_df[EXPERIMENT_ID] = [
+        "missing_experiment1",
+        "missing_experiment2",
     ]
     with pytest.raises(AssertionError):
-        lint.assert_measurement_conditions_present_in_condition_table(
-            measurement_df=measurement_df, condition_df=condition_df
+        lint.assert_measurement_experiments_present_in_experiment_table(
+            measurement_df=measurement_df, experiment_df=experiment_df
         )
 
 
