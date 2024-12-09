@@ -13,17 +13,16 @@ import petab  # noqa: E402
 
 def create_test_data():
     # Create test model and data files
-    import simplesbml
-
-    ss_model = simplesbml.SbmlModel()
-    ss_model.addCompartment(comp_id="compartment_1", vol=1)
-    for i in range(1, 4):
-        ss_model.addParameter(f"parameter_{i}", i)
-
-    for i in range(1, 5):
-        ss_model.addSpecies(f"[species_{i}]", 10 * i)
-
-    ss_model.addAssignmentRule("species_2", "25")
+    model = SbmlModel.from_antimony(
+        "\n".join(
+            [
+                "compartment compartment_1 = 1",
+                *(f"species species_{i} = 10 * {i}" for i in range(1, 5)),
+                *(f"parameter_{i} = {i}" for i in range(1, 4)),
+                "species_2 := 25",
+            ]
+        )
+    )
 
     condition_df = pd.DataFrame(
         {
@@ -68,7 +67,7 @@ def create_test_data():
     )
     parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
 
-    return ss_model, condition_df, observable_df, measurement_df, parameter_df
+    return model, condition_df, observable_df, measurement_df, parameter_df
 
 
 def check_model(condition_model):
@@ -99,7 +98,7 @@ def test_get_condition_specific_models():
     """Test for petab.sbml.get_condition_specific_models"""
     # retrieve test data
     (
-        ss_model,
+        model,
         condition_df,
         observable_df,
         measurement_df,
@@ -107,7 +106,7 @@ def test_get_condition_specific_models():
     ) = create_test_data()
 
     petab_problem = petab.Problem(
-        model=petab.models.sbml_model.SbmlModel(ss_model.model),
+        model=model,
         condition_df=condition_df,
         observable_df=observable_df,
         measurement_df=measurement_df,
@@ -133,3 +132,18 @@ def test_sbml_model_repr():
     sbml_model.setId("test")
     petab_model = SbmlModel(sbml_model)
     assert repr(petab_model) == "<SbmlModel 'test'>"
+
+
+def test_sbml_from_ant():
+    ant_model = """
+    model test
+        R1: S1 -> S2; k1*S1
+        k1 = 1
+    end
+    """
+    petab_model = SbmlModel.from_antimony(ant_model)
+    assert petab_model.model_id == "test"
+    assert petab_model.get_parameter_value("k1") == 1.0
+    assert set(petab_model.get_valid_parameters_for_parameter_table()) == {
+        "k1"
+    }

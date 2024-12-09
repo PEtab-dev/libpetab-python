@@ -3,7 +3,6 @@ from math import nan
 
 import pandas as pd
 import pytest
-import simplesbml
 from pandas.testing import *
 
 from petab import Problem
@@ -14,9 +13,9 @@ from petab.simplify import *
 
 @pytest.fixture
 def problem() -> Problem:
-    ss_model = simplesbml.SbmlModel()
-    ss_model.addParameter("some_parameter", val=1.0)
-    ss_model.addParameter("same_value_for_all_conditions", val=1.0)
+    model = SbmlModel.from_antimony(
+        "some_parameter = 1.0; same_value_for_all_conditions = 1.0"
+    )
 
     observable_df = pd.DataFrame(
         {
@@ -53,7 +52,7 @@ def problem() -> Problem:
         }
     )
     yield Problem(
-        model=SbmlModel(sbml_model=ss_model.getModel()),
+        model=model,
         condition_df=conditions_df,
         observable_df=observable_df,
         measurement_df=measurement_df,

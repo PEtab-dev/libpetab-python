@@ -1,4 +1,5 @@
 """Functions for handling SBML models"""
+from __future__ import annotations
 
 import itertools
 from collections.abc import Iterable
@@ -32,7 +33,24 @@ class SbmlModel(Model):
         sbml_document: libsbml.SBMLDocument = None,
         model_id: str = None,
     ):
+        """Constructor.
+
+        :param sbml_model: SBML model. Optional if `sbml_document` is given.
+        :param sbml_reader: SBML reader. Optional.
+        :param sbml_document: SBML document. Optional if `sbml_model` is given.
+        :param model_id: Model ID. Defaults to the SBML model ID."""
         super().__init__()
+
+        if sbml_model is None and sbml_document is None:
+            raise ValueError(
+                "Either sbml_model or sbml_document must be given."
+            )
+
+        if sbml_model is None:
+            sbml_model = sbml_document.getModel()
+
+        if sbml_document is None:
+            sbml_document = sbml_model.getSBMLDocument()
 
         self.sbml_reader: libsbml.SBMLReader | None = sbml_reader
         self.sbml_document: libsbml.SBMLDocument | None = sbml_document
@@ -70,7 +88,7 @@ class SbmlModel(Model):
         self.__dict__.update(state)
 
     @staticmethod
-    def from_file(filepath_or_buffer, model_id: str = None):
+    def from_file(filepath_or_buffer, model_id: str = None) -> SbmlModel:
         sbml_reader, sbml_document, sbml_model = get_sbml_model(
             filepath_or_buffer
         )
@@ -82,7 +100,12 @@ class SbmlModel(Model):
         )
 
     @staticmethod
-    def from_string(sbml_string, model_id: str = None):
+    def from_string(sbml_string, model_id: str = None) -> SbmlModel:
+        """Create SBML model from an SBML string.
+
+        :param sbml_string: SBML model as string.
+        :param model_id: Model ID. Defaults to the SBML model ID.
+        """
         sbml_reader, sbml_document, sbml_model = load_sbml_from_string(
             sbml_string
         )
@@ -96,6 +119,18 @@ class SbmlModel(Model):
             sbml_document=sbml_document,
             model_id=model_id,
         )
+
+    @staticmethod
+    def from_antimony(ant_model: str | Path) -> SbmlModel:
+        """Create SBML model from an Antimony model.
+
+        Requires the `antimony` package (https://github.com/sys-bio/antimony).
+
+        :param ant_model: Antimony model as string or path to file.
+            Strings are interpreted as Antimony model strings.
+        """
+        sbml_str = antimony2sbml(ant_model)
+        return SbmlModel.from_string(sbml_str)
 
     @property
     def model_id(self):
@@ -238,3 +273,43 @@ def sympify_sbml(sbml_obj: libsbml.ASTNode | libsbml.SBase) -> sp.Expr:
     )
 
     return sp.sympify(formula_str, locals=_clash)
+
+
+def antimony2sbml(ant_model: str | Path) -> str:
+    """Convert Antimony model to SBML.
+
+    :param ant_model: Antimony model as string or path to file.
+        Strings are interpreted as Antimony model strings.
+
+    :returns:
+        The SBML model as string.
+    """
+    import antimony as ant
+
+    # Unload everything / free memory
+    ant.clearPreviousLoads()
+    ant.freeAll()
+
+    try:
+        # potentially fails because of too long file name
+        is_file = ant_model and Path(ant_model).exists()
+    except OSError:
+        is_file = False
+
+    if is_file:
+        status = ant.loadAntimonyFile(str(ant_model))
+    else:
+        status = ant.loadAntimonyString(ant_model)
+    if status < 0:
+        raise RuntimeError(
+            f"Antimony model could not be loaded: {ant.getLastError()}"
+        )
+
+    if (main_module_name := ant.getMainModuleName()) is None:
+        raise AssertionError("There is no Antimony module.")
+
+    sbml_str = ant.getSBMLString(main_module_name)
+    if not sbml_str:
+        raise ValueError("Antimony model could not be converted to SBML.")
+
+    return sbml_str
