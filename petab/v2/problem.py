@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import traceback
 import warnings
 from collections.abc import Sequence
 from math import nan
@@ -15,7 +16,6 @@ import pandas as pd
 from pydantic import AnyUrl, BaseModel, Field
 
 from ..v1 import (
-    conditions,
     core,
     mapping,
     measurements,
@@ -29,10 +29,10 @@ from ..v1.models.model import Model, model_factory
 from ..v1.problem import ListOfFiles, VersionNumber
 from ..v1.yaml import get_path_prefix
 from ..v2.C import *  # noqa: F403
-from . import experiments
+from . import conditions, experiments
 
 if TYPE_CHECKING:
-    from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
+    from ..v2.lint import ValidationResultList, ValidationTask
 
 
 __all__ = ["Problem"]
@@ -722,7 +722,11 @@ class Problem:
         Returns:
             A list of validation results.
         """
-        from ..v2.lint import ValidationIssueSeverity, ValidationResultList
+        from ..v2.lint import (
+            ValidationIssue,
+            ValidationIssueSeverity,
+            ValidationResultList,
+        )
 
         validation_results = ValidationResultList()
         if self.extensions_config:
@@ -741,7 +745,8 @@ class Problem:
             except Exception as e:
                 cur_result = ValidationIssue(
                     ValidationIssueSeverity.CRITICAL,
-                    f"Validation task {task} failed with exception: {e}",
+                    f"Validation task {task} failed with exception: {e}\n"
+                    f"{traceback.format_exc()}",
                 )
 
             if cur_result:
@@ -752,20 +757,35 @@ class Problem:
 
         return validation_results
 
-    def add_condition(self, id_: str, name: str = None, **kwargs):
+    def add_condition(
+        self, id_: str, name: str = None, **kwargs: tuple[str, Number | str]
+    ):
         """Add a simulation condition to the problem.
 
         Arguments:
             id_: The condition id
             name: The condition name
-            kwargs: Parameter, value pairs to add to the condition table.
+            kwargs: Entities to be added to the condition table in the form
+                `target_id=(value_type, target_value)`.
         """
-        record = {CONDITION_ID: [id_], **kwargs}
+        if not kwargs:
+            return
+        records = [
+            {
+                CONDITION_ID: id_,
+                TARGET_ID: target_id,
+                VALUE_TYPE: value_type,
+                TARGET_VALUE: target_value,
+            }
+            for target_id, (value_type, target_value) in kwargs.items()
+        ]
+        # TODO: is the condition name supported in v2?
         if name is not None:
-            record[CONDITION_NAME] = name
-        tmp_df = pd.DataFrame(record).set_index([CONDITION_ID])
+            for record in records:
+                record[CONDITION_NAME] = [name]
+        tmp_df = pd.DataFrame(records)
         self.condition_df = (
-            pd.concat([self.condition_df, tmp_df])
+            pd.concat([self.condition_df, tmp_df], ignore_index=True)
             if self.condition_df is not None
             else tmp_df
         )

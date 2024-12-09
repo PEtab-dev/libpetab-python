@@ -18,7 +18,11 @@ from petab.v2.C import (
     OBSERVABLE_ID,
     PARAMETER_ID,
     PETAB_ENTITY_ID,
+    TARGET_ID,
+    TARGET_VALUE,
     UPPER_BOUND,
+    VALUE_TYPE,
+    VT_CONSTANT,
 )
 
 
@@ -26,7 +30,7 @@ def test_load_remote():
     """Test loading remote files"""
     yaml_url = (
         "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v2.0.0/sbml/0001/_0001.yaml"
+        "/update_v2/petabtests/cases/v2.0.0/sbml/0001/_0001.yaml"
     )
     petab_problem = Problem.from_yaml(yaml_url)
 
@@ -69,7 +73,7 @@ def test_problem_from_yaml_multiple_files():
 
         for i in (1, 2):
             problem = Problem()
-            problem.add_condition(f"condition{i}")
+            problem.add_condition(f"condition{i}", parameter1=(VT_CONSTANT, i))
             petab.write_condition_df(
                 problem.condition_df, Path(tmpdir, f"conditions{i}.tsv")
             )
@@ -105,16 +109,17 @@ def test_problem_from_yaml_multiple_files():
 def test_modify_problem():
     """Test modifying a problem via the API."""
     problem = Problem()
-    problem.add_condition("condition1", parameter1=1)
-    problem.add_condition("condition2", parameter2=2)
+    problem.add_condition("condition1", parameter1=(VT_CONSTANT, 1))
+    problem.add_condition("condition2", parameter2=(VT_CONSTANT, 2))
 
     exp_condition_df = pd.DataFrame(
         data={
             CONDITION_ID: ["condition1", "condition2"],
-            "parameter1": [1.0, np.nan],
-            "parameter2": [np.nan, 2.0],
+            TARGET_ID: ["parameter1", "parameter2"],
+            VALUE_TYPE: [VT_CONSTANT, VT_CONSTANT],
+            TARGET_VALUE: [1.0, 2.0],
         }
-    ).set_index([CONDITION_ID])
+    )
     assert_frame_equal(
         problem.condition_df, exp_condition_df, check_dtype=False
     )
