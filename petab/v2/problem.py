@@ -223,9 +223,8 @@ class Problem:
             raise NotImplementedError(
                 "Support for multiple models is not yet implemented."
             )
-        if not problem0.model_files:
-            model = None
-        else:
+        model = None
+        if problem0.model_files:
             model_id, model_info = next(iter(problem0.model_files.items()))
             model = model_factory(
                 get_path(model_info.location),
