@@ -39,6 +39,8 @@ def test_priors_to_measurements(problem_id):
         assert petab.v1.lint_problem(petab_problem_priors) is False
 
     original_problem = deepcopy(petab_problem_priors)
+    # All priors in this test case are defined on parameter scale, hence
+    # the dummy measurements will take the scaled nominal values.
     x_scaled_dict = dict(
         zip(
             original_problem.x_free_ids,
