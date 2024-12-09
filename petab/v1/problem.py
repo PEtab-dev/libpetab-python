@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from math import nan
+from numbers import Number
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 from warnings import warn
@@ -1005,3 +1006,181 @@ class Problem:
             return 0
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
+
+    def add_condition(self, id_: str, name: str = None, **kwargs):
+        """Add a simulation condition to the problem.
+
+        Arguments:
+            id_: The condition id
+            name: The condition name
+            kwargs: Parameter, value pairs to add to the condition table.
+        """
+        record = {CONDITION_ID: [id_], **kwargs}
+        if name is not None:
+            record[CONDITION_NAME] = name
+        tmp_df = pd.DataFrame(record).set_index([CONDITION_ID])
+        self.condition_df = (
+            pd.concat([self.condition_df, tmp_df])
+            if self.condition_df is not None
+            else tmp_df
+        )
+
+    def add_observable(
+        self,
+        id_: str,
+        formula: str | float | int,
+        noise_formula: str | float | int = None,
+        noise_distribution: str = None,
+        transform: str = None,
+        name: str = None,
+        **kwargs,
+    ):
+        """Add an observable to the problem.
+
+        Arguments:
+            id_: The observable id
+            formula: The observable formula
+            noise_formula: The noise formula
+            noise_distribution: The noise distribution
+            transform: The observable transformation
+            name: The observable name
+            kwargs: additional columns/values to add to the observable table
+
+        """
+        record = {
+            OBSERVABLE_ID: [id_],
+            OBSERVABLE_FORMULA: [formula],
+        }
+        if name is not None:
+            record[OBSERVABLE_NAME] = [name]
+        if noise_formula is not None:
+            record[NOISE_FORMULA] = [noise_formula]
+        if noise_distribution is not None:
+            record[NOISE_DISTRIBUTION] = [noise_distribution]
+        if transform is not None:
+            record[OBSERVABLE_TRANSFORMATION] = [transform]
+        record.update(kwargs)
+
+        tmp_df = pd.DataFrame(record).set_index([OBSERVABLE_ID])
+        self.observable_df = (
+            pd.concat([self.observable_df, tmp_df])
+            if self.observable_df is not None
+            else tmp_df
+        )
+
+    def add_parameter(
+        self,
+        id_: str,
+        estimated: bool | str | int = True,
+        nominal_value=None,
+        scale: str = None,
+        lb: Number = None,
+        ub: Number = None,
+        init_prior_type: str = None,
+        init_prior_pars: str | Sequence = None,
+        obj_prior_type: str = None,
+        obj_prior_pars: str | Sequence = None,
+        **kwargs,
+    ):
+        """Add a parameter to the problem.
+
+        Arguments:
+            id_: The parameter id
+            estimated: Whether the parameter is estimated
+            nominal_value: The nominal value of the parameter
+            scale: The parameter scale
+            lb: The lower bound of the parameter
+            ub: The upper bound of the parameter
+            init_prior_type: The type of the initialization prior distribution
+            init_prior_pars: The parameters of the initialization prior
+                distribution
+            obj_prior_type: The type of the objective prior distribution
+            obj_prior_pars: The parameters of the objective prior distribution
+            kwargs: additional columns/values to add to the parameter table
+        """
+        record = {
+            PARAMETER_ID: [id_],
+        }
+        if estimated is not None:
+            record[ESTIMATE] = [
+                int(estimated)
+                if isinstance(estimated, bool | int)
+                else estimated
+            ]
+        if nominal_value is not None:
+            record[NOMINAL_VALUE] = [nominal_value]
+        if scale is not None:
+            record[PARAMETER_SCALE] = [scale]
+        if lb is not None:
+            record[LOWER_BOUND] = [lb]
+        if ub is not None:
+            record[UPPER_BOUND] = [ub]
+        if init_prior_type is not None:
+            record[INITIALIZATION_PRIOR_TYPE] = [init_prior_type]
+        if init_prior_pars is not None:
+            if not isinstance(init_prior_pars, str):
+                init_prior_pars = PARAMETER_SEPARATOR.join(
+                    map(str, init_prior_pars)
+                )
+            record[INITIALIZATION_PRIOR_PARAMETERS] = [init_prior_pars]
+        if obj_prior_type is not None:
+            record[OBJECTIVE_PRIOR_TYPE] = [obj_prior_type]
+        if obj_prior_pars is not None:
+            if not isinstance(obj_prior_pars, str):
+                obj_prior_pars = PARAMETER_SEPARATOR.join(
+                    map(str, obj_prior_pars)
+                )
+            record[OBJECTIVE_PRIOR_PARAMETERS] = [obj_prior_pars]
+        record.update(kwargs)
+
+        tmp_df = pd.DataFrame(record).set_index([PARAMETER_ID])
+        self.parameter_df = (
+            pd.concat([self.parameter_df, tmp_df])
+            if self.parameter_df is not None
+            else tmp_df
+        )
+
+    def add_measurement(
+        self,
+        obs_id: str,
+        sim_cond_id: str,
+        time: float,
+        measurement: float,
+        observable_parameters: Sequence[str] = None,
+        noise_parameters: Sequence[str] = None,
+        preeq_cond_id: str = None,
+    ):
+        """Add a measurement to the problem.
+
+        Arguments:
+            obs_id: The observable ID
+            sim_cond_id: The simulation condition ID
+            time: The measurement time
+            measurement: The measurement value
+            observable_parameters: The observable parameters
+            noise_parameters: The noise parameters
+            preeq_cond_id: The pre-equilibration condition ID
+        """
+        record = {
+            OBSERVABLE_ID: [obs_id],
+            SIMULATION_CONDITION_ID: [sim_cond_id],
+            TIME: [time],
+            MEASUREMENT: [measurement],
+        }
+        if observable_parameters is not None:
+            record[OBSERVABLE_PARAMETERS] = [
+                PARAMETER_SEPARATOR.join(observable_parameters)
+            ]
+        if noise_parameters is not None:
+            record[NOISE_PARAMETERS] = [
+                PARAMETER_SEPARATOR.join(noise_parameters)
+            ]
+        if preeq_cond_id is not None:
+            record[PREEQUILIBRATION_CONDITION_ID] = [preeq_cond_id]
+
+        tmp_df = pd.DataFrame(record)
+        self.measurement_df = (
+            pd.concat([self.measurement_df, tmp_df])
+            if self.measurement_df is not None
+            else tmp_df
+        )
