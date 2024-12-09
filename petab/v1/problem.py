@@ -1019,10 +1019,11 @@ class Problem:
         if name is not None:
             record[CONDITION_NAME] = name
         tmp_df = pd.DataFrame(record).set_index([CONDITION_ID])
-        if self.condition_df is None:
-            self.condition_df = tmp_df
-        else:
-            self.condition_df = pd.concat([self.condition_df, tmp_df])
+        self.condition_df = (
+            pd.concat([self.condition_df, tmp_df])
+            if self.condition_df is not None
+            else tmp_df
+        )
 
     def add_observable(
         self,
@@ -1061,10 +1062,11 @@ class Problem:
         record.update(kwargs)
 
         tmp_df = pd.DataFrame(record).set_index([OBSERVABLE_ID])
-        if self.observable_df is None:
-            self.observable_df = tmp_df
-        else:
-            self.observable_df = pd.concat([self.observable_df, tmp_df])
+        self.observable_df = (
+            pd.concat([self.observable_df, tmp_df])
+            if self.observable_df is not None
+            else tmp_df
+        )
 
     def add_parameter(
         self,
@@ -1132,10 +1134,11 @@ class Problem:
         record.update(kwargs)
 
         tmp_df = pd.DataFrame(record).set_index([PARAMETER_ID])
-        if self.parameter_df is None:
-            self.parameter_df = tmp_df
-        else:
-            self.parameter_df = pd.concat([self.parameter_df, tmp_df])
+        self.parameter_df = (
+            pd.concat([self.parameter_df, tmp_df])
+            if self.parameter_df is not None
+            else tmp_df
+        )
 
     def add_measurement(
         self,
@@ -1176,7 +1179,8 @@ class Problem:
             record[PREEQUILIBRATION_CONDITION_ID] = [preeq_cond_id]
 
         tmp_df = pd.DataFrame(record)
-        if self.measurement_df is None:
-            self.measurement_df = tmp_df
-        else:
-            self.measurement_df = pd.concat([self.measurement_df, tmp_df])
+        self.measurement_df = (
+            pd.concat([self.measurement_df, tmp_df])
+            if self.measurement_df is not None
+            else tmp_df
+        )

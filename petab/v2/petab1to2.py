@@ -2,6 +2,7 @@
 import shutil
 from itertools import chain
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pandas.io.common import get_handle, is_url
 
@@ -76,7 +77,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     # condition tables, observable tables, SBML files, parameter table:
     #  no changes - just copy
     file = yaml_config[C.PARAMETER_FILE]
-    _copy_file(get_src_path(file), get_dest_path(file))
+    _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
     for problem_config in yaml_config[C.PROBLEMS]:
         for file in chain(
@@ -89,7 +90,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
             problem_config.get(C.MEASUREMENT_FILES, []),
             problem_config.get(C.VISUALIZATION_FILES, []),
         ):
-            _copy_file(get_src_path(file), get_dest_path(file))
+            _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
     # TODO: Measurements: preequilibration to experiments/timecourses once
     #  finalized
@@ -131,13 +132,14 @@ def _update_yaml(yaml_config: dict) -> dict:
     return yaml_config
 
 
-def _copy_file(src: Path | str, dest: Path | str):
+def _copy_file(src: Path | str, dest: Path):
     """Copy file."""
-    src = str(src)
-    dest = str(dest)
-
-    if src == dest:
-        return
+    # src might be a URL - convert to Path if local
+    src_url = urlparse(src)
+    if not src_url.scheme:
+        src = Path(src)
+    elif src_url.scheme == "file" and not src_url.netloc:
+        src = Path(src.removeprefix("file:/"))
 
     if is_url(src):
         with get_handle(src, mode="r") as src_handle:
@@ -145,4 +147,8 @@ def _copy_file(src: Path | str, dest: Path | str):
                 dest_handle.write(src_handle.handle.read())
         return
 
-    shutil.copy(str(src), str(dest))
+    try:
+        if dest.samefile(src):
+            return
+    except FileNotFoundError:
+        shutil.copy(str(src), str(dest))
