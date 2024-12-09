@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import warnings
 from collections.abc import Sequence
 from math import nan
 from numbers import Number
@@ -23,9 +24,10 @@ from ..v1 import (
     sampling,
     yaml,
 )
-from ..v1.C import *  # noqa: F403
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
+from ..v2.C import *  # noqa: F403
+from . import experiments
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
@@ -40,6 +42,7 @@ class Problem:
 
     - model
     - condition table
+    - experiment table
     - measurement table
     - parameter table
     - observables table
@@ -49,6 +52,7 @@ class Problem:
 
     Parameters:
         condition_df: PEtab condition table
+        experiment_df: PEtab experiment table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
@@ -62,6 +66,7 @@ class Problem:
         self,
         model: Model = None,
         condition_df: pd.DataFrame = None,
+        experiment_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
         visualization_df: pd.DataFrame = None,
@@ -72,6 +77,7 @@ class Problem:
         from ..v2.lint import default_validation_tasks
 
         self.condition_df: pd.DataFrame | None = condition_df
+        self.experiment_df: pd.DataFrame | None = experiment_df
         self.measurement_df: pd.DataFrame | None = measurement_df
         self.parameter_df: pd.DataFrame | None = parameter_df
         self.visualization_df: pd.DataFrame | None = visualization_df
@@ -83,8 +89,22 @@ class Problem:
             ValidationTask
         ] = default_validation_tasks.copy()
 
+        if self.experiment_df is not None:
+            warnings.warn(
+                "The experiment table is not yet supported and "
+                "will be ignored.",
+                stacklevel=2,
+            )
+
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
+
+        experiments = (
+            f"{self.experiment_df.shape[0]} experiments"
+            if self.experiment_df is not None
+            else "without experiments table"
+        )
+
         conditions = (
             f"{self.condition_df.shape[0]} conditions"
             if self.condition_df is not None
@@ -114,8 +134,8 @@ class Problem:
             parameters = "without parameter_df table"
 
         return (
-            f"PEtab Problem {model}, {conditions}, {observables}, "
-            f"{measurements}, {parameters}"
+            f"PEtab Problem {model}, {conditions}, {experiments}, "
+            f"{observables}, {measurements}, {parameters}"
         )
 
     @staticmethod
@@ -232,6 +252,16 @@ class Problem:
             else None
         )
 
+        experiment_files = [
+            get_path(f) for f in problem0.get(EXPERIMENT_FILES, [])
+        ]
+        # If there are multiple tables, we will merge them
+        experiment_df = (
+            core.concat_tables(experiment_files, experiments.get_experiment_df)
+            if experiment_files
+            else None
+        )
+
         visualization_files = [
             get_path(f) for f in problem0.get(VISUALIZATION_FILES, [])
         ]
@@ -262,6 +292,7 @@ class Problem:
 
         return Problem(
             condition_df=condition_df,
+            experiment_df=experiment_df,
             measurement_df=measurement_df,
             parameter_df=parameter_df,
             observable_df=observable_df,
@@ -920,5 +951,33 @@ class Problem:
         self.mapping_df = (
             pd.concat([self.mapping_df, tmp_df])
             if self.mapping_df is not None
+            else tmp_df
+        )
+
+    def add_experiment(self, id_: str, *args):
+        """Add an experiment to the problem.
+
+        :param id_: The experiment ID.
+        :param args: Timepoints and associated conditions:
+            ``time_1, condition_id_1, time_2, condition_id_2, ...``.
+        """
+        if len(args) % 2 != 0:
+            raise ValueError(
+                "Arguments must be pairs of timepoints and condition IDs."
+            )
+
+        records = []
+        for i in range(0, len(args), 2):
+            records.append(
+                {
+                    EXPERIMENT_ID: id_,
+                    TIME: args[i],
+                    CONDITION_ID: args[i + 1],
+                }
+            )
+        tmp_df = pd.DataFrame(records)
+        self.experiment_df = (
+            pd.concat([self.experiment_df, tmp_df])
+            if self.experiment_df is not None
             else tmp_df
         )
