@@ -10,9 +10,14 @@ import sys
 #: Observable ID column in the observable and measurement tables
 OBSERVABLE_ID = "observableId"
 
+#: Experiment ID column in the measurement table
+EXPERIMENT_ID = "experimentId"
+
+# TODO: remove
 #: Preequilibration condition ID column in the measurement table
 PREEQUILIBRATION_CONDITION_ID = "preequilibrationConditionId"
 
+# TODO: remove
 #: Simulation condition ID column in the measurement table
 SIMULATION_CONDITION_ID = "simulationConditionId"
 
@@ -40,6 +45,8 @@ REPLICATE_ID = "replicateId"
 #: Mandatory columns of measurement table
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
+    # TODO: add
+    # EXPERIMENT_ID,
     SIMULATION_CONDITION_ID,
     MEASUREMENT,
     TIME,
@@ -47,6 +54,7 @@ MEASUREMENT_DF_REQUIRED_COLS = [
 
 #: Optional columns of measurement table
 MEASUREMENT_DF_OPTIONAL_COLS = [
+    # TODO: remove
     PREEQUILIBRATION_CONDITION_ID,
     OBSERVABLE_PARAMETERS,
     NOISE_PARAMETERS,
@@ -125,9 +133,45 @@ OBJECTIVE = "objective"
 
 #: Condition ID column in the condition table
 CONDITION_ID = "conditionId"
+# TODO: removed?
 #: Condition name column in the condition table
 CONDITION_NAME = "conditionName"
 
+#: Column in the condition table with the ID of an entity that is changed
+TARGET_ID = "targetId"
+#: Column in the condition table with the type of value that is changed
+VALUE_TYPE = "valueType"
+#: Column in the condition table with the new value of the target entity
+TARGET_VALUE = "targetValue"
+# value types:
+VT_CONSTANT = "constant"
+VT_INITIAL = "initial"
+VT_RATE = "rate"
+VT_ASSIGNMENT = "assignment"
+VT_RELATIVE_RATE = "relativeRate"
+VT_RELATIVE_ASSIGNMENT = "relativeAssignment"
+VALUE_TYPES = [
+    VT_CONSTANT,
+    VT_INITIAL,
+    VT_RATE,
+    VT_ASSIGNMENT,
+    VT_RELATIVE_RATE,
+    VT_RELATIVE_ASSIGNMENT,
+]
+
+CONDITION_DF_COLS = [
+    CONDITION_ID,
+    TARGET_ID,
+    VALUE_TYPE,
+    TARGET_VALUE,
+]
+
+# EXPERIMENTS
+EXPERIMENT_DF_REQUIRED_COLS = [
+    EXPERIMENT_ID,
+    TIME,
+    CONDITION_ID,
+]
 
 # OBSERVABLES
 
@@ -332,6 +376,8 @@ MODEL_LOCATION = "location"
 MODEL_LANGUAGE = "language"
 #: Condition files key in the YAML file
 CONDITION_FILES = "condition_files"
+#: Experiment files key in the YAML file
+EXPERIMENT_FILES = "experiment_files"
 #: Measurement files key in the YAML file
 MEASUREMENT_FILES = "measurement_files"
 #: Observable files key in the YAML file
