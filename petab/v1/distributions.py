@@ -4,34 +4,90 @@ from __future__ import annotations
 import abc
 
 import numpy as np
-from scipy.stats import laplace, lognorm, loguniform, norm, uniform
+from scipy.stats import laplace, norm, uniform
 
 __all__ = [
     "Distribution",
     "Normal",
-    "LogNormal",
     "Uniform",
-    "LogUniform",
     "Laplace",
-    "LogLaplace",
 ]
 
 
 class Distribution(abc.ABC):
-    """A univariate probability distribution."""
+    """A univariate probability distribution.
 
-    @abc.abstractmethod
+    This class provides a common interface for sampling from and evaluating
+    the probability density function of a univariate probability distribution.
+
+    The distribution can be transformed by applying a logarithm to the samples
+    and the PDF. This is useful, e.g., for log-normal distributions.
+
+    :param log: If ``True``, the distribution is transformed to its
+        corresponding log distribution (e.g., Normal -> LogNormal).
+        If a float, the distribution is transformed to its corresponding
+        log distribution with the given base (e.g., Normal -> Log10Normal).
+        If ``False``, no transformation is applied.
+    """
+
+    def __init__(self, log: bool | float = False):
+        if log is True:
+            log = np.exp(1)
+        self._log = log
+
+    def _undo_log(self, x: np.ndarray | float) -> np.ndarray | float:
+        """Undo the log transformation.
+
+        :param x: The sample to transform.
+        :return: The transformed sample
+        """
+        if self._log is False:
+            return x
+        return self._log**x
+
+    def _apply_log(self, x: np.ndarray | float) -> np.ndarray | float:
+        """Apply the log transformation.
+
+        :param x: The value to transform.
+        :return: The transformed value.
+        """
+        if self._log is False:
+            return x
+        return np.log(x) / np.log(self._log)
+
     def sample(self, shape=None) -> np.ndarray:
         """Sample from the distribution.
 
         :param shape: The shape of the sample.
         :return: A sample from the distribution.
         """
-        ...
+        sample = self._sample(shape)
+        return self._undo_log(sample)
 
     @abc.abstractmethod
+    def _sample(self, shape=None) -> np.ndarray:
+        """Sample from the underlying distribution.
+
+        :param shape: The shape of the sample.
+        :return: A sample from the underlying distribution,
+            before applying, e.g., the log transformation.
+        """
+        ...
+
     def pdf(self, x):
         """Probability density function at x.
+
+        :param x: The value at which to evaluate the PDF.
+        :return: The value of the PDF at ``x``.
+        """
+        # handle the log transformation; see also:
+        #  https://en.wikipedia.org/wiki/Probability_density_function#Scalar_to_scalar
+        chain_rule_factor = (1 / (x * np.log(self._log))) if self._log else 1
+        return self._pdf(self._apply_log(x)) * chain_rule_factor
+
+    @abc.abstractmethod
+    def _pdf(self, x):
+        """Probability density function of the underlying distribution at x.
 
         :param x: The value at which to evaluate the PDF.
         :return: The value of the PDF at ``x``.
@@ -40,203 +96,138 @@ class Distribution(abc.ABC):
 
 
 class Normal(Distribution):
-    """A normal distribution."""
+    """A (log-)normal distribution.
 
-    def __init__(
-        self,
-        mean: float,
-        std: float,
-        truncation: tuple[float, float] | None = None,
-    ):
-        super().__init__()
-        self._mean = mean
-        self._std = std
-        self._truncation = truncation
-
-        if truncation is not None:
-            raise NotImplementedError("Truncation is not yet implemented.")
-
-    def __repr__(self):
-        return (
-            f"Normal(mean={self._mean}, std={self._std}, "
-            f"truncation={self._truncation})"
-        )
-
-    def sample(self, shape=None):
-        return np.random.normal(loc=self._mean, scale=self._std, size=shape)
-
-    def pdf(self, x):
-        return norm.pdf(x, loc=self._mean, scale=self._std)
-
-
-class LogNormal(Distribution):
-    """A log-normal distribution.
-
-    :param mean: The mean of the underlying normal distribution.
-    :param std: The standard deviation of the underlying normal distribution.
-
+    :param loc: The location parameter of the distribution.
+    :param scale: The scale parameter of the distribution.
+    :param truncation: The truncation limits of the distribution.
+    :param log: If ``True``, the distribution is transformed to a log-normal
+        distribution. If a float, the distribution is transformed to a
+        log-normal distribution with the given base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the location and scale parameters
+        and the truncation limits are the location, scale and truncation limits
+        of the underlying normal distribution.
     """
-
-    def __init__(
-        self,
-        mean: float,
-        std: float,
-        truncation: tuple[float, float] | None = None,
-        base: float = np.exp(1),
-    ):
-        super().__init__()
-        self._mean = mean
-        self._std = std
-        self._truncation = truncation
-        self._base = base
-
-        if truncation is not None:
-            raise NotImplementedError("Truncation is not yet implemented.")
-
-        if base != np.exp(1):
-            raise NotImplementedError("Only base e is supported.")
-
-    def __repr__(self):
-        return (
-            f"LogNormal(mean={self._mean}, std={self._std}, "
-            f"base={self._base}, truncation={self._truncation})"
-        )
-
-    def sample(self, shape=None):
-        return np.random.lognormal(
-            mean=self._mean, sigma=self._std, size=shape
-        )
-
-    def pdf(self, x):
-        return lognorm.pdf(x, scale=np.exp(self._mean), s=self._std)
-
-
-class Uniform(Distribution):
-    """A uniform distribution."""
-
-    def __init__(
-        self,
-        low: float,
-        high: float,
-    ):
-        super().__init__()
-        self._low = low
-        self._high = high
-
-    def __repr__(self):
-        return f"Uniform(low={self._low}, high={self._high})"
-
-    def sample(self, shape=None):
-        return np.random.uniform(low=self._low, high=self._high, size=shape)
-
-    def pdf(self, x):
-        return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
-
-
-class LogUniform(Distribution):
-    """A log-uniform distribution.
-
-    :param low: The lower bound of the underlying normal distribution.
-    :param high: The upper bound of the underlying normal distribution.
-    """
-
-    def __init__(
-        self,
-        low: float,
-        high: float,
-        base: float = np.exp(1),
-    ):
-        super().__init__()
-        self._low = low
-        self._high = high
-        self._base = base
-        # re-scaled distribution parameters as required by
-        #  scipy.stats.loguniform
-        self._low_internal = np.exp(np.log(base) * low)
-        self._high_internal = np.exp(np.log(base) * high)
-
-    def __repr__(self):
-        return (
-            f"LogUniform(low={self._low}, high={self._high}, "
-            f"base={self._base})"
-        )
-
-    def sample(self, shape=None):
-        return loguniform.rvs(
-            self._low_internal, self._high_internal, size=shape
-        )
-
-    def pdf(self, x):
-        return loguniform.pdf(x, self._low_internal, self._high_internal)
-
-
-class Laplace(Distribution):
-    """A Laplace distribution."""
 
     def __init__(
         self,
         loc: float,
         scale: float,
         truncation: tuple[float, float] | None = None,
+        log: bool | float = False,
     ):
-        super().__init__()
+        super().__init__(log=log)
         self._loc = loc
         self._scale = scale
         self._truncation = truncation
+
         if truncation is not None:
             raise NotImplementedError("Truncation is not yet implemented.")
-
-    def sample(self, shape=None):
-        return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
-
-    def pdf(self, x):
-        return laplace.pdf(x, loc=self._loc, scale=self._scale)
-
-
-class LogLaplace(Distribution):
-    """A log-Laplace distribution."""
-
-    def __init__(
-        self,
-        loc: float,
-        scale: float,
-        truncation: tuple[float, float] | None = None,
-        base: float = np.exp(1),
-    ):
-        super().__init__()
-        self._loc = loc
-        self._scale = scale
-        self._truncation = truncation
-        self._base = base
-        if truncation is not None:
-            raise NotImplementedError("Truncation is not yet implemented.")
-        if base != np.exp(1):
-            raise NotImplementedError("Only base e is supported.")
 
     def __repr__(self):
-        return (
-            f"LogLaplace(loc={self._loc}, scale={self._scale}, "
-            f"base={self._base}, truncation={self._truncation})"
-        )
+        trunc = f", truncation={self._truncation}" if self._truncation else ""
+        log = f", log={self._log}" if self._log else ""
+        return f"Normal(loc={self._loc}, scale={self._scale}{trunc}{log})"
+
+    def _sample(self, shape=None):
+        return np.random.normal(loc=self._loc, scale=self._scale, size=shape)
+
+    def _pdf(self, x):
+        return norm.pdf(x, loc=self._loc, scale=self._scale)
 
     @property
     def loc(self):
-        """The mean of the underlying Laplace distribution."""
+        """The location parameter of the underlying distribution."""
         return self._loc
 
     @property
     def scale(self):
-        """The scale of the underlying Laplace distribution."""
+        """The scale parameter of the underlying distribution."""
         return self._scale
 
-    def sample(self, shape=None):
-        return np.exp(
-            np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
-        )
 
-    def pdf(self, x):
-        return (
-            1
-            / (2 * self.scale * x)
-            * np.exp(-np.abs(np.log(x) - self._loc) / self._scale)
-        )
+class Uniform(Distribution):
+    """A (log-)uniform distribution.
+
+    :param low: The lower bound of the distribution.
+    :param high: The upper bound of the distribution.
+    :param log: If ``True``, the distribution is transformed to a log-uniform
+        distribution. If a float, the distribution is transformed to a
+        log-uniform distribution with the given base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the lower and upper bounds are the
+        lower and upper bounds of the underlying uniform distribution.
+    """
+
+    def __init__(
+        self,
+        low: float,
+        high: float,
+        *,
+        log: bool | float = False,
+    ):
+        super().__init__(log=log)
+        self._low = low
+        self._high = high
+
+    def __repr__(self):
+        log = f", log={self._log}" if self._log else ""
+        return f"Uniform(low={self._low}, high={self._high}{log})"
+
+    def _sample(self, shape=None):
+        return np.random.uniform(low=self._low, high=self._high, size=shape)
+
+    def _pdf(self, x):
+        return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
+
+
+class Laplace(Distribution):
+    """A (log-)Laplace distribution.
+
+    :param loc: The location parameter of the distribution.
+    :param scale: The scale parameter of the distribution.
+    :param truncation: The truncation limits of the distribution.
+    :param log: If ``True``, the distribution is transformed to a log-Laplace
+        distribution. If a float, the distribution is transformed to a
+        log-Laplace distribution with the given base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the location and scale parameters
+        and the truncation limits are the location, scale and truncation limits
+        of the underlying Laplace distribution.
+    """
+
+    def __init__(
+        self,
+        loc: float,
+        scale: float,
+        truncation: tuple[float, float] | None = None,
+        log: bool | float = False,
+    ):
+        super().__init__(log=log)
+        self._loc = loc
+        self._scale = scale
+        self._truncation = truncation
+        if truncation is not None:
+            raise NotImplementedError("Truncation is not yet implemented.")
+
+    def __repr__(self):
+        trunc = f", truncation={self._truncation}" if self._truncation else ""
+        log = f", log={self._log}" if self._log else ""
+        return f"Laplace(loc={self._loc}, scale={self._scale}{trunc}{log})"
+
+    def _sample(self, shape=None):
+        return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
+
+    def _pdf(self, x):
+        return laplace.pdf(x, loc=self._loc, scale=self._scale)
+
+    @property
+    def loc(self):
+        """The location parameter of the underlying distribution."""
+        return self._loc
+
+    @property
+    def scale(self):
+        """The scale parameter of the underlying distribution."""
+        return self._scale

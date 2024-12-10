@@ -97,21 +97,17 @@ class Prior:
             case (C.LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LIN):
                 self.distribution = Laplace(*parameters)
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG):
-                self.distribution = LogUniform(*parameters)
+                self.distribution = Uniform(*parameters, log=True)
             case (C.LOG_NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LOG):
-                self.distribution = LogNormal(*parameters)
+                self.distribution = Normal(*parameters, log=True)
             case (C.LOG_LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LOG):
-                self.distribution = LogLaplace(*parameters)
+                self.distribution = Laplace(*parameters, log=True)
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG10):
-                self.distribution = LogUniform(*parameters, base=10)
+                self.distribution = Uniform(*parameters, log=10)
             case (C.PARAMETER_SCALE_NORMAL, C.LOG10):
-                self.distribution = LogNormal(
-                    np.log(10) * parameters[0], np.log(10) * parameters[1]
-                )
+                self.distribution = Normal(*parameters, log=10)
             case (C.PARAMETER_SCALE_LAPLACE, C.LOG10):
-                self.distribution = LogLaplace(
-                    np.log(10) * parameters[0], np.log(10) * parameters[1]
-                )
+                self.distribution = Laplace(*parameters, log=10)
             case _:
                 raise ValueError(
                     "Unsupported distribution type / transformation: "

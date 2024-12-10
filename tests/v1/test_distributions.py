@@ -14,12 +14,14 @@ from petab.v2.C import *
     list(
         product(
             [
-                Normal(1, 1),
-                LogNormal(2, 1),
+                Normal(2, 1),
+                Normal(2, 1, log=True),
+                Normal(2, 1, log=10),
                 Uniform(2, 4),
-                LogUniform(1, 2),
+                Uniform(-2, 4, log=True),
+                Uniform(2, 4, log=10),
                 Laplace(1, 2),
-                LogLaplace(1, 0.5),
+                Laplace(1, 0.5, log=True),
             ],
             [LIN, LOG, LOG10],
         )
