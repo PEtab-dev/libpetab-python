@@ -173,7 +173,8 @@ LOG = "log"
 LOG10 = "log10"
 #: Supported observable transformations
 OBSERVABLE_TRANSFORMATIONS = [LIN, LOG, LOG10]
-
+#: Supported parameter transformations
+PARAMETER_SCALES = [LIN, LOG, LOG10]
 
 # NOISE MODELS
 

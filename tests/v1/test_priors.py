@@ -1,10 +1,13 @@
 from copy import deepcopy
+from itertools import product
 from pathlib import Path
 
 import benchmark_models_petab
 import numpy as np
 import pandas as pd
 import pytest
+from scipy.integrate import cumulative_trapezoid
+from scipy.stats import kstest
 
 import petab.v1
 from petab.v1 import (
@@ -13,11 +16,11 @@ from petab.v1 import (
     OBJECTIVE_PRIOR_TYPE,
     OBSERVABLE_ID,
     SIMULATION,
+    C,
     get_simulation_conditions,
     get_simulation_df,
 )
-from petab.v1.distributions import Distribution
-from petab.v1.priors import priors_to_measurements
+from petab.v1.priors import Prior, priors_to_measurements
 
 
 @pytest.mark.parametrize(
@@ -152,7 +155,7 @@ def test_priors_to_measurements(problem_id):
         & petab_problem_priors.parameter_df[OBJECTIVE_PRIOR_TYPE].notna()
     ]
     priors = [
-        Distribution.from_par_dict(
+        Prior.from_par_dict(
             petab_problem_priors.parameter_df.loc[par_id], type_="objective"
         )
         for par_id in parameter_ids
@@ -166,3 +169,46 @@ def test_priors_to_measurements(problem_id):
     ), (llh_priors + prior_contrib, llh_measurements)
     # check that the tolerance is not too high
     assert np.abs(prior_contrib) > 1e-8 * np.abs(llh_priors)
+
+
+cases = list(
+    product(
+        [
+            (C.NORMAL, (10, 1)),
+            (C.LOG_NORMAL, (2, 1)),
+            (C.UNIFORM, (1, 2)),
+            (C.LAPLACE, (20, 2)),
+            (C.LOG_LAPLACE, (1, 0.5)),
+            (C.PARAMETER_SCALE_NORMAL, (1, 1)),
+            (C.PARAMETER_SCALE_LAPLACE, (1, 2)),
+            (C.PARAMETER_SCALE_UNIFORM, (1, 2)),
+        ],
+        C.PARAMETER_SCALES,
+    )
+)
+ids = [f"{prior_args[0]}_{transform}" for prior_args, transform in cases]
+
+
+@pytest.mark.parametrize("prior_args, transform", cases, ids=ids)
+def test_sample_matches_pdf(prior_args, transform):
+    """Test that the sample matches the PDF."""
+    np.random.seed(1)
+    N_SAMPLES = 10_000
+    prior = Prior(*prior_args, transformation=transform)
+    sample = prior.sample(N_SAMPLES)
+
+    # pdf -> cdf
+    def cdf(x):
+        return cumulative_trapezoid(prior.pdf(x), x)
+
+    # Kolmogorov-Smirnov test to check if the sample is drawn from the CDF
+    _, p = kstest(sample, cdf)
+
+    # if p < 0.05:
+    #     import matplotlib.pyplot as plt
+    #     plt.hist(sample, bins=100, density=True)
+    #     x = np.linspace(min(sample), max(sample), 100)
+    #     plt.plot(x, distribution.pdf(x))
+    #     plt.show()
+
+    assert p > 0.05, (p, prior)

@@ -1,5 +1,8 @@
 """Functions related to prior handling."""
+from __future__ import annotations
+
 import copy
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -29,10 +32,223 @@ from . import (
     PARAMETER_SEPARATOR,
     SIMULATION_CONDITION_ID,
     TIME,
+    C,
     Problem,
 )
+from .distributions import *
+from .parameters import scale, unscale
 
 __all__ = ["priors_to_measurements"]
+
+
+class Prior:
+    """A PEtab parameter prior.
+
+    Different from the general :class:`Distribution`, this class is used to
+    represent the prior distribution of a PEtab parameter using the
+    PEtab-specific options like `parameterScale`, `*PriorType`,
+    `*PriorParameters`, and `lowerBound` / `upperBounds`.
+
+    :param type_: The type of the distribution.
+    :param transformation: The transformation to be applied to the sample.
+        Ignored if `parameter_scale` is `True`.
+    :param parameters: The parameters of the distribution (unaffected by
+        `parameter_scale` and `transformation`, but in the case of
+        `parameterScale*` distribution types, the parameters are assumed to be
+        on the `parameter_scale` scale).
+    :param bounds: The untransformed bounds of the sample (lower, upper).
+    :param transformation: The transformation of the distribution.
+    """
+
+    def __init__(
+        self,
+        type_: str,
+        parameters: tuple,
+        bounds: tuple = None,
+        transformation: str = C.LIN,
+    ):
+        if transformation not in C.PARAMETER_SCALES:
+            raise ValueError(
+                f"Unknown parameter transformation: {transformation}"
+            )
+
+        if len(parameters) != 2:
+            raise ValueError(
+                f"Expected two parameters, got {len(parameters)}: {parameters}"
+            )
+
+        if bounds is not None and len(bounds) != 2:
+            raise ValueError(
+                "Expected (lowerBound, upperBound), got "
+                f"{len(bounds)}: {bounds}"
+            )
+
+        self._type = type_
+        self._parameters = parameters
+        self._bounds = bounds
+        self._transformation = transformation
+
+        # create the underlying distribution
+        match type_, transformation:
+            case (C.UNIFORM, _) | (C.PARAMETER_SCALE_UNIFORM, C.LIN):
+                self.distribution = Uniform(*parameters)
+            case (C.NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LIN):
+                self.distribution = Normal(*parameters)
+            case (C.LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LIN):
+                self.distribution = Laplace(*parameters)
+            case (C.PARAMETER_SCALE_UNIFORM, C.LOG):
+                self.distribution = LogUniform(*parameters)
+            case (C.LOG_NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LOG):
+                self.distribution = LogNormal(*parameters)
+            case (C.LOG_LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LOG):
+                self.distribution = LogLaplace(*parameters)
+            case (C.PARAMETER_SCALE_UNIFORM, C.LOG10):
+                self.distribution = LogUniform(*parameters, base=10)
+            case (C.PARAMETER_SCALE_NORMAL, C.LOG10):
+                self.distribution = LogNormal(
+                    np.log(10) * parameters[0], np.log(10) * parameters[1]
+                )
+            case (C.PARAMETER_SCALE_LAPLACE, C.LOG10):
+                self.distribution = LogLaplace(
+                    np.log(10) * parameters[0], np.log(10) * parameters[1]
+                )
+            case _:
+                raise ValueError(
+                    "Unsupported distribution type / transformation: "
+                    f"{type_} / {transformation}"
+                )
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"{self.type!r}, {self.parameters!r},"
+            f" bounds={self.bounds!r}, transformation={self.transformation!r},"
+            ")"
+        )
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def parameters(self):
+        return self._parameters
+
+    @property
+    def bounds(self):
+        return self._bounds
+
+    @property
+    def transformation(self):
+        return self._transformation
+
+    def sample(self, shape=None) -> np.ndarray:
+        """Sample from the distribution.
+
+        :param shape: The shape of the sample.
+        :return: A sample from the distribution.
+        """
+        raw_sample = self.distribution.sample(shape)
+        return self._clip_to_bounds(self._scale_sample(raw_sample))
+
+    def _scale_sample(self, sample):
+        """Scale the sample to the parameter space"""
+        # if self.on_parameter_scale:
+        #     return sample
+
+        return scale(sample, self.transformation)
+
+    def _clip_to_bounds(self, x):
+        """Clip `x` values to bounds.
+
+        :param x: The values to clip. Assumed to be on the parameter scale.
+        """
+        # TODO: replace this by proper truncation
+        if self.bounds is None:
+            return x
+
+        return np.maximum(
+            np.minimum(self.ub_scaled, x),
+            self.lb_scaled,
+        )
+
+    @property
+    def lb_scaled(self):
+        """The lower bound on the parameter scale."""
+        return scale(self.bounds[0], self.transformation)
+
+    @property
+    def ub_scaled(self):
+        """The upper bound on the parameter scale."""
+        return scale(self.bounds[1], self.transformation)
+
+    def pdf(self, x):
+        """Probability density function at x.
+
+        :param x: The value at which to evaluate the PDF.
+            ``x`` is assumed to be on the parameter scale.
+        :return: The value of the PDF at ``x``. Note that the PDF does
+            currently not account for the clipping at the bounds.
+        """
+        x = unscale(x, self.transformation)
+
+        # scale the PDF to the parameter scale
+        if self.transformation == C.LIN:
+            coeff = 1
+        elif self.transformation == C.LOG10:
+            coeff = x * np.log(10)
+        elif self.transformation == C.LOG:
+            coeff = x
+        else:
+            raise ValueError(f"Unknown transformation: {self.transformation}")
+
+        return self.distribution.pdf(x) * coeff
+
+    def neglogprior(self, x):
+        """Negative log-prior at x.
+
+        :param x: The value at which to evaluate the negative log-prior.
+            ``x`` is assumed to be on the parameter scale.
+        :return: The negative log-prior at ``x``.
+        """
+        return -np.log(self.pdf(x))
+
+    @staticmethod
+    def from_par_dict(
+        d, type_=Literal["initialization", "objective"]
+    ) -> Prior:
+        """Create a distribution from a row of the parameter table.
+
+        :param d: A dictionary representing a row of the parameter table.
+        :param type_: The type of the distribution.
+        :return: A distribution object.
+        """
+        dist_type = d.get(f"{type_}PriorType", C.PARAMETER_SCALE_UNIFORM)
+        if not isinstance(dist_type, str) and np.isnan(dist_type):
+            dist_type = C.PARAMETER_SCALE_UNIFORM
+
+        pscale = d.get(C.PARAMETER_SCALE, C.LIN)
+        if (
+            pd.isna(d[f"{type_}PriorParameters"])
+            and dist_type == C.PARAMETER_SCALE_UNIFORM
+        ):
+            params = (
+                scale(d[C.LOWER_BOUND], pscale),
+                scale(d[C.UPPER_BOUND], pscale),
+            )
+        else:
+            params = tuple(
+                map(
+                    float,
+                    d[f"{type_}PriorParameters"].split(C.PARAMETER_SEPARATOR),
+                )
+            )
+        return Prior(
+            type_=dist_type,
+            parameters=params,
+            bounds=(d[C.LOWER_BOUND], d[C.UPPER_BOUND]),
+            transformation=pscale,
+        )
 
 
 def priors_to_measurements(problem: Problem):

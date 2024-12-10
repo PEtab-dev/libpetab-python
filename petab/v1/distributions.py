@@ -2,82 +2,23 @@
 from __future__ import annotations
 
 import abc
-from typing import Literal
 
 import numpy as np
-import pandas as pd
-from scipy.stats import laplace, lognorm, norm, uniform
-
-from . import C
-from .parameters import scale, unscale
+from scipy.stats import laplace, lognorm, loguniform, norm, uniform
 
 __all__ = [
     "Distribution",
     "Normal",
     "LogNormal",
     "Uniform",
+    "LogUniform",
     "Laplace",
     "LogLaplace",
-    "ParameterScaleNormal",
-    "ParameterScaleUniform",
-    "ParameterScaleLaplace",
 ]
 
 
 class Distribution(abc.ABC):
-    """A univariate probability distribution.
-
-    :param type_: The type of the distribution.
-    :param transformation: The transformation to be applied to the sample.
-        Ignored if `parameter_scale` is `True`.
-    :param parameters: The parameters of the distribution (unaffected by
-        `parameter_scale` and `transformation`).
-    :param bounds: The untransformed bounds of the sample (lower, upper).
-    :param parameter_scale: Whether the parameters are already on the correct
-        scale. If `False`, the parameters are transformed to the correct scale.
-        If `True`, the parameters are assumed to be on the correct scale and
-        no transformation is applied.
-    :param transformation: The transformation of the distribution.
-
-    """
-
-    #: Mapping from distribution type to distribution class for factory method.
-    _type_to_cls: dict[str, type[Distribution]] = {}
-
-    def __init__(
-        self,
-        type_: str,
-        transformation: str,
-        parameters: tuple,
-        bounds: tuple = None,
-        parameter_scale: bool = False,
-    ):
-        if type_ not in self._type_to_cls:
-            raise ValueError(f"Unknown distribution type: {type_}")
-
-        if len(parameters) != 2:
-            raise ValueError(
-                f"Expected two parameters, got {len(parameters)}: {parameters}"
-            )
-
-        if bounds is not None and len(bounds) != 2:
-            raise ValueError(
-                f"Expected two bounds, got {len(bounds)}: {bounds}"
-            )
-
-        self.type = type_
-        self.parameters = parameters
-        self.bounds = bounds
-        self.transformation = transformation
-        self.parameter_scale = parameter_scale
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"{self.parameters[0]!r}, {self.parameters[1]!r},"
-            f" bounds={self.bounds!r}, transformation={self.transformation!r}"
-            ")"
-        )
+    """A univariate probability distribution."""
 
     @abc.abstractmethod
     def sample(self, shape=None) -> np.ndarray:
@@ -88,114 +29,14 @@ class Distribution(abc.ABC):
         """
         ...
 
-    def _scale_sample(self, sample):
-        """Scale the sample to the parameter space"""
-        if self.parameter_scale:
-            return sample
-
-        return scale(sample, self.transformation)
-
-    def _clip_to_bounds(self, x):
-        """Clip `x` values to bounds.
-
-        :param x: The values to clip. Assumed to be on the parameter scale.
-        """
-        # TODO: replace this by proper truncation
-        if self.bounds is None:
-            return x
-
-        return np.maximum(
-            np.minimum(self.ub_scaled, x),
-            self.lb_scaled,
-        )
-
-    @property
-    def lb_scaled(self):
-        """The lower bound on the parameter scale."""
-        return scale(self.bounds[0], self.transformation)
-
-    @property
-    def ub_scaled(self):
-        """The upper bound on the parameter scale."""
-        return scale(self.bounds[1], self.transformation)
-
     @abc.abstractmethod
-    def _pdf(self, x):
-        """Probability density function at x.
-
-        :param x: The value at which to evaluate the PDF.
-            ``x`` is assumed to be on the linear scale.
-        :return: The value of the PDF at ``x``.
-        """
-        ...
-
     def pdf(self, x):
         """Probability density function at x.
 
         :param x: The value at which to evaluate the PDF.
-            ``x`` is assumed to be on the parameter scale.
-        :return: The value of the PDF at ``x``. Note that the PDF does
-            currently not account for the clipping at the bounds.
+        :return: The value of the PDF at ``x``.
         """
-        x = x if self.parameter_scale else unscale(x, self.transformation)
-
-        # scale the PDF to the parameter scale
-        if self.parameter_scale or self.transformation == C.LIN:
-            coeff = 1
-        elif self.transformation == C.LOG10:
-            coeff = x * np.log(10)
-        elif self.transformation == C.LOG:
-            coeff = x
-        else:
-            raise ValueError(f"Unknown transformation: {self.transformation}")
-
-        return self._pdf(x) * coeff
-
-    def neglogprior(self, x):
-        """Negative log-prior at x.
-
-        :param x: The value at which to evaluate the negative log-prior.
-            ``x`` is assumed to be on the parameter scale.
-        :return: The negative log-prior at ``x``.
-        """
-        return -np.log(self.pdf(x))
-
-    @staticmethod
-    def from_par_dict(
-        d, type_=Literal["initialization", "objective"]
-    ) -> Distribution:
-        """Create a distribution from a row of the parameter table.
-
-        :param d: A dictionary representing a row of the parameter table.
-        :param type_: The type of the distribution.
-        :return: A distribution object.
-        """
-        dist_type = d.get(f"{type_}PriorType", C.NORMAL)
-        if not isinstance(dist_type, str) and np.isnan(dist_type):
-            dist_type = C.PARAMETER_SCALE_UNIFORM
-        cls = Distribution._type_to_cls[dist_type]
-
-        pscale = d.get(C.PARAMETER_SCALE, C.LIN)
-        if (
-            pd.isna(d[f"{type_}PriorParameters"])
-            and dist_type == C.PARAMETER_SCALE_UNIFORM
-        ):
-            params = (
-                scale(d[C.LOWER_BOUND], pscale),
-                scale(d[C.UPPER_BOUND], pscale),
-            )
-        else:
-            params = tuple(
-                map(
-                    float,
-                    d[f"{type_}PriorParameters"].split(C.PARAMETER_SEPARATOR),
-                )
-            )
-        return cls(
-            *params,
-            bounds=(d[C.LOWER_BOUND], d[C.UPPER_BOUND]),
-            transformation=pscale,
-        )
+        ...
 
 
 class Normal(Distribution):
@@ -205,57 +46,69 @@ class Normal(Distribution):
         self,
         mean: float,
         std: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
-        _type=C.NORMAL,
-        _parameter_scale=False,
+        truncation: tuple[float, float] | None = None,
     ):
-        super().__init__(
-            transformation=transformation,
-            parameters=(mean, std),
-            bounds=bounds,
-            parameter_scale=_parameter_scale,
-            type_=_type,
+        super().__init__()
+        self._mean = mean
+        self._std = std
+        self._truncation = truncation
+
+        if truncation is not None:
+            raise NotImplementedError("Truncation is not yet implemented.")
+
+    def __repr__(self):
+        return (
+            f"Normal(mean={self._mean}, std={self._std}, "
+            f"truncation={self._truncation})"
         )
 
     def sample(self, shape=None):
-        sample = np.random.normal(
-            loc=self.parameters[0], scale=self.parameters[1], size=shape
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        return np.random.normal(loc=self._mean, scale=self._std, size=shape)
 
-    def _pdf(self, x):
-        return norm.pdf(x, loc=self.parameters[0], scale=self.parameters[1])
+    def pdf(self, x):
+        return norm.pdf(x, loc=self._mean, scale=self._std)
 
 
 class LogNormal(Distribution):
-    """A log-normal distribution."""
+    """A log-normal distribution.
+
+    :param mean: The mean of the underlying normal distribution.
+    :param std: The standard deviation of the underlying normal distribution.
+
+    """
 
     def __init__(
         self,
         mean: float,
         std: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
+        truncation: tuple[float, float] | None = None,
+        base: float = np.exp(1),
     ):
-        super().__init__(
-            C.LOG_NORMAL,
-            transformation=transformation,
-            parameters=(mean, std),
-            bounds=bounds,
-            parameter_scale=False,
+        super().__init__()
+        self._mean = mean
+        self._std = std
+        self._truncation = truncation
+        self._base = base
+
+        if truncation is not None:
+            raise NotImplementedError("Truncation is not yet implemented.")
+
+        if base != np.exp(1):
+            raise NotImplementedError("Only base e is supported.")
+
+    def __repr__(self):
+        return (
+            f"LogNormal(mean={self._mean}, std={self._std}, "
+            f"base={self._base}, truncation={self._truncation})"
         )
 
     def sample(self, shape=None):
-        sample = np.random.lognormal(
-            mean=self.parameters[0], sigma=self.parameters[1], size=shape
+        return np.random.lognormal(
+            mean=self._mean, sigma=self._std, size=shape
         )
-        return self._clip_to_bounds(self._scale_sample(sample))
 
-    def _pdf(self, x):
-        return lognorm.pdf(
-            x, scale=np.exp(self.parameters[0]), s=self.parameters[1]
-        )
+    def pdf(self, x):
+        return lognorm.pdf(x, scale=np.exp(self._mean), s=self._std)
 
 
 class Uniform(Distribution):
@@ -263,33 +116,58 @@ class Uniform(Distribution):
 
     def __init__(
         self,
-        lower_bound: float,
-        upper_bound: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
-        _type=C.UNIFORM,
-        _parameter_scale=False,
+        low: float,
+        high: float,
     ):
-        super().__init__(
-            _type,
-            transformation=transformation,
-            parameters=(lower_bound, upper_bound),
-            bounds=bounds,
-            parameter_scale=_parameter_scale,
+        super().__init__()
+        self._low = low
+        self._high = high
+
+    def __repr__(self):
+        return f"Uniform(low={self._low}, high={self._high})"
+
+    def sample(self, shape=None):
+        return np.random.uniform(low=self._low, high=self._high, size=shape)
+
+    def pdf(self, x):
+        return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
+
+
+class LogUniform(Distribution):
+    """A log-uniform distribution.
+
+    :param low: The lower bound of the underlying normal distribution.
+    :param high: The upper bound of the underlying normal distribution.
+    """
+
+    def __init__(
+        self,
+        low: float,
+        high: float,
+        base: float = np.exp(1),
+    ):
+        super().__init__()
+        self._low = low
+        self._high = high
+        self._base = base
+        # re-scaled distribution parameters as required by
+        #  scipy.stats.loguniform
+        self._low_internal = np.exp(np.log(base) * low)
+        self._high_internal = np.exp(np.log(base) * high)
+
+    def __repr__(self):
+        return (
+            f"LogUniform(low={self._low}, high={self._high}, "
+            f"base={self._base})"
         )
 
     def sample(self, shape=None):
-        sample = np.random.uniform(
-            low=self.parameters[0], high=self.parameters[1], size=shape
+        return loguniform.rvs(
+            self._low_internal, self._high_internal, size=shape
         )
-        return self._clip_to_bounds(self._scale_sample(sample))
 
-    def _pdf(self, x):
-        return uniform.pdf(
-            x,
-            loc=self.parameters[0],
-            scale=self.parameters[1] - self.parameters[0],
-        )
+    def pdf(self, x):
+        return loguniform.pdf(x, self._low_internal, self._high_internal)
 
 
 class Laplace(Distribution):
@@ -297,29 +175,22 @@ class Laplace(Distribution):
 
     def __init__(
         self,
-        mean: float,
+        loc: float,
         scale: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
-        _type=C.LAPLACE,
-        _parameter_scale=False,
+        truncation: tuple[float, float] | None = None,
     ):
-        super().__init__(
-            _type,
-            transformation=transformation,
-            parameters=(mean, scale),
-            bounds=bounds,
-            parameter_scale=_parameter_scale,
-        )
+        super().__init__()
+        self._loc = loc
+        self._scale = scale
+        self._truncation = truncation
+        if truncation is not None:
+            raise NotImplementedError("Truncation is not yet implemented.")
 
     def sample(self, shape=None):
-        sample = np.random.laplace(
-            loc=self.parameters[0], scale=self.parameters[1], size=shape
-        )
-        return self._clip_to_bounds(self._scale_sample(sample))
+        return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
 
-    def _pdf(self, x):
-        return laplace.pdf(x, loc=self.parameters[0], scale=self.parameters[1])
+    def pdf(self, x):
+        return laplace.pdf(x, loc=self._loc, scale=self._scale)
 
 
 class LogLaplace(Distribution):
@@ -327,110 +198,45 @@ class LogLaplace(Distribution):
 
     def __init__(
         self,
-        mean: float,
+        loc: float,
         scale: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
+        truncation: tuple[float, float] | None = None,
+        base: float = np.exp(1),
     ):
-        super().__init__(
-            C.LOG_LAPLACE,
-            transformation=transformation,
-            parameters=(mean, scale),
-            bounds=bounds,
-            parameter_scale=False,
+        super().__init__()
+        self._loc = loc
+        self._scale = scale
+        self._truncation = truncation
+        self._base = base
+        if truncation is not None:
+            raise NotImplementedError("Truncation is not yet implemented.")
+        if base != np.exp(1):
+            raise NotImplementedError("Only base e is supported.")
+
+    def __repr__(self):
+        return (
+            f"LogLaplace(loc={self._loc}, scale={self._scale}, "
+            f"base={self._base}, truncation={self._truncation})"
         )
 
     @property
-    def mean(self):
+    def loc(self):
         """The mean of the underlying Laplace distribution."""
-        return self.parameters[0]
+        return self._loc
 
     @property
     def scale(self):
         """The scale of the underlying Laplace distribution."""
-        return self.parameters[1]
+        return self._scale
 
     def sample(self, shape=None):
-        sample = np.exp(
-            np.random.laplace(loc=self.mean, scale=self.scale, size=shape)
+        return np.exp(
+            np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
         )
-        return self._clip_to_bounds(self._scale_sample(sample))
 
-    def _pdf(self, x):
+    def pdf(self, x):
         return (
             1
             / (2 * self.scale * x)
-            * np.exp(-np.abs(np.log(x) - self.mean) / self.scale)
+            * np.exp(-np.abs(np.log(x) - self._loc) / self._scale)
         )
-
-
-class ParameterScaleNormal(Normal):
-    """A normal distribution with parameters on the parameter scale."""
-
-    def __init__(
-        self,
-        mean: float,
-        std: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
-    ):
-        super().__init__(
-            transformation=transformation,
-            bounds=bounds,
-            mean=mean,
-            std=std,
-            _type=C.PARAMETER_SCALE_NORMAL,
-            _parameter_scale=True,
-        )
-
-
-class ParameterScaleUniform(Uniform):
-    """A uniform distribution with parameters on the parameter scale."""
-
-    def __init__(
-        self,
-        lower_bound: float,
-        upper_bound: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
-    ):
-        super().__init__(
-            transformation=transformation,
-            lower_bound=lower_bound,
-            upper_bound=upper_bound,
-            bounds=bounds,
-            _type=C.PARAMETER_SCALE_UNIFORM,
-            _parameter_scale=True,
-        )
-
-
-class ParameterScaleLaplace(Laplace):
-    """A Laplace distribution with parameters on the parameter scale."""
-
-    def __init__(
-        self,
-        mean: float,
-        scale: float,
-        bounds: tuple = None,
-        transformation: str = C.LIN,
-    ):
-        super().__init__(
-            _type=C.PARAMETER_SCALE_LAPLACE,
-            transformation=transformation,
-            mean=mean,
-            scale=scale,
-            bounds=bounds,
-            _parameter_scale=True,
-        )
-
-
-Distribution._type_to_cls = {
-    C.NORMAL: Normal,
-    C.LOG_NORMAL: LogNormal,
-    C.UNIFORM: Uniform,
-    C.LAPLACE: Laplace,
-    C.LOG_LAPLACE: LogLaplace,
-    C.PARAMETER_SCALE_NORMAL: ParameterScaleNormal,
-    C.PARAMETER_SCALE_UNIFORM: ParameterScaleUniform,
-    C.PARAMETER_SCALE_LAPLACE: ParameterScaleLaplace,
-}

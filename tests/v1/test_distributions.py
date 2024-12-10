@@ -17,11 +17,9 @@ from petab.v2.C import *
                 Normal(1, 1),
                 LogNormal(2, 1),
                 Uniform(2, 4),
+                LogUniform(1, 2),
                 Laplace(1, 2),
                 LogLaplace(1, 0.5),
-                ParameterScaleNormal(1, 1),
-                ParameterScaleLaplace(1, 2),
-                ParameterScaleUniform(1, 2),
             ],
             [LIN, LOG, LOG10],
         )

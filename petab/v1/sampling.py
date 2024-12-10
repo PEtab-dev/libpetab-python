@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 
 from .C import *  # noqa: F403
-from .distributions import Distribution
 
 __all__ = ["sample_from_prior", "sample_parameter_startpoints"]
 
@@ -24,11 +23,13 @@ def sample_from_prior(
     Returns:
         Array with sampled values
     """
+    from .priors import Prior
+
     # unpack info
     p_type, p_params, scaling, bounds = prior
-    prior_cls = Distribution._type_to_cls[p_type]
-    prior = prior_cls(*p_params, bounds=tuple(bounds), transformation=scaling)
-
+    prior = Prior(
+        p_type, tuple(p_params), bounds=tuple(bounds), transformation=scaling
+    )
     return prior.sample(shape=(n_starts,))
 
 
@@ -53,6 +54,8 @@ def sample_parameter_startpoints(
         Array of sampled starting points with dimensions
         `n_startpoints` x `n_optimization_parameters`
     """
+    from .priors import Prior
+
     if seed is not None:
         np.random.seed(seed)
 
@@ -71,9 +74,7 @@ def sample_parameter_startpoints(
     # get types and parameters of priors from dataframe
     return np.array(
         [
-            Distribution.from_par_dict(row, type_="initialization").sample(
-                n_starts
-            )
+            Prior.from_par_dict(row, type_="initialization").sample(n_starts)
             for row in par_to_estimate.to_dict("records")
         ]
     ).T
