@@ -28,15 +28,65 @@ class Distribution(abc.ABC):
         If a float, the distribution is transformed to its corresponding
         log distribution with the given base (e.g., Normal -> Log10Normal).
         If ``False``, no transformation is applied.
+    :param trunc: The truncation points (lower, upper) of the distribution
+        or ``None`` if the distribution is not truncated.
     """
 
-    def __init__(self, log: bool | float = False):
+    def __init__(
+        self, *, log: bool | float = False, trunc: tuple[float, float] = None
+    ):
         if log is True:
             log = np.exp(1)
-        self._logbase = log
 
-    def _undo_log(self, x: np.ndarray | float) -> np.ndarray | float:
-        """Undo the log transformation.
+        if trunc == (-np.inf, np.inf):
+            trunc = None
+
+        if trunc is not None and trunc[0] > trunc[1]:
+            raise ValueError(
+                "The lower truncation limit must be smaller "
+                "than the upper truncation limit."
+            )
+
+        self._logbase = log
+        self._trunc = trunc
+
+        self._cd_low = None
+        self._cd_high = None
+        self._truncation_normalizer = 1
+
+        if self._trunc is not None:
+            try:
+                # the cumulative density of the transformed distribution at the
+                #  truncation limits
+                self._cd_low = self._cdf_transformed_untruncated(
+                    self.trunc_low
+                )
+                self._cd_high = self._cdf_transformed_untruncated(
+                    self.trunc_high
+                )
+                # normalization factor for the PDF of the transformed
+                #  distribution to account for truncation
+                self._truncation_normalizer = 1 / (
+                    self._cd_high - self._cd_low
+                )
+            except NotImplementedError:
+                pass
+
+    @property
+    def trunc_low(self) -> float:
+        """The lower truncation limit of the transformed distribution."""
+        return self._trunc[0] if self._trunc else -np.inf
+
+    @property
+    def trunc_high(self) -> float:
+        """The upper truncation limit of the transformed distribution."""
+        return self._trunc[1] if self._trunc else np.inf
+
+    def _exp(self, x: np.ndarray | float) -> np.ndarray | float:
+        """Exponentiate / undo the log transformation according.
+
+        Exponentiate if a log transformation is applied to the distribution.
+        Otherwise, return the input.
 
         :param x: The sample to transform.
         :return: The transformed sample
@@ -45,8 +95,11 @@ class Distribution(abc.ABC):
             return x
         return self._logbase**x
 
-    def _apply_log(self, x: np.ndarray | float) -> np.ndarray | float:
+    def _log(self, x: np.ndarray | float) -> np.ndarray | float:
         """Apply the log transformation.
+
+        Compute the log of x with the specified base if a log transformation
+        is applied to the distribution. Otherwise, return the input.
 
         :param x: The value to transform.
         :return: The transformed value.
@@ -61,12 +114,17 @@ class Distribution(abc.ABC):
         :param shape: The shape of the sample.
         :return: A sample from the distribution.
         """
-        sample = self._sample(shape)
-        return self._undo_log(sample)
+        sample = (
+            self._exp(self._sample(shape))
+            if self._trunc is None
+            else self._inverse_transform_sample(shape)
+        )
+
+        return sample
 
     @abc.abstractmethod
     def _sample(self, shape=None) -> np.ndarray:
-        """Sample from the underlying distribution.
+        """Sample from the underlying distribution, accounting for truncation.
 
         :param shape: The shape of the sample.
         :return: A sample from the underlying distribution,
@@ -85,7 +143,11 @@ class Distribution(abc.ABC):
         chain_rule_factor = (
             (1 / (x * np.log(self._logbase))) if self._logbase else 1
         )
-        return self._pdf(self._apply_log(x)) * chain_rule_factor
+        return (
+            self._pdf(self._log(x))
+            * chain_rule_factor
+            * self._truncation_normalizer
+        )
 
     @abc.abstractmethod
     def _pdf(self, x):
@@ -104,13 +166,71 @@ class Distribution(abc.ABC):
         """
         return self._logbase
 
+    def cdf(self, x):
+        """Cumulative distribution function at x.
+
+        :param x: The value at which to evaluate the CDF.
+        :return: The value of the CDF at ``x``.
+        """
+        return self._cdf_transformed_untruncated(x) - self._cd_low
+
+    def _cdf_transformed_untruncated(self, x):
+        """Cumulative distribution function of the transformed, but untruncated
+        distribution at x.
+
+        :param x: The value at which to evaluate the CDF.
+        :return: The value of the CDF at ``x``.
+        """
+        return self._cdf_untransformed_untruncated(self._log(x))
+
+    def _cdf_untransformed_untruncated(self, x):
+        """Cumulative distribution function of the underlying
+        (untransformed, untruncated) distribution at x.
+
+        :param x: The value at which to evaluate the CDF.
+        :return: The value of the CDF at ``x``.
+        """
+        raise NotImplementedError
+
+    def _ppf_untransformed_untruncated(self, q):
+        """Percent point function of the underlying
+        (untransformed, untruncated) distribution at q.
+
+        :param q: The quantile at which to evaluate the PPF.
+        :return: The value of the PPF at ``q``.
+        """
+        raise NotImplementedError
+
+    def _ppf_transformed_untruncated(self, q):
+        """Percent point function of the transformed, but untruncated
+        distribution at q.
+
+        :param q: The quantile at which to evaluate the PPF.
+        :return: The value of the PPF at ``q``.
+        """
+        return self._exp(self._ppf_untransformed_untruncated(q))
+
+    def _inverse_transform_sample(self, shape):
+        """Generate an inverse transform sample from the transformed and
+        truncated distribution.
+
+        :param shape: The shape of the sample.
+        :return: The sample.
+        """
+        uniform_sample = np.random.uniform(
+            low=self._cd_low, high=self._cd_high, size=shape
+        )
+        return self._ppf_transformed_untruncated(uniform_sample)
+
 
 class Normal(Distribution):
     """A (log-)normal distribution.
 
     :param loc: The location parameter of the distribution.
     :param scale: The scale parameter of the distribution.
-    :param truncation: The truncation limits of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated. The truncation limits
+        are the truncation limits of the transformed distribution.
     :param log: If ``True``, the distribution is transformed to a log-normal
         distribution. If a float, the distribution is transformed to a
         log-normal distribution with the given base.
@@ -124,19 +244,15 @@ class Normal(Distribution):
         self,
         loc: float,
         scale: float,
-        truncation: tuple[float, float] | None = None,
+        trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
-        super().__init__(log=log)
         self._loc = loc
         self._scale = scale
-        self._truncation = truncation
-
-        if truncation is not None:
-            raise NotImplementedError("Truncation is not yet implemented.")
+        super().__init__(log=log, trunc=trunc)
 
     def __repr__(self):
-        trunc = f", truncation={self._truncation}" if self._truncation else ""
+        trunc = f", trunc={self._trunc}" if self._trunc else ""
         log = f", log={self._logbase}" if self._logbase else ""
         return f"Normal(loc={self._loc}, scale={self._scale}{trunc}{log})"
 
@@ -145,6 +261,12 @@ class Normal(Distribution):
 
     def _pdf(self, x):
         return norm.pdf(x, loc=self._loc, scale=self._scale)
+
+    def _cdf_untransformed_untruncated(self, x):
+        return norm.cdf(x, loc=self._loc, scale=self._scale)
+
+    def _ppf_untransformed_untruncated(self, q):
+        return norm.ppf(q, loc=self._loc, scale=self._scale)
 
     @property
     def loc(self):
@@ -177,9 +299,9 @@ class Uniform(Distribution):
         *,
         log: bool | float = False,
     ):
-        super().__init__(log=log)
         self._low = low
         self._high = high
+        super().__init__(log=log)
 
     def __repr__(self):
         log = f", log={self._logbase}" if self._logbase else ""
@@ -191,13 +313,21 @@ class Uniform(Distribution):
     def _pdf(self, x):
         return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
 
+    def _cdf_untransformed_untruncated(self, x):
+        return uniform.cdf(x, loc=self._low, scale=self._high - self._low)
+
+    def _ppf_untransformed_untruncated(self, q):
+        return uniform.ppf(q, loc=self._low, scale=self._high - self._low)
+
 
 class Laplace(Distribution):
     """A (log-)Laplace distribution.
 
     :param loc: The location parameter of the distribution.
     :param scale: The scale parameter of the distribution.
-    :param truncation: The truncation limits of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated. The truncation limits
+        are the truncation limits of the transformed distribution.
     :param log: If ``True``, the distribution is transformed to a log-Laplace
         distribution. If a float, the distribution is transformed to a
         log-Laplace distribution with the given base.
@@ -211,18 +341,15 @@ class Laplace(Distribution):
         self,
         loc: float,
         scale: float,
-        truncation: tuple[float, float] | None = None,
+        trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
-        super().__init__(log=log)
         self._loc = loc
         self._scale = scale
-        self._truncation = truncation
-        if truncation is not None:
-            raise NotImplementedError("Truncation is not yet implemented.")
+        super().__init__(log=log, trunc=trunc)
 
     def __repr__(self):
-        trunc = f", truncation={self._truncation}" if self._truncation else ""
+        trunc = f", trunc={self._trunc}" if self._trunc else ""
         log = f", log={self._logbase}" if self._logbase else ""
         return f"Laplace(loc={self._loc}, scale={self._scale}{trunc}{log})"
 
@@ -231,6 +358,12 @@ class Laplace(Distribution):
 
     def _pdf(self, x):
         return laplace.pdf(x, loc=self._loc, scale=self._scale)
+
+    def _cdf_untransformed_untruncated(self, x):
+        return laplace.cdf(x, loc=self._loc, scale=self._scale)
+
+    def _ppf_untransformed_untruncated(self, q):
+        return laplace.ppf(q, loc=self._loc, scale=self._scale)
 
     @property
     def loc(self):

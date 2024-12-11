@@ -40,6 +40,9 @@ from .parameters import scale, unscale
 
 __all__ = ["priors_to_measurements"]
 
+# TODO: does anybody really rely on the old behavior?
+USE_PROPER_TRUNCATION = True
+
 
 class Prior:
     """A PEtab parameter prior.
@@ -88,26 +91,49 @@ class Prior:
         self._bounds = bounds
         self._transformation = transformation
 
+        truncation = bounds if USE_PROPER_TRUNCATION else None
+        if truncation is not None:
+            # for uniform, we don't want to implement truncation and just
+            #  adapt the distribution parameters
+            if type_ == C.PARAMETER_SCALE_UNIFORM:
+                parameters = (
+                    max(parameters[0], scale(truncation[0], transformation)),
+                    min(parameters[1], scale(truncation[1], transformation)),
+                )
+            elif type_ == C.UNIFORM:
+                parameters = (
+                    max(parameters[0], truncation[0]),
+                    min(parameters[1], truncation[1]),
+                )
+
         # create the underlying distribution
         match type_, transformation:
             case (C.UNIFORM, _) | (C.PARAMETER_SCALE_UNIFORM, C.LIN):
                 self.distribution = Uniform(*parameters)
             case (C.NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LIN):
-                self.distribution = Normal(*parameters)
+                self.distribution = Normal(*parameters, trunc=truncation)
             case (C.LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LIN):
-                self.distribution = Laplace(*parameters)
+                self.distribution = Laplace(*parameters, trunc=truncation)
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG):
                 self.distribution = Uniform(*parameters, log=True)
             case (C.LOG_NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LOG):
-                self.distribution = Normal(*parameters, log=True)
+                self.distribution = Normal(
+                    *parameters, log=True, trunc=truncation
+                )
             case (C.LOG_LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LOG):
-                self.distribution = Laplace(*parameters, log=True)
+                self.distribution = Laplace(
+                    *parameters, log=True, trunc=truncation
+                )
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG10):
                 self.distribution = Uniform(*parameters, log=10)
             case (C.PARAMETER_SCALE_NORMAL, C.LOG10):
-                self.distribution = Normal(*parameters, log=10)
+                self.distribution = Normal(
+                    *parameters, log=10, trunc=truncation
+                )
             case (C.PARAMETER_SCALE_LAPLACE, C.LOG10):
-                self.distribution = Laplace(*parameters, log=10)
+                self.distribution = Laplace(
+                    *parameters, log=10, trunc=truncation
+                )
             case _:
                 raise ValueError(
                     "Unsupported distribution type / transformation: "
@@ -149,9 +175,8 @@ class Prior:
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
-        # if self.on_parameter_scale:
-        #     return sample
-
+        # we also need to scale paramterScale* distributions, because
+        #  internally, they are handled as (unscaled) log-distributions
         return scale(sample, self.transformation)
 
     def _clip_to_bounds(self, x):
@@ -159,8 +184,7 @@ class Prior:
 
         :param x: The values to clip. Assumed to be on the parameter scale.
         """
-        # TODO: replace this by proper truncation
-        if self.bounds is None:
+        if self.bounds is None or USE_PROPER_TRUNCATION:
             return x
 
         return np.maximum(
