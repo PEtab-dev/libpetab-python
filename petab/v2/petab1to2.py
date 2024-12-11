@@ -95,9 +95,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
         # Update condition table
         for condition_file in problem_config.get(v2.C.CONDITION_FILES, []):
             condition_df = v1.get_condition_df(get_src_path(condition_file))
-            condition_df = _melt_condition_df(
-                condition_df, petab_problem.model
-            )
+            condition_df = v1v2_condition_df(condition_df, petab_problem.model)
             v2.write_condition_df(condition_df, get_dest_path(condition_file))
 
         for measurement_file in problem_config.get(v2.C.MEASUREMENT_FILES, []):
@@ -185,10 +183,10 @@ def _copy_file(src: Path | str, dest: Path):
         shutil.copy(str(src), str(dest))
 
 
-def _melt_condition_df(
+def v1v2_condition_df(
     condition_df: pd.DataFrame, model: v1.Model
 ) -> pd.DataFrame:
-    """Melt condition table."""
+    """Convert condition table from petab v1 to v2."""
     condition_df = condition_df.copy().reset_index()
     with suppress(KeyError):
         # TODO: are condition names still supported in v2?
