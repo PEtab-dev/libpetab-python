@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -55,6 +57,21 @@ def test_sample_matches_pdf(distribution):
     #     plt.show()
 
     assert p > 0.05, (p, distribution)
+
+    # check min/max of CDF at the bounds
+    assert np.isclose(
+        distribution.cdf(
+            distribution.trunc_low
+            if not distribution.logbase
+            else max(sys.float_info.min, distribution.trunc_low)
+        ),
+        0,
+        atol=1e-16,
+        rtol=0,
+    )
+    assert np.isclose(
+        distribution.cdf(distribution.trunc_high), 1, atol=1e-14, rtol=0
+    )
 
     # Test samples match scipy CDFs
     reference_pdf = None

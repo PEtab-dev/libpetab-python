@@ -64,7 +64,7 @@ class Distribution(abc.ABC):
                 self._cd_high = self._cdf_transformed_untruncated(
                     self.trunc_high
                 )
-                # normalization factor for the PDF of the transformed
+                # normalization factor for the PDF/CDF of the transformed
                 #  distribution to account for truncation
                 self._truncation_normalizer = 1 / (
                     self._cd_high - self._cd_low
@@ -172,7 +172,11 @@ class Distribution(abc.ABC):
         :param x: The value at which to evaluate the CDF.
         :return: The value of the CDF at ``x``.
         """
-        return self._cdf_transformed_untruncated(x) - self._cd_low
+        if self._trunc is None:
+            return self._cdf_transformed_untruncated(x)
+        return (
+            self._cdf_transformed_untruncated(x) - self._cd_low
+        ) * self._truncation_normalizer
 
     def _cdf_transformed_untruncated(self, x):
         """Cumulative distribution function of the transformed, but untruncated
