@@ -32,7 +32,7 @@ from ..v2.C import *  # noqa: F403
 from . import experiments
 
 if TYPE_CHECKING:
-    from ..v2.lint import ValidationIssue, ValidationResultList, ValidationTask
+    from ..v2.lint import ValidationResultList, ValidationTask
 
 
 __all__ = ["Problem"]
@@ -722,7 +722,11 @@ class Problem:
         Returns:
             A list of validation results.
         """
-        from ..v2.lint import ValidationIssueSeverity, ValidationResultList
+        from ..v2.lint import (
+            ValidationIssue,
+            ValidationIssueSeverity,
+            ValidationResultList,
+        )
 
         validation_results = ValidationResultList()
         if self.extensions_config:
