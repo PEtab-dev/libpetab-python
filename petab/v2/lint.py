@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections import OrderedDict
+from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
@@ -10,9 +12,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from petab.v1.conditions import get_parametric_overrides
-from petab.v1.lint import (
+from .. import v2
+from ..v1.lint import (
     _check_df,
+    assert_model_parameters_in_condition_or_parameter_table,
     assert_no_leading_trailing_whitespace,
     assert_parameter_bounds_are_numeric,
     assert_parameter_estimate_is_boolean,
@@ -22,25 +25,14 @@ from petab.v1.lint import (
     assert_parameter_scale_is_valid,
     assert_unique_parameter_ids,
     check_ids,
-    check_parameter_bounds,
-)
-from petab.v1.measurements import split_parameter_replacement_list
-from petab.v1.observables import get_output_parameters, get_placeholders
-from petab.v1.parameters import (
-    get_valid_parameters_for_parameter_table,
-)
-from petab.v1.visualize.lint import validate_visualization_df
-from petab.v2 import (
-    assert_model_parameters_in_condition_or_parameter_table,
-)
-from petab.v2.C import *
-
-from ..v1 import (
-    assert_measurement_conditions_present_in_condition_table,
-    check_condition_df,
     check_measurement_df,
     check_observable_df,
+    check_parameter_bounds,
 )
+from ..v1.measurements import split_parameter_replacement_list
+from ..v1.observables import get_output_parameters, get_placeholders
+from ..v1.visualize.lint import validate_visualization_df
+from ..v2.C import *
 from .problem import Problem
 
 logger = logging.getLogger(__name__)
@@ -247,14 +239,54 @@ class CheckMeasurementTable(ValidationTask):
 
         try:
             check_measurement_df(problem.measurement_df, problem.observable_df)
-
-            if problem.condition_df is not None:
-                # TODO: handle missing condition_df
-                assert_measurement_conditions_present_in_condition_table(
-                    problem.measurement_df, problem.condition_df
-                )
         except AssertionError as e:
             return ValidationError(str(e))
+
+        # TODO: introduce some option for validation partial vs full
+        #  problem. if this is supposed to be a complete problem, a missing
+        #  condition table should be an error if the measurement table refers
+        #  to conditions
+
+        # check that measured experiments/conditions exist
+        # TODO: fully switch to experiment table and remove this:
+        if SIMULATION_CONDITION_ID in problem.measurement_df:
+            if problem.condition_df is None:
+                return
+            used_conditions = set(
+                problem.measurement_df[SIMULATION_CONDITION_ID].dropna().values
+            )
+            if PREEQUILIBRATION_CONDITION_ID in problem.measurement_df:
+                used_conditions |= set(
+                    problem.measurement_df[PREEQUILIBRATION_CONDITION_ID]
+                    .dropna()
+                    .values
+                )
+            available_conditions = set(
+                problem.condition_df[CONDITION_ID].unique()
+            )
+            if missing_conditions := (used_conditions - available_conditions):
+                return ValidationError(
+                    "Measurement table references conditions that "
+                    "are not specified in the condition table: "
+                    + str(missing_conditions)
+                )
+        elif EXPERIMENT_ID in problem.measurement_df:
+            if problem.experiment_df is None:
+                return
+            used_experiments = set(
+                problem.measurement_df[EXPERIMENT_ID].values
+            )
+            available_experiments = set(
+                problem.condition_df[CONDITION_ID].unique()
+            )
+            if missing_experiments := (
+                used_experiments - available_experiments
+            ):
+                raise AssertionError(
+                    "Measurement table references experiments that "
+                    "are not specified in the experiments table: "
+                    + str(missing_experiments)
+                )
 
 
 class CheckConditionTable(ValidationTask):
@@ -264,15 +296,41 @@ class CheckConditionTable(ValidationTask):
         if problem.condition_df is None:
             return
 
+        df = problem.condition_df
+
         try:
-            check_condition_df(
-                problem.condition_df,
-                model=problem.model,
-                observable_df=problem.observable_df,
-                mapping_df=problem.mapping_df,
-            )
+            _check_df(df, CONDITION_DF_REQUIRED_COLS, "condition")
+            check_ids(df[CONDITION_ID], kind="condition")
+            check_ids(df[TARGET_ID], kind="target")
         except AssertionError as e:
             return ValidationError(str(e))
+
+        # TODO: check value types
+
+        if problem.model is None:
+            return
+
+        # check targets are valid
+        allowed_targets = set(
+            problem.model.get_valid_ids_for_condition_table()
+        )
+        if problem.observable_df is not None:
+            allowed_targets |= set(
+                get_output_parameters(
+                    model=problem.model,
+                    observable_df=problem.observable_df,
+                    mapping_df=problem.mapping_df,
+                )
+            )
+        if problem.mapping_df is not None:
+            allowed_targets |= set(problem.mapping_df.index.values)
+        invalid = set(df[TARGET_ID].unique()) - allowed_targets
+        if invalid:
+            return ValidationError(
+                f"Condition table contains invalid targets: {invalid}"
+            )
+
+        # TODO check that all value types are valid for the given targets
 
 
 class CheckObservableTable(ValidationTask):
@@ -454,14 +512,7 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
             return
 
         required = get_required_parameters_for_parameter_table(problem)
-
-        allowed = get_valid_parameters_for_parameter_table(
-            model=problem.model,
-            condition_df=problem.condition_df,
-            observable_df=problem.observable_df,
-            measurement_df=problem.measurement_df,
-            mapping_df=problem.mapping_df,
-        )
+        allowed = get_valid_parameters_for_parameter_table(problem)
 
         actual = set(problem.parameter_df.index)
         missing = required - actual
@@ -542,9 +593,103 @@ class CheckVisualizationTable(ValidationTask):
             )
 
 
-def get_required_parameters_for_parameter_table(
+def get_valid_parameters_for_parameter_table(
     problem: Problem,
 ) -> set[str]:
+    """
+    Get set of parameters which may be present inside the parameter table
+
+    Arguments:
+        model: PEtab model
+        condition_df: PEtab condition table
+        observable_df: PEtab observable table
+        measurement_df: PEtab measurement table
+        mapping_df: PEtab mapping table for additional checks
+
+    Returns:
+        Set of parameter IDs which PEtab allows to be present in the
+        parameter table.
+    """
+    # - grab all allowed model parameters
+    # - grab corresponding names from mapping table
+    # - grab all output parameters defined in {observable,noise}Formula
+    # - grab all parameters from measurement table
+    # - grab all parametric overrides from condition table
+    # - remove parameters for which condition table columns exist
+    # - remove placeholder parameters
+    #   (only partial overrides are not supported)
+    model = problem.model
+    condition_df = problem.condition_df
+    observable_df = problem.observable_df
+    measurement_df = problem.measurement_df
+    mapping_df = problem.mapping_df
+
+    # must not go into parameter table
+    blackset = set()
+
+    if observable_df is not None:
+        placeholders = set(get_placeholders(observable_df))
+
+        # collect assignment targets
+        blackset |= placeholders
+
+    if condition_df is not None:
+        blackset |= set(condition_df.columns.values) - {CONDITION_NAME}
+
+    # don't use sets here, to have deterministic ordering,
+    #  e.g. for creating parameter tables
+    parameter_ids = OrderedDict.fromkeys(
+        p
+        for p in model.get_valid_parameters_for_parameter_table()
+        if p not in blackset
+    )
+
+    if mapping_df is not None:
+        for from_id, to_id in mapping_df[MODEL_ENTITY_ID].items():
+            if to_id in parameter_ids.keys():
+                parameter_ids[from_id] = None
+
+    if observable_df is not None:
+        # add output parameters from observables table
+        output_parameters = get_output_parameters(
+            observable_df=observable_df, model=model
+        )
+        for p in output_parameters:
+            if p not in blackset:
+                parameter_ids[p] = None
+
+    # Append parameters from measurement table, unless they occur as condition
+    # table columns
+    def append_overrides(overrides):
+        for p in overrides:
+            if isinstance(p, str) and p not in blackset:
+                parameter_ids[p] = None
+
+    if measurement_df is not None:
+        for _, row in measurement_df.iterrows():
+            # we trust that the number of overrides matches
+            append_overrides(
+                split_parameter_replacement_list(
+                    row.get(OBSERVABLE_PARAMETERS, None)
+                )
+            )
+            append_overrides(
+                split_parameter_replacement_list(
+                    row.get(NOISE_PARAMETERS, None)
+                )
+            )
+
+    # Append parameter overrides from condition table
+    if condition_df is not None:
+        for p in v2.conditions.get_condition_table_free_symbols(problem):
+            parameter_ids[str(p)] = None
+
+    return set(parameter_ids.keys())
+
+
+def get_required_parameters_for_parameter_table(
+    problem: Problem,
+) -> Set[str]:
     """
     Get set of parameters which need to go into the parameter table
 
@@ -563,7 +708,11 @@ def get_required_parameters_for_parameter_table(
         parameter_ids.update(
             p
             for p in overrides
-            if isinstance(p, str) and p not in problem.condition_df.columns
+            if isinstance(p, str)
+            and (
+                problem.condition_df is None
+                or p not in problem.condition_df[TARGET_ID]
+            )
         )
 
     for _, row in problem.measurement_df.iterrows():
@@ -616,17 +765,13 @@ def get_required_parameters_for_parameter_table(
     # Add condition table parametric overrides unless already defined in the
     #  model
     parameter_ids.update(
-        p
-        for p in get_parametric_overrides(problem.condition_df)
-        if not problem.model.has_entity_with_id(p)
+        str(p)
+        for p in v2.conditions.get_condition_table_free_symbols(problem)
+        if not problem.model.has_entity_with_id(str(p))
     )
 
     # parameters that are overridden via the condition table are not allowed
-    for p in problem.condition_df.columns:
-        try:
-            parameter_ids.remove(p)
-        except KeyError:
-            pass
+    parameter_ids -= set(problem.condition_df[TARGET_ID].unique())
 
     return parameter_ids
 
@@ -647,6 +792,7 @@ default_validation_tasks = [
     CheckObservablesDoNotShadowModelEntities(),
     CheckParameterTable(),
     CheckAllParametersPresentInParameterTable(),
-    CheckVisualizationTable(),
+    # TODO: atomize checks, update to long condition table, re-enable
+    # CheckVisualizationTable(),
     CheckValidParameterInConditionOrParameterTable(),
 ]

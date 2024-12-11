@@ -3,7 +3,7 @@
 import numbers
 import warnings
 from collections import OrderedDict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Sequence, Set
 from pathlib import Path
 from typing import (
     Literal,
@@ -258,7 +258,7 @@ def get_required_parameters_for_parameter_table(
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     mapping_df: pd.DataFrame = None,
-) -> set[str]:
+) -> Set[str]:
     """
     Get set of parameters which need to go into the parameter table
 
