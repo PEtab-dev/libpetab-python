@@ -41,7 +41,7 @@ class Distribution(abc.ABC):
         if trunc == (-np.inf, np.inf):
             trunc = None
 
-        if trunc is not None and trunc[0] > trunc[1]:
+        if trunc is not None and trunc[0] >= trunc[1]:
             raise ValueError(
                 "The lower truncation limit must be smaller "
                 "than the upper truncation limit."
@@ -83,7 +83,7 @@ class Distribution(abc.ABC):
         return self._trunc[1] if self._trunc else np.inf
 
     def _exp(self, x: np.ndarray | float) -> np.ndarray | float:
-        """Exponentiate / undo the log transformation according.
+        """Exponentiate / undo the log transformation if applicable.
 
         Exponentiate if a log transformation is applied to the distribution.
         Otherwise, return the input.
@@ -96,7 +96,7 @@ class Distribution(abc.ABC):
         return self._logbase**x
 
     def _log(self, x: np.ndarray | float) -> np.ndarray | float:
-        """Apply the log transformation.
+        """Apply the log transformation if enabled.
 
         Compute the log of x with the specified base if a log transformation
         is applied to the distribution. Otherwise, return the input.
@@ -108,7 +108,7 @@ class Distribution(abc.ABC):
             return x
         return np.log(x) / np.log(self._logbase)
 
-    def sample(self, shape=None) -> np.ndarray:
+    def sample(self, shape=None) -> np.ndarray | float:
         """Sample from the distribution.
 
         :param shape: The shape of the sample.
@@ -123,16 +123,16 @@ class Distribution(abc.ABC):
         return sample
 
     @abc.abstractmethod
-    def _sample(self, shape=None) -> np.ndarray:
-        """Sample from the underlying distribution, accounting for truncation.
+    def _sample(self, shape=None) -> np.ndarray | float:
+        """Sample from the underlying distribution.
 
         :param shape: The shape of the sample.
         :return: A sample from the underlying distribution,
-            before applying, e.g., the log transformation.
+            before applying, e.g., the log transformation or truncation.
         """
         ...
 
-    def pdf(self, x):
+    def pdf(self, x) -> np.ndarray | float:
         """Probability density function at x.
 
         :param x: The value at which to evaluate the PDF.
@@ -150,7 +150,7 @@ class Distribution(abc.ABC):
         )
 
     @abc.abstractmethod
-    def _pdf(self, x):
+    def _pdf(self, x) -> np.ndarray | float:
         """Probability density function of the underlying distribution at x.
 
         :param x: The value at which to evaluate the PDF.
@@ -166,7 +166,7 @@ class Distribution(abc.ABC):
         """
         return self._logbase
 
-    def cdf(self, x):
+    def cdf(self, x) -> np.ndarray | float:
         """Cumulative distribution function at x.
 
         :param x: The value at which to evaluate the CDF.
@@ -178,7 +178,7 @@ class Distribution(abc.ABC):
             self._cdf_transformed_untruncated(x) - self._cd_low
         ) * self._truncation_normalizer
 
-    def _cdf_transformed_untruncated(self, x):
+    def _cdf_transformed_untruncated(self, x) -> np.ndarray | float:
         """Cumulative distribution function of the transformed, but untruncated
         distribution at x.
 
@@ -187,7 +187,7 @@ class Distribution(abc.ABC):
         """
         return self._cdf_untransformed_untruncated(self._log(x))
 
-    def _cdf_untransformed_untruncated(self, x):
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         """Cumulative distribution function of the underlying
         (untransformed, untruncated) distribution at x.
 
@@ -196,7 +196,7 @@ class Distribution(abc.ABC):
         """
         raise NotImplementedError
 
-    def _ppf_untransformed_untruncated(self, q):
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         """Percent point function of the underlying
         (untransformed, untruncated) distribution at q.
 
@@ -205,7 +205,7 @@ class Distribution(abc.ABC):
         """
         raise NotImplementedError
 
-    def _ppf_transformed_untruncated(self, q):
+    def _ppf_transformed_untruncated(self, q) -> np.ndarray | float:
         """Percent point function of the transformed, but untruncated
         distribution at q.
 
@@ -214,7 +214,7 @@ class Distribution(abc.ABC):
         """
         return self._exp(self._ppf_untransformed_untruncated(q))
 
-    def _inverse_transform_sample(self, shape):
+    def _inverse_transform_sample(self, shape) -> np.ndarray | float:
         """Generate an inverse transform sample from the transformed and
         truncated distribution.
 
@@ -260,25 +260,25 @@ class Normal(Distribution):
         log = f", log={self._logbase}" if self._logbase else ""
         return f"Normal(loc={self._loc}, scale={self._scale}{trunc}{log})"
 
-    def _sample(self, shape=None):
+    def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.normal(loc=self._loc, scale=self._scale, size=shape)
 
-    def _pdf(self, x):
+    def _pdf(self, x) -> np.ndarray | float:
         return norm.pdf(x, loc=self._loc, scale=self._scale)
 
-    def _cdf_untransformed_untruncated(self, x):
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         return norm.cdf(x, loc=self._loc, scale=self._scale)
 
-    def _ppf_untransformed_untruncated(self, q):
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return norm.ppf(q, loc=self._loc, scale=self._scale)
 
     @property
-    def loc(self):
+    def loc(self) -> float:
         """The location parameter of the underlying distribution."""
         return self._loc
 
     @property
-    def scale(self):
+    def scale(self) -> float:
         """The scale parameter of the underlying distribution."""
         return self._scale
 
@@ -311,16 +311,16 @@ class Uniform(Distribution):
         log = f", log={self._logbase}" if self._logbase else ""
         return f"Uniform(low={self._low}, high={self._high}{log})"
 
-    def _sample(self, shape=None):
+    def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.uniform(low=self._low, high=self._high, size=shape)
 
-    def _pdf(self, x):
+    def _pdf(self, x) -> np.ndarray | float:
         return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
 
-    def _cdf_untransformed_untruncated(self, x):
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         return uniform.cdf(x, loc=self._low, scale=self._high - self._low)
 
-    def _ppf_untransformed_untruncated(self, q):
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return uniform.ppf(q, loc=self._low, scale=self._high - self._low)
 
 
@@ -357,24 +357,24 @@ class Laplace(Distribution):
         log = f", log={self._logbase}" if self._logbase else ""
         return f"Laplace(loc={self._loc}, scale={self._scale}{trunc}{log})"
 
-    def _sample(self, shape=None):
+    def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
 
-    def _pdf(self, x):
+    def _pdf(self, x) -> np.ndarray | float:
         return laplace.pdf(x, loc=self._loc, scale=self._scale)
 
-    def _cdf_untransformed_untruncated(self, x):
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         return laplace.cdf(x, loc=self._loc, scale=self._scale)
 
-    def _ppf_untransformed_untruncated(self, q):
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return laplace.ppf(q, loc=self._loc, scale=self._scale)
 
     @property
-    def loc(self):
+    def loc(self) -> float:
         """The location parameter of the underlying distribution."""
         return self._loc
 
     @property
-    def scale(self):
+    def scale(self) -> float:
         """The scale parameter of the underlying distribution."""
         return self._scale

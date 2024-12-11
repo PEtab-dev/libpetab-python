@@ -157,19 +157,19 @@ class Prior:
         )
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self._type
 
     @property
-    def parameters(self):
+    def parameters(self) -> tuple:
         return self._parameters
 
     @property
-    def bounds(self):
+    def bounds(self) -> tuple[float, float] | None:
         return self._bounds
 
     @property
-    def transformation(self):
+    def transformation(self) -> str:
         return self._transformation
 
     def sample(self, shape=None) -> np.ndarray:
@@ -183,11 +183,11 @@ class Prior:
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
-        # we also need to scale paramterScale* distributions, because
+        # we also need to scale parameterScale* distributions, because
         #  internally, they are handled as (unscaled) log-distributions
         return scale(sample, self.transformation)
 
-    def _clip_to_bounds(self, x):
+    def _clip_to_bounds(self, x) -> np.ndarray | float:
         """Clip `x` values to bounds.
 
         :param x: The values to clip. Assumed to be on the parameter scale.
@@ -201,16 +201,16 @@ class Prior:
         )
 
     @property
-    def lb_scaled(self):
+    def lb_scaled(self) -> float:
         """The lower bound on the parameter scale."""
         return scale(self.bounds[0], self.transformation)
 
     @property
-    def ub_scaled(self):
+    def ub_scaled(self) -> float:
         """The upper bound on the parameter scale."""
         return scale(self.bounds[1], self.transformation)
 
-    def pdf(self, x):
+    def pdf(self, x) -> np.ndarray | float:
         """Probability density function at x.
 
         :param x: The value at which to evaluate the PDF.
@@ -232,7 +232,7 @@ class Prior:
 
         return self.distribution.pdf(x) * coeff
 
-    def neglogprior(self, x):
+    def neglogprior(self, x) -> np.ndarray | float:
         """Negative log-prior at x.
 
         :param x: The value at which to evaluate the negative log-prior.
