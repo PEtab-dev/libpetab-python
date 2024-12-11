@@ -621,11 +621,8 @@ def get_required_parameters_for_parameter_table(
         if not problem.model.has_entity_with_id(p)
     )
 
-    # remove parameters that occur in the condition table and are overridden
-    #  for ALL conditions
-    for p in problem.condition_df.columns[
-        ~problem.condition_df.isnull().any()
-    ]:
+    # parameters that are overridden via the condition table are not allowed
+    for p in problem.condition_df.columns:
         try:
             parameter_ids.remove(p)
         except KeyError:
