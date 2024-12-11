@@ -683,7 +683,7 @@ def get_valid_parameters_for_parameter_table(
         for p in v2.conditions.get_condition_table_free_symbols(problem):
             parameter_ids[str(p)] = None
 
-    return parameter_ids.keys()
+    return set(parameter_ids.keys())
 
 
 def get_required_parameters_for_parameter_table(
