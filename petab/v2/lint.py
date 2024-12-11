@@ -771,11 +771,7 @@ def get_required_parameters_for_parameter_table(
     )
 
     # parameters that are overridden via the condition table are not allowed
-    for p in problem.condition_df[TARGET_ID].unique():
-        try:
-            parameter_ids.remove(p)
-        except KeyError:
-            pass
+    parameter_ids -= set(problem.condition_df[TARGET_ID].unique())
 
     return parameter_ids
 
