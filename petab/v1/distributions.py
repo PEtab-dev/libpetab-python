@@ -138,25 +138,47 @@ class Distribution(abc.ABC):
         :param x: The value at which to evaluate the PDF.
         :return: The value of the PDF at ``x``.
         """
-        # handle the log transformation; see also:
-        #  https://en.wikipedia.org/wiki/Probability_density_function#Scalar_to_scalar
-        chain_rule_factor = (
-            (1 / (x * np.log(self._logbase))) if self._logbase else 1
-        )
-        return (
-            self._pdf(self._log(x))
-            * chain_rule_factor
-            * self._truncation_normalizer
+        if self._trunc is None:
+            return self._pdf_transformed_untruncated(x)
+
+        return np.where(
+            (x >= self.trunc_low) & (x <= self.trunc_high),
+            self._pdf_transformed_untruncated(x) * self._truncation_normalizer,
+            0,
         )
 
     @abc.abstractmethod
-    def _pdf(self, x) -> np.ndarray | float:
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         """Probability density function of the underlying distribution at x.
 
         :param x: The value at which to evaluate the PDF.
         :return: The value of the PDF at ``x``.
         """
         ...
+
+    def _pdf_transformed_untruncated(self, x) -> np.ndarray | float:
+        """Probability density function of the transformed, but untruncated
+        distribution at x.
+
+        :param x: The value at which to evaluate the PDF.
+        :return: The value of the PDF at ``x``.
+        """
+        if self.logbase is False:
+            return self._pdf_untransformed_untruncated(x)
+
+        # handle the log transformation; see also:
+        #  https://en.wikipedia.org/wiki/Probability_density_function#Scalar_to_scalar
+        chain_rule_factor = (
+            (1 / (x * np.log(self._logbase))) if self._logbase else 1
+        )
+
+        with np.errstate(invalid="ignore"):
+            return np.where(
+                x > 0,
+                self._pdf_untransformed_untruncated(self._log(x))
+                * chain_rule_factor,
+                0,
+            )
 
     @property
     def logbase(self) -> bool | float:
@@ -185,7 +207,13 @@ class Distribution(abc.ABC):
         :param x: The value at which to evaluate the CDF.
         :return: The value of the CDF at ``x``.
         """
-        return self._cdf_untransformed_untruncated(self._log(x))
+        if not self.logbase:
+            return self._cdf_untransformed_untruncated(x)
+
+        with np.errstate(invalid="ignore"):
+            return np.where(
+                x < 0, 0, self._cdf_untransformed_untruncated(self._log(x))
+            )
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         """Cumulative distribution function of the underlying
@@ -263,7 +291,7 @@ class Normal(Distribution):
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.normal(loc=self._loc, scale=self._scale, size=shape)
 
-    def _pdf(self, x) -> np.ndarray | float:
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         return norm.pdf(x, loc=self._loc, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
@@ -314,7 +342,7 @@ class Uniform(Distribution):
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.uniform(low=self._low, high=self._high, size=shape)
 
-    def _pdf(self, x) -> np.ndarray | float:
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
@@ -360,7 +388,7 @@ class Laplace(Distribution):
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
 
-    def _pdf(self, x) -> np.ndarray | float:
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
         return laplace.pdf(x, loc=self._loc, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
