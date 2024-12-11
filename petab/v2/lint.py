@@ -644,9 +644,7 @@ def get_valid_parameters_for_parameter_table(
     )
 
     if mapping_df is not None:
-        for from_id, to_id in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
-        ):
+        for from_id, to_id in mapping_df[MODEL_ENTITY_ID].items():
             if to_id in parameter_ids.keys():
                 parameter_ids[from_id] = None
 
