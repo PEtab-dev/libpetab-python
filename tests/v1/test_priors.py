@@ -1,11 +1,13 @@
 from copy import deepcopy
+from itertools import product
 from pathlib import Path
 
 import benchmark_models_petab
 import numpy as np
 import pandas as pd
 import pytest
-from scipy.stats import norm
+from scipy.integrate import cumulative_trapezoid
+from scipy.stats import kstest
 
 import petab.v1
 from petab.v1 import (
@@ -14,10 +16,11 @@ from petab.v1 import (
     OBJECTIVE_PRIOR_TYPE,
     OBSERVABLE_ID,
     SIMULATION,
+    C,
     get_simulation_conditions,
     get_simulation_df,
 )
-from petab.v1.priors import priors_to_measurements
+from petab.v1.priors import Prior, priors_to_measurements
 
 
 @pytest.mark.parametrize(
@@ -45,6 +48,13 @@ def test_priors_to_measurements(problem_id):
         zip(
             original_problem.x_free_ids,
             original_problem.x_nominal_free_scaled,
+            strict=True,
+        )
+    )
+    x_unscaled_dict = dict(
+        zip(
+            original_problem.x_free_ids,
+            original_problem.x_nominal_free,
             strict=True,
         )
     )
@@ -110,9 +120,13 @@ def test_priors_to_measurements(problem_id):
     def apply_parameter_values(row):
         # apply the parameter values to the observable formula for the prior
         if row[OBSERVABLE_ID].startswith("prior_"):
-            row[SIMULATION] = x_scaled_dict[
-                row[OBSERVABLE_ID].removeprefix("prior_")
-            ]
+            parameter_id = row[OBSERVABLE_ID].removeprefix("prior_")
+            if original_problem.parameter_df.loc[
+                parameter_id, OBJECTIVE_PRIOR_TYPE
+            ].startswith("parameterScale"):
+                row[SIMULATION] = x_scaled_dict[parameter_id]
+            else:
+                row[SIMULATION] = x_unscaled_dict[parameter_id]
         return row
 
     simulated_prior_observables = simulated_prior_observables.apply(
@@ -140,29 +154,61 @@ def test_priors_to_measurements(problem_id):
         (petab_problem_priors.parameter_df[ESTIMATE] == 1)
         & petab_problem_priors.parameter_df[OBJECTIVE_PRIOR_TYPE].notna()
     ]
-    priors = petab.v1.get_priors_from_df(
-        petab_problem_priors.parameter_df,
-        mode="objective",
-        parameter_ids=parameter_ids,
-    )
+    priors = [
+        Prior.from_par_dict(
+            petab_problem_priors.parameter_df.loc[par_id], type_="objective"
+        )
+        for par_id in parameter_ids
+    ]
     prior_contrib = 0
     for parameter_id, prior in zip(parameter_ids, priors, strict=True):
-        prior_type, prior_pars, par_scale, par_bounds = prior
-        if prior_type == petab.v1.PARAMETER_SCALE_NORMAL:
-            prior_contrib += norm.logpdf(
-                x_scaled_dict[parameter_id],
-                loc=prior_pars[0],
-                scale=prior_pars[1],
-            )
-        else:
-            # enable other models, once libpetab has proper support for
-            #  evaluating the prior contribution. until then, two test
-            #  problems should suffice
-            assert problem_id == "Raimundez_PCB2020"
-            pytest.skip(f"Prior type {prior_type} not implemented")
+        prior_contrib -= prior.neglogprior(x_scaled_dict[parameter_id])
 
     assert np.isclose(
-        llh_priors + prior_contrib, llh_measurements, rtol=1e-3, atol=1e-16
+        llh_priors + prior_contrib, llh_measurements, rtol=1e-8, atol=1e-16
     ), (llh_priors + prior_contrib, llh_measurements)
     # check that the tolerance is not too high
     assert np.abs(prior_contrib) > 1e-8 * np.abs(llh_priors)
+
+
+cases = list(
+    product(
+        [
+            (C.NORMAL, (10, 1)),
+            (C.LOG_NORMAL, (2, 1)),
+            (C.UNIFORM, (1, 2)),
+            (C.LAPLACE, (20, 2)),
+            (C.LOG_LAPLACE, (1, 0.5)),
+            (C.PARAMETER_SCALE_NORMAL, (1, 1)),
+            (C.PARAMETER_SCALE_LAPLACE, (1, 2)),
+            (C.PARAMETER_SCALE_UNIFORM, (1, 2)),
+        ],
+        C.PARAMETER_SCALES,
+    )
+)
+ids = [f"{prior_args[0]}_{transform}" for prior_args, transform in cases]
+
+
+@pytest.mark.parametrize("prior_args, transform", cases, ids=ids)
+def test_sample_matches_pdf(prior_args, transform):
+    """Test that the sample matches the PDF."""
+    np.random.seed(1)
+    N_SAMPLES = 10_000
+    prior = Prior(*prior_args, transformation=transform)
+    sample = prior.sample(N_SAMPLES)
+
+    # pdf -> cdf
+    def cdf(x):
+        return cumulative_trapezoid(prior.pdf(x), x)
+
+    # Kolmogorov-Smirnov test to check if the sample is drawn from the CDF
+    _, p = kstest(sample, cdf)
+
+    # if p < 0.05:
+    #     import matplotlib.pyplot as plt
+    #     plt.hist(sample, bins=100, density=True)
+    #     x = np.linspace(min(sample), max(sample), 100)
+    #     plt.plot(x, distribution.pdf(x))
+    #     plt.show()
+
+    assert p > 0.05, (p, prior)

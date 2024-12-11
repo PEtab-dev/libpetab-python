@@ -14,6 +14,7 @@ API Reference
    petab.v1.composite_problem
    petab.v1.conditions
    petab.v1.core
+   petab.v1.distributions
    petab.v1.lint
    petab.v1.measurements
    petab.v1.models

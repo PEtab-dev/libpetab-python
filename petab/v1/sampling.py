@@ -5,7 +5,6 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 
-from . import parameters
 from .C import *  # noqa: F403
 
 __all__ = ["sample_from_prior", "sample_parameter_startpoints"]
@@ -24,86 +23,14 @@ def sample_from_prior(
     Returns:
         Array with sampled values
     """
+    from .priors import Prior
+
     # unpack info
     p_type, p_params, scaling, bounds = prior
-
-    # define a function to rescale the sampled points to parameter scale
-    def scale(x):
-        if scaling == LIN:
-            return x
-        if scaling == LOG:
-            return np.log(x)
-        if scaling == LOG10:
-            return np.log10(x)
-        raise NotImplementedError(
-            f"Parameter priors on the parameter scale {scaling} are "
-            "currently not implemented."
-        )
-
-    def clip_to_bounds(x: np.array):
-        """Clip values in array x to bounds"""
-        return np.maximum(np.minimum(scale(bounds[1]), x), scale(bounds[0]))
-
-    # define lambda functions for each parameter
-    if p_type == UNIFORM:
-        sp = scale(
-            (p_params[1] - p_params[0]) * np.random.random((n_starts,))
-            + p_params[0]
-        )
-
-    elif p_type == PARAMETER_SCALE_UNIFORM:
-        sp = (p_params[1] - p_params[0]) * np.random.random(
-            (n_starts,)
-        ) + p_params[0]
-
-    elif p_type == NORMAL:
-        sp = scale(
-            np.random.normal(
-                loc=p_params[0], scale=p_params[1], size=(n_starts,)
-            )
-        )
-
-    elif p_type == LOG_NORMAL:
-        sp = scale(
-            np.exp(
-                np.random.normal(
-                    loc=p_params[0], scale=p_params[1], size=(n_starts,)
-                )
-            )
-        )
-
-    elif p_type == PARAMETER_SCALE_NORMAL:
-        sp = np.random.normal(
-            loc=p_params[0], scale=p_params[1], size=(n_starts,)
-        )
-
-    elif p_type == LAPLACE:
-        sp = scale(
-            np.random.laplace(
-                loc=p_params[0], scale=p_params[1], size=(n_starts,)
-            )
-        )
-
-    elif p_type == LOG_LAPLACE:
-        sp = scale(
-            np.exp(
-                np.random.laplace(
-                    loc=p_params[0], scale=p_params[1], size=(n_starts,)
-                )
-            )
-        )
-
-    elif p_type == PARAMETER_SCALE_LAPLACE:
-        sp = np.random.laplace(
-            loc=p_params[0], scale=p_params[1], size=(n_starts,)
-        )
-
-    else:
-        raise NotImplementedError(
-            f"Parameter priors of type {prior[0]} are not implemented."
-        )
-
-    return clip_to_bounds(sp)
+    prior = Prior(
+        p_type, tuple(p_params), bounds=tuple(bounds), transformation=scaling
+    )
+    return prior.sample(shape=(n_starts,))
 
 
 def sample_parameter_startpoints(
@@ -127,14 +54,27 @@ def sample_parameter_startpoints(
         Array of sampled starting points with dimensions
         `n_startpoints` x `n_optimization_parameters`
     """
+    from .priors import Prior
+
     if seed is not None:
         np.random.seed(seed)
 
+    par_to_estimate = parameter_df.loc[parameter_df[ESTIMATE] == 1]
+
+    if parameter_ids is not None:
+        try:
+            par_to_estimate = par_to_estimate.loc[parameter_ids, :]
+        except KeyError as e:
+            missing_ids = set(parameter_ids) - set(par_to_estimate.index)
+            raise KeyError(
+                "Parameter table does not contain estimated parameter(s) "
+                f"{missing_ids}."
+            ) from e
+
     # get types and parameters of priors from dataframe
-    prior_list = parameters.get_priors_from_df(
-        parameter_df, mode=INITIALIZATION, parameter_ids=parameter_ids
-    )
-
-    startpoints = [sample_from_prior(prior, n_starts) for prior in prior_list]
-
-    return np.array(startpoints).T
+    return np.array(
+        [
+            Prior.from_par_dict(row, type_="initialization").sample(n_starts)
+            for row in par_to_estimate.to_dict("records")
+        ]
+    ).T

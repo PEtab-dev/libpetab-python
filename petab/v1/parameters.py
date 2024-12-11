@@ -524,7 +524,8 @@ def scale(
     if scale_str == LOG:
         return np.log(parameter)
     if scale_str == LOG10:
-        return np.log10(parameter)
+        with np.errstate(divide="ignore"):
+            return np.log10(parameter)
     raise ValueError(f"Invalid parameter scaling: {scale_str}")
 
 
