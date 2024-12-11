@@ -33,7 +33,7 @@ class Distribution(abc.ABC):
     def __init__(self, log: bool | float = False):
         if log is True:
             log = np.exp(1)
-        self._log = log
+        self._logbase = log
 
     def _undo_log(self, x: np.ndarray | float) -> np.ndarray | float:
         """Undo the log transformation.
@@ -41,9 +41,9 @@ class Distribution(abc.ABC):
         :param x: The sample to transform.
         :return: The transformed sample
         """
-        if self._log is False:
+        if self._logbase is False:
             return x
-        return self._log**x
+        return self._logbase**x
 
     def _apply_log(self, x: np.ndarray | float) -> np.ndarray | float:
         """Apply the log transformation.
@@ -51,9 +51,9 @@ class Distribution(abc.ABC):
         :param x: The value to transform.
         :return: The transformed value.
         """
-        if self._log is False:
+        if self._logbase is False:
             return x
-        return np.log(x) / np.log(self._log)
+        return np.log(x) / np.log(self._logbase)
 
     def sample(self, shape=None) -> np.ndarray:
         """Sample from the distribution.
@@ -82,7 +82,9 @@ class Distribution(abc.ABC):
         """
         # handle the log transformation; see also:
         #  https://en.wikipedia.org/wiki/Probability_density_function#Scalar_to_scalar
-        chain_rule_factor = (1 / (x * np.log(self._log))) if self._log else 1
+        chain_rule_factor = (
+            (1 / (x * np.log(self._logbase))) if self._logbase else 1
+        )
         return self._pdf(self._apply_log(x)) * chain_rule_factor
 
     @abc.abstractmethod
@@ -93,6 +95,14 @@ class Distribution(abc.ABC):
         :return: The value of the PDF at ``x``.
         """
         ...
+
+    @property
+    def logbase(self) -> bool | float:
+        """The base of the log transformation.
+
+        If ``False``, no transformation is applied.
+        """
+        return self._logbase
 
 
 class Normal(Distribution):
@@ -127,7 +137,7 @@ class Normal(Distribution):
 
     def __repr__(self):
         trunc = f", truncation={self._truncation}" if self._truncation else ""
-        log = f", log={self._log}" if self._log else ""
+        log = f", log={self._logbase}" if self._logbase else ""
         return f"Normal(loc={self._loc}, scale={self._scale}{trunc}{log})"
 
     def _sample(self, shape=None):
@@ -172,7 +182,7 @@ class Uniform(Distribution):
         self._high = high
 
     def __repr__(self):
-        log = f", log={self._log}" if self._log else ""
+        log = f", log={self._logbase}" if self._logbase else ""
         return f"Uniform(low={self._low}, high={self._high}{log})"
 
     def _sample(self, shape=None):
@@ -213,7 +223,7 @@ class Laplace(Distribution):
 
     def __repr__(self):
         trunc = f", truncation={self._truncation}" if self._truncation else ""
-        log = f", log={self._log}" if self._log else ""
+        log = f", log={self._logbase}" if self._logbase else ""
         return f"Laplace(loc={self._loc}, scale={self._scale}{trunc}{log})"
 
     def _sample(self, shape=None):
