@@ -156,7 +156,9 @@ def test_priors_to_measurements(problem_id):
     ]
     priors = [
         Prior.from_par_dict(
-            petab_problem_priors.parameter_df.loc[par_id], type_="objective"
+            petab_problem_priors.parameter_df.loc[par_id],
+            type_="objective",
+            bounds_truncate=False,
         )
         for par_id in parameter_ids
     ]
