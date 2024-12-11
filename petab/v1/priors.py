@@ -63,10 +63,9 @@ class Prior:
         If ``True``, the probability density will be rescaled
         accordingly and the sample is generated from the truncated
         distribution.
-        If ``False``, the probability density will not account for the
-        bounds, but any parameter samples outside the bounds will be set to
-        the value of the closest bound. In this case, the PDF might not match
-        the sample.
+        If ``False``, the probability density will not be rescaled
+        accordingly, but the sample will be generated from the truncated
+        distribution.
     """
 
     def __init__(
@@ -99,7 +98,7 @@ class Prior:
         self._transformation = transformation
         self._bounds_truncate = bounds_truncate
 
-        truncation = bounds if bounds_truncate else None
+        truncation = bounds
         if truncation is not None:
             # for uniform, we don't want to implement truncation and just
             #  adapt the distribution parameters
@@ -179,26 +178,13 @@ class Prior:
         :return: A sample from the distribution.
         """
         raw_sample = self.distribution.sample(shape)
-        return self._clip_to_bounds(self._scale_sample(raw_sample))
+        return self._scale_sample(raw_sample)
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
         # we also need to scale parameterScale* distributions, because
         #  internally, they are handled as (unscaled) log-distributions
         return scale(sample, self.transformation)
-
-    def _clip_to_bounds(self, x) -> np.ndarray | float:
-        """Clip `x` values to bounds.
-
-        :param x: The values to clip. Assumed to be on the parameter scale.
-        """
-        if self.bounds is None or self._bounds_truncate:
-            return x
-
-        return np.maximum(
-            np.minimum(self.ub_scaled, x),
-            self.lb_scaled,
-        )
 
     @property
     def lb_scaled(self) -> float:
@@ -215,8 +201,8 @@ class Prior:
 
         :param x: The value at which to evaluate the PDF.
             ``x`` is assumed to be on the parameter scale.
-        :return: The value of the PDF at ``x``. Note that the PDF does
-            currently not account for the clipping at the bounds.
+        :return: The value of the PDF at ``x``. ``x`` is assumed to be on the
+            parameter scale.
         """
         x = unscale(x, self.transformation)
 
@@ -239,7 +225,27 @@ class Prior:
             ``x`` is assumed to be on the parameter scale.
         :return: The negative log-prior at ``x``.
         """
-        return -np.log(self.pdf(x))
+        # FIXME: the prior is always defined on linear scale
+        if self._bounds_truncate:
+            # the truncation is handled by the distribution
+            return -np.log(self.pdf(x))
+
+        # we want to evaluate the prior on the untruncated distribution
+        x = unscale(x, self.transformation)
+
+        # scale the PDF to the parameter scale
+        if self.transformation == C.LIN:
+            coeff = 1
+        elif self.transformation == C.LOG10:
+            coeff = x * np.log(10)
+        elif self.transformation == C.LOG:
+            coeff = x
+        else:
+            raise ValueError(f"Unknown transformation: {self.transformation}")
+
+        return -np.log(
+            self.distribution._pdf_transformed_untruncated(x) * coeff
+        )
 
     @staticmethod
     def from_par_dict(
