@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
@@ -688,7 +689,7 @@ def get_valid_parameters_for_parameter_table(
 
 def get_required_parameters_for_parameter_table(
     problem: Problem,
-) -> set[str]:
+) -> Set[str]:
     """
     Get set of parameters which need to go into the parameter table
 
