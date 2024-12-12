@@ -58,6 +58,14 @@ class Prior:
         on the `parameter_scale` scale).
     :param bounds: The untransformed bounds of the sample (lower, upper).
     :param transformation: The transformation of the distribution.
+    :param bounds_truncate: Whether the generated prior will be truncated
+        at the bounds.
+        If ``True``, the probability density will be rescaled
+        accordingly and the sample is generated from the truncated
+        distribution.
+        If ``False``, the probability density will not be rescaled
+        accordingly, but the sample will be generated from the truncated
+        distribution.
     """
 
     def __init__(
@@ -66,6 +74,7 @@ class Prior:
         parameters: tuple,
         bounds: tuple = None,
         transformation: str = C.LIN,
+        bounds_truncate: bool = True,
     ):
         if transformation not in C.PARAMETER_SCALES:
             raise ValueError(
@@ -87,27 +96,51 @@ class Prior:
         self._parameters = parameters
         self._bounds = bounds
         self._transformation = transformation
+        self._bounds_truncate = bounds_truncate
+
+        truncation = bounds
+        if truncation is not None:
+            # for uniform, we don't want to implement truncation and just
+            #  adapt the distribution parameters
+            if type_ == C.PARAMETER_SCALE_UNIFORM:
+                parameters = (
+                    max(parameters[0], scale(truncation[0], transformation)),
+                    min(parameters[1], scale(truncation[1], transformation)),
+                )
+            elif type_ == C.UNIFORM:
+                parameters = (
+                    max(parameters[0], truncation[0]),
+                    min(parameters[1], truncation[1]),
+                )
 
         # create the underlying distribution
         match type_, transformation:
             case (C.UNIFORM, _) | (C.PARAMETER_SCALE_UNIFORM, C.LIN):
                 self.distribution = Uniform(*parameters)
             case (C.NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LIN):
-                self.distribution = Normal(*parameters)
+                self.distribution = Normal(*parameters, trunc=truncation)
             case (C.LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LIN):
-                self.distribution = Laplace(*parameters)
+                self.distribution = Laplace(*parameters, trunc=truncation)
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG):
                 self.distribution = Uniform(*parameters, log=True)
             case (C.LOG_NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LOG):
-                self.distribution = Normal(*parameters, log=True)
+                self.distribution = Normal(
+                    *parameters, log=True, trunc=truncation
+                )
             case (C.LOG_LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LOG):
-                self.distribution = Laplace(*parameters, log=True)
+                self.distribution = Laplace(
+                    *parameters, log=True, trunc=truncation
+                )
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG10):
                 self.distribution = Uniform(*parameters, log=10)
             case (C.PARAMETER_SCALE_NORMAL, C.LOG10):
-                self.distribution = Normal(*parameters, log=10)
+                self.distribution = Normal(
+                    *parameters, log=10, trunc=truncation
+                )
             case (C.PARAMETER_SCALE_LAPLACE, C.LOG10):
-                self.distribution = Laplace(*parameters, log=10)
+                self.distribution = Laplace(
+                    *parameters, log=10, trunc=truncation
+                )
             case _:
                 raise ValueError(
                     "Unsupported distribution type / transformation: "
@@ -123,19 +156,19 @@ class Prior:
         )
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self._type
 
     @property
-    def parameters(self):
+    def parameters(self) -> tuple:
         return self._parameters
 
     @property
-    def bounds(self):
+    def bounds(self) -> tuple[float, float] | None:
         return self._bounds
 
     @property
-    def transformation(self):
+    def transformation(self) -> str:
         return self._transformation
 
     def sample(self, shape=None) -> np.ndarray:
@@ -145,46 +178,31 @@ class Prior:
         :return: A sample from the distribution.
         """
         raw_sample = self.distribution.sample(shape)
-        return self._clip_to_bounds(self._scale_sample(raw_sample))
+        return self._scale_sample(raw_sample)
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
-        # if self.on_parameter_scale:
-        #     return sample
-
+        # we also need to scale parameterScale* distributions, because
+        #  internally, they are handled as (unscaled) log-distributions
         return scale(sample, self.transformation)
 
-    def _clip_to_bounds(self, x):
-        """Clip `x` values to bounds.
-
-        :param x: The values to clip. Assumed to be on the parameter scale.
-        """
-        # TODO: replace this by proper truncation
-        if self.bounds is None:
-            return x
-
-        return np.maximum(
-            np.minimum(self.ub_scaled, x),
-            self.lb_scaled,
-        )
-
     @property
-    def lb_scaled(self):
+    def lb_scaled(self) -> float:
         """The lower bound on the parameter scale."""
         return scale(self.bounds[0], self.transformation)
 
     @property
-    def ub_scaled(self):
+    def ub_scaled(self) -> float:
         """The upper bound on the parameter scale."""
         return scale(self.bounds[1], self.transformation)
 
-    def pdf(self, x):
+    def pdf(self, x) -> np.ndarray | float:
         """Probability density function at x.
 
         :param x: The value at which to evaluate the PDF.
             ``x`` is assumed to be on the parameter scale.
-        :return: The value of the PDF at ``x``. Note that the PDF does
-            currently not account for the clipping at the bounds.
+        :return: The value of the PDF at ``x``. ``x`` is assumed to be on the
+            parameter scale.
         """
         x = unscale(x, self.transformation)
 
@@ -200,23 +218,47 @@ class Prior:
 
         return self.distribution.pdf(x) * coeff
 
-    def neglogprior(self, x):
+    def neglogprior(self, x) -> np.ndarray | float:
         """Negative log-prior at x.
 
         :param x: The value at which to evaluate the negative log-prior.
             ``x`` is assumed to be on the parameter scale.
         :return: The negative log-prior at ``x``.
         """
-        return -np.log(self.pdf(x))
+        # FIXME: the prior is always defined on linear scale
+        if self._bounds_truncate:
+            # the truncation is handled by the distribution
+            return -np.log(self.pdf(x))
+
+        # we want to evaluate the prior on the untruncated distribution
+        x = unscale(x, self.transformation)
+
+        # scale the PDF to the parameter scale
+        if self.transformation == C.LIN:
+            coeff = 1
+        elif self.transformation == C.LOG10:
+            coeff = x * np.log(10)
+        elif self.transformation == C.LOG:
+            coeff = x
+        else:
+            raise ValueError(f"Unknown transformation: {self.transformation}")
+
+        return -np.log(
+            self.distribution._pdf_transformed_untruncated(x) * coeff
+        )
 
     @staticmethod
     def from_par_dict(
-        d, type_=Literal["initialization", "objective"]
+        d,
+        type_=Literal["initialization", "objective"],
+        bounds_truncate: bool = True,
     ) -> Prior:
         """Create a distribution from a row of the parameter table.
 
         :param d: A dictionary representing a row of the parameter table.
         :param type_: The type of the distribution.
+        :param bounds_truncate: Whether the generated prior will be truncated
+            at the bounds.
         :return: A distribution object.
         """
         dist_type = d.get(f"{type_}PriorType", C.PARAMETER_SCALE_UNIFORM)
@@ -242,6 +284,7 @@ class Prior:
             parameters=params,
             bounds=(d[C.LOWER_BOUND], d[C.UPPER_BOUND]),
             transformation=pscale,
+            bounds_truncate=bounds_truncate,
         )
 
 

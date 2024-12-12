@@ -28,7 +28,11 @@ def sample_from_prior(
     # unpack info
     p_type, p_params, scaling, bounds = prior
     prior = Prior(
-        p_type, tuple(p_params), bounds=tuple(bounds), transformation=scaling
+        p_type,
+        tuple(p_params),
+        bounds=tuple(bounds),
+        transformation=scaling,
+        bounds_truncate=True,
     )
     return prior.sample(shape=(n_starts,))
 
@@ -74,7 +78,9 @@ def sample_parameter_startpoints(
     # get types and parameters of priors from dataframe
     return np.array(
         [
-            Prior.from_par_dict(row, type_="initialization").sample(n_starts)
+            Prior.from_par_dict(
+                row, type_="initialization", bounds_truncate=True
+            ).sample(n_starts)
             for row in par_to_estimate.to_dict("records")
         ]
     ).T
