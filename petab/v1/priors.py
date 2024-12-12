@@ -224,10 +224,8 @@ class Prior:
             dist_type = C.PARAMETER_SCALE_UNIFORM
 
         pscale = d.get(C.PARAMETER_SCALE, C.LIN)
-        if (
-            pd.isna(d[f"{type_}PriorParameters"])
-            and dist_type == C.PARAMETER_SCALE_UNIFORM
-        ):
+        params = d.get(f"{type_}PriorParameters", None)
+        if pd.isna(params) and dist_type == C.PARAMETER_SCALE_UNIFORM:
             params = (
                 scale(d[C.LOWER_BOUND], pscale),
                 scale(d[C.UPPER_BOUND], pscale),
@@ -236,7 +234,7 @@ class Prior:
             params = tuple(
                 map(
                     float,
-                    d[f"{type_}PriorParameters"].split(C.PARAMETER_SEPARATOR),
+                    params.split(C.PARAMETER_SEPARATOR),
                 )
             )
         return Prior(
