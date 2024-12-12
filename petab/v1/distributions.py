@@ -168,11 +168,11 @@ class Distribution(abc.ABC):
 
         # handle the log transformation; see also:
         #  https://en.wikipedia.org/wiki/Probability_density_function#Scalar_to_scalar
-        chain_rule_factor = (
-            (1 / (x * np.log(self._logbase))) if self._logbase else 1
-        )
+        with np.errstate(invalid="ignore", divide="ignore"):
+            chain_rule_factor = (
+                (1 / (x * np.log(self._logbase))) if self._logbase else 1
+            )
 
-        with np.errstate(invalid="ignore"):
             return np.where(
                 x > 0,
                 self._pdf_untransformed_untruncated(self._log(x))
@@ -241,6 +241,19 @@ class Distribution(abc.ABC):
         :return: The value of the PPF at ``q``.
         """
         return self._exp(self._ppf_untransformed_untruncated(q))
+
+    def ppf(self, q) -> np.ndarray | float:
+        """Percent point function at q.
+
+        :param q: The quantile at which to evaluate the PPF.
+        :return: The value of the PPF at ``q``.
+        """
+        if self._trunc is None:
+            return self._ppf_transformed_untruncated(q)
+
+        # Adjust quantiles to account for truncation
+        adjusted_q = self._cd_low + q * (self._cd_high - self._cd_low)
+        return self._ppf_transformed_untruncated(adjusted_q)
 
     def _inverse_transform_sample(self, shape) -> np.ndarray | float:
         """Generate an inverse transform sample from the transformed and

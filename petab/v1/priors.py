@@ -161,24 +161,31 @@ class Prior:
 
     @property
     def parameters(self) -> tuple:
+        """The parameters of the distribution."""
         return self._parameters
 
     @property
     def bounds(self) -> tuple[float, float] | None:
+        """The non-scaled bounds of the distribution."""
         return self._bounds
 
     @property
     def transformation(self) -> str:
+        """The `parameterScale`."""
         return self._transformation
 
-    def sample(self, shape=None) -> np.ndarray:
+    def sample(self, shape=None, x_scaled=False) -> np.ndarray | float:
         """Sample from the distribution.
 
         :param shape: The shape of the sample.
+        :param x_scaled: Whether the sample should be on the parameter scale.
         :return: A sample from the distribution.
         """
         raw_sample = self.distribution.sample(shape)
-        return self._scale_sample(raw_sample)
+        if x_scaled:
+            return self._scale_sample(raw_sample)
+        else:
+            return raw_sample
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
@@ -196,56 +203,64 @@ class Prior:
         """The upper bound on the parameter scale."""
         return scale(self.bounds[1], self.transformation)
 
-    def pdf(self, x) -> np.ndarray | float:
+    def _chain_rule_coeff(self, x) -> np.ndarray | float:
+        """The chain rule coefficient for the transformation at x."""
+        x = unscale(x, self.transformation)
+
+        # scale the PDF to the parameter scale
+        if self.transformation == C.LIN:
+            coeff = 1
+        elif self.transformation == C.LOG10:
+            coeff = x * np.log(10)
+        elif self.transformation == C.LOG:
+            coeff = x
+        else:
+            raise ValueError(f"Unknown transformation: {self.transformation}")
+
+        return coeff
+
+    def pdf(
+        self, x, x_scaled: bool = False, rescale=False
+    ) -> np.ndarray | float:
         """Probability density function at x.
+
+        This accounts for truncation, independent of the `bounds_truncate`
+        parameter.
 
         :param x: The value at which to evaluate the PDF.
             ``x`` is assumed to be on the parameter scale.
-        :return: The value of the PDF at ``x``. ``x`` is assumed to be on the
-            parameter scale.
+        :param x_scaled: Whether ``x`` is on the parameter scale.
+        :param rescale: Whether to rescale the PDF to integrate to 1 on the
+            parameter scale. Only used if ``x_scaled`` is ``True``.
+        :return: The value of the PDF at ``x``.
         """
-        x = unscale(x, self.transformation)
+        if x_scaled:
+            coeff = self._chain_rule_coeff(x) if rescale else 1
+            x = unscale(x, self.transformation)
+            return self.distribution.pdf(x) * coeff
 
-        # scale the PDF to the parameter scale
-        if self.transformation == C.LIN:
-            coeff = 1
-        elif self.transformation == C.LOG10:
-            coeff = x * np.log(10)
-        elif self.transformation == C.LOG:
-            coeff = x
-        else:
-            raise ValueError(f"Unknown transformation: {self.transformation}")
+        return self.distribution.pdf(x)
 
-        return self.distribution.pdf(x) * coeff
-
-    def neglogprior(self, x) -> np.ndarray | float:
+    def neglogprior(
+        self, x: np.array | float, x_scaled: bool = False
+    ) -> np.ndarray | float:
         """Negative log-prior at x.
 
         :param x: The value at which to evaluate the negative log-prior.
-            ``x`` is assumed to be on the parameter scale.
+        :param x_scaled: Whether ``x`` is on the parameter scale.
+            Note that the prior is always evaluated on the non-scaled
+            parameters.
         :return: The negative log-prior at ``x``.
         """
-        # FIXME: the prior is always defined on linear scale
         if self._bounds_truncate:
             # the truncation is handled by the distribution
-            return -np.log(self.pdf(x))
+            # the prior is always evaluated on the non-scaled parameters
+            return -np.log(self.pdf(x, x_scaled=x_scaled, rescale=False))
 
         # we want to evaluate the prior on the untruncated distribution
-        x = unscale(x, self.transformation)
-
-        # scale the PDF to the parameter scale
-        if self.transformation == C.LIN:
-            coeff = 1
-        elif self.transformation == C.LOG10:
-            coeff = x * np.log(10)
-        elif self.transformation == C.LOG:
-            coeff = x
-        else:
-            raise ValueError(f"Unknown transformation: {self.transformation}")
-
-        return -np.log(
-            self.distribution._pdf_transformed_untruncated(x) * coeff
-        )
+        if x_scaled:
+            x = unscale(x, self.transformation)
+        return -np.log(self.distribution._pdf_transformed_untruncated(x))
 
     @staticmethod
     def from_par_dict(
@@ -339,6 +354,7 @@ def priors_to_measurements(problem: Problem):
         return new_problem
 
     def scaled_observable_formula(parameter_id, parameter_scale):
+        # The location parameter of the prior
         if parameter_scale == LIN:
             return parameter_id
         if parameter_scale == LOG:
@@ -367,6 +383,12 @@ def priors_to_measurements(problem: Problem):
             #  offset
             raise NotImplementedError("Uniform priors are not supported.")
 
+        if prior_type not in (C.NORMAL, C.LAPLACE):
+            # we can't (easily) handle parameterScale* priors or log*-priors
+            raise NotImplementedError(
+                f"Objective prior type {prior_type} is not implemented."
+            )
+
         parameter_id = row.name
         prior_parameters = tuple(
             map(
@@ -391,7 +413,9 @@ def priors_to_measurements(problem: Problem):
             OBSERVABLE_ID: new_obs_id,
             OBSERVABLE_FORMULA: scaled_observable_formula(
                 parameter_id,
-                parameter_scale if "parameterScale" in prior_type else LIN,
+                parameter_scale
+                if prior_type in C.PARAMETER_SCALE_PRIOR_TYPES
+                else LIN,
             ),
             NOISE_FORMULA: f"noiseParameter1_{new_obs_id}",
         }
@@ -400,12 +424,13 @@ def priors_to_measurements(problem: Problem):
         elif OBSERVABLE_TRANSFORMATION in new_problem.observable_df:
             # only set default if the column is already present
             new_observable[OBSERVABLE_TRANSFORMATION] = LIN
-
+        # type of the underlying distribution
         if prior_type in (NORMAL, PARAMETER_SCALE_NORMAL, LOG_NORMAL):
             new_observable[NOISE_DISTRIBUTION] = NORMAL
         elif prior_type in (LAPLACE, PARAMETER_SCALE_LAPLACE, LOG_LAPLACE):
             new_observable[NOISE_DISTRIBUTION] = LAPLACE
         else:
+            # we can't (easily) handle uniform priors in PEtab v1
             raise NotImplementedError(
                 f"Objective prior type {prior_type} is not implemented."
             )

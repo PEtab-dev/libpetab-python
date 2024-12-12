@@ -80,7 +80,7 @@ def sample_parameter_startpoints(
         [
             Prior.from_par_dict(
                 row, type_="initialization", bounds_truncate=True
-            ).sample(n_starts)
+            ).sample(n_starts, x_scaled=True)
             for row in par_to_estimate.to_dict("records")
         ]
     ).T
