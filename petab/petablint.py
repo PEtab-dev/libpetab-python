@@ -12,9 +12,8 @@ from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 import petab.v1 as petab
 from petab.v1.C import FORMAT_VERSION
-from petab.v2.lint import lint_problem
+from petab.v1.yaml import validate
 from petab.versions import get_major_version
-from petab.yaml import validate
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +177,8 @@ def main():
                 ret = petab.lint.lint_problem(problem)
                 sys.exit(ret)
             case 2:
+                from petab.v2.lint import lint_problem
+
                 validation_issues = lint_problem(args.yaml_file_name)
                 if validation_issues:
                     validation_issues.log(logger=logger)
