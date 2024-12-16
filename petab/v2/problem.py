@@ -93,11 +93,22 @@ class Problem:
         )
         self.config = config
 
-        from .core import Observable, ObservablesTable
-
-        self.observables: list[Observable] = ObservablesTable.from_dataframe(
-            self.observable_df
+        from .core import (
+            ChangeSet,
+            ConditionsTable,
+            Observable,
+            ObservablesTable,
         )
+
+        self.observables_table: ObservablesTable = (
+            ObservablesTable.from_dataframe(self.observable_df)
+        )
+        self.observables: list[Observable] = self.observables_table.observables
+
+        self.conditions_table: ConditionsTable = (
+            ConditionsTable.from_dataframe(self.condition_df)
+        )
+        self.conditions: list[ChangeSet] = self.conditions_table.conditions
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"

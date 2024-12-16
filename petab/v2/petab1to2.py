@@ -293,7 +293,7 @@ def v1v2_condition_df(
         id_vars=[v1.C.CONDITION_ID],
         var_name=v2.C.TARGET_ID,
         value_name=v2.C.TARGET_VALUE,
-    )
+    ).dropna(subset=[v2.C.TARGET_VALUE])
 
     if condition_df.empty:
         # This happens if there weren't any condition-specific changes
