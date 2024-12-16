@@ -92,6 +92,12 @@ class Problem:
         ] = default_validation_tasks.copy()
         self.config = config
 
+        from .core import Observable, ObservablesTable
+
+        self.observables: list[Observable] = ObservablesTable.from_dataframe(
+            self.observable_df
+        )
+
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
 
