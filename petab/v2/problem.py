@@ -829,7 +829,7 @@ class Problem:
     def add_parameter(
         self,
         id_: str,
-        estimated: bool | str | int = True,
+        estimate: bool | str | int = True,
         nominal_value=None,
         scale: str = None,
         lb: Number = None,
@@ -844,7 +844,7 @@ class Problem:
 
         Arguments:
             id_: The parameter id
-            estimated: Whether the parameter is estimated
+            estimate: Whether the parameter is estimated
             nominal_value: The nominal value of the parameter
             scale: The parameter scale
             lb: The lower bound of the parameter
@@ -859,11 +859,9 @@ class Problem:
         record = {
             PARAMETER_ID: [id_],
         }
-        if estimated is not None:
+        if estimate is not None:
             record[ESTIMATE] = [
-                int(estimated)
-                if isinstance(estimated, bool | int)
-                else estimated
+                int(estimate) if isinstance(estimate, bool | int) else estimate
             ]
         if nominal_value is not None:
             record[NOMINAL_VALUE] = [nominal_value]
