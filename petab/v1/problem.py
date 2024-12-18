@@ -1149,8 +1149,8 @@ class Problem:
         sim_cond_id: str,
         time: float,
         measurement: float,
-        observable_parameters: Sequence[str] = None,
-        noise_parameters: Sequence[str] = None,
+        observable_parameters: Sequence[str | float] = None,
+        noise_parameters: Sequence[str | float] = None,
         preeq_cond_id: str = None,
     ):
         """Add a measurement to the problem.
@@ -1172,11 +1172,11 @@ class Problem:
         }
         if observable_parameters is not None:
             record[OBSERVABLE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(observable_parameters)
+                PARAMETER_SEPARATOR.join(map(str, observable_parameters))
             ]
         if noise_parameters is not None:
             record[NOISE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(noise_parameters)
+                PARAMETER_SEPARATOR.join(map(str, noise_parameters))
             ]
         if preeq_cond_id is not None:
             record[PREEQUILIBRATION_CONDITION_ID] = [preeq_cond_id]

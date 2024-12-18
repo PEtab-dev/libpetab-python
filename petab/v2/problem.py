@@ -5,7 +5,6 @@ import logging
 import os
 import tempfile
 import traceback
-import warnings
 from collections.abc import Sequence
 from math import nan
 from numbers import Number
@@ -92,12 +91,6 @@ class Problem:
             ValidationTask
         ] = default_validation_tasks.copy()
         self.config = config
-        if self.experiment_df is not None:
-            warnings.warn(
-                "The experiment table is not yet supported and "
-                "will be ignored.",
-                stacklevel=2,
-            )
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -908,47 +901,43 @@ class Problem:
     def add_measurement(
         self,
         obs_id: str,
-        sim_cond_id: str,
+        experiment_id: str,
         time: float,
         measurement: float,
-        observable_parameters: Sequence[str] = None,
-        noise_parameters: Sequence[str] = None,
-        preeq_cond_id: str = None,
+        observable_parameters: Sequence[str | float] = None,
+        noise_parameters: Sequence[str | float] = None,
     ):
         """Add a measurement to the problem.
 
         Arguments:
             obs_id: The observable ID
-            sim_cond_id: The simulation condition ID
+            experiment_id: The experiment ID
             time: The measurement time
             measurement: The measurement value
             observable_parameters: The observable parameters
             noise_parameters: The noise parameters
-            preeq_cond_id: The pre-equilibration condition ID
         """
         record = {
             OBSERVABLE_ID: [obs_id],
-            SIMULATION_CONDITION_ID: [sim_cond_id],
+            EXPERIMENT_ID: [experiment_id],
             TIME: [time],
             MEASUREMENT: [measurement],
         }
         if observable_parameters is not None:
             record[OBSERVABLE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(observable_parameters)
+                PARAMETER_SEPARATOR.join(map(str, observable_parameters))
             ]
         if noise_parameters is not None:
             record[NOISE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(noise_parameters)
+                PARAMETER_SEPARATOR.join(map(str, noise_parameters))
             ]
-        if preeq_cond_id is not None:
-            record[PREEQUILIBRATION_CONDITION_ID] = [preeq_cond_id]
 
         tmp_df = pd.DataFrame(record)
         self.measurement_df = (
             pd.concat([self.measurement_df, tmp_df])
             if self.measurement_df is not None
             else tmp_df
-        )
+        ).reset_index(drop=True)
 
     def add_mapping(self, petab_id: str, model_id: str):
         """Add a mapping table entry to the problem.

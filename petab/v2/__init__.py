@@ -27,7 +27,10 @@ warn(
 
 # import after v1
 from ..version import __version__  # noqa: F401, E402
-from . import models  # noqa: F401, E402
+from . import (  # noqa: F401, E402
+    C,  # noqa: F401, E402
+    models,  # noqa: F401, E402
+)
 from .conditions import *  # noqa: F403, F401, E402
 from .experiments import (  # noqa: F401, E402
     get_experiment_df,

@@ -30,7 +30,7 @@ def test_load_remote():
     """Test loading remote files"""
     yaml_url = (
         "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/update_v2/petabtests/cases/v2.0.0/sbml/0001/_0001.yaml"
+        "/update_v2/petabtests/cases/v2.0.0/sbml/0010/_0010.yaml"
     )
     petab_problem = Problem.from_yaml(yaml_url)
 
@@ -83,7 +83,7 @@ def test_problem_from_yaml_multiple_files():
                 problem.experiment_df, Path(tmpdir, f"experiments{i}.tsv")
             )
 
-            problem.add_measurement(f"observable{i}", f"condition{i}", 1, 1)
+            problem.add_measurement(f"observable{i}", f"experiment{i}", 1, 1)
             petab.write_measurement_df(
                 problem.measurement_df, Path(tmpdir, f"measurements{i}.tsv")
             )
