@@ -131,7 +131,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                     {
                         v2.C.EXPERIMENT_ID: exp_id,
                         v2.C.CONDITION_ID: preeq_cond_id,
-                        v2.C.TIME: float("-inf"),
+                        v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
                     }
                 )
             experiments.append(

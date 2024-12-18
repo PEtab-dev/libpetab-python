@@ -22,6 +22,9 @@ TIME = "time"
 #: Time value that indicates steady-state measurements
 TIME_STEADY_STATE = _math.inf
 
+#: Time value that indicates pre-equilibration in the experiments table
+TIME_PREEQUILIBRATION = -_math.inf
+
 #: Observable parameters column in the measurement table
 OBSERVABLE_PARAMETERS = "observableParameters"
 
