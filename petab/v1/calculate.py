@@ -97,6 +97,9 @@ def calculate_residuals_for_table(
     Calculate residuals for a single measurement table.
     For the arguments, see `calculate_residuals`.
     """
+    # below, we rely on a unique index
+    measurement_df = measurement_df.reset_index(drop=True)
+
     # create residual df as copy of measurement df, change column
     residual_df = measurement_df.copy(deep=True).rename(
         columns={MEASUREMENT: RESIDUAL}
@@ -120,6 +123,10 @@ def calculate_residuals_for_table(
             for col in compared_cols
         ]
         mask = reduce(lambda x, y: x & y, masks)
+        if mask.sum() == 0:
+            raise ValueError(
+                f"Could not find simulation for measurement {row}."
+            )
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
         if scale:
             # apply scaling

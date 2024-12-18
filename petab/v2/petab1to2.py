@@ -4,8 +4,8 @@ from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from urllib.parse import urlparse
+from uuid import uuid4
 
-import numpy as np
 import pandas as pd
 from pandas.io.common import get_handle, is_url
 
@@ -98,10 +98,81 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
             condition_df = v1v2_condition_df(condition_df, petab_problem.model)
             v2.write_condition_df(condition_df, get_dest_path(condition_file))
 
+        # records for the experiment table to be created
+        experiments = []
+
+        def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
+            if not sim_cond_id and not preeq_cond_id:
+                return ""
+            if preeq_cond_id:
+                preeq_cond_id = f"{preeq_cond_id}_"
+            exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
+            if exp_id in experiments:  # noqa: B023
+                i = 1
+                while f"{exp_id}_{i}" in experiments:  # noqa: B023
+                    i += 1
+                exp_id = f"{exp_id}_{i}"
+            return exp_id
+
+        measured_experiments = (
+            petab_problem.get_simulation_conditions_from_measurement_df()
+        )
+        for (
+            _,
+            row,
+        ) in measured_experiments.iterrows():
+            # generate a new experiment for each simulation / pre-eq condition
+            #  combination
+            sim_cond_id = row[v1.C.SIMULATION_CONDITION_ID]
+            preeq_cond_id = row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, "")
+            exp_id = create_experiment_id(sim_cond_id, preeq_cond_id)
+            if preeq_cond_id:
+                experiments.append(
+                    {
+                        v2.C.EXPERIMENT_ID: exp_id,
+                        v2.C.CONDITION_ID: preeq_cond_id,
+                        v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
+                    }
+                )
+            experiments.append(
+                {
+                    v2.C.EXPERIMENT_ID: exp_id,
+                    v2.C.CONDITION_ID: sim_cond_id,
+                    v2.C.TIME: 0,
+                }
+            )
+        if experiments:
+            exp_table_path = output_dir / "experiments.tsv"
+            if exp_table_path.exists():
+                raise ValueError(
+                    f"Experiment table file {exp_table_path} already exists."
+                )
+            problem_config[v2.C.EXPERIMENT_FILES] = [exp_table_path.name]
+            v2.write_experiment_df(
+                v2.get_experiment_df(pd.DataFrame(experiments)), exp_table_path
+            )
+
         for measurement_file in problem_config.get(v2.C.MEASUREMENT_FILES, []):
             measurement_df = v1.get_measurement_df(
                 get_src_path(measurement_file)
             )
+            # if there is already an experiment ID column, we rename it
+            if v2.C.EXPERIMENT_ID in measurement_df.columns:
+                measurement_df.rename(
+                    columns={v2.C.EXPERIMENT_ID: f"experiment_id_{uuid4()}"},
+                    inplace=True,
+                )
+            # add pre-eq condition id if not present or convert to string
+            #  for simplicity
+            if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
+                measurement_df[
+                    v1.C.PREEQUILIBRATION_CONDITION_ID
+                ] = measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID].astype(
+                    str
+                )
+            else:
+                measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
+
             if (
                 petab_problem.condition_df is not None
                 and len(
@@ -110,20 +181,33 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 )
                 == 0
             ):
-                # can't have "empty" conditions with no overrides in v2
-                # TODO: this needs to be done condition wise
-                measurement_df[v2.C.SIMULATION_CONDITION_ID] = np.nan
+                # we can't have "empty" conditions with no overrides in v2,
+                #  therefore, we drop the respective condition ID completely
+                #   TODO: or can we?
+                # TODO: this needs to be checked condition-wise, not globally
+                measurement_df[v1.C.SIMULATION_CONDITION_ID] = ""
                 if (
                     v1.C.PREEQUILIBRATION_CONDITION_ID
                     in measurement_df.columns
                 ):
-                    measurement_df[v2.C.PREEQUILIBRATION_CONDITION_ID] = np.nan
+                    measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
+            # condition IDs to experiment IDs
+            measurement_df.insert(
+                0,
+                v2.C.EXPERIMENT_ID,
+                measurement_df.apply(
+                    lambda row: create_experiment_id(
+                        row[v1.C.SIMULATION_CONDITION_ID],
+                        row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, ""),
+                    ),
+                    axis=1,
+                ),
+            )
+            del measurement_df[v1.C.SIMULATION_CONDITION_ID]
+            del measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID]
             v2.write_measurement_df(
                 measurement_df, get_dest_path(measurement_file)
             )
-    # TODO: Measurements: preequilibration to experiments/timecourses once
-    #  finalized
-    ...
 
     # validate updated Problem
     validation_issues = v2.lint_problem(new_yaml_file)
@@ -189,7 +273,7 @@ def v1v2_condition_df(
     """Convert condition table from petab v1 to v2."""
     condition_df = condition_df.copy().reset_index()
     with suppress(KeyError):
-        # TODO: are condition names still supported in v2?
+        # conditionName was dropped in PEtab v2
         condition_df.drop(columns=[v2.C.CONDITION_NAME], inplace=True)
 
     condition_df = condition_df.melt(

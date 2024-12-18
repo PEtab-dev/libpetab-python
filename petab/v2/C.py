@@ -13,14 +13,6 @@ OBSERVABLE_ID = "observableId"
 #: Experiment ID column in the measurement table
 EXPERIMENT_ID = "experimentId"
 
-# TODO: remove
-#: Preequilibration condition ID column in the measurement table
-PREEQUILIBRATION_CONDITION_ID = "preequilibrationConditionId"
-
-# TODO: remove
-#: Simulation condition ID column in the measurement table
-SIMULATION_CONDITION_ID = "simulationConditionId"
-
 #: Measurement value column in the measurement table
 MEASUREMENT = "measurement"
 
@@ -29,6 +21,9 @@ TIME = "time"
 
 #: Time value that indicates steady-state measurements
 TIME_STEADY_STATE = _math.inf
+
+#: Time value that indicates pre-equilibration in the experiments table
+TIME_PREEQUILIBRATION = -_math.inf
 
 #: Observable parameters column in the measurement table
 OBSERVABLE_PARAMETERS = "observableParameters"
@@ -45,17 +40,13 @@ REPLICATE_ID = "replicateId"
 #: Mandatory columns of measurement table
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
-    # TODO: add
-    # EXPERIMENT_ID,
-    SIMULATION_CONDITION_ID,
+    EXPERIMENT_ID,
     MEASUREMENT,
     TIME,
 ]
 
 #: Optional columns of measurement table
 MEASUREMENT_DF_OPTIONAL_COLS = [
-    # TODO: remove
-    PREEQUILIBRATION_CONDITION_ID,
     OBSERVABLE_PARAMETERS,
     NOISE_PARAMETERS,
     DATASET_ID,

@@ -15,6 +15,9 @@ import pandas as pd
 from .. import v2
 from ..v1.lint import (
     _check_df,
+    assert_measured_observables_defined,
+    assert_measurements_not_null,
+    assert_measurements_numeric,
     assert_model_parameters_in_condition_or_parameter_table,
     assert_no_leading_trailing_whitespace,
     assert_parameter_bounds_are_numeric,
@@ -23,13 +26,16 @@ from ..v1.lint import (
     assert_parameter_prior_parameters_are_valid,
     assert_parameter_prior_type_is_valid,
     assert_parameter_scale_is_valid,
+    assert_unique_observable_ids,
     assert_unique_parameter_ids,
     check_ids,
-    check_measurement_df,
     check_observable_df,
     check_parameter_bounds,
 )
-from ..v1.measurements import split_parameter_replacement_list
+from ..v1.measurements import (
+    assert_overrides_match_parameter_count,
+    split_parameter_replacement_list,
+)
 from ..v1.observables import get_output_parameters, get_placeholders
 from ..v1.visualize.lint import validate_visualization_df
 from ..v2.C import *
@@ -102,6 +108,23 @@ class ValidationError(ValidationIssue):
     level: ValidationIssueSeverity = field(
         default=ValidationIssueSeverity.ERROR, init=False
     )
+    task: str | None = None
+
+    def __post_init__(self):
+        if self.task is None:
+            self.task = self._get_task_name()
+
+    def _get_task_name(self):
+        """Get the name of the ValidationTask that raised this error."""
+        import inspect
+
+        # walk up the stack until we find the ValidationTask.run method
+        for frame_info in inspect.stack():
+            frame = frame_info.frame
+            if "self" in frame.f_locals:
+                task = frame.f_locals["self"]
+                if isinstance(task, ValidationTask):
+                    return task.__class__.__name__
 
 
 class ValidationResultList(list[ValidationIssue]):
@@ -237,8 +260,51 @@ class CheckMeasurementTable(ValidationTask):
         if problem.measurement_df is None:
             return
 
+        df = problem.measurement_df
         try:
-            check_measurement_df(problem.measurement_df, problem.observable_df)
+            _check_df(df, MEASUREMENT_DF_REQUIRED_COLS, "measurement")
+
+            for column_name in MEASUREMENT_DF_REQUIRED_COLS:
+                if not np.issubdtype(df[column_name].dtype, np.number):
+                    assert_no_leading_trailing_whitespace(
+                        df[column_name].values, column_name
+                    )
+
+            for column_name in MEASUREMENT_DF_OPTIONAL_COLS:
+                if column_name in df and not np.issubdtype(
+                    df[column_name].dtype, np.number
+                ):
+                    assert_no_leading_trailing_whitespace(
+                        df[column_name].values, column_name
+                    )
+
+            if problem.observable_df is not None:
+                assert_measured_observables_defined(df, problem.observable_df)
+                assert_overrides_match_parameter_count(
+                    df, problem.observable_df
+                )
+
+                if OBSERVABLE_TRANSFORMATION in problem.observable_df:
+                    # Check for positivity of measurements in case of
+                    #  log-transformation
+                    assert_unique_observable_ids(problem.observable_df)
+                    # If the above is not checked, in the following loop
+                    # trafo may become a pandas Series
+                    for measurement, obs_id in zip(
+                        df[MEASUREMENT], df[OBSERVABLE_ID], strict=True
+                    ):
+                        trafo = problem.observable_df.loc[
+                            obs_id, OBSERVABLE_TRANSFORMATION
+                        ]
+                        if measurement <= 0.0 and trafo in [LOG, LOG10]:
+                            raise ValueError(
+                                "Measurements with observable "
+                                f"transformation {trafo} must be "
+                                f"positive, but {measurement} <= 0."
+                            )
+
+            assert_measurements_not_null(df)
+            assert_measurements_numeric(df)
         except AssertionError as e:
             return ValidationError(str(e))
 
@@ -247,46 +313,20 @@ class CheckMeasurementTable(ValidationTask):
         #  condition table should be an error if the measurement table refers
         #  to conditions
 
-        # check that measured experiments/conditions exist
-        # TODO: fully switch to experiment table and remove this:
-        if SIMULATION_CONDITION_ID in problem.measurement_df:
-            if problem.condition_df is None:
-                return
-            used_conditions = set(
-                problem.measurement_df[SIMULATION_CONDITION_ID].dropna().values
+        # check that measured experiments
+        if problem.experiment_df is None:
+            return
+
+        used_experiments = set(problem.measurement_df[EXPERIMENT_ID].values)
+        available_experiments = set(
+            problem.experiment_df[EXPERIMENT_ID].unique()
+        )
+        if missing_experiments := (used_experiments - available_experiments):
+            raise AssertionError(
+                "Measurement table references experiments that "
+                "are not specified in the experiments table: "
+                + str(missing_experiments)
             )
-            if PREEQUILIBRATION_CONDITION_ID in problem.measurement_df:
-                used_conditions |= set(
-                    problem.measurement_df[PREEQUILIBRATION_CONDITION_ID]
-                    .dropna()
-                    .values
-                )
-            available_conditions = set(
-                problem.condition_df[CONDITION_ID].unique()
-            )
-            if missing_conditions := (used_conditions - available_conditions):
-                return ValidationError(
-                    "Measurement table references conditions that "
-                    "are not specified in the condition table: "
-                    + str(missing_conditions)
-                )
-        elif EXPERIMENT_ID in problem.measurement_df:
-            if problem.experiment_df is None:
-                return
-            used_experiments = set(
-                problem.measurement_df[EXPERIMENT_ID].values
-            )
-            available_experiments = set(
-                problem.condition_df[CONDITION_ID].unique()
-            )
-            if missing_experiments := (
-                used_experiments - available_experiments
-            ):
-                raise AssertionError(
-                    "Measurement table references experiments that "
-                    "are not specified in the experiments table: "
-                    + str(missing_experiments)
-                )
 
 
 class CheckConditionTable(ValidationTask):
@@ -486,7 +526,7 @@ class CheckExperimentConditionsExist(ValidationTask):
             )
 
         required_conditions = problem.experiment_df[CONDITION_ID].unique()
-        existing_conditions = problem.condition_df.index
+        existing_conditions = problem.condition_df[CONDITION_ID].unique()
 
         missing_conditions = set(required_conditions) - set(
             existing_conditions
@@ -771,7 +811,8 @@ def get_required_parameters_for_parameter_table(
     )
 
     # parameters that are overridden via the condition table are not allowed
-    parameter_ids -= set(problem.condition_df[TARGET_ID].unique())
+    if problem.condition_df is not None:
+        parameter_ids -= set(problem.condition_df[TARGET_ID].unique())
 
     return parameter_ids
 
