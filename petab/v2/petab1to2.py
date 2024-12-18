@@ -106,7 +106,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 return ""
             if preeq_cond_id:
                 preeq_cond_id = f"{preeq_cond_id}_"
-            exp_id = f"experiment_{preeq_cond_id}{sim_cond_id}"
+            exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
             if exp_id in experiments:  # noqa: B023
                 i = 1
                 while f"{exp_id}_{i}" in experiments:  # noqa: B023
