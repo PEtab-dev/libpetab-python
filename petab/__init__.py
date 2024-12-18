@@ -23,6 +23,8 @@ def __getattr__(name):
         return attr
     if name == "v1":
         return importlib.import_module("petab.v1")
+    if name == "v2":
+        return importlib.import_module("petab.v2")
     if name != "__path__":
         warn(
             f"Accessing `petab.{name}` is deprecated and will be removed in "
