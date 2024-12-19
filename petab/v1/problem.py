@@ -1105,9 +1105,7 @@ class Problem:
             PARAMETER_ID: [id_],
         }
         if estimate is not None:
-            record[ESTIMATE] = [
-                int(estimate) if isinstance(estimate, bool | int) else estimate
-            ]
+            record[ESTIMATE] = [int(estimate)]
         if nominal_value is not None:
             record[NOMINAL_VALUE] = [nominal_value]
         if scale is not None:
