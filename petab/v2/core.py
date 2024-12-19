@@ -98,6 +98,13 @@ class ObservablesTable(BaseModel):
 
     observables: list[Observable]
 
+    def __getitem__(self, observable_id: str) -> Observable:
+        """Get an observable by ID."""
+        for observable in self.observables:
+            if observable.id == observable_id:
+                return observable
+        raise KeyError(f"Observable ID {observable_id} not found")
+
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame) -> ObservablesTable:
         if df is None:
@@ -199,6 +206,13 @@ class ConditionsTable(BaseModel):
     """PEtab conditions table."""
 
     conditions: list[ChangeSet]
+
+    def __getitem__(self, condition_id: str) -> ChangeSet:
+        """Get a condition by ID."""
+        for condition in self.conditions:
+            if condition.id == condition_id:
+                return condition
+        raise KeyError(f"Condition ID {condition_id} not found")
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame) -> ConditionsTable:
