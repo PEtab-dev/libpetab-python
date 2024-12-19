@@ -97,9 +97,11 @@ class Problem:
             ConditionsTable,
             Experiment,
             ExperimentsTable,
+            MappingTable,
             MeasurementTable,
             Observable,
             ObservablesTable,
+            ParameterTable,
         )
 
         self.observables_table: ObservablesTable = (
@@ -127,7 +129,13 @@ class Problem:
             )
         )
 
-        # TODO: measurements, parameters, visualization, mapping
+        self.mapping_table: MappingTable = MappingTable.from_dataframe(
+            self.mapping_df
+        )
+        self.parameter_table: ParameterTable = ParameterTable.from_dataframe(
+            self.parameter_df
+        )
+        # TODO: visualization table
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"

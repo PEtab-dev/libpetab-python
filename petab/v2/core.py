@@ -30,6 +30,17 @@ class ObservableTransformation(str, Enum):
     LOG10 = C.LOG10
 
 
+class ParameterScale(str, Enum):
+    """Parameter scales.
+
+    Parameter scales as used in the PEtab parameters table.
+    """
+
+    LIN = C.LIN
+    LOG = C.LOG
+    LOG10 = C.LOG10
+
+
 class NoiseDistribution(str, Enum):
     """Noise distribution types.
 
@@ -405,6 +416,121 @@ class MeasurementTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
+        df = pd.read_csv(file_path, sep="\t")
+        return cls.from_dataframe(df)
+
+    def to_tsv(self, file_path: str | Path) -> None:
+        df = self.to_dataframe()
+        df.to_csv(file_path, sep="\t", index=False)
+
+
+class Mapping(BaseModel):
+    """Mapping PEtab entities to model entities."""
+
+    petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
+    model_id: str = Field(alias=C.MODEL_ENTITY_ID)
+
+    class Config:
+        populate_by_name = True
+
+    @field_validator(
+        "petab_id",
+    )
+    @classmethod
+    def validate_id(cls, v):
+        if not v:
+            raise ValueError("ID must not be empty.")
+        if not is_valid_identifier(v):
+            raise ValueError(f"Invalid ID: {v}")
+        return v
+
+
+class MappingTable(BaseModel):
+    """PEtab mapping table."""
+
+    mappings: list[Mapping]
+
+    @classmethod
+    def from_dataframe(cls, df: pd.DataFrame) -> MappingTable:
+        if df is None:
+            return cls(mappings=[])
+
+        mappings = [
+            Mapping(**row.to_dict()) for _, row in df.reset_index().iterrows()
+        ]
+
+        return cls(mappings=mappings)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(self.model_dump()["mappings"])
+
+    @classmethod
+    def from_tsv(cls, file_path: str | Path) -> MappingTable:
+        df = pd.read_csv(file_path, sep="\t")
+        return cls.from_dataframe(df)
+
+    def to_tsv(self, file_path: str | Path) -> None:
+        df = self.to_dataframe()
+        df.to_csv(file_path, sep="\t", index=False)
+
+
+class Parameter(BaseModel):
+    """Parameter definition."""
+
+    id: str = Field(alias=C.PARAMETER_ID)
+    lb: float | None = Field(alias=C.LOWER_BOUND, default=None)
+    ub: float | None = Field(alias=C.UPPER_BOUND, default=None)
+    nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
+    scale: ParameterScale = Field(
+        alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
+    )
+    estimate: bool = Field(alias=C.ESTIMATE, default=True)
+    # TODO priors
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        use_enum_values = True
+
+    @field_validator("id")
+    @classmethod
+    def validate_id(cls, v):
+        if not v:
+            raise ValueError("ID must not be empty.")
+        if not is_valid_identifier(v):
+            raise ValueError(f"Invalid ID: {v}")
+        return v
+
+    @field_validator("lb", "ub", "nominal_value")
+    @classmethod
+    def convert_nan_to_none(cls, v):
+        if isinstance(v, float) and np.isnan(v):
+            return None
+        return v
+
+
+class ParameterTable(BaseModel):
+    """PEtab parameter table."""
+
+    parameters: list[Parameter]
+
+    @classmethod
+    def from_dataframe(cls, df: pd.DataFrame) -> ParameterTable:
+        if df is None:
+            return cls(parameters=[])
+
+        parameters = [
+            Parameter(**row.to_dict())
+            for _, row in df.reset_index().iterrows()
+        ]
+
+        return cls(parameters=parameters)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(self.model_dump()["parameters"])
+
+    @classmethod
+    def from_tsv(cls, file_path: str | Path) -> ParameterTable:
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_dataframe(df)
 
