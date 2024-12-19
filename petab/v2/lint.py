@@ -228,11 +228,16 @@ class CheckValidPetabIdColumn(ValidationTask):
     """A task to check that a given column contains only valid PEtab IDs."""
 
     def __init__(
-        self, table_name: str, column_name: str, required_column: bool = True
+        self,
+        table_name: str,
+        column_name: str,
+        required_column: bool = True,
+        ignore_nan: bool = False,
     ):
         self.table_name = table_name
         self.column_name = column_name
         self.required_column = required_column
+        self.ignore_nan = ignore_nan
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         df = getattr(problem, f"{self.table_name}_df")
@@ -248,7 +253,10 @@ class CheckValidPetabIdColumn(ValidationTask):
             return
 
         try:
-            check_ids(df[self.column_name].values, kind=self.column_name)
+            ids = df[self.column_name].values
+            if self.ignore_nan:
+                ids = ids[~pd.isna(ids)]
+            check_ids(ids, kind=self.column_name)
         except ValueError as e:
             return ValidationError(str(e))
 
@@ -318,6 +326,13 @@ class CheckMeasurementTable(ValidationTask):
             return
 
         used_experiments = set(problem.measurement_df[EXPERIMENT_ID].values)
+        # handle default-experiment
+        used_experiments = set(
+            filter(
+                lambda x: not isinstance(x, float) or not np.isnan(x),
+                used_experiments,
+            )
+        )
         available_experiments = set(
             problem.experiment_df[EXPERIMENT_ID].unique()
         )
@@ -826,7 +841,7 @@ default_validation_tasks = [
     CheckMeasurementTable(),
     CheckConditionTable(),
     CheckExperimentTable(),
-    CheckValidPetabIdColumn("experiment", EXPERIMENT_ID),
+    CheckValidPetabIdColumn("experiment", EXPERIMENT_ID, ignore_nan=True),
     CheckValidPetabIdColumn("experiment", CONDITION_ID),
     CheckExperimentConditionsExist(),
     CheckObservableTable(),
