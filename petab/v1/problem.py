@@ -1075,7 +1075,7 @@ class Problem:
         self,
         id_: str,
         estimate: bool | str | int = True,
-        nominal_value=None,
+        nominal_value: Number | None = None,
         scale: str = None,
         lb: Number = None,
         ub: Number = None,
