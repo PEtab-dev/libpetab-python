@@ -96,6 +96,9 @@ class Problem:
         from .core import (
             ChangeSet,
             ConditionsTable,
+            Experiment,
+            ExperimentsTable,
+            MeasurementTable,
             Observable,
             ObservablesTable,
         )
@@ -109,6 +112,23 @@ class Problem:
             ConditionsTable.from_dataframe(self.condition_df)
         )
         self.conditions: list[ChangeSet] = self.conditions_table.conditions
+
+        self.experiments_table: ExperimentsTable = (
+            ExperimentsTable.from_dataframe(
+                self.experiment_df, self.conditions_table
+            )
+        )
+        self.experiments: list[Experiment] = self.experiments_table.experiments
+
+        self.measurement_table: MeasurementTable = (
+            MeasurementTable.from_dataframe(
+                self.measurement_df,
+                observables_table=self.observables_table,
+                experiments_table=self.experiments_table,
+            )
+        )
+
+        # TODO: measurements, parameters, visualization, mapping
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"

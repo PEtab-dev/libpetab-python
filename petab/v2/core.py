@@ -279,14 +279,27 @@ class ExperimentsTable(BaseModel):
     experiments: list[Experiment]
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> ExperimentsTable:
+    def from_dataframe(
+        cls, df: pd.DataFrame, conditions: ConditionsTable = None
+    ) -> ExperimentsTable:
         if df is None:
             return cls(experiments=[])
 
-        experiments = [
-            Experiment(**row.to_dict())
-            for _, row in df.reset_index().iterrows()
-        ]
+        if conditions is None:
+            conditions = {}
+
+        experiments = []
+        for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
+            periods = []
+            for time, cur_period_df in cur_exp_df.groupby(C.TIME):
+                period_conditions = [
+                    conditions[row[C.CONDITION_ID]]
+                    for _, row in cur_period_df.iterrows()
+                ]
+                periods.append(
+                    ExperimentPeriod(start=time, conditions=period_conditions)
+                )
+            experiments.append(Experiment(id=experiment_id, periods=periods))
 
         return cls(experiments=experiments)
 
@@ -295,6 +308,103 @@ class ExperimentsTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ExperimentsTable:
+        df = pd.read_csv(file_path, sep="\t")
+        return cls.from_dataframe(df)
+
+    def to_tsv(self, file_path: str | Path) -> None:
+        df = self.to_dataframe()
+        df.to_csv(file_path, sep="\t", index=False)
+
+
+class Measurement(BaseModel):
+    """A measurement.
+
+    A measurement of an observable at a specific time point in a specific
+    experiment.
+    """
+
+    # TODO: ID vs object
+    observable_id: str = Field(alias=C.OBSERVABLE_ID)
+    experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
+    time: float = Field(alias=C.TIME)
+    measurement: float = Field(alias=C.MEASUREMENT)
+    observable_parameters: list[sp.Basic] = Field(
+        alias=C.OBSERVABLE_PARAMETERS, default_factory=list
+    )
+    noise_parameters: list[sp.Basic] = Field(
+        alias=C.NOISE_PARAMETERS, default_factory=list
+    )
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+
+    @field_validator(
+        "experiment_id",
+        "observable_parameters",
+        "noise_parameters",
+        mode="before",
+    )
+    @classmethod
+    def convert_nan_to_none(cls, v, info: ValidationInfo):
+        if isinstance(v, float) and np.isnan(v):
+            return cls.model_fields[info.field_name].default
+        return v
+
+    @field_validator("observable_id", "experiment_id")
+    @classmethod
+    def validate_id(cls, v, info: ValidationInfo):
+        if not v:
+            if info.field_name == "experiment_id":
+                return None
+            raise ValueError("ID must not be empty.")
+        if not is_valid_identifier(v):
+            raise ValueError(f"Invalid ID: {v}")
+        return v
+
+    @field_validator(
+        "observable_parameters", "noise_parameters", mode="before"
+    )
+    @classmethod
+    def sympify_list(cls, v):
+        if isinstance(v, float) and np.isnan(v):
+            return []
+        if isinstance(v, str):
+            v = v.split(C.PARAMETER_SEPARATOR)
+        else:
+            v = [v]
+        return [sympify_petab(x) for x in v]
+
+
+class MeasurementTable(BaseModel):
+    """PEtab measurement table."""
+
+    measurements: list[Measurement]
+
+    @classmethod
+    def from_dataframe(
+        cls,
+        df: pd.DataFrame,
+        observables_table: ObservablesTable,
+        experiments_table: ExperimentsTable,
+    ) -> MeasurementTable:
+        if df is None:
+            return cls(measurements=[])
+
+        measurements = [
+            Measurement(
+                **row.to_dict(),
+            )
+            for _, row in df.reset_index().iterrows()
+        ]
+
+        return cls(measurements=measurements)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(self.model_dump()["measurements"])
+
+    @classmethod
+    def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_dataframe(df)
 
