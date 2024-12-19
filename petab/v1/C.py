@@ -207,6 +207,13 @@ PRIOR_TYPES = [
     PARAMETER_SCALE_LAPLACE,
 ]
 
+#: parameterScale*-type prior distributions
+PARAMETER_SCALE_PRIOR_TYPES = [
+    PARAMETER_SCALE_UNIFORM,
+    PARAMETER_SCALE_NORMAL,
+    PARAMETER_SCALE_LAPLACE,
+]
+
 #: Supported noise distributions
 NOISE_MODELS = [NORMAL, LAPLACE]
 
