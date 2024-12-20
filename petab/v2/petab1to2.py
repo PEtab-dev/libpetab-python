@@ -12,8 +12,8 @@ from pandas.io.common import get_handle, is_url
 from .. import v1, v2
 from ..v1 import Problem as ProblemV1
 from ..v1.yaml import get_path_prefix, load_yaml, validate, write_yaml
-from ..v2.models import MODEL_TYPE_SBML
 from ..versions import get_major_version
+from .models import MODEL_TYPE_SBML
 
 __all__ = ["petab1to2"]
 
@@ -67,12 +67,10 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     if v1.lint_problem(petab_problem):
         raise ValueError("Provided PEtab problem does not pass linting.")
 
+    output_dir = Path(output_dir)
+
     # Update YAML file
     new_yaml_config = _update_yaml(yaml_config)
-
-    # Write new YAML file
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Update tables
     # condition tables, observable tables, SBML files, parameter table:
@@ -179,10 +177,8 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
             # add pre-eq condition id if not present or convert to string
             #  for simplicity
             if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
-                measurement_df[
-                    v1.C.PREEQUILIBRATION_CONDITION_ID
-                ] = measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID].fillna(
-                    ""
+                measurement_df.fillna(
+                    {v1.C.PREEQUILIBRATION_CONDITION_ID: ""}, inplace=True
                 )
             else:
                 measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
@@ -223,6 +219,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 measurement_df, get_dest_path(measurement_file)
             )
 
+    # Write new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
     write_yaml(new_yaml_config, new_yaml_file)
 

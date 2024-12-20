@@ -324,7 +324,7 @@ class CheckMeasurementTable(ValidationTask):
         # handle default-experiment
         used_experiments = set(
             filter(
-                lambda x: not isinstance(x, float) or not np.isnan(x),
+                lambda x: not pd.isna(x),
                 used_experiments,
             )
         )
@@ -839,7 +839,8 @@ default_validation_tasks = [
     CheckMeasurementTable(),
     CheckConditionTable(),
     CheckExperimentTable(),
-    CheckValidPetabIdColumn("experiment", EXPERIMENT_ID, ignore_nan=True),
+    CheckValidPetabIdColumn("measurement", EXPERIMENT_ID, ignore_nan=True),
+    CheckValidPetabIdColumn("experiment", EXPERIMENT_ID),
     CheckValidPetabIdColumn("experiment", CONDITION_ID),
     CheckExperimentConditionsExist(),
     CheckObservableTable(),
