@@ -640,20 +640,6 @@ class Problem:
             )
         )
 
-    def create_parameter_df(self, **kwargs) -> pd.DataFrame:
-        """Create a new PEtab parameter table
-
-        See :py:func:`create_parameter_df`.
-        """
-        return parameters.create_parameter_df(
-            model=self.model,
-            condition_df=self.condition_df,
-            observable_df=self.observable_df,
-            measurement_df=self.measurement_df,
-            mapping_df=self.mapping_df,
-            **kwargs,
-        )
-
     def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
         """Create 2D array with starting points for optimization
 
