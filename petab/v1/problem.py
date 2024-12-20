@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import pandas as pd
-from pydantic import AnyUrl, BaseModel, Field, RootModel
+from pydantic import AnyUrl, BaseModel, Field
 
 from ..versions import get_major_version
 from . import (
@@ -1185,33 +1185,14 @@ class Problem:
         )
 
 
-class VersionNumber(RootModel):
-    root: str | int
-
-
-class ListOfFiles(RootModel):
-    """List of files."""
-
-    root: list[str | AnyUrl] = Field(..., description="List of files.")
-
-    def __iter__(self):
-        return iter(self.root)
-
-    def __len__(self):
-        return len(self.root)
-
-    def __getitem__(self, index):
-        return self.root[index]
-
-
 class SubProblem(BaseModel):
     """A `problems` object in the PEtab problem configuration."""
 
-    sbml_files: ListOfFiles = []
-    measurement_files: ListOfFiles = []
-    condition_files: ListOfFiles = []
-    observable_files: ListOfFiles = []
-    visualization_files: ListOfFiles = []
+    sbml_files: list[str | AnyUrl] = []
+    measurement_files: list[str | AnyUrl] = []
+    condition_files: list[str | AnyUrl] = []
+    observable_files: list[str | AnyUrl] = []
+    visualization_files: list[str | AnyUrl] = []
 
 
 class ProblemConfig(BaseModel):
@@ -1227,6 +1208,16 @@ class ProblemConfig(BaseModel):
         description="The base path to resolve relative paths.",
         exclude=True,
     )
-    format_version: VersionNumber = 1
+    format_version: str | int = 1
     parameter_file: str | AnyUrl | None = None
     problems: list[SubProblem] = []
+
+    def to_yaml(self, filename: str | Path):
+        """Write the configuration to a YAML file.
+
+        filename: Destination file name. The parent directory will be created
+            if necessary.
+        """
+        from .yaml import write_yaml
+
+        write_yaml(self.model_dump(), filename)
