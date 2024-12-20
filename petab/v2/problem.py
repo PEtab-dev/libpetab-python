@@ -28,6 +28,7 @@ from ..v1.models.model import Model, model_factory
 from ..v1.problem import ListOfFiles, VersionNumber
 from ..v1.yaml import get_path_prefix
 from ..v2.C import *  # noqa: F403
+from ..versions import parse_version
 from . import conditions, experiments
 
 if TYPE_CHECKING:
@@ -161,14 +162,15 @@ class Problem:
                 return filename
             return f"{base_path}/{filename}"
 
-        if yaml_config[FORMAT_VERSION] not in {"2.0.0"}:
+        if (format_version := parse_version(yaml_config[FORMAT_VERSION]))[
+            0
+        ] != 2:
             # If we got a path to a v1 yaml file, try to auto-upgrade
             from tempfile import TemporaryDirectory
 
-            from ..versions import get_major_version
             from .petab1to2 import petab1to2
 
-            if get_major_version(yaml_config) == 1 and yaml_file:
+            if format_version[0] == 1 and yaml_file:
                 logging.debug(
                     "Auto-upgrading problem from PEtab 1.0 to PEtab 2.0"
                 )
@@ -185,7 +187,7 @@ class Problem:
                     )
             raise ValueError(
                 "Provided PEtab files are of unsupported version "
-                f"{yaml_config[FORMAT_VERSION]}. Expected 2.0.0."
+                f"{yaml_config[FORMAT_VERSION]}."
             )
 
         if yaml.is_composite_problem(yaml_config):
