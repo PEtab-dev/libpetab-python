@@ -228,11 +228,16 @@ class CheckValidPetabIdColumn(ValidationTask):
     """A task to check that a given column contains only valid PEtab IDs."""
 
     def __init__(
-        self, table_name: str, column_name: str, required_column: bool = True
+        self,
+        table_name: str,
+        column_name: str,
+        required_column: bool = True,
+        ignore_nan: bool = False,
     ):
         self.table_name = table_name
         self.column_name = column_name
         self.required_column = required_column
+        self.ignore_nan = ignore_nan
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         df = getattr(problem, f"{self.table_name}_df")
@@ -248,7 +253,10 @@ class CheckValidPetabIdColumn(ValidationTask):
             return
 
         try:
-            check_ids(df[self.column_name].values, kind=self.column_name)
+            ids = df[self.column_name].values
+            if self.ignore_nan:
+                ids = ids[~pd.isna(ids)]
+            check_ids(ids, kind=self.column_name)
         except ValueError as e:
             return ValidationError(str(e))
 
@@ -308,21 +316,26 @@ class CheckMeasurementTable(ValidationTask):
         except AssertionError as e:
             return ValidationError(str(e))
 
-        # TODO: introduce some option for validation partial vs full
+        # TODO: introduce some option for validation of partial vs full
         #  problem. if this is supposed to be a complete problem, a missing
         #  condition table should be an error if the measurement table refers
-        #  to conditions
-
-        # check that measured experiments
-        if problem.experiment_df is None:
-            return
-
+        #  to conditions, otherwise it should maximally be a warning
         used_experiments = set(problem.measurement_df[EXPERIMENT_ID].values)
-        available_experiments = set(
-            problem.experiment_df[EXPERIMENT_ID].unique()
+        # handle default-experiment
+        used_experiments = set(
+            filter(
+                lambda x: not pd.isna(x),
+                used_experiments,
+            )
+        )
+        # check that measured experiments exist
+        available_experiments = (
+            set(problem.experiment_df[EXPERIMENT_ID].unique())
+            if problem.experiment_df is not None
+            else set()
         )
         if missing_experiments := (used_experiments - available_experiments):
-            raise AssertionError(
+            return ValidationError(
                 "Measurement table references experiments that "
                 "are not specified in the experiments table: "
                 + str(missing_experiments)
@@ -826,6 +839,7 @@ default_validation_tasks = [
     CheckMeasurementTable(),
     CheckConditionTable(),
     CheckExperimentTable(),
+    CheckValidPetabIdColumn("measurement", EXPERIMENT_ID, ignore_nan=True),
     CheckValidPetabIdColumn("experiment", EXPERIMENT_ID),
     CheckValidPetabIdColumn("experiment", CONDITION_ID),
     CheckExperimentConditionsExist(),

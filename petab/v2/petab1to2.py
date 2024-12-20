@@ -9,14 +9,11 @@ from uuid import uuid4
 import pandas as pd
 from pandas.io.common import get_handle, is_url
 
-import petab.v1.C
-from petab.models import MODEL_TYPE_SBML
-from petab.v1 import Problem as ProblemV1
-from petab.yaml import get_path_prefix
-
 from .. import v1, v2
-from ..v1.yaml import load_yaml, validate, write_yaml
+from ..v1 import Problem as ProblemV1
+from ..v1.yaml import get_path_prefix, load_yaml, validate, write_yaml
 from ..versions import get_major_version
+from .models import MODEL_TYPE_SBML
 
 __all__ = ["petab1to2"]
 
@@ -63,17 +60,17 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
     petab_problem = ProblemV1.from_yaml(yaml_file or yaml_config)
+    # get rid of conditionName column if present (unsupported in v2)
+    petab_problem.condition_df = petab_problem.condition_df.drop(
+        columns=[v1.C.CONDITION_NAME], errors="ignore"
+    )
     if v1.lint_problem(petab_problem):
         raise ValueError("Provided PEtab problem does not pass linting.")
 
+    output_dir = Path(output_dir)
+
     # Update YAML file
     new_yaml_config = _update_yaml(yaml_config)
-
-    # Write new YAML file
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    new_yaml_file = output_dir / Path(yaml_file).name
-    write_yaml(new_yaml_config, new_yaml_file)
 
     # Update tables
     # condition tables, observable tables, SBML files, parameter table:
@@ -104,6 +101,19 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
         def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
             if not sim_cond_id and not preeq_cond_id:
                 return ""
+            # check whether the conditions will exist in the v2 condition table
+            sim_cond_exists = (
+                petab_problem.condition_df.loc[sim_cond_id].notna().any()
+            )
+            preeq_cond_exists = (
+                preeq_cond_id
+                and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
+            )
+            if not sim_cond_exists and not preeq_cond_exists:
+                # if we have only all-NaN conditions, we don't create a new
+                #  experiment
+                return ""
+
             if preeq_cond_id:
                 preeq_cond_id = f"{preeq_cond_id}_"
             exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
@@ -126,6 +136,8 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
             sim_cond_id = row[v1.C.SIMULATION_CONDITION_ID]
             preeq_cond_id = row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, "")
             exp_id = create_experiment_id(sim_cond_id, preeq_cond_id)
+            if not exp_id:
+                continue
             if preeq_cond_id:
                 experiments.append(
                     {
@@ -165,10 +177,8 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
             # add pre-eq condition id if not present or convert to string
             #  for simplicity
             if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
-                measurement_df[
-                    v1.C.PREEQUILIBRATION_CONDITION_ID
-                ] = measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID].astype(
-                    str
+                measurement_df.fillna(
+                    {v1.C.PREEQUILIBRATION_CONDITION_ID: ""}, inplace=True
                 )
             else:
                 measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
@@ -177,7 +187,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 petab_problem.condition_df is not None
                 and len(
                     set(petab_problem.condition_df.columns)
-                    - {petab.v1.C.CONDITION_NAME}
+                    - {v1.C.CONDITION_NAME}
                 )
                 == 0
             ):
@@ -208,6 +218,10 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
             v2.write_measurement_df(
                 measurement_df, get_dest_path(measurement_file)
             )
+
+    # Write new YAML file
+    new_yaml_file = output_dir / Path(yaml_file).name
+    write_yaml(new_yaml_config, new_yaml_file)
 
     # validate updated Problem
     validation_issues = v2.lint_problem(new_yaml_file)
