@@ -238,8 +238,10 @@ def write_yaml(yaml_config: dict[str, Any], filename: str | Path) -> None:
 
     Arguments:
         yaml_config: Data to write
-        filename: File to create
+        filename: Destination file name. The parent directory will be created
+            if necessary.
     """
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
     with open(filename, "w") as outfile:
         yaml.dump(
             yaml_config, outfile, default_flow_style=False, sort_keys=False
