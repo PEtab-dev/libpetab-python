@@ -13,10 +13,10 @@ from warnings import warn
 import pandas as pd
 from pydantic import AnyUrl, BaseModel, Field, RootModel
 
+from ..versions import get_major_version
 from . import (
     conditions,
     core,
-    format_version,
     mapping,
     measurements,
     observables,
@@ -290,13 +290,13 @@ class Problem:
                 "petab.CompositeProblem.from_yaml() instead."
             )
 
-        if yaml_config[FORMAT_VERSION] not in {"1", 1, "1.0.0", "2.0.0"}:
+        major_version = get_major_version(yaml_config)
+        if major_version not in {1, 2}:
             raise ValueError(
                 "Provided PEtab files are of unsupported version "
-                f"{yaml_config[FORMAT_VERSION]}. Expected "
-                f"{format_version.__format_version__}."
+                f"{yaml_config[FORMAT_VERSION]}."
             )
-        if yaml_config[FORMAT_VERSION] == "2.0.0":
+        if major_version == 2:
             warn("Support for PEtab2.0 is experimental!", stacklevel=2)
             warn(
                 "Using petab.v1.Problem with PEtab2.0 is deprecated. "
@@ -321,7 +321,7 @@ class Problem:
                 if config.parameter_file
                 else None
             )
-        if config.format_version.root in [1, "1", "1.0.0"]:
+        if major_version == 1:
             if len(problem0.sbml_files) > 1:
                 # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
                 raise NotImplementedError(
