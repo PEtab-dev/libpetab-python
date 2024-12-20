@@ -18,6 +18,27 @@ from ..v1.lint import is_valid_identifier
 from ..v1.math import sympify_petab
 from . import C
 
+__all__ = [
+    "Observable",
+    "ObservablesTable",
+    "ObservableTransformation",
+    "NoiseDistribution",
+    "Change",
+    "ChangeSet",
+    "ConditionsTable",
+    "OperationType",
+    "ExperimentPeriod",
+    "Experiment",
+    "ExperimentsTable",
+    "Measurement",
+    "MeasurementTable",
+    "Mapping",
+    "MappingTable",
+    "Parameter",
+    "ParameterScale",
+    "ParameterTable",
+]
+
 
 class ObservableTransformation(str, Enum):
     """Observable transformation types.
@@ -49,6 +70,44 @@ class NoiseDistribution(str, Enum):
 
     NORMAL = C.NORMAL
     LAPLACE = C.LAPLACE
+
+
+class ObjectivePriorType(str, Enum):
+    """Objective prior types.
+
+    Objective prior types as used in the PEtab parameters table.
+    """
+
+    NORMAL = C.NORMAL
+    LAPLACE = C.LAPLACE
+    UNIFORM = C.UNIFORM
+    LOG_NORMAL = C.LOG_NORMAL
+    LOG_LAPLACE = C.LOG_LAPLACE
+    PARAMETER_SCALE_NORMAL = C.PARAMETER_SCALE_NORMAL
+    PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
+    PARAMETER_SCALE_UNIFORM = C.PARAMETER_SCALE_UNIFORM
+
+
+assert set(C.PRIOR_TYPES) == {e.value for e in ObjectivePriorType}, (
+    "ObjectivePriorType enum does not match C.PRIOR_TYPES: "
+    f"{set(C.PRIOR_TYPES)} vs { {e.value for e in ObjectivePriorType} }"
+)
+
+
+class InitializationPriorType(str, Enum):
+    """Initialization prior types.
+
+    Initialization prior types as used in the PEtab parameters table.
+    """
+
+    NORMAL = C.NORMAL
+    LAPLACE = C.LAPLACE
+    UNIFORM = C.UNIFORM
+    LOG_NORMAL = C.LOG_NORMAL
+    LOG_LAPLACE = C.LOG_LAPLACE
+    PARAMETER_SCALE_NORMAL = C.PARAMETER_SCALE_NORMAL
+    PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
+    PARAMETER_SCALE_UNIFORM = C.PARAMETER_SCALE_UNIFORM
 
 
 class Observable(BaseModel):
@@ -148,6 +207,9 @@ class OperationType(str, Enum):
     SET_CURRENT_VALUE = "setCurrentValue"
     SET_RATE = "setRate"
     SET_ASSIGNMENT = "setAssignment"
+    ADD_TO_RATE = "addToRate"
+    ADD_TO_ASSIGNMENT = "addToAssignment"
+    NO_CHANGE = "noChange"
     CONSTANT = "constant"
     INITIAL = "initial"
     ...
@@ -192,7 +254,7 @@ class Change(BaseModel):
 class ChangeSet(BaseModel):
     """A set of changes to the model or model state.
 
-    A set of simultaneously occuring changes to the model or model state,
+    A set of simultaneously occurring changes to the model or model state,
     corresponding to a perturbation of the underlying system. This corresponds
     to all rows of the PEtab conditions table with the same condition ID.
     """
@@ -262,10 +324,20 @@ class ExperimentPeriod(BaseModel):
     """
 
     start: float = Field(alias=C.TIME)
-    conditions: list[ChangeSet]
+    condition_ids: list[str] = Field(alias=C.CONDITION_ID)
 
     class Config:
         populate_by_name = True
+
+    @field_validator("condition_ids")
+    @classmethod
+    def validate_id(cls, v):
+        for condition_id in v:
+            if not condition_id:
+                raise ValueError("ID must not be empty.")
+            if not is_valid_identifier(condition_id):
+                raise ValueError(f"Invalid ID: {condition_id}")
+        return v
 
 
 class Experiment(BaseModel):
@@ -283,6 +355,15 @@ class Experiment(BaseModel):
         populate_by_name = True
         arbitrary_types_allowed = True
 
+    @field_validator("id")
+    @classmethod
+    def validate_id(cls, v):
+        if not v:
+            raise ValueError("ID must not be empty.")
+        if not is_valid_identifier(v):
+            raise ValueError(f"Invalid ID: {v}")
+        return v
+
 
 class ExperimentsTable(BaseModel):
     """PEtab experiments table."""
@@ -290,25 +371,19 @@ class ExperimentsTable(BaseModel):
     experiments: list[Experiment]
 
     @classmethod
-    def from_dataframe(
-        cls, df: pd.DataFrame, conditions: ConditionsTable = None
-    ) -> ExperimentsTable:
+    def from_dataframe(cls, df: pd.DataFrame) -> ExperimentsTable:
         if df is None:
             return cls(experiments=[])
-
-        if conditions is None:
-            conditions = {}
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
             periods = []
             for time, cur_period_df in cur_exp_df.groupby(C.TIME):
-                period_conditions = [
-                    conditions[row[C.CONDITION_ID]]
-                    for _, row in cur_period_df.iterrows()
-                ]
+                period_conditions = list(cur_period_df[C.CONDITION_ID])
                 periods.append(
-                    ExperimentPeriod(start=time, conditions=period_conditions)
+                    ExperimentPeriod(
+                        start=time, condition_ids=period_conditions
+                    )
                 )
             experiments.append(Experiment(id=experiment_id, periods=periods))
 
@@ -334,7 +409,6 @@ class Measurement(BaseModel):
     experiment.
     """
 
-    # TODO: ID vs object
     observable_id: str = Field(alias=C.OBSERVABLE_ID)
     experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
     time: float = Field(alias=C.TIME)
@@ -396,8 +470,6 @@ class MeasurementTable(BaseModel):
     def from_dataframe(
         cls,
         df: pd.DataFrame,
-        observables_table: ObservablesTable,
-        experiments_table: ExperimentsTable,
     ) -> MeasurementTable:
         if df is None:
             return cls(measurements=[])
