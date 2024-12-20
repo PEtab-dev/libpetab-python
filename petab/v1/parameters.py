@@ -112,9 +112,11 @@ def write_parameter_df(df: pd.DataFrame, filename: str | Path) -> None:
 
     Arguments:
         df: PEtab parameter table
-        filename: Destination file name
+        filename: Destination file name. The parent directory will be created
+            if necessary.
     """
     df = get_parameter_df(df)
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(filename, sep="\t", index=True)
 
 
