@@ -14,6 +14,9 @@ from pathlib import Path
 import pandas as pd
 import sympy as sp
 
+from ..v1.visualize.lint import validate_visualization_df
+from ..v2.C import *
+from .core import PriorDistribution
 from .problem import Problem
 
 logger = logging.getLogger(__name__)
@@ -37,6 +40,8 @@ __all__ = [
     "CheckUnusedExperiments",
     "CheckObservablesDoNotShadowModelEntities",
     "CheckUnusedConditions",
+    "CheckAllObservablesDefined",
+    "CheckPriorDistribution",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -77,8 +82,12 @@ class ValidationIssue:
     def __str__(self):
         return f"{self.level.name}: {self.message}"
 
-    def _get_task_name(self):
-        """Get the name of the ValidationTask that raised this error."""
+    @staticmethod
+    def _get_task_name() -> str | None:
+        """Get the name of the ValidationTask that raised this error.
+
+        Expected to be called from below a `ValidationTask.run`.
+        """
         import inspect
 
         # walk up the stack until we find the ValidationTask.run method
@@ -88,6 +97,7 @@ class ValidationIssue:
                 task = frame.f_locals["self"]
                 if isinstance(task, ValidationTask):
                     return task.__class__.__name__
+        return None
 
 
 @dataclass
@@ -222,6 +232,8 @@ class CheckProblemConfig(ValidationTask):
                 f"Missing files: {', '.join(missing_files)}"
             )
 
+        return None
+
 
 class CheckModel(ValidationTask):
     """A task to validate the model of a PEtab problem."""
@@ -233,6 +245,8 @@ class CheckModel(ValidationTask):
         if not problem.model.is_valid():
             # TODO get actual model validation messages
             return ValidationError("Model is invalid.")
+
+        return None
 
 
 class CheckMeasuredObservablesDefined(ValidationTask):
@@ -252,10 +266,13 @@ class CheckMeasuredObservablesDefined(ValidationTask):
                 "measurement table but not defined in observable table."
             )
 
+        return None
+
 
 class CheckOverridesMatchPlaceholders(ValidationTask):
     """A task to check that the number of observable/noise parameters
-    in the measurements match the number of placeholders in the observables."""
+    in the measurements matches the number of placeholders in the observables.
+    """
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         observable_parameters_count = {
@@ -320,18 +337,20 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
         if messages:
             return ValidationError("\n".join(messages))
 
+        return None
+
 
 class CheckPosLogMeasurements(ValidationTask):
     """Check that measurements for observables with
     log-transformation are positive."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        from .core import NoiseDistribution as nd
+        from .core import NoiseDistribution as ND  # noqa: N813
 
         log_observables = {
             o.id
             for o in problem.observable_table.observables
-            if o.noise_distribution in [nd.LOG_NORMAL, nd.LOG_LAPLACE]
+            if o.noise_distribution in [ND.LOG_NORMAL, ND.LOG_LAPLACE]
         }
         if log_observables:
             for m in problem.measurement_table.measurements:
@@ -341,6 +360,8 @@ class CheckPosLogMeasurements(ValidationTask):
                         f"log transformation must be "
                         f"positive, but {m.measurement} <= 0 for {m}"
                     )
+
+        return None
 
 
 class CheckMeasuredExperimentsDefined(ValidationTask):
@@ -368,6 +389,8 @@ class CheckMeasuredExperimentsDefined(ValidationTask):
                 "are not specified in the experiments table: "
                 + str(missing_experiments)
             )
+
+        return None
 
 
 class CheckValidConditionTargets(ValidationTask):
@@ -418,6 +441,32 @@ class CheckValidConditionTargets(ValidationTask):
                             f"{invalid} at time {period.time}."
                         )
                     period_targets |= condition_targets
+        return None
+
+
+class CheckAllObservablesDefined(ValidationTask):
+    """A task to validate that all observables in the measurement table are
+    defined in the observable table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        if problem.measurement_df is None:
+            return None
+
+        measurement_df = problem.measurement_df
+        observable_df = problem.observable_df
+        used_observables = set(measurement_df[OBSERVABLE_ID].values)
+        defined_observables = (
+            set(observable_df.index.values)
+            if observable_df is not None
+            else set()
+        )
+        if undefined_observables := (used_observables - defined_observables):
+            return ValidationError(
+                f"Observables {undefined_observables} are used in the"
+                "measurements table but are not defined in observables table."
+            )
+
+        return None
 
 
 class CheckUniquePrimaryKeys(ValidationTask):
@@ -429,7 +478,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
 
         # check for uniqueness of all primary keys
         counter = Counter(c.id for c in problem.condition_table.conditions)
-        duplicates = {id for id, count in counter.items() if count > 1}
+        duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
             return ValidationError(
@@ -437,7 +486,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(o.id for o in problem.observable_table.observables)
-        duplicates = {id for id, count in counter.items() if count > 1}
+        duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
             return ValidationError(
@@ -445,7 +494,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(e.id for e in problem.experiment_table.experiments)
-        duplicates = {id for id, count in counter.items() if count > 1}
+        duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
             return ValidationError(
@@ -453,12 +502,14 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(p.id for p in problem.parameter_table.parameters)
-        duplicates = {id for id, count in counter.items() if count > 1}
+        duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
             return ValidationError(
                 f"Parameter table contains duplicate IDs: {duplicates}"
             )
+
+        return None
 
 
 class CheckObservablesDoNotShadowModelEntities(ValidationTask):
@@ -479,6 +530,8 @@ class CheckObservablesDoNotShadowModelEntities(ValidationTask):
                 f"Observable IDs {shadowed_entities} shadow model entities."
             )
 
+        return None
+
 
 class CheckExperimentTable(ValidationTask):
     """A task to validate the experiment table of a PEtab problem."""
@@ -497,6 +550,8 @@ class CheckExperimentTable(ValidationTask):
 
         if messages:
             return ValidationError("\n".join(messages))
+
+        return None
 
 
 class CheckExperimentConditionsExist(ValidationTask):
@@ -525,6 +580,8 @@ class CheckExperimentConditionsExist(ValidationTask):
 
         if messages:
             return ValidationError("\n".join(messages))
+
+        return None
 
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
@@ -572,6 +629,8 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
                 "Extraneous parameter(s) in parameter table: "
                 + str(extraneous)
             )
+
+        return None
 
 
 class CheckValidParameterInConditionOrParameterTable(ValidationTask):
@@ -646,9 +705,11 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
                 "the condition table and the parameter table."
             )
 
+        return None
+
 
 class CheckUnusedExperiments(ValidationTask):
-    """A task to check for experiments that are not used in the measurements
+    """A task to check for experiments that are not used in the measurement
     table."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
@@ -668,9 +729,11 @@ class CheckUnusedExperiments(ValidationTask):
                 "measurements table."
             )
 
+        return None
+
 
 class CheckUnusedConditions(ValidationTask):
-    """A task to check for conditions that are not used in the experiments
+    """A task to check for conditions that are not used in the experiment
     table."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
@@ -692,6 +755,8 @@ class CheckUnusedConditions(ValidationTask):
                 "experiments table."
             )
 
+        return None
+
 
 class CheckVisualizationTable(ValidationTask):
     """A task to validate the visualization table of a PEtab problem."""
@@ -700,13 +765,63 @@ class CheckVisualizationTable(ValidationTask):
         if problem.visualization_df is None:
             return None
 
-        from ..v1.visualize.lint import validate_visualization_df
-
         if validate_visualization_df(problem):
             return ValidationIssue(
                 level=ValidationIssueSeverity.ERROR,
                 message="Visualization table is invalid.",
             )
+
+        return None
+
+
+class CheckPriorDistribution(ValidationTask):
+    """A task to validate the prior distribution of a PEtab problem."""
+
+    _num_pars = {
+        PriorDistribution.CAUCHY: 2,
+        PriorDistribution.CHI_SQUARED: 1,
+        PriorDistribution.EXPONENTIAL: 1,
+        PriorDistribution.GAMMA: 2,
+        PriorDistribution.LAPLACE: 2,
+        PriorDistribution.LOG10_NORMAL: 2,
+        PriorDistribution.LOG_LAPLACE: 2,
+        PriorDistribution.LOG_NORMAL: 2,
+        PriorDistribution.LOG_UNIFORM: 2,
+        PriorDistribution.NORMAL: 2,
+        PriorDistribution.RAYLEIGH: 1,
+        PriorDistribution.UNIFORM: 2,
+    }
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        messages = []
+        for parameter in problem.parameter_table.parameters:
+            if parameter.prior_distribution is None:
+                continue
+
+            if parameter.prior_distribution not in PRIOR_DISTRIBUTIONS:
+                messages.append(
+                    f"Prior distribution `{parameter.prior_distribution}' "
+                    f"for parameter `{parameter.id}' is not valid."
+                )
+                continue
+
+            if (
+                exp_num_par := self._num_pars[parameter.prior_distribution]
+            ) != len(parameter.prior_parameters):
+                messages.append(
+                    f"Prior distribution `{parameter.prior_distribution}' "
+                    f"for parameter `{parameter.id}' requires "
+                    f"{exp_num_par} parameters, but got "
+                    f"{len(parameter.prior_parameters)} "
+                    f"({parameter.prior_parameters})."
+                )
+
+            # TODO: check distribution parameter domains
+
+        if messages:
+            return ValidationError("\n".join(messages))
+
+        return None
 
 
 def get_valid_parameters_for_parameter_table(
@@ -752,7 +867,7 @@ def get_valid_parameters_for_parameter_table(
         if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
 
-    # add output parameters from observables table
+    # add output parameters from observable table
     output_parameters = get_output_parameters(problem)
     for p in output_parameters:
         if p not in invalid:
@@ -781,7 +896,7 @@ def get_required_parameters_for_parameter_table(
     problem: Problem,
 ) -> Set[str]:
     """
-    Get set of parameters which need to go into the parameter table
+    Get the set of parameters that need to go into the parameter table
 
     Arguments:
         problem: The PEtab problem
@@ -965,4 +1080,9 @@ default_validation_tasks = [
     # TODO: atomize checks, update to long condition table, re-enable
     # CheckVisualizationTable(),
     # TODO validate mapping table
+    CheckValidParameterInConditionOrParameterTable(),
+    CheckAllObservablesDefined(),
+    CheckAllParametersPresentInParameterTable(),
+    CheckValidConditionTargets(),
+    CheckPriorDistribution(),
 ]

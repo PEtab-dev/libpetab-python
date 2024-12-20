@@ -890,6 +890,9 @@ class Parameter(BaseModel):
     @field_validator("prior_parameters", mode="before")
     @classmethod
     def _validate_prior_parameters(cls, v):
+        if isinstance(v, float) and np.isnan(v):
+            return []
+
         if isinstance(v, str):
             v = v.split(C.PARAMETER_SEPARATOR)
         elif not isinstance(v, Sequence):
