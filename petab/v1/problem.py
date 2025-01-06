@@ -1215,8 +1215,8 @@ class ProblemConfig(BaseModel):
     def to_yaml(self, filename: str | Path):
         """Write the configuration to a YAML file.
 
-        filename: Destination file name. The parent directory will be created
-            if necessary.
+        :param filename: Destination file name. The parent directory will be
+            created if necessary.
         """
         from .yaml import write_yaml
 

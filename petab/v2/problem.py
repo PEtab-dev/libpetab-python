@@ -993,6 +993,7 @@ class ModelFile(BaseModel):
 class SubProblem(BaseModel):
     """A `problems` object in the PEtab problem configuration."""
 
+    # TODO: consider changing str to Path
     model_files: dict[str, ModelFile] | None = {}
     measurement_files: list[str | AnyUrl] = []
     condition_files: list[str | AnyUrl] = []
@@ -1031,8 +1032,8 @@ class ProblemConfig(BaseModel):
     def to_yaml(self, filename: str | Path):
         """Write the configuration to a YAML file.
 
-        filename: Destination file name. The parent directory will be created
-            if necessary.
+        :param filename: Destination file name. The parent directory will be
+            created if necessary.
         """
         from ..v1.yaml import write_yaml
 
