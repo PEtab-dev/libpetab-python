@@ -13,10 +13,10 @@ from warnings import warn
 import pandas as pd
 from pydantic import AnyUrl, BaseModel, Field, RootModel
 
+from ..versions import get_major_version
 from . import (
     conditions,
     core,
-    format_version,
     mapping,
     measurements,
     observables,
@@ -290,13 +290,13 @@ class Problem:
                 "petab.CompositeProblem.from_yaml() instead."
             )
 
-        if yaml_config[FORMAT_VERSION] not in {"1", 1, "1.0.0", "2.0.0"}:
+        major_version = get_major_version(yaml_config)
+        if major_version not in {1, 2}:
             raise ValueError(
                 "Provided PEtab files are of unsupported version "
-                f"{yaml_config[FORMAT_VERSION]}. Expected "
-                f"{format_version.__format_version__}."
+                f"{yaml_config[FORMAT_VERSION]}."
             )
-        if yaml_config[FORMAT_VERSION] == "2.0.0":
+        if major_version == 2:
             warn("Support for PEtab2.0 is experimental!", stacklevel=2)
             warn(
                 "Using petab.v1.Problem with PEtab2.0 is deprecated. "
@@ -321,7 +321,7 @@ class Problem:
                 if config.parameter_file
                 else None
             )
-        if config.format_version.root in [1, "1", "1.0.0"]:
+        if major_version == 1:
             if len(problem0.sbml_files) > 1:
                 # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
                 raise NotImplementedError(
@@ -1074,8 +1074,8 @@ class Problem:
     def add_parameter(
         self,
         id_: str,
-        estimated: bool | str | int = True,
-        nominal_value=None,
+        estimate: bool | str | int = True,
+        nominal_value: Number | None = None,
         scale: str = None,
         lb: Number = None,
         ub: Number = None,
@@ -1089,7 +1089,7 @@ class Problem:
 
         Arguments:
             id_: The parameter id
-            estimated: Whether the parameter is estimated
+            estimate: Whether the parameter is estimated
             nominal_value: The nominal value of the parameter
             scale: The parameter scale
             lb: The lower bound of the parameter
@@ -1104,12 +1104,8 @@ class Problem:
         record = {
             PARAMETER_ID: [id_],
         }
-        if estimated is not None:
-            record[ESTIMATE] = [
-                int(estimated)
-                if isinstance(estimated, bool | int)
-                else estimated
-            ]
+        if estimate is not None:
+            record[ESTIMATE] = [int(estimate)]
         if nominal_value is not None:
             record[NOMINAL_VALUE] = [nominal_value]
         if scale is not None:

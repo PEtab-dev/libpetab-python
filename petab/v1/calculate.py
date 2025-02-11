@@ -106,10 +106,7 @@ def calculate_residuals_for_table(
     )
     residual_df[RESIDUAL] = residual_df[RESIDUAL].astype("float64")
     # matching columns
-    compared_cols = set(MEASUREMENT_DF_COLS)
-    compared_cols -= {MEASUREMENT}
-    compared_cols &= set(measurement_df.columns)
-    compared_cols &= set(simulation_df.columns)
+    compared_cols = set(measurement_df.columns) & set(simulation_df.columns)
 
     # compute noise formulas for observables
     noise_formulas = get_symbolic_noise_formulas(observable_df)
@@ -127,6 +124,16 @@ def calculate_residuals_for_table(
             raise ValueError(
                 f"Could not find simulation for measurement {row}."
             )
+        # if we have multiple matches, check that the rows are all identical
+        elif (
+            mask.sum() > 1
+            and simulation_df.loc[mask].drop_duplicates().shape[0] > 1
+        ):
+            raise ValueError(
+                f"Multiple different simulations found for measurement "
+                f"{row}:\n{simulation_df.loc[mask]}"
+            )
+
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
         if scale:
             # apply scaling
@@ -343,10 +350,7 @@ def calculate_llh_for_table(
     llhs = []
 
     # matching columns
-    compared_cols = set(MEASUREMENT_DF_COLS)
-    compared_cols -= {MEASUREMENT}
-    compared_cols &= set(measurement_df.columns)
-    compared_cols &= set(simulation_df.columns)
+    compared_cols = set(measurement_df.columns) & set(simulation_df.columns)
 
     # compute noise formulas for observables
     noise_formulas = get_symbolic_noise_formulas(observable_df)

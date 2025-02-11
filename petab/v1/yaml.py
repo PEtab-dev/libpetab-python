@@ -12,15 +12,15 @@ import pandas as pd
 import yaml
 from pandas.io.common import get_handle
 
+from ..versions import parse_version
 from .C import *  # noqa: F403
 
 # directory with PEtab yaml schema files
 SCHEMA_DIR = Path(__file__).parent.parent / "schemas"
 # map of version number to validation schema
 SCHEMAS = {
-    "1": SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
-    "1.0.0": SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
-    "2.0.0": SCHEMA_DIR / "petab_schema.v2.0.0.yaml",
+    (1, 0): SCHEMA_DIR / "petab_schema.v1.0.0.yaml",
+    (2, 0): SCHEMA_DIR / "petab_schema.v2.0.0.yaml",
 }
 
 __all__ = [
@@ -71,14 +71,18 @@ def validate_yaml_syntax(
     yaml_config = load_yaml(yaml_config)
 
     if schema is None:
-        # try get PEtab version from yaml file
+        # try to get PEtab version from the yaml file
         #  if this is not the available, the file is not valid anyways,
         #  but let's still use the latest PEtab schema for full validation
+        version = yaml_config.get(FORMAT_VERSION, None)
         version = (
-            yaml_config.get(FORMAT_VERSION, None) or list(SCHEMAS.values())[-1]
+            parse_version(version)[:2]
+            if version
+            else list(SCHEMAS.values())[-1]
         )
+
         try:
-            schema = SCHEMAS[str(version)]
+            schema = SCHEMAS[version]
         except KeyError as e:
             raise ValueError(
                 "Unknown PEtab version given in problem "
@@ -234,8 +238,10 @@ def write_yaml(yaml_config: dict[str, Any], filename: str | Path) -> None:
 
     Arguments:
         yaml_config: Data to write
-        filename: File to create
+        filename: Destination file name. The parent directory will be created
+            if necessary.
     """
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
     with open(filename, "w") as outfile:
         yaml.dump(
             yaml_config, outfile, default_flow_style=False, sort_keys=False
