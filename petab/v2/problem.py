@@ -1038,3 +1038,9 @@ class ProblemConfig(BaseModel):
         from ..v1.yaml import write_yaml
 
         write_yaml(self.model_dump(), filename)
+
+    @property
+    def format_version_tuple(self) -> tuple[int, int, int, str]:
+        """The format version as a tuple of major/minor/patch `int`s and a
+        suffix."""
+        return parse_version(self.format_version)
