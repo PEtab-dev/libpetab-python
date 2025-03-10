@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/sbmlmath
+      url: https://pypi.org/p/petab
     permissions:
       id-token: write
 
