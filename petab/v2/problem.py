@@ -25,7 +25,6 @@ from ..v1 import (
     yaml,
 )
 from ..v1.models.model import Model, model_factory
-from ..v1.problem import ListOfFiles, VersionNumber
 from ..v1.yaml import get_path_prefix
 from ..v2.C import *  # noqa: F403
 from ..versions import parse_version
@@ -994,13 +993,14 @@ class ModelFile(BaseModel):
 class SubProblem(BaseModel):
     """A `problems` object in the PEtab problem configuration."""
 
+    # TODO: consider changing str to Path
     model_files: dict[str, ModelFile] | None = {}
-    measurement_files: ListOfFiles = []
-    condition_files: ListOfFiles = []
-    experiment_files: ListOfFiles = []
-    observable_files: ListOfFiles = []
-    visualization_files: ListOfFiles = []
-    mapping_files: ListOfFiles = []
+    measurement_files: list[str | AnyUrl] = []
+    condition_files: list[str | AnyUrl] = []
+    experiment_files: list[str | AnyUrl] = []
+    observable_files: list[str | AnyUrl] = []
+    visualization_files: list[str | AnyUrl] = []
+    mapping_files: list[str | AnyUrl] = []
 
 
 class ExtensionConfig(BaseModel):
@@ -1024,7 +1024,23 @@ class ProblemConfig(BaseModel):
         description="The base path to resolve relative paths.",
         exclude=True,
     )
-    format_version: VersionNumber = "2.0.0"
+    format_version: str = "2.0.0"
     parameter_file: str | AnyUrl | None = None
     problems: list[SubProblem] = []
     extensions: list[ExtensionConfig] = []
+
+    def to_yaml(self, filename: str | Path):
+        """Write the configuration to a YAML file.
+
+        :param filename: Destination file name. The parent directory will be
+            created if necessary.
+        """
+        from ..v1.yaml import write_yaml
+
+        write_yaml(self.model_dump(), filename)
+
+    @property
+    def format_version_tuple(self) -> tuple[int, int, int, str]:
+        """The format version as a tuple of major/minor/patch `int`s and a
+        suffix."""
+        return parse_version(self.format_version)
