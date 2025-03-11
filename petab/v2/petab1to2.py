@@ -10,10 +10,10 @@ import pandas as pd
 from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
-from ..v1 import Problem as ProblemV1
-from ..v1.yaml import get_path_prefix, load_yaml, validate, write_yaml
+from ..v1.yaml import get_path_prefix, load_yaml, validate
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
+from .problem import ProblemConfig
 
 __all__ = ["petab1to2"]
 
@@ -59,7 +59,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     validate(yaml_config, path_prefix=path_prefix)
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
-    petab_problem = ProblemV1.from_yaml(yaml_file or yaml_config)
+    petab_problem = v1.Problem.from_yaml(yaml_file or yaml_config)
     # get rid of conditionName column if present (unsupported in v2)
     petab_problem.condition_df = petab_problem.condition_df.drop(
         columns=[v1.C.CONDITION_NAME], errors="ignore"
@@ -71,6 +71,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     # Update YAML file
     new_yaml_config = _update_yaml(yaml_config)
+    new_yaml_config = ProblemConfig(**new_yaml_config)
 
     # Update tables
     # condition tables, observable tables, SBML files, parameter table:
@@ -78,19 +79,16 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     file = yaml_config[v2.C.PARAMETER_FILE]
     _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
-    for problem_config in yaml_config[v2.C.PROBLEMS]:
+    for problem_config in new_yaml_config.problems:
         for file in chain(
-            problem_config.get(v2.C.OBSERVABLE_FILES, []),
-            (
-                model[v2.C.MODEL_LOCATION]
-                for model in problem_config.get(v2.C.MODEL_FILES, {}).values()
-            ),
-            problem_config.get(v2.C.VISUALIZATION_FILES, []),
+            problem_config.observable_files,
+            (model.location for model in problem_config.model_files.values()),
+            problem_config.visualization_files,
         ):
             _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
         # Update condition table
-        for condition_file in problem_config.get(v2.C.CONDITION_FILES, []):
+        for condition_file in problem_config.condition_files:
             condition_df = v1.get_condition_df(get_src_path(condition_file))
             condition_df = v1v2_condition_df(condition_df, petab_problem.model)
             v2.write_condition_df(condition_df, get_dest_path(condition_file))
@@ -159,12 +157,12 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 raise ValueError(
                     f"Experiment table file {exp_table_path} already exists."
                 )
-            problem_config[v2.C.EXPERIMENT_FILES] = [exp_table_path.name]
+            problem_config.experiment_files.append("experiments.tsv")
             v2.write_experiment_df(
                 v2.get_experiment_df(pd.DataFrame(experiments)), exp_table_path
             )
 
-        for measurement_file in problem_config.get(v2.C.MEASUREMENT_FILES, []):
+        for measurement_file in problem_config.measurement_files:
             measurement_df = v1.get_measurement_df(
                 get_src_path(measurement_file)
             )
@@ -221,7 +219,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     # Write new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
-    write_yaml(new_yaml_config, new_yaml_file)
+    new_yaml_config.to_yaml(new_yaml_file)
 
     # validate updated Problem
     validation_issues = v2.lint_problem(new_yaml_file)
