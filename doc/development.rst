@@ -69,6 +69,8 @@ We use `Sphinx <https://www.sphinx-doc.org/>`_ to generate the documentation.
 The documentation is written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_.
 
 We use the `sphinx docstring-style <https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html>`__ for new code.
+The ``:param [ParamName]:`` and ``:return:`` statements are important when applicable.
+Manual type annotations (``:type  [ParamName]:``) are redundant and should be avoided.
 
 To build the documentation, run:
 
