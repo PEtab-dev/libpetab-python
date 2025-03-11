@@ -30,7 +30,10 @@ Release process
 
 1. Update the version number in ``petab/version.py``.
 
-2. Update the changelog in ``doc/CHANGELOG.md``. The update content can be generated automatically: draft a new dummy GitHub release with a dummy tag and the ``develop`` branch, then click "Generate release notes".
+2. Update the changelog in ``doc/CHANGELOG.md``.
+   The update content can be generated automatically:
+   draft a new dummy GitHub release with a dummy tag and the ``develop``
+   branch, then click :guilabel:`Generate release notes`.
 
 3. Create a pull request with the changes to the main branch.
 
@@ -39,8 +42,11 @@ Release process
    (e.g., ``v1.0.0``), and the release title to ``libpetab-python $RELEASE_TAG``
    (e.g., ``libpetab-python v1.0.0``).
 
-5. Check that the release is now available on PyPI. The upload to PyPI is performed automatically by a GitHub Actions workflow, which may take a few minutes to complete.
+5. Check that the release is now available on PyPI.
+   The upload to PyPI is performed automatically by a GitHub Actions workflow,
+   which may take a few minutes to complete.
 
+6. Merge the main branch back into the `develop` branch.
 
 Style guide
 -----------
@@ -69,8 +75,10 @@ We use `Sphinx <https://www.sphinx-doc.org/>`_ to generate the documentation.
 The documentation is written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_.
 
 We use the `sphinx docstring-style <https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html>`__ for new code.
-The ``:param [ParamName]:`` and ``:return:`` statements are important when applicable.
-Manual type annotations (``:type  [ParamName]:``) are redundant and should be avoided.
+The ``:param [ParamName]:`` and ``:return:`` statements are important when
+applicable.
+Manual type annotations (``:type  [ParamName]:``) are redundant and should be
+avoided.
 
 To build the documentation, run:
 
