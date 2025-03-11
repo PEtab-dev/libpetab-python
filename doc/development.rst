@@ -39,8 +39,7 @@ Release process
    (e.g., ``v1.0.0``), and the release title to ``libpetab-python $RELEASE_TAG``
    (e.g., ``libpetab-python v1.0.0``).
 
-5. The release will be automatically uploaded to PyPI through a GitHub actions
-   workflow.
+5. Check that the release is now available on PyPI. The upload to PyPI is performed automatically by a GitHub Actions workflow, which may take a few minutes to complete.
 
 
 Style guide
