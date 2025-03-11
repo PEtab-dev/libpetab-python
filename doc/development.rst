@@ -30,7 +30,7 @@ Release process
 
 1. Update the version number in ``petab/version.py``.
 
-2. Update the changelog in ``doc/CHANGELOG.md``.
+2. Update the changelog in ``doc/CHANGELOG.md``. The update content can be generated automatically: draft a new dummy GitHub release with a dummy tag and the ``develop`` branch, then click "Generate release notes".
 
 3. Create a pull request with the changes to the main branch.
 
