@@ -231,7 +231,7 @@ class Change(BaseModel):
     """
 
     target_id: str | None = Field(alias=C.TARGET_ID, default=None)
-    operation_type: OperationType = Field(alias=C.VALUE_TYPE)
+    operation_type: OperationType = Field(alias=C.OPERATION_TYPE)
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
     class Config:
@@ -242,8 +242,11 @@ class Change(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def validate_id(cls, data: dict):
-        if data.get("operation_type") != OperationType.NO_CHANGE:
-            target_id = data.get("target_id")
+        if (
+            data.get("operation_type", data.get(C.OPERATION_TYPE))
+            != C.OT_NO_CHANGE
+        ):
+            target_id = data.get("target_id", data.get(C.TARGET_ID))
 
             if not is_valid_identifier(target_id):
                 raise ValueError(f"Invalid ID: {target_id}")

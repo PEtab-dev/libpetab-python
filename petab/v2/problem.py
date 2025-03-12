@@ -796,10 +796,10 @@ class Problem:
             {
                 CONDITION_ID: id_,
                 TARGET_ID: target_id,
-                VALUE_TYPE: value_type,
+                OPERATION_TYPE: op_type,
                 TARGET_VALUE: target_value,
             }
-            for target_id, (value_type, target_value) in kwargs.items()
+            for target_id, (op_type, target_value) in kwargs.items()
         ]
         # TODO: is the condition name supported in v2?
         if name is not None:

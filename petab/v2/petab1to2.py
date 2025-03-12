@@ -301,7 +301,7 @@ def v1v2_condition_df(
             columns=[
                 v2.C.CONDITION_ID,
                 v2.C.TARGET_ID,
-                v2.C.VALUE_TYPE,
+                v2.C.OPERATION_TYPE,
                 v2.C.TARGET_VALUE,
             ]
         )
@@ -320,7 +320,5 @@ def v1v2_condition_df(
                 f"Unable to determine value type {target} in the condition "
                 "table."
             )
-    condition_df[v2.C.VALUE_TYPE] = condition_df[v2.C.TARGET_ID].apply(
-        lambda x: v2.C.VT_INITIAL if x in initial else v2.C.VT_CONSTANT
-    )
+    condition_df[v2.C.OPERATION_TYPE] = v2.C.OT_CUR_VAL
     return condition_df
