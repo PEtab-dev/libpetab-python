@@ -324,20 +324,19 @@ class ExperimentPeriod(BaseModel):
     """
 
     start: float = Field(alias=C.TIME)
-    condition_ids: list[str] = Field(alias=C.CONDITION_ID)
+    condition_id: str = Field(alias=C.CONDITION_ID)
 
     class Config:
         populate_by_name = True
 
-    @field_validator("condition_ids")
+    @field_validator("condition_id")
     @classmethod
-    def validate_id(cls, v):
-        for condition_id in v:
-            if not condition_id:
-                raise ValueError("ID must not be empty.")
-            if not is_valid_identifier(condition_id):
-                raise ValueError(f"Invalid ID: {condition_id}")
-        return v
+    def validate_id(cls, condition_id):
+        if not condition_id:
+            raise ValueError("ID must not be empty.")
+        if not is_valid_identifier(condition_id):
+            raise ValueError(f"Invalid ID: {condition_id}")
+        return condition_id
 
 
 class Experiment(BaseModel):
@@ -377,14 +376,12 @@ class ExperimentsTable(BaseModel):
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
-            periods = []
-            for time, cur_period_df in cur_exp_df.groupby(C.TIME):
-                period_conditions = list(cur_period_df[C.CONDITION_ID])
-                periods.append(
-                    ExperimentPeriod(
-                        start=time, condition_ids=period_conditions
-                    )
+            periods = [
+                ExperimentPeriod(
+                    start=row[C.TIME], condition_id=row[C.CONDITION_ID]
                 )
+                for _, row in cur_exp_df.iterrows()
+            ]
             experiments.append(Experiment(id=experiment_id, periods=periods))
 
         return cls(experiments=experiments)
