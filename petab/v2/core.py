@@ -1,4 +1,5 @@
 """Types around the PEtab object model."""
+
 from __future__ import annotations
 
 from enum import Enum
@@ -73,10 +74,10 @@ class NoiseDistribution(str, Enum):
     LAPLACE = C.LAPLACE
 
 
-class ObjectivePriorType(str, Enum):
-    """Objective prior types.
+class PriorType(str, Enum):
+    """Prior types.
 
-    Objective prior types as used in the PEtab parameters table.
+    Prior types as used in the PEtab parameters table.
     """
 
     NORMAL = C.NORMAL
@@ -88,27 +89,16 @@ class ObjectivePriorType(str, Enum):
     PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
     PARAMETER_SCALE_UNIFORM = C.PARAMETER_SCALE_UNIFORM
 
+
+#: Objective prior types as used in the PEtab parameters table.
+ObjectivePriorType = PriorType
+#: Initialization prior types as used in the PEtab parameters table.
+InitializationPriorType = PriorType
 
 assert set(C.PRIOR_TYPES) == {e.value for e in ObjectivePriorType}, (
     "ObjectivePriorType enum does not match C.PRIOR_TYPES: "
     f"{set(C.PRIOR_TYPES)} vs { {e.value for e in ObjectivePriorType} }"
 )
-
-
-class InitializationPriorType(str, Enum):
-    """Initialization prior types.
-
-    Initialization prior types as used in the PEtab parameters table.
-    """
-
-    NORMAL = C.NORMAL
-    LAPLACE = C.LAPLACE
-    UNIFORM = C.UNIFORM
-    LOG_NORMAL = C.LOG_NORMAL
-    LOG_LAPLACE = C.LOG_LAPLACE
-    PARAMETER_SCALE_NORMAL = C.PARAMETER_SCALE_NORMAL
-    PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
-    PARAMETER_SCALE_UNIFORM = C.PARAMETER_SCALE_UNIFORM
 
 
 class Observable(BaseModel):
