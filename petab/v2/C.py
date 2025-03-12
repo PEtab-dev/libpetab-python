@@ -134,7 +134,7 @@ TARGET_ID = "targetId"
 OPERATION_TYPE = "operationType"
 #: Column in the condition table with the new value of the target entity
 TARGET_VALUE = "targetValue"
-# opeartion types:
+# operation types:
 OT_CUR_VAL = "setCurrentValue"
 OT_NO_CHANGE = "noChange"
 

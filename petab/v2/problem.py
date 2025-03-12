@@ -105,31 +105,29 @@ class Problem:
             ParameterTable,
         )
 
-        self.observables_table: ObservablesTable = (
-            ObservablesTable.from_dataframe(self.observable_df)
+        self.observables_table: ObservablesTable = ObservablesTable.from_df(
+            self.observable_df
         )
         self.observables: list[Observable] = self.observables_table.observables
 
-        self.conditions_table: ConditionsTable = (
-            ConditionsTable.from_dataframe(self.condition_df)
+        self.conditions_table: ConditionsTable = ConditionsTable.from_df(
+            self.condition_df
         )
         self.conditions: list[ChangeSet] = self.conditions_table.conditions
 
-        self.experiments_table: ExperimentsTable = (
-            ExperimentsTable.from_dataframe(self.experiment_df)
+        self.experiments_table: ExperimentsTable = ExperimentsTable.from_df(
+            self.experiment_df
         )
         self.experiments: list[Experiment] = self.experiments_table.experiments
 
-        self.measurement_table: MeasurementTable = (
-            MeasurementTable.from_dataframe(
-                self.measurement_df,
-            )
+        self.measurement_table: MeasurementTable = MeasurementTable.from_df(
+            self.measurement_df,
         )
 
-        self.mapping_table: MappingTable = MappingTable.from_dataframe(
+        self.mapping_table: MappingTable = MappingTable.from_df(
             self.mapping_df
         )
-        self.parameter_table: ParameterTable = ParameterTable.from_dataframe(
+        self.parameter_table: ParameterTable = ParameterTable.from_df(
             self.parameter_df
         )
         # TODO: visualization table

@@ -144,7 +144,7 @@ class Observable(BaseModel):
         mode="before",
     )
     @classmethod
-    def convert_nan_to_none(cls, v, info: ValidationInfo):
+    def convert_nan_to_default(cls, v, info: ValidationInfo):
         if isinstance(v, float) and np.isnan(v):
             return cls.model_fields[info.field_name].default
         return v
@@ -177,7 +177,7 @@ class ObservablesTable(BaseModel):
         raise KeyError(f"Observable ID {observable_id} not found")
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> ObservablesTable:
+    def from_df(cls, df: pd.DataFrame) -> ObservablesTable:
         if df is None:
             return cls(observables=[])
 
@@ -188,16 +188,16 @@ class ObservablesTable(BaseModel):
 
         return cls(observables=observables)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.model_dump()["observables"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ObservablesTable:
         df = pd.read_csv(file_path, sep="\t")
-        return cls.from_dataframe(df)
+        return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        df = self.to_dataframe()
+        df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Observable) -> ObservablesTable:
@@ -313,7 +313,7 @@ class ConditionsTable(BaseModel):
         raise KeyError(f"Condition ID {condition_id} not found")
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> ConditionsTable:
+    def from_df(cls, df: pd.DataFrame) -> ConditionsTable:
         if df is None:
             return cls(conditions=[])
 
@@ -324,7 +324,7 @@ class ConditionsTable(BaseModel):
 
         return cls(conditions=conditions)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         records = [
             {C.CONDITION_ID: condition.id, **change.model_dump()}
             for condition in self.conditions
@@ -335,10 +335,10 @@ class ConditionsTable(BaseModel):
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ConditionsTable:
         df = pd.read_csv(file_path, sep="\t")
-        return cls.from_dataframe(df)
+        return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        df = self.to_dataframe()
+        df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: ChangeSet) -> ConditionsTable:
@@ -421,7 +421,7 @@ class ExperimentsTable(BaseModel):
     experiments: list[Experiment]
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> ExperimentsTable:
+    def from_df(cls, df: pd.DataFrame) -> ExperimentsTable:
         if df is None:
             return cls(experiments=[])
 
@@ -437,16 +437,16 @@ class ExperimentsTable(BaseModel):
 
         return cls(experiments=experiments)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.model_dump()["experiments"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ExperimentsTable:
         df = pd.read_csv(file_path, sep="\t")
-        return cls.from_dataframe(df)
+        return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        df = self.to_dataframe()
+        df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Experiment) -> ExperimentsTable:
@@ -528,7 +528,7 @@ class MeasurementTable(BaseModel):
     measurements: list[Measurement]
 
     @classmethod
-    def from_dataframe(
+    def from_df(
         cls,
         df: pd.DataFrame,
     ) -> MeasurementTable:
@@ -544,16 +544,16 @@ class MeasurementTable(BaseModel):
 
         return cls(measurements=measurements)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.model_dump()["measurements"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
         df = pd.read_csv(file_path, sep="\t")
-        return cls.from_dataframe(df)
+        return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        df = self.to_dataframe()
+        df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Measurement) -> MeasurementTable:
@@ -597,7 +597,7 @@ class MappingTable(BaseModel):
     mappings: list[Mapping]
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> MappingTable:
+    def from_df(cls, df: pd.DataFrame) -> MappingTable:
         if df is None:
             return cls(mappings=[])
 
@@ -607,16 +607,16 @@ class MappingTable(BaseModel):
 
         return cls(mappings=mappings)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.model_dump()["mappings"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MappingTable:
         df = pd.read_csv(file_path, sep="\t")
-        return cls.from_dataframe(df)
+        return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        df = self.to_dataframe()
+        df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Mapping) -> MappingTable:
@@ -674,7 +674,7 @@ class ParameterTable(BaseModel):
     parameters: list[Parameter]
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> ParameterTable:
+    def from_df(cls, df: pd.DataFrame) -> ParameterTable:
         if df is None:
             return cls(parameters=[])
 
@@ -685,16 +685,16 @@ class ParameterTable(BaseModel):
 
         return cls(parameters=parameters)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.model_dump()["parameters"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ParameterTable:
         df = pd.read_csv(file_path, sep="\t")
-        return cls.from_dataframe(df)
+        return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        df = self.to_dataframe()
+        df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Parameter) -> ParameterTable:
