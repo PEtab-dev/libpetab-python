@@ -133,7 +133,7 @@ def get_optimization_to_simulation_parameter_mapping(
 
         if model:
             raise ValueError(
-                "Arguments `model` and `sbml_model` are " "mutually exclusive."
+                "Arguments `model` and `sbml_model` are mutually exclusive."
             )
         model = SbmlModel(sbml_model=sbml_model)
 
@@ -383,7 +383,7 @@ def get_parameter_mapping_for_condition(
 
         if model:
             raise ValueError(
-                "Arguments `model` and `sbml_model` are " "mutually exclusive."
+                "Arguments `model` and `sbml_model` are mutually exclusive."
             )
         model = SbmlModel(sbml_model=sbml_model)
 
@@ -495,7 +495,7 @@ def _apply_overrides_for_observable(
         overrides: list of overrides for noise or observable parameters
     """
     for i, override in enumerate(overrides):
-        overridee_id = f"{override_type}Parameter{i+1}_{observable_id}"
+        overridee_id = f"{override_type}Parameter{i + 1}_{observable_id}"
         mapping[overridee_id] = override
 
 

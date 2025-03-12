@@ -1,4 +1,5 @@
 """PEtab problems consisting of multiple models"""
+
 import os
 
 import pandas as pd

@@ -1,4 +1,5 @@
 """PEtab simulator base class and related functions."""
+
 from __future__ import annotations
 
 import abc

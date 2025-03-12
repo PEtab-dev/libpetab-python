@@ -1,4 +1,5 @@
 """Tests related to petab.v2.mapping"""
+
 import tempfile
 
 import pandas as pd

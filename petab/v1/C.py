@@ -2,6 +2,7 @@
 """
 This file contains constant definitions.
 """
+
 import math as _math
 import sys
 

@@ -1,4 +1,5 @@
 """Code regarding the PEtab YAML config files"""
+
 from __future__ import annotations
 
 import os

@@ -1,4 +1,5 @@
 """Check that deprecated functionality raises but still works."""
+
 import tempfile
 from pathlib import Path
 

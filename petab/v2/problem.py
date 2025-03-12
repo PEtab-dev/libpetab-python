@@ -1,4 +1,5 @@
 """PEtab v2 problems."""
+
 from __future__ import annotations
 
 import logging
@@ -87,9 +88,9 @@ class Problem:
         self.mapping_df: pd.DataFrame | None = mapping_df
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
-        self.validation_tasks: list[
-            ValidationTask
-        ] = default_validation_tasks.copy()
+        self.validation_tasks: list[ValidationTask] = (
+            default_validation_tasks.copy()
+        )
         self.config = config
 
     def __str__(self):

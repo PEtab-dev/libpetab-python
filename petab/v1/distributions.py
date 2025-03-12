@@ -1,4 +1,5 @@
 """Probability distributions used by PEtab."""
+
 from __future__ import annotations
 
 import abc
