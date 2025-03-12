@@ -192,7 +192,7 @@ def parse_species_name(
         match = complex_constituent_pattern.match(complex_constituent)
         if not match:
             raise ValueError(
-                f"Invalid species name: '{name}' " f"('{complex_constituent}')"
+                f"Invalid species name: '{name}' ('{complex_constituent}')"
             )
         monomer = match.groupdict()["monomer"]
         site_config_str = match.groupdict()["site_config"]
@@ -208,7 +208,7 @@ def parse_species_name(
             elif config.startswith("'"):
                 if not config.endswith("'"):
                     raise ValueError(
-                        f"Invalid species name: '{name}' " f"('{config}')"
+                        f"Invalid species name: '{name}' ('{config}')"
                     )
                 # strip quotes
                 config = config[1:-1]

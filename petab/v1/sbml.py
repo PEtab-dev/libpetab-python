@@ -258,9 +258,9 @@ def get_model_for_condition(
 
     condition_dict = {petab.SIMULATION_CONDITION_ID: sim_condition_id}
     if preeq_condition_id:
-        condition_dict[
-            petab.PREEQUILIBRATION_CONDITION_ID
-        ] = preeq_condition_id
+        condition_dict[petab.PREEQUILIBRATION_CONDITION_ID] = (
+            preeq_condition_id
+        )
     cur_measurement_df = petab.measurements.get_rows_for_condition(
         measurement_df=petab_problem.measurement_df,
         condition=condition_dict,

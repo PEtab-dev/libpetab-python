@@ -1,4 +1,5 @@
 """Functionality for simplifying PEtab problems"""
+
 from math import nan
 
 import pandas as pd

@@ -1,4 +1,5 @@
 """Tests for petab/simulate.py."""
+
 import functools
 from collections.abc import Callable
 from pathlib import Path

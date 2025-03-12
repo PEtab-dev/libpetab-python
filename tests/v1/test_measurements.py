@@ -1,4 +1,5 @@
 """Tests related to petab.measurements"""
+
 import tempfile
 from pathlib import Path
 

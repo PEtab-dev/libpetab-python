@@ -1,4 +1,5 @@
 """Test for petab.yaml"""
+
 import tempfile
 from pathlib import Path
 

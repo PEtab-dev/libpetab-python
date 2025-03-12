@@ -1,4 +1,5 @@
 """Test COMBINE archive"""
+
 import tempfile
 from pathlib import Path
 

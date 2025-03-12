@@ -1,4 +1,5 @@
 """Command-line interface for visualization."""
+
 import argparse
 from pathlib import Path
 

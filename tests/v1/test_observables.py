@@ -1,4 +1,5 @@
 """Tests for petab.observables"""
+
 import tempfile
 from pathlib import Path
 

@@ -1,4 +1,5 @@
 """PEtab model abstraction"""
+
 from __future__ import annotations
 
 import abc
@@ -13,8 +14,7 @@ class Model(abc.ABC):
     """Base class for wrappers for any PEtab-supported model type"""
 
     @abc.abstractmethod
-    def __init__(self):
-        ...
+    def __init__(self): ...
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.model_id!r}>"
@@ -41,13 +41,11 @@ class Model(abc.ABC):
     @classmethod
     @property
     @abc.abstractmethod
-    def type_id(cls):
-        ...
+    def type_id(cls): ...
 
     @property
     @abc.abstractmethod
-    def model_id(self):
-        ...
+    def model_id(self): ...
 
     @abc.abstractmethod
     def get_parameter_value(self, id_: str) -> float:

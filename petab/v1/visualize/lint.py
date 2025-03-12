@@ -1,4 +1,5 @@
 """Validation of PEtab visualization files"""
+
 from __future__ import annotations
 
 import logging

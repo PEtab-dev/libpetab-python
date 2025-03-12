@@ -1,4 +1,5 @@
 """Convert PEtab version 1 problems to version 2."""
+
 import shutil
 from contextlib import suppress
 from itertools import chain

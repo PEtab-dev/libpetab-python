@@ -1,4 +1,5 @@
 """Functions operating on the PEtab condition table"""
+
 from __future__ import annotations
 
 from pathlib import Path

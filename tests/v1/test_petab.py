@@ -331,9 +331,9 @@ def test_create_parameter_df(
     assert parameter_df.index.values.tolist() == expected
 
     # test with condition parameter override:
-    condition_df_2_conditions.loc[
-        "condition2", "fixedParameter1"
-    ] = "overrider"
+    condition_df_2_conditions.loc["condition2", "fixedParameter1"] = (
+        "overrider"
+    )
     expected = ["p3", "p4", "p1", "p2", "p5", "overrider"]
 
     parameter_df = petab.create_parameter_df(

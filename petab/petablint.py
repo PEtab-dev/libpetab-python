@@ -161,7 +161,7 @@ def main():
             validate(args.yaml_file_name)
         except SchemaValidationError as e:
             logger.error(
-                "Provided YAML file does not adhere to PEtab " f"schema: {e}"
+                f"Provided YAML file does not adhere to PEtab schema: {e}"
             )
             sys.exit(1)
 
@@ -205,9 +205,7 @@ def main():
     if args.parameter_file_name:
         logger.debug(f"\tParameter table: {args.parameter_file_name}")
     if args.visualization_file_name:
-        logger.debug(
-            "\tVisualization table: " f"{args.visualization_file_name}"
-        )
+        logger.debug(f"\tVisualization table: {args.visualization_file_name}")
 
     try:
         problem = petab.Problem.from_files(

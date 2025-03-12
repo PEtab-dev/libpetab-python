@@ -1,4 +1,5 @@
 """PEtab-math to sympy conversion."""
+
 import sympy as sp
 from sympy.logic.boolalg import Boolean, BooleanFalse, BooleanTrue
 

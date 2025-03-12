@@ -556,7 +556,7 @@ def check_parameter_bounds(parameter_df: pd.DataFrame) -> None:
             ] in [LOG, LOG10]:
                 raise AssertionError(
                     f"Bounds for {row[PARAMETER_SCALE]} scaled parameter "
-                    f"{ row.name} must be positive."
+                    f"{row.name} must be positive."
                 )
             if (
                 row.get(PARAMETER_SCALE, LIN) in [LOG, LOG10]
@@ -586,8 +586,7 @@ def assert_parameter_prior_type_is_valid(parameter_df: pd.DataFrame) -> None:
         for _, row in parameter_df.iterrows():
             if row[col] not in PRIOR_TYPES and not core.is_empty(row[col]):
                 raise AssertionError(
-                    f"{col} must be one of {PRIOR_TYPES} but is "
-                    f"'{row[col]}'."
+                    f"{col} must be one of {PRIOR_TYPES} but is '{row[col]}'."
                 )
 
 
@@ -945,7 +944,7 @@ def lint_problem(problem: "petab.Problem") -> bool:
             for obs_id in problem.observable_df.index:
                 if problem.model.has_entity_with_id(obs_id):
                     logger.error(
-                        f"Observable ID {obs_id} shadows model " "entity."
+                        f"Observable ID {obs_id} shadows model entity."
                     )
                     errors_occurred = True
     else:
@@ -1002,8 +1001,7 @@ def lint_problem(problem: "petab.Problem") -> bool:
         or problem.observable_df is None
     ):
         logger.warning(
-            "Not all files of the PEtab problem definition could "
-            "be checked."
+            "Not all files of the PEtab problem definition could be checked."
         )
     else:
         logger.info("PEtab format check completed successfully.")
@@ -1213,7 +1211,7 @@ def check_ids(ids: Iterable[str], kind: str = "") -> None:
         offset = 2
         error_output = "\n".join(
             [
-                f"Line {index+offset}: "
+                f"Line {index + offset}: "
                 + ("Missing ID" if pd.isna(_id) else _id)
                 for index, _id in invalids
             ]

@@ -201,7 +201,7 @@ def create_parameter_df(
 
         if model:
             raise ValueError(
-                "Arguments `model` and `sbml_model` are " "mutually exclusive."
+                "Arguments `model` and `sbml_model` are mutually exclusive."
             )
         model = SbmlModel(sbml_model=sbml_model)
     if include_optional:

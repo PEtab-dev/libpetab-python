@@ -4,7 +4,6 @@ plotting, but which are not meant to be used by non-developers and should
 hence not be directly visible/usable when using `import petab.visualize`.
 """
 
-
 import pandas as pd
 
 from ..C import *
