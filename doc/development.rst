@@ -35,7 +35,8 @@ Release process
    draft a new dummy GitHub release with a dummy tag and the ``develop``
    branch, then click :guilabel:`Generate release notes`.
 
-3. Create a pull request with the changes to the main branch.
+3. Create a pull request with the to-be-released changes to the main branch
+   (usually from ``develop``).
 
 4. Once the pull request is merged, create a new release on GitHub.
    Make sure to set the tag to the version number prefixed with 'v'
