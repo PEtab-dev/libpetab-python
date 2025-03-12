@@ -12,6 +12,7 @@ from pydantic import (
     Field,
     ValidationInfo,
     field_validator,
+    model_validator,
 )
 
 from ..v1.lint import is_valid_identifier
@@ -199,19 +200,26 @@ class ObservablesTable(BaseModel):
         df = self.to_dataframe()
         df.to_csv(file_path, sep="\t", index=False)
 
+    def __add__(self, other: Observable) -> ObservablesTable:
+        """Add an observable to the table."""
+        if not isinstance(other, Observable):
+            raise TypeError("Can only add Observable to ObservablesTable")
+        return ObservablesTable(observables=self.observables + [other])
+
+    def __iadd__(self, other: Observable) -> ObservablesTable:
+        """Add an observable to the table in place."""
+        if not isinstance(other, Observable):
+            raise TypeError("Can only add Observable to ObservablesTable")
+        self.observables.append(other)
+        return self
+
 
 class OperationType(str, Enum):
     """Operation types for model changes in the PEtab conditions table."""
 
     # TODO update names
     SET_CURRENT_VALUE = "setCurrentValue"
-    SET_RATE = "setRate"
-    SET_ASSIGNMENT = "setAssignment"
-    ADD_TO_RATE = "addToRate"
-    ADD_TO_ASSIGNMENT = "addToAssignment"
     NO_CHANGE = "noChange"
-    CONSTANT = "constant"
-    INITIAL = "initial"
     ...
 
 
@@ -222,23 +230,24 @@ class Change(BaseModel):
     row of the PEtab conditions table.
     """
 
-    target_id: str = Field(alias=C.TARGET_ID)
+    target_id: str | None = Field(alias=C.TARGET_ID, default=None)
     operation_type: OperationType = Field(alias=C.VALUE_TYPE)
-    target_value: sp.Basic = Field(alias=C.TARGET_VALUE)
+    target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
     class Config:
         populate_by_name = True
         arbitrary_types_allowed = True
         use_enum_values = True
 
-    @field_validator("target_id")
+    @model_validator(mode="before")
     @classmethod
-    def validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
+    def validate_id(cls, data: dict):
+        if data.get("operation_type") != OperationType.NO_CHANGE:
+            target_id = data.get("target_id")
+
+            if not is_valid_identifier(target_id):
+                raise ValueError(f"Invalid ID: {target_id}")
+        return data
 
     @field_validator("target_value", mode="before")
     @classmethod
@@ -274,11 +283,24 @@ class ChangeSet(BaseModel):
             raise ValueError(f"Invalid ID: {v}")
         return v
 
+    def __add__(self, other: Change) -> ChangeSet:
+        """Add a change to the set."""
+        if not isinstance(other, Change):
+            raise TypeError("Can only add Change to ChangeSet")
+        return ChangeSet(id=self.id, changes=self.changes + [other])
+
+    def __iadd__(self, other: Change) -> ChangeSet:
+        """Add a change to the set in place."""
+        if not isinstance(other, Change):
+            raise TypeError("Can only add Change to ChangeSet")
+        self.changes.append(other)
+        return self
+
 
 class ConditionsTable(BaseModel):
     """PEtab conditions table."""
 
-    conditions: list[ChangeSet]
+    conditions: list[ChangeSet] = []
 
     def __getitem__(self, condition_id: str) -> ChangeSet:
         """Get a condition by ID."""
@@ -316,6 +338,19 @@ class ConditionsTable(BaseModel):
         df = self.to_dataframe()
         df.to_csv(file_path, sep="\t", index=False)
 
+    def __add__(self, other: ChangeSet) -> ConditionsTable:
+        """Add a condition to the table."""
+        if not isinstance(other, ChangeSet):
+            raise TypeError("Can only add ChangeSet to ConditionsTable")
+        return ConditionsTable(conditions=self.conditions + [other])
+
+    def __iadd__(self, other: ChangeSet) -> ConditionsTable:
+        """Add a condition to the table in place."""
+        if not isinstance(other, ChangeSet):
+            raise TypeError("Can only add ChangeSet to ConditionsTable")
+        self.conditions.append(other)
+        return self
+
 
 class ExperimentPeriod(BaseModel):
     """A period of a timecourse defined by a start time and a set changes.
@@ -348,7 +383,7 @@ class Experiment(BaseModel):
     """
 
     id: str = Field(alias=C.EXPERIMENT_ID)
-    periods: list[ExperimentPeriod]
+    periods: list[ExperimentPeriod] = []
 
     class Config:
         populate_by_name = True
@@ -362,6 +397,19 @@ class Experiment(BaseModel):
         if not is_valid_identifier(v):
             raise ValueError(f"Invalid ID: {v}")
         return v
+
+    def __add__(self, other: ExperimentPeriod) -> Experiment:
+        """Add a period to the experiment."""
+        if not isinstance(other, ExperimentPeriod):
+            raise TypeError("Can only add ExperimentPeriod to Experiment")
+        return Experiment(id=self.id, periods=self.periods + [other])
+
+    def __iadd__(self, other: ExperimentPeriod) -> Experiment:
+        """Add a period to the experiment in place."""
+        if not isinstance(other, ExperimentPeriod):
+            raise TypeError("Can only add ExperimentPeriod to Experiment")
+        self.periods.append(other)
+        return self
 
 
 class ExperimentsTable(BaseModel):
@@ -397,6 +445,19 @@ class ExperimentsTable(BaseModel):
     def to_tsv(self, file_path: str | Path) -> None:
         df = self.to_dataframe()
         df.to_csv(file_path, sep="\t", index=False)
+
+    def __add__(self, other: Experiment) -> ExperimentsTable:
+        """Add an experiment to the table."""
+        if not isinstance(other, Experiment):
+            raise TypeError("Can only add Experiment to ExperimentsTable")
+        return ExperimentsTable(experiments=self.experiments + [other])
+
+    def __iadd__(self, other: Experiment) -> ExperimentsTable:
+        """Add an experiment to the table in place."""
+        if not isinstance(other, Experiment):
+            raise TypeError("Can only add Experiment to ExperimentsTable")
+        self.experiments.append(other)
+        return self
 
 
 class Measurement(BaseModel):
@@ -492,6 +553,19 @@ class MeasurementTable(BaseModel):
         df = self.to_dataframe()
         df.to_csv(file_path, sep="\t", index=False)
 
+    def __add__(self, other: Measurement) -> MeasurementTable:
+        """Add a measurement to the table."""
+        if not isinstance(other, Measurement):
+            raise TypeError("Can only add Measurement to MeasurementTable")
+        return MeasurementTable(measurements=self.measurements + [other])
+
+    def __iadd__(self, other: Measurement) -> MeasurementTable:
+        """Add a measurement to the table in place."""
+        if not isinstance(other, Measurement):
+            raise TypeError("Can only add Measurement to MeasurementTable")
+        self.measurements.append(other)
+        return self
+
 
 class Mapping(BaseModel):
     """Mapping PEtab entities to model entities."""
@@ -541,6 +615,19 @@ class MappingTable(BaseModel):
     def to_tsv(self, file_path: str | Path) -> None:
         df = self.to_dataframe()
         df.to_csv(file_path, sep="\t", index=False)
+
+    def __add__(self, other: Mapping) -> MappingTable:
+        """Add a mapping to the table."""
+        if not isinstance(other, Mapping):
+            raise TypeError("Can only add Mapping to MappingTable")
+        return MappingTable(mappings=self.mappings + [other])
+
+    def __iadd__(self, other: Mapping) -> MappingTable:
+        """Add a mapping to the table in place."""
+        if not isinstance(other, Mapping):
+            raise TypeError("Can only add Mapping to MappingTable")
+        self.mappings.append(other)
+        return self
 
 
 class Parameter(BaseModel):
@@ -606,3 +693,16 @@ class ParameterTable(BaseModel):
     def to_tsv(self, file_path: str | Path) -> None:
         df = self.to_dataframe()
         df.to_csv(file_path, sep="\t", index=False)
+
+    def __add__(self, other: Parameter) -> ParameterTable:
+        """Add a parameter to the table."""
+        if not isinstance(other, Parameter):
+            raise TypeError("Can only add Parameter to ParameterTable")
+        return ParameterTable(parameters=self.parameters + [other])
+
+    def __iadd__(self, other: Parameter) -> ParameterTable:
+        """Add a parameter to the table in place."""
+        if not isinstance(other, Parameter):
+            raise TypeError("Can only add Parameter to ParameterTable")
+        self.parameters.append(other)
+        return self
