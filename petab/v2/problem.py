@@ -40,7 +40,9 @@ __all__ = ["Problem"]
 
 class Problem:
     """
-    PEtab parameter estimation problem as defined by
+    PEtab parameter estimation problem
+
+    A PEtab parameter estimation problem as defined by
 
     - model
     - condition table
@@ -50,7 +52,9 @@ class Problem:
     - observables table
     - mapping table
 
-    Optionally it may contain visualization tables.
+    Optionally, it may contain visualization tables.
+
+    See also :doc:`petab:v2/documentation_data_format`.
 
     Parameters:
         condition_df: PEtab condition table
