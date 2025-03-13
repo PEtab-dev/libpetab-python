@@ -49,8 +49,11 @@ class ObservableTransformation(str, Enum):
     Observable transformations as used in the PEtab observables table.
     """
 
+    #: No transformation
     LIN = C.LIN
+    #: Logarithmic transformation (natural logarithm)
     LOG = C.LOG
+    #: Logarithmic transformation (base 10)
     LOG10 = C.LOG10
 
 
@@ -71,7 +74,9 @@ class NoiseDistribution(str, Enum):
     Noise distributions as used in the PEtab observables table.
     """
 
+    #: Normal distribution
     NORMAL = C.NORMAL
+    #: Laplace distribution
     LAPLACE = C.LAPLACE
 
 
@@ -81,10 +86,15 @@ class PriorType(str, Enum):
     Prior types as used in the PEtab parameters table.
     """
 
+    #: Normal distribution
     NORMAL = C.NORMAL
+    #: Laplace distribution
     LAPLACE = C.LAPLACE
+    #: Uniform distribution
     UNIFORM = C.UNIFORM
+    #: Log-normal distribution
     LOG_NORMAL = C.LOG_NORMAL
+    #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
     PARAMETER_SCALE_NORMAL = C.PARAMETER_SCALE_NORMAL
     PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
