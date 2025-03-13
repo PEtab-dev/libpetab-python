@@ -241,6 +241,14 @@ class Change(BaseModel):
 
     A change to the model or model state, corresponding to an individual
     row of the PEtab conditions table.
+
+    >>> Change(
+    ...     target_id="k1",
+    ...     operation_type=OperationType.SET_CURRENT_VALUE,
+    ...     target_value="10",
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    Change(target_id='k1', operation_type='setCurrentValue',
+    target_value=10.0000000000000)
     """
 
     #: The ID of the target entity to change
@@ -286,6 +294,19 @@ class ChangeSet(BaseModel):
     A set of simultaneously occurring changes to the model or model state,
     corresponding to a perturbation of the underlying system. This corresponds
     to all rows of the PEtab conditions table with the same condition ID.
+
+    >>> ChangeSet(
+    ...     id="condition1",
+    ...     changes=[
+    ...         Change(
+    ...             target_id="k1",
+    ...             operation_type=OperationType.SET_CURRENT_VALUE,
+    ...             target_value="10",
+    ...         )
+    ...     ],
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    ChangeSet(id='condition1', changes=[Change(target_id='k1',
+    operation_type='setCurrentValue', target_value=10.0000000000000)])
     """
 
     #: The condition ID
