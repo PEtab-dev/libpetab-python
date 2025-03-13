@@ -75,7 +75,6 @@ autosummary_generate = True
 autodoc_default_options = {
     "members": None,
     "imported-members": ["petab"],
-    "inherited-members": None,
     "show-inheritance": None,
 }
 
