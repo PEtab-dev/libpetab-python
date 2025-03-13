@@ -115,13 +115,19 @@ assert set(C.PRIOR_TYPES) == {e.value for e in ObjectivePriorType}, (
 class Observable(BaseModel):
     """Observable definition."""
 
+    #: Observable ID
     id: str = Field(alias=C.OBSERVABLE_ID)
+    #: Observable name
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
+    #: Observable formula
     formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
+    #: Observable transformation
     transformation: ObservableTransformation = Field(
         alias=C.OBSERVABLE_TRANSFORMATION, default=ObservableTransformation.LIN
     )
+    #: Noise formula
     noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
+    #: Noise distribution
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
     )
@@ -168,6 +174,7 @@ class Observable(BaseModel):
 class ObservablesTable(BaseModel):
     """PEtab observables table."""
 
+    #: List of observables
     observables: list[Observable]
 
     def __getitem__(self, observable_id: str) -> Observable:
@@ -179,6 +186,7 @@ class ObservablesTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ObservablesTable:
+        """Create an ObservablesTable from a DataFrame."""
         if df is None:
             return cls(observables=[])
 
@@ -190,14 +198,17 @@ class ObservablesTable(BaseModel):
         return cls(observables=observables)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ObservablesTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["observables"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ObservablesTable:
+        """Create an ObservablesTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ObservablesTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -215,6 +226,7 @@ class ObservablesTable(BaseModel):
         return self
 
 
+# TODO remove?!
 class OperationType(str, Enum):
     """Operation types for model changes in the PEtab conditions table."""
 
@@ -231,8 +243,11 @@ class Change(BaseModel):
     row of the PEtab conditions table.
     """
 
+    #: The ID of the target entity to change
     target_id: str | None = Field(alias=C.TARGET_ID, default=None)
+    # TODO: remove?!
     operation_type: OperationType = Field(alias=C.OPERATION_TYPE)
+    #: The value to set the target entity to
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
     model_config = ConfigDict(
@@ -273,7 +288,9 @@ class ChangeSet(BaseModel):
     to all rows of the PEtab conditions table with the same condition ID.
     """
 
+    #: The condition ID
     id: str = Field(alias=C.CONDITION_ID)
+    #: The changes associated with this condition
     changes: list[Change]
 
     model_config = ConfigDict(populate_by_name=True)
@@ -304,6 +321,7 @@ class ChangeSet(BaseModel):
 class ConditionsTable(BaseModel):
     """PEtab conditions table."""
 
+    #: List of conditions
     conditions: list[ChangeSet] = []
 
     def __getitem__(self, condition_id: str) -> ChangeSet:
@@ -315,6 +333,7 @@ class ConditionsTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ConditionsTable:
+        """Create a ConditionsTable from a DataFrame."""
         if df is None:
             return cls(conditions=[])
 
@@ -326,6 +345,7 @@ class ConditionsTable(BaseModel):
         return cls(conditions=conditions)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ConditionsTable to a DataFrame."""
         records = [
             {C.CONDITION_ID: condition.id, **change.model_dump()}
             for condition in self.conditions
@@ -335,10 +355,12 @@ class ConditionsTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ConditionsTable:
+        """Create a ConditionsTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ConditionsTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -357,12 +379,15 @@ class ConditionsTable(BaseModel):
 
 
 class ExperimentPeriod(BaseModel):
-    """A period of a timecourse defined by a start time and a set changes.
+    """A period of a timecourse or experiment defined by a start time
+    and a condition ID.
 
     This corresponds to a row of the PEtab experiments table.
     """
 
+    #: The start time of the period
     start: float = Field(alias=C.TIME)
+    #: The ID of the condition to be applied at the start time
     condition_id: str = Field(alias=C.CONDITION_ID)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -385,7 +410,9 @@ class Experiment(BaseModel):
     experiment ID.
     """
 
+    #: The experiment ID
     id: str = Field(alias=C.EXPERIMENT_ID)
+    #: The periods of the experiment
     periods: list[ExperimentPeriod] = []
 
     model_config = ConfigDict(
@@ -418,10 +445,12 @@ class Experiment(BaseModel):
 class ExperimentsTable(BaseModel):
     """PEtab experiments table."""
 
+    #: List of experiments
     experiments: list[Experiment]
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ExperimentsTable:
+        """Create an ExperimentsTable from a DataFrame."""
         if df is None:
             return cls(experiments=[])
 
@@ -438,14 +467,17 @@ class ExperimentsTable(BaseModel):
         return cls(experiments=experiments)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ExperimentsTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["experiments"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ExperimentsTable:
+        """Create an ExperimentsTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ExperimentsTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -532,6 +564,7 @@ class MeasurementTable(BaseModel):
         cls,
         df: pd.DataFrame,
     ) -> MeasurementTable:
+        """Create a MeasurementTable from a DataFrame."""
         if df is None:
             return cls(measurements=[])
 
@@ -545,14 +578,17 @@ class MeasurementTable(BaseModel):
         return cls(measurements=measurements)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the MeasurementTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["measurements"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
+        """Create a MeasurementTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the MeasurementTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -573,7 +609,9 @@ class MeasurementTable(BaseModel):
 class Mapping(BaseModel):
     """Mapping PEtab entities to model entities."""
 
+    #: PEtab entity ID
     petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
+    #: Model entity ID
     model_id: str = Field(alias=C.MODEL_ENTITY_ID)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -593,10 +631,12 @@ class Mapping(BaseModel):
 class MappingTable(BaseModel):
     """PEtab mapping table."""
 
+    #: List of mappings
     mappings: list[Mapping]
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> MappingTable:
+        """Create a MappingTable from a DataFrame."""
         if df is None:
             return cls(mappings=[])
 
@@ -607,14 +647,17 @@ class MappingTable(BaseModel):
         return cls(mappings=mappings)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the MappingTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["mappings"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MappingTable:
+        """Create a MappingTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the MappingTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -635,13 +678,19 @@ class MappingTable(BaseModel):
 class Parameter(BaseModel):
     """Parameter definition."""
 
+    #: Parameter ID
     id: str = Field(alias=C.PARAMETER_ID)
+    #: Lower bound
     lb: float | None = Field(alias=C.LOWER_BOUND, default=None)
+    #: Upper bound
     ub: float | None = Field(alias=C.UPPER_BOUND, default=None)
+    #: Nominal value
     nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
+    #: Parameter scale
     scale: ParameterScale = Field(
         alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
     )
+    #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
     # TODO priors
 
@@ -671,10 +720,12 @@ class Parameter(BaseModel):
 class ParameterTable(BaseModel):
     """PEtab parameter table."""
 
+    #: List of parameters
     parameters: list[Parameter]
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ParameterTable:
+        """Create a ParameterTable from a DataFrame."""
         if df is None:
             return cls(parameters=[])
 
@@ -686,14 +737,17 @@ class ParameterTable(BaseModel):
         return cls(parameters=parameters)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ParameterTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["parameters"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ParameterTable:
+        """Create a ParameterTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ParameterTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
