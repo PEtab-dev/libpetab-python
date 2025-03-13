@@ -130,30 +130,23 @@ CONDITION_ID = "conditionId"
 CONDITION_NAME = "conditionName"
 #: Column in the condition table with the ID of an entity that is changed
 TARGET_ID = "targetId"
-#: Column in the condition table with the type of value that is changed
-VALUE_TYPE = "valueType"
+#: Column in the condition table with the operation type
+OPERATION_TYPE = "operationType"
 #: Column in the condition table with the new value of the target entity
 TARGET_VALUE = "targetValue"
-# value types:
-VT_CONSTANT = "constant"
-VT_INITIAL = "initial"
-VT_RATE = "rate"
-VT_ASSIGNMENT = "assignment"
-VT_RELATIVE_RATE = "relativeRate"
-VT_RELATIVE_ASSIGNMENT = "relativeAssignment"
-VALUE_TYPES = [
-    VT_CONSTANT,
-    VT_INITIAL,
-    VT_RATE,
-    VT_ASSIGNMENT,
-    VT_RELATIVE_RATE,
-    VT_RELATIVE_ASSIGNMENT,
+# operation types:
+OT_CUR_VAL = "setCurrentValue"
+OT_NO_CHANGE = "noChange"
+
+OPERATION_TYPES = [
+    OT_CUR_VAL,
+    OT_NO_CHANGE,
 ]
 
 CONDITION_DF_COLS = [
     CONDITION_ID,
     TARGET_ID,
-    VALUE_TYPE,
+    OPERATION_TYPE,
     TARGET_VALUE,
 ]
 

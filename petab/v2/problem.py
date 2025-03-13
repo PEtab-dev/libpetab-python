@@ -93,6 +93,45 @@ class Problem:
         )
         self.config = config
 
+        from .core import (
+            ChangeSet,
+            ConditionsTable,
+            Experiment,
+            ExperimentsTable,
+            MappingTable,
+            MeasurementTable,
+            Observable,
+            ObservablesTable,
+            ParameterTable,
+        )
+
+        self.observables_table: ObservablesTable = ObservablesTable.from_df(
+            self.observable_df
+        )
+        self.observables: list[Observable] = self.observables_table.observables
+
+        self.conditions_table: ConditionsTable = ConditionsTable.from_df(
+            self.condition_df
+        )
+        self.conditions: list[ChangeSet] = self.conditions_table.conditions
+
+        self.experiments_table: ExperimentsTable = ExperimentsTable.from_df(
+            self.experiment_df
+        )
+        self.experiments: list[Experiment] = self.experiments_table.experiments
+
+        self.measurement_table: MeasurementTable = MeasurementTable.from_df(
+            self.measurement_df,
+        )
+
+        self.mapping_table: MappingTable = MappingTable.from_df(
+            self.mapping_df
+        )
+        self.parameter_table: ParameterTable = ParameterTable.from_df(
+            self.parameter_df
+        )
+        # TODO: visualization table
+
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
 
@@ -599,20 +638,6 @@ class Problem:
             )
         )
 
-    def create_parameter_df(self, **kwargs) -> pd.DataFrame:
-        """Create a new PEtab parameter table
-
-        See :py:func:`create_parameter_df`.
-        """
-        return parameters.create_parameter_df(
-            model=self.model,
-            condition_df=self.condition_df,
-            observable_df=self.observable_df,
-            measurement_df=self.measurement_df,
-            mapping_df=self.mapping_df,
-            **kwargs,
-        )
-
     def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
         """Create 2D array with starting points for optimization
 
@@ -769,10 +794,10 @@ class Problem:
             {
                 CONDITION_ID: id_,
                 TARGET_ID: target_id,
-                VALUE_TYPE: value_type,
+                OPERATION_TYPE: op_type,
                 TARGET_VALUE: target_value,
             }
-            for target_id, (value_type, target_value) in kwargs.items()
+            for target_id, (op_type, target_value) in kwargs.items()
         ]
         # TODO: is the condition name supported in v2?
         if name is not None:

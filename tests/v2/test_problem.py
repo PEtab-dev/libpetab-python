@@ -16,13 +16,13 @@ from petab.v2.C import (
     NOMINAL_VALUE,
     OBSERVABLE_FORMULA,
     OBSERVABLE_ID,
+    OPERATION_TYPE,
+    OT_CUR_VAL,
     PARAMETER_ID,
     PETAB_ENTITY_ID,
     TARGET_ID,
     TARGET_VALUE,
     UPPER_BOUND,
-    VALUE_TYPE,
-    VT_CONSTANT,
 )
 
 
@@ -73,7 +73,7 @@ def test_problem_from_yaml_multiple_files():
 
         for i in (1, 2):
             problem = Problem()
-            problem.add_condition(f"condition{i}", parameter1=(VT_CONSTANT, i))
+            problem.add_condition(f"condition{i}", parameter1=(OT_CUR_VAL, i))
             petab.write_condition_df(
                 problem.condition_df, Path(tmpdir, f"conditions{i}.tsv")
             )
@@ -109,14 +109,14 @@ def test_problem_from_yaml_multiple_files():
 def test_modify_problem():
     """Test modifying a problem via the API."""
     problem = Problem()
-    problem.add_condition("condition1", parameter1=(VT_CONSTANT, 1))
-    problem.add_condition("condition2", parameter2=(VT_CONSTANT, 2))
+    problem.add_condition("condition1", parameter1=(OT_CUR_VAL, 1))
+    problem.add_condition("condition2", parameter2=(OT_CUR_VAL, 2))
 
     exp_condition_df = pd.DataFrame(
         data={
             CONDITION_ID: ["condition1", "condition2"],
             TARGET_ID: ["parameter1", "parameter2"],
-            VALUE_TYPE: [VT_CONSTANT, VT_CONSTANT],
+            OPERATION_TYPE: [OT_CUR_VAL, OT_CUR_VAL],
             TARGET_VALUE: [1.0, 2.0],
         }
     )
