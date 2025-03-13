@@ -10,6 +10,7 @@ import pandas as pd
 import sympy as sp
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     ValidationInfo,
     field_validator,
@@ -149,9 +150,9 @@ class Observable(BaseModel):
 
         return sympify_petab(v)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, populate_by_name=True
+    )
 
 
 class ObservablesTable(BaseModel):
@@ -224,10 +225,11 @@ class Change(BaseModel):
     operation_type: OperationType = Field(alias=C.OPERATION_TYPE)
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        use_enum_values = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        use_enum_values=True,
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -264,8 +266,7 @@ class ChangeSet(BaseModel):
     id: str = Field(alias=C.CONDITION_ID)
     changes: list[Change]
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("id")
     @classmethod
@@ -354,8 +355,7 @@ class ExperimentPeriod(BaseModel):
     start: float = Field(alias=C.TIME)
     condition_id: str = Field(alias=C.CONDITION_ID)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("condition_id")
     @classmethod
@@ -378,9 +378,9 @@ class Experiment(BaseModel):
     id: str = Field(alias=C.EXPERIMENT_ID)
     periods: list[ExperimentPeriod] = []
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, populate_by_name=True
+    )
 
     @field_validator("id")
     @classmethod
@@ -471,9 +471,9 @@ class Measurement(BaseModel):
         alias=C.NOISE_PARAMETERS, default_factory=list
     )
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, populate_by_name=True
+    )
 
     @field_validator(
         "experiment_id",
@@ -566,8 +566,7 @@ class Mapping(BaseModel):
     petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
     model_id: str = Field(alias=C.MODEL_ENTITY_ID)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator(
         "petab_id",
@@ -636,10 +635,11 @@ class Parameter(BaseModel):
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
     # TODO priors
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        use_enum_values = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        use_enum_values=True,
+    )
 
     @field_validator("id")
     @classmethod
