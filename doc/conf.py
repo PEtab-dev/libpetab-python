@@ -73,9 +73,10 @@ master_doc = "index"
 autosummary_generate = True
 
 autodoc_default_options = {
-    "members": None,
+    "members": True,
     "imported-members": ["petab"],
-    "show-inheritance": None,
+    "show-inheritance": True,
+    "undoc-members": True,
 }
 
 # For some reason causes sphinx import errors otherwise
