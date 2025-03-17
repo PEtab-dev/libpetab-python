@@ -798,10 +798,12 @@ class Problem:
             {
                 CONDITION_ID: id_,
                 TARGET_ID: target_id,
-                OPERATION_TYPE: op_type,
-                TARGET_VALUE: target_value,
+                OPERATION_TYPE: "setCurrentValue",
+                TARGET_VALUE: target_value
+                if not isinstance(target_value, tuple)
+                else target_value[1],
             }
-            for target_id, (op_type, target_value) in kwargs.items()
+            for target_id, target_value in kwargs.items()
         ]
         # TODO: is the condition name supported in v2?
         if name is not None:

@@ -545,6 +545,8 @@ class CheckExperimentConditionsExist(ValidationTask):
         missing_conditions = set(required_conditions) - set(
             existing_conditions
         )
+        # TODO NA allowed?
+        missing_conditions = {x for x in missing_conditions if not pd.isna(x)}
         if missing_conditions:
             return ValidationError(
                 f"Experiment table contains conditions that are not present "
@@ -842,7 +844,8 @@ default_validation_tasks = [
     CheckExperimentTable(),
     CheckValidPetabIdColumn("measurement", EXPERIMENT_ID, ignore_nan=True),
     CheckValidPetabIdColumn("experiment", EXPERIMENT_ID),
-    CheckValidPetabIdColumn("experiment", CONDITION_ID),
+    # TODO: NAN allowed?
+    CheckValidPetabIdColumn("experiment", CONDITION_ID, ignore_nan=True),
     CheckExperimentConditionsExist(),
     CheckObservableTable(),
     CheckObservablesDoNotShadowModelEntities(),

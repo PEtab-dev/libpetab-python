@@ -411,17 +411,21 @@ class ExperimentPeriod(BaseModel):
 
     #: The start time of the period in time units as defined in the model.
     start: float = Field(alias=C.TIME)
+    # TODO: decide if optional
     #: The ID of the condition to be applied at the start time.
     condition_id: str = Field(alias=C.CONDITION_ID)
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
-    @field_validator("condition_id")
+    @field_validator("condition_id", mode="before")
     @classmethod
     def _validate_id(cls, condition_id):
-        if not condition_id:
-            raise ValueError("ID must not be empty.")
+        # TODO to be decided if optional
+        if pd.isna(condition_id):
+            return ""
+        # if not condition_id:
+        #     raise ValueError("ID must not be empty.")
         if not is_valid_identifier(condition_id):
             raise ValueError(f"Invalid ID: {condition_id}")
         return condition_id
