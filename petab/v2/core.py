@@ -166,6 +166,7 @@ class Observable(BaseModel):
 
         return sympify_petab(v)
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
@@ -258,6 +259,7 @@ class Change(BaseModel):
     #: The value to set the target entity to
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         populate_by_name=True,
@@ -314,6 +316,7 @@ class ChangeSet(BaseModel):
     #: The changes associated with this condition
     changes: list[Change]
 
+    #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("id")
@@ -411,6 +414,7 @@ class ExperimentPeriod(BaseModel):
     #: The ID of the condition to be applied at the start time
     condition_id: str = Field(alias=C.CONDITION_ID)
 
+    #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("condition_id")
@@ -436,6 +440,7 @@ class Experiment(BaseModel):
     #: The periods of the experiment
     periods: list[ExperimentPeriod] = []
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
@@ -534,6 +539,7 @@ class Measurement(BaseModel):
         alias=C.NOISE_PARAMETERS, default_factory=list
     )
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
@@ -635,6 +641,7 @@ class Mapping(BaseModel):
     #: Model entity ID
     model_id: str = Field(alias=C.MODEL_ENTITY_ID)
 
+    #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator(
@@ -715,6 +722,7 @@ class Parameter(BaseModel):
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
     # TODO priors
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         populate_by_name=True,
