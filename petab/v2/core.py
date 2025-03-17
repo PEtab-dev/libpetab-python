@@ -86,13 +86,13 @@ class PriorType(str, Enum):
     Prior types as used in the PEtab parameters table.
     """
 
-    #: Normal distribution
+    #: Normal distribution.
     NORMAL = C.NORMAL
-    #: Laplace distribution
+    #: Laplace distribution.
     LAPLACE = C.LAPLACE
-    #: Uniform distribution
+    #: Uniform distribution.
     UNIFORM = C.UNIFORM
-    #: Log-normal distribution
+    #: Log-normal distribution.
     LOG_NORMAL = C.LOG_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
@@ -115,19 +115,19 @@ assert set(C.PRIOR_TYPES) == {e.value for e in ObjectivePriorType}, (
 class Observable(BaseModel):
     """Observable definition."""
 
-    #: Observable ID
+    #: Observable ID.
     id: str = Field(alias=C.OBSERVABLE_ID)
-    #: Observable name
+    #: Observable name.
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
-    #: Observable formula
+    #: Observable formula.
     formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
-    #: Observable transformation
+    #: Observable transformation.
     transformation: ObservableTransformation = Field(
         alias=C.OBSERVABLE_TRANSFORMATION, default=ObservableTransformation.LIN
     )
-    #: Noise formula
+    #: Noise formula.
     noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
-    #: Noise distribution
+    #: Noise distribution.
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
     )
@@ -175,7 +175,7 @@ class Observable(BaseModel):
 class ObservablesTable(BaseModel):
     """PEtab observables table."""
 
-    #: List of observables
+    #: List of observables.
     observables: list[Observable]
 
     def __getitem__(self, observable_id: str) -> Observable:
@@ -252,11 +252,11 @@ class Change(BaseModel):
     target_value=10.0000000000000)
     """
 
-    #: The ID of the target entity to change
+    #: The ID of the target entity to change.
     target_id: str | None = Field(alias=C.TARGET_ID, default=None)
     # TODO: remove?!
     operation_type: OperationType = Field(alias=C.OPERATION_TYPE)
-    #: The value to set the target entity to
+    #: The value to set the target entity to.
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
     #: :meta private:
@@ -311,9 +311,9 @@ class ChangeSet(BaseModel):
     operation_type='setCurrentValue', target_value=10.0000000000000)])
     """
 
-    #: The condition ID
+    #: The condition ID.
     id: str = Field(alias=C.CONDITION_ID)
-    #: The changes associated with this condition
+    #: The changes associated with this condition.
     changes: list[Change]
 
     #: :meta private:
@@ -345,7 +345,7 @@ class ChangeSet(BaseModel):
 class ConditionsTable(BaseModel):
     """PEtab conditions table."""
 
-    #: List of conditions
+    #: List of conditions.
     conditions: list[ChangeSet] = []
 
     def __getitem__(self, condition_id: str) -> ChangeSet:
@@ -409,9 +409,9 @@ class ExperimentPeriod(BaseModel):
     This corresponds to a row of the PEtab experiments table.
     """
 
-    #: The start time of the period
+    #: The start time of the period in time units as defined in the model.
     start: float = Field(alias=C.TIME)
-    #: The ID of the condition to be applied at the start time
+    #: The ID of the condition to be applied at the start time.
     condition_id: str = Field(alias=C.CONDITION_ID)
 
     #: :meta private:
@@ -435,9 +435,9 @@ class Experiment(BaseModel):
     experiment ID.
     """
 
-    #: The experiment ID
+    #: The experiment ID.
     id: str = Field(alias=C.EXPERIMENT_ID)
-    #: The periods of the experiment
+    #: The periods of the experiment.
     periods: list[ExperimentPeriod] = []
 
     #: :meta private:
@@ -471,7 +471,7 @@ class Experiment(BaseModel):
 class ExperimentsTable(BaseModel):
     """PEtab experiments table."""
 
-    #: List of experiments
+    #: List of experiments.
     experiments: list[Experiment]
 
     @classmethod
@@ -528,13 +528,19 @@ class Measurement(BaseModel):
     experiment.
     """
 
+    #: The observable ID.
     observable_id: str = Field(alias=C.OBSERVABLE_ID)
+    #: The experiment ID.
     experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
+    #: The time point of the measurement in time units as defined in the model.
     time: float = Field(alias=C.TIME)
+    #: The measurement value.
     measurement: float = Field(alias=C.MEASUREMENT)
+    #: Values for placeholder parameters in the observable formula.
     observable_parameters: list[sp.Basic] = Field(
         alias=C.OBSERVABLE_PARAMETERS, default_factory=list
     )
+    #: Values for placeholder parameters in the noise formula.
     noise_parameters: list[sp.Basic] = Field(
         alias=C.NOISE_PARAMETERS, default_factory=list
     )
@@ -584,6 +590,7 @@ class Measurement(BaseModel):
 class MeasurementTable(BaseModel):
     """PEtab measurement table."""
 
+    #: List of measurements.
     measurements: list[Measurement]
 
     @classmethod
@@ -636,9 +643,9 @@ class MeasurementTable(BaseModel):
 class Mapping(BaseModel):
     """Mapping PEtab entities to model entities."""
 
-    #: PEtab entity ID
+    #: PEtab entity ID.
     petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
-    #: Model entity ID
+    #: Model entity ID.
     model_id: str = Field(alias=C.MODEL_ENTITY_ID)
 
     #: :meta private:
@@ -659,7 +666,7 @@ class Mapping(BaseModel):
 class MappingTable(BaseModel):
     """PEtab mapping table."""
 
-    #: List of mappings
+    #: List of mappings.
     mappings: list[Mapping]
 
     @classmethod
@@ -706,15 +713,15 @@ class MappingTable(BaseModel):
 class Parameter(BaseModel):
     """Parameter definition."""
 
-    #: Parameter ID
+    #: Parameter ID.
     id: str = Field(alias=C.PARAMETER_ID)
-    #: Lower bound
+    #: Lower bound.
     lb: float | None = Field(alias=C.LOWER_BOUND, default=None)
-    #: Upper bound
+    #: Upper bound.
     ub: float | None = Field(alias=C.UPPER_BOUND, default=None)
-    #: Nominal value
+    #: Nominal value.
     nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
-    #: Parameter scale
+    #: Parameter scale.
     scale: ParameterScale = Field(
         alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
     )
@@ -749,7 +756,7 @@ class Parameter(BaseModel):
 class ParameterTable(BaseModel):
     """PEtab parameter table."""
 
-    #: List of parameters
+    #: List of parameters.
     parameters: list[Parameter]
 
     @classmethod
