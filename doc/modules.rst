@@ -31,6 +31,7 @@ API Reference
    petab.v1.yaml
    petab.v2
    petab.v2.C
+   petab.v2.core
    petab.v2.experiments
    petab.v2.lint
    petab.v2.models

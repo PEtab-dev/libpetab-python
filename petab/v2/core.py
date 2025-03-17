@@ -49,8 +49,11 @@ class ObservableTransformation(str, Enum):
     Observable transformations as used in the PEtab observables table.
     """
 
+    #: No transformation
     LIN = C.LIN
+    #: Logarithmic transformation (natural logarithm)
     LOG = C.LOG
+    #: Logarithmic transformation (base 10)
     LOG10 = C.LOG10
 
 
@@ -71,7 +74,9 @@ class NoiseDistribution(str, Enum):
     Noise distributions as used in the PEtab observables table.
     """
 
+    #: Normal distribution
     NORMAL = C.NORMAL
+    #: Laplace distribution
     LAPLACE = C.LAPLACE
 
 
@@ -81,10 +86,15 @@ class PriorType(str, Enum):
     Prior types as used in the PEtab parameters table.
     """
 
+    #: Normal distribution.
     NORMAL = C.NORMAL
+    #: Laplace distribution.
     LAPLACE = C.LAPLACE
+    #: Uniform distribution.
     UNIFORM = C.UNIFORM
+    #: Log-normal distribution.
     LOG_NORMAL = C.LOG_NORMAL
+    #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
     PARAMETER_SCALE_NORMAL = C.PARAMETER_SCALE_NORMAL
     PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
@@ -105,20 +115,26 @@ assert set(C.PRIOR_TYPES) == {e.value for e in ObjectivePriorType}, (
 class Observable(BaseModel):
     """Observable definition."""
 
+    #: Observable ID.
     id: str = Field(alias=C.OBSERVABLE_ID)
+    #: Observable name.
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
+    #: Observable formula.
     formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
+    #: Observable transformation.
     transformation: ObservableTransformation = Field(
         alias=C.OBSERVABLE_TRANSFORMATION, default=ObservableTransformation.LIN
     )
+    #: Noise formula.
     noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
+    #: Noise distribution.
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
     )
 
     @field_validator("id")
     @classmethod
-    def validate_id(cls, v):
+    def _validate_id(cls, v):
         if not v:
             raise ValueError("ID must not be empty.")
         if not is_valid_identifier(v):
@@ -135,14 +151,14 @@ class Observable(BaseModel):
         mode="before",
     )
     @classmethod
-    def convert_nan_to_default(cls, v, info: ValidationInfo):
+    def _convert_nan_to_default(cls, v, info: ValidationInfo):
         if isinstance(v, float) and np.isnan(v):
             return cls.model_fields[info.field_name].default
         return v
 
     @field_validator("formula", "noise_formula", mode="before")
     @classmethod
-    def sympify(cls, v):
+    def _sympify(cls, v):
         if v is None or isinstance(v, sp.Basic):
             return v
         if isinstance(v, float) and np.isnan(v):
@@ -150,6 +166,7 @@ class Observable(BaseModel):
 
         return sympify_petab(v)
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
@@ -158,6 +175,7 @@ class Observable(BaseModel):
 class ObservablesTable(BaseModel):
     """PEtab observables table."""
 
+    #: List of observables.
     observables: list[Observable]
 
     def __getitem__(self, observable_id: str) -> Observable:
@@ -169,6 +187,7 @@ class ObservablesTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ObservablesTable:
+        """Create an ObservablesTable from a DataFrame."""
         if df is None:
             return cls(observables=[])
 
@@ -180,14 +199,17 @@ class ObservablesTable(BaseModel):
         return cls(observables=observables)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ObservablesTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["observables"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ObservablesTable:
+        """Create an ObservablesTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ObservablesTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -205,6 +227,7 @@ class ObservablesTable(BaseModel):
         return self
 
 
+# TODO remove?!
 class OperationType(str, Enum):
     """Operation types for model changes in the PEtab conditions table."""
 
@@ -219,12 +242,24 @@ class Change(BaseModel):
 
     A change to the model or model state, corresponding to an individual
     row of the PEtab conditions table.
+
+    >>> Change(
+    ...     target_id="k1",
+    ...     operation_type=OperationType.SET_CURRENT_VALUE,
+    ...     target_value="10",
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    Change(target_id='k1', operation_type='setCurrentValue',
+    target_value=10.0000000000000)
     """
 
+    #: The ID of the target entity to change.
     target_id: str | None = Field(alias=C.TARGET_ID, default=None)
+    # TODO: remove?!
     operation_type: OperationType = Field(alias=C.OPERATION_TYPE)
+    #: The value to set the target entity to.
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         populate_by_name=True,
@@ -233,7 +268,7 @@ class Change(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_id(cls, data: dict):
+    def _validate_id(cls, data: dict):
         if (
             data.get("operation_type", data.get(C.OPERATION_TYPE))
             != C.OT_NO_CHANGE
@@ -246,7 +281,7 @@ class Change(BaseModel):
 
     @field_validator("target_value", mode="before")
     @classmethod
-    def sympify(cls, v):
+    def _sympify(cls, v):
         if v is None or isinstance(v, sp.Basic):
             return v
         if isinstance(v, float) and np.isnan(v):
@@ -261,16 +296,32 @@ class ChangeSet(BaseModel):
     A set of simultaneously occurring changes to the model or model state,
     corresponding to a perturbation of the underlying system. This corresponds
     to all rows of the PEtab conditions table with the same condition ID.
+
+    >>> ChangeSet(
+    ...     id="condition1",
+    ...     changes=[
+    ...         Change(
+    ...             target_id="k1",
+    ...             operation_type=OperationType.SET_CURRENT_VALUE,
+    ...             target_value="10",
+    ...         )
+    ...     ],
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    ChangeSet(id='condition1', changes=[Change(target_id='k1',
+    operation_type='setCurrentValue', target_value=10.0000000000000)])
     """
 
+    #: The condition ID.
     id: str = Field(alias=C.CONDITION_ID)
+    #: The changes associated with this condition.
     changes: list[Change]
 
+    #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("id")
     @classmethod
-    def validate_id(cls, v):
+    def _validate_id(cls, v):
         if not v:
             raise ValueError("ID must not be empty.")
         if not is_valid_identifier(v):
@@ -294,6 +345,7 @@ class ChangeSet(BaseModel):
 class ConditionsTable(BaseModel):
     """PEtab conditions table."""
 
+    #: List of conditions.
     conditions: list[ChangeSet] = []
 
     def __getitem__(self, condition_id: str) -> ChangeSet:
@@ -305,6 +357,7 @@ class ConditionsTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ConditionsTable:
+        """Create a ConditionsTable from a DataFrame."""
         if df is None:
             return cls(conditions=[])
 
@@ -316,6 +369,7 @@ class ConditionsTable(BaseModel):
         return cls(conditions=conditions)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ConditionsTable to a DataFrame."""
         records = [
             {C.CONDITION_ID: condition.id, **change.model_dump()}
             for condition in self.conditions
@@ -325,10 +379,12 @@ class ConditionsTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ConditionsTable:
+        """Create a ConditionsTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ConditionsTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -347,19 +403,23 @@ class ConditionsTable(BaseModel):
 
 
 class ExperimentPeriod(BaseModel):
-    """A period of a timecourse defined by a start time and a set changes.
+    """A period of a timecourse or experiment defined by a start time
+    and a condition ID.
 
     This corresponds to a row of the PEtab experiments table.
     """
 
+    #: The start time of the period in time units as defined in the model.
     start: float = Field(alias=C.TIME)
+    #: The ID of the condition to be applied at the start time.
     condition_id: str = Field(alias=C.CONDITION_ID)
 
+    #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("condition_id")
     @classmethod
-    def validate_id(cls, condition_id):
+    def _validate_id(cls, condition_id):
         if not condition_id:
             raise ValueError("ID must not be empty.")
         if not is_valid_identifier(condition_id):
@@ -375,16 +435,19 @@ class Experiment(BaseModel):
     experiment ID.
     """
 
+    #: The experiment ID.
     id: str = Field(alias=C.EXPERIMENT_ID)
+    #: The periods of the experiment.
     periods: list[ExperimentPeriod] = []
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
 
     @field_validator("id")
     @classmethod
-    def validate_id(cls, v):
+    def _validate_id(cls, v):
         if not v:
             raise ValueError("ID must not be empty.")
         if not is_valid_identifier(v):
@@ -408,10 +471,12 @@ class Experiment(BaseModel):
 class ExperimentsTable(BaseModel):
     """PEtab experiments table."""
 
+    #: List of experiments.
     experiments: list[Experiment]
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ExperimentsTable:
+        """Create an ExperimentsTable from a DataFrame."""
         if df is None:
             return cls(experiments=[])
 
@@ -428,14 +493,17 @@ class ExperimentsTable(BaseModel):
         return cls(experiments=experiments)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ExperimentsTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["experiments"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ExperimentsTable:
+        """Create an ExperimentsTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ExperimentsTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -460,17 +528,24 @@ class Measurement(BaseModel):
     experiment.
     """
 
+    #: The observable ID.
     observable_id: str = Field(alias=C.OBSERVABLE_ID)
+    #: The experiment ID.
     experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
+    #: The time point of the measurement in time units as defined in the model.
     time: float = Field(alias=C.TIME)
+    #: The measurement value.
     measurement: float = Field(alias=C.MEASUREMENT)
+    #: Values for placeholder parameters in the observable formula.
     observable_parameters: list[sp.Basic] = Field(
         alias=C.OBSERVABLE_PARAMETERS, default_factory=list
     )
+    #: Values for placeholder parameters in the noise formula.
     noise_parameters: list[sp.Basic] = Field(
         alias=C.NOISE_PARAMETERS, default_factory=list
     )
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
@@ -489,7 +564,7 @@ class Measurement(BaseModel):
 
     @field_validator("observable_id", "experiment_id")
     @classmethod
-    def validate_id(cls, v, info: ValidationInfo):
+    def _validate_id(cls, v, info: ValidationInfo):
         if not v:
             if info.field_name == "experiment_id":
                 return None
@@ -502,7 +577,7 @@ class Measurement(BaseModel):
         "observable_parameters", "noise_parameters", mode="before"
     )
     @classmethod
-    def sympify_list(cls, v):
+    def _sympify_list(cls, v):
         if isinstance(v, float) and np.isnan(v):
             return []
         if isinstance(v, str):
@@ -515,6 +590,7 @@ class Measurement(BaseModel):
 class MeasurementTable(BaseModel):
     """PEtab measurement table."""
 
+    #: List of measurements.
     measurements: list[Measurement]
 
     @classmethod
@@ -522,6 +598,7 @@ class MeasurementTable(BaseModel):
         cls,
         df: pd.DataFrame,
     ) -> MeasurementTable:
+        """Create a MeasurementTable from a DataFrame."""
         if df is None:
             return cls(measurements=[])
 
@@ -535,14 +612,17 @@ class MeasurementTable(BaseModel):
         return cls(measurements=measurements)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the MeasurementTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["measurements"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
+        """Create a MeasurementTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the MeasurementTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -563,16 +643,19 @@ class MeasurementTable(BaseModel):
 class Mapping(BaseModel):
     """Mapping PEtab entities to model entities."""
 
+    #: PEtab entity ID.
     petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
+    #: Model entity ID.
     model_id: str = Field(alias=C.MODEL_ENTITY_ID)
 
+    #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator(
         "petab_id",
     )
     @classmethod
-    def validate_id(cls, v):
+    def _validate_id(cls, v):
         if not v:
             raise ValueError("ID must not be empty.")
         if not is_valid_identifier(v):
@@ -583,10 +666,12 @@ class Mapping(BaseModel):
 class MappingTable(BaseModel):
     """PEtab mapping table."""
 
+    #: List of mappings.
     mappings: list[Mapping]
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> MappingTable:
+        """Create a MappingTable from a DataFrame."""
         if df is None:
             return cls(mappings=[])
 
@@ -597,14 +682,17 @@ class MappingTable(BaseModel):
         return cls(mappings=mappings)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the MappingTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["mappings"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MappingTable:
+        """Create a MappingTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the MappingTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
@@ -625,16 +713,23 @@ class MappingTable(BaseModel):
 class Parameter(BaseModel):
     """Parameter definition."""
 
+    #: Parameter ID.
     id: str = Field(alias=C.PARAMETER_ID)
+    #: Lower bound.
     lb: float | None = Field(alias=C.LOWER_BOUND, default=None)
+    #: Upper bound.
     ub: float | None = Field(alias=C.UPPER_BOUND, default=None)
+    #: Nominal value.
     nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
+    #: Parameter scale.
     scale: ParameterScale = Field(
         alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
     )
+    #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
     # TODO priors
 
+    #: :meta private:
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         populate_by_name=True,
@@ -643,7 +738,7 @@ class Parameter(BaseModel):
 
     @field_validator("id")
     @classmethod
-    def validate_id(cls, v):
+    def _validate_id(cls, v):
         if not v:
             raise ValueError("ID must not be empty.")
         if not is_valid_identifier(v):
@@ -652,7 +747,7 @@ class Parameter(BaseModel):
 
     @field_validator("lb", "ub", "nominal_value")
     @classmethod
-    def convert_nan_to_none(cls, v):
+    def _convert_nan_to_none(cls, v):
         if isinstance(v, float) and np.isnan(v):
             return None
         return v
@@ -661,10 +756,12 @@ class Parameter(BaseModel):
 class ParameterTable(BaseModel):
     """PEtab parameter table."""
 
+    #: List of parameters.
     parameters: list[Parameter]
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ParameterTable:
+        """Create a ParameterTable from a DataFrame."""
         if df is None:
             return cls(parameters=[])
 
@@ -676,14 +773,17 @@ class ParameterTable(BaseModel):
         return cls(parameters=parameters)
 
     def to_df(self) -> pd.DataFrame:
+        """Convert the ParameterTable to a DataFrame."""
         return pd.DataFrame(self.model_dump()["parameters"])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ParameterTable:
+        """Create a ParameterTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
+        """Write the ParameterTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
