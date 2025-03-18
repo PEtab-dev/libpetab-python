@@ -27,7 +27,7 @@ __all__ = [
     "ObservableTransformation",
     "NoiseDistribution",
     "Change",
-    "ChangeSet",
+    "Condition",
     "ConditionsTable",
     "OperationType",
     "ExperimentPeriod",
@@ -200,7 +200,25 @@ class ObservablesTable(BaseModel):
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ObservablesTable to a DataFrame."""
-        return pd.DataFrame(self.model_dump()["observables"])
+        records = self.model_dump(by_alias=True)["observables"]
+        for record in records:
+            obs = record[C.OBSERVABLE_FORMULA]
+            noise = record[C.NOISE_FORMULA]
+            record[C.OBSERVABLE_FORMULA] = (
+                None
+                if obs is None
+                else str(obs)
+                if not obs.is_number
+                else float(obs)
+            )
+            record[C.NOISE_FORMULA] = (
+                None
+                if noise is None
+                else str(noise)
+                if not noise.is_number
+                else float(noise)
+            )
+        return pd.DataFrame(records).set_index([C.OBSERVABLE_ID])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ObservablesTable:
@@ -211,7 +229,7 @@ class ObservablesTable(BaseModel):
     def to_tsv(self, file_path: str | Path) -> None:
         """Write the ObservablesTable to a TSV file."""
         df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
+        df.to_csv(file_path, sep="\t", index=True)
 
     def __add__(self, other: Observable) -> ObservablesTable:
         """Add an observable to the table."""
@@ -290,14 +308,14 @@ class Change(BaseModel):
         return sympify_petab(v)
 
 
-class ChangeSet(BaseModel):
+class Condition(BaseModel):
     """A set of changes to the model or model state.
 
     A set of simultaneously occurring changes to the model or model state,
     corresponding to a perturbation of the underlying system. This corresponds
     to all rows of the PEtab conditions table with the same condition ID.
 
-    >>> ChangeSet(
+    >>> Condition(
     ...     id="condition1",
     ...     changes=[
     ...         Change(
@@ -307,7 +325,7 @@ class ChangeSet(BaseModel):
     ...         )
     ...     ],
     ... )  # doctest: +NORMALIZE_WHITESPACE
-    ChangeSet(id='condition1', changes=[Change(target_id='k1',
+    Condition(id='condition1', changes=[Change(target_id='k1',
     operation_type='setCurrentValue', target_value=10.0000000000000)])
     """
 
@@ -328,13 +346,13 @@ class ChangeSet(BaseModel):
             raise ValueError(f"Invalid ID: {v}")
         return v
 
-    def __add__(self, other: Change) -> ChangeSet:
+    def __add__(self, other: Change) -> Condition:
         """Add a change to the set."""
         if not isinstance(other, Change):
             raise TypeError("Can only add Change to ChangeSet")
-        return ChangeSet(id=self.id, changes=self.changes + [other])
+        return Condition(id=self.id, changes=self.changes + [other])
 
-    def __iadd__(self, other: Change) -> ChangeSet:
+    def __iadd__(self, other: Change) -> Condition:
         """Add a change to the set in place."""
         if not isinstance(other, Change):
             raise TypeError("Can only add Change to ChangeSet")
@@ -346,9 +364,9 @@ class ConditionsTable(BaseModel):
     """PEtab conditions table."""
 
     #: List of conditions.
-    conditions: list[ChangeSet] = []
+    conditions: list[Condition] = []
 
-    def __getitem__(self, condition_id: str) -> ChangeSet:
+    def __getitem__(self, condition_id: str) -> Condition:
         """Get a condition by ID."""
         for condition in self.conditions:
             if condition.id == condition_id:
@@ -364,18 +382,28 @@ class ConditionsTable(BaseModel):
         conditions = []
         for condition_id, sub_df in df.groupby(C.CONDITION_ID):
             changes = [Change(**row.to_dict()) for _, row in sub_df.iterrows()]
-            conditions.append(ChangeSet(id=condition_id, changes=changes))
+            conditions.append(Condition(id=condition_id, changes=changes))
 
         return cls(conditions=conditions)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ConditionsTable to a DataFrame."""
         records = [
-            {C.CONDITION_ID: condition.id, **change.model_dump()}
+            {C.CONDITION_ID: condition.id, **change.model_dump(by_alias=True)}
             for condition in self.conditions
             for change in condition.changes
         ]
-        return pd.DataFrame(records)
+        for record in records:
+            record[C.TARGET_VALUE] = (
+                float(record[C.TARGET_VALUE])
+                if record[C.TARGET_VALUE].is_number
+                else str(record[C.TARGET_VALUE])
+            )
+        return (
+            pd.DataFrame(records)
+            if records
+            else pd.DataFrame(columns=C.CONDITION_DF_REQUIRED_COLS)
+        )
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ConditionsTable:
@@ -388,15 +416,15 @@ class ConditionsTable(BaseModel):
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
-    def __add__(self, other: ChangeSet) -> ConditionsTable:
+    def __add__(self, other: Condition) -> ConditionsTable:
         """Add a condition to the table."""
-        if not isinstance(other, ChangeSet):
+        if not isinstance(other, Condition):
             raise TypeError("Can only add ChangeSet to ConditionsTable")
         return ConditionsTable(conditions=self.conditions + [other])
 
-    def __iadd__(self, other: ChangeSet) -> ConditionsTable:
+    def __iadd__(self, other: Condition) -> ConditionsTable:
         """Add a condition to the table in place."""
-        if not isinstance(other, ChangeSet):
+        if not isinstance(other, Condition):
             raise TypeError("Can only add ChangeSet to ConditionsTable")
         self.conditions.append(other)
         return self
@@ -498,7 +526,19 @@ class ExperimentsTable(BaseModel):
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ExperimentsTable to a DataFrame."""
-        return pd.DataFrame(self.model_dump()["experiments"])
+        records = [
+            {
+                C.EXPERIMENT_ID: experiment.id,
+                **period.model_dump(by_alias=True),
+            }
+            for experiment in self.experiments
+            for period in experiment.periods
+        ]
+        return (
+            pd.DataFrame(records)
+            if records
+            else pd.DataFrame(columns=C.EXPERIMENT_DF_REQUIRED_COLS)
+        )
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ExperimentsTable:
@@ -617,7 +657,16 @@ class MeasurementTable(BaseModel):
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MeasurementTable to a DataFrame."""
-        return pd.DataFrame(self.model_dump()["measurements"])
+        records = self.model_dump(by_alias=True)["measurements"]
+        for record in records:
+            record[C.OBSERVABLE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
+                map(str, record[C.OBSERVABLE_PARAMETERS])
+            )
+            record[C.NOISE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
+                map(str, record[C.NOISE_PARAMETERS])
+            )
+
+        return pd.DataFrame(records)
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
@@ -687,7 +736,12 @@ class MappingTable(BaseModel):
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MappingTable to a DataFrame."""
-        return pd.DataFrame(self.model_dump()["mappings"])
+        res = (
+            pd.DataFrame(self.model_dump(by_alias=True)["mappings"])
+            if self.mappings
+            else pd.DataFrame(columns=C.MAPPING_DF_REQUIRED_COLS)
+        )
+        return res.set_index([C.PETAB_ENTITY_ID])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> MappingTable:
@@ -778,7 +832,9 @@ class ParameterTable(BaseModel):
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ParameterTable to a DataFrame."""
-        return pd.DataFrame(self.model_dump()["parameters"])
+        return pd.DataFrame(
+            self.model_dump(by_alias=True)["parameters"]
+        ).set_index([C.PARAMETER_ID])
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ParameterTable:

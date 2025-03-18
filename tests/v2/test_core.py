@@ -3,7 +3,7 @@ from pathlib import Path
 
 from petab.v2.core import (
     Change,
-    ChangeSet,
+    Condition,
     ConditionsTable,
     Experiment,
     ExperimentPeriod,
@@ -59,11 +59,11 @@ def test_conditions_table_add_changeset():
     conditions_table = ConditionsTable()
     assert conditions_table.conditions == []
 
-    c1 = ChangeSet(
+    c1 = Condition(
         id="condition1",
         changes=[Change(operation_type=OperationType.NO_CHANGE)],
     )
-    c2 = ChangeSet(
+    c2 = Condition(
         id="condition2",
         changes=[Change(operation_type=OperationType.NO_CHANGE)],
     )

@@ -130,12 +130,14 @@ def test_modify_problem():
     exp_observable_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["observable1", "observable2"],
-            OBSERVABLE_FORMULA: ["1", "2"],
+            OBSERVABLE_FORMULA: [1, 2],
             NOISE_FORMULA: [np.nan, 2.2],
         }
     ).set_index([OBSERVABLE_ID])
     assert_frame_equal(
-        problem.observable_df, exp_observable_df, check_dtype=False
+        problem.observable_df[[OBSERVABLE_FORMULA, NOISE_FORMULA]],
+        exp_observable_df,
+        check_dtype=False,
     )
 
     problem.add_parameter("parameter1", 1, 0, lb=1, ub=2)
@@ -151,7 +153,11 @@ def test_modify_problem():
         }
     ).set_index([PARAMETER_ID])
     assert_frame_equal(
-        problem.parameter_df, exp_parameter_df, check_dtype=False
+        problem.parameter_df[
+            [ESTIMATE, NOMINAL_VALUE, LOWER_BOUND, UPPER_BOUND]
+        ],
+        exp_parameter_df,
+        check_dtype=False,
     )
 
     problem.add_mapping("new_petab_id", "some_model_entity_id")

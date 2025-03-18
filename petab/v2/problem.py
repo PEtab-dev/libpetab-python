@@ -16,7 +16,6 @@ import pandas as pd
 from pydantic import AnyUrl, BaseModel, Field
 
 from ..v1 import (
-    core,
     mapping,
     measurements,
     observables,
@@ -25,11 +24,12 @@ from ..v1 import (
     sampling,
     yaml,
 )
+from ..v1.core import concat_tables, get_visualization_df
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..v2.C import *  # noqa: F403
 from ..versions import parse_version
-from . import conditions, experiments
+from . import conditions, core, experiments
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
@@ -71,25 +71,18 @@ class Problem:
     def __init__(
         self,
         model: Model = None,
-        condition_df: pd.DataFrame = None,
-        experiment_df: pd.DataFrame = None,
-        measurement_df: pd.DataFrame = None,
-        parameter_df: pd.DataFrame = None,
+        conditions_table: core.ConditionsTable = None,
+        experiments_table: core.ExperimentsTable = None,
+        observables_table: core.ObservablesTable = None,
+        measurement_table: core.MeasurementTable = None,
+        parameters_table: core.ParametersTable = None,
+        mapping_table: core.MappingTable = None,
         visualization_df: pd.DataFrame = None,
-        observable_df: pd.DataFrame = None,
-        mapping_df: pd.DataFrame = None,
         extensions_config: dict = None,
         config: ProblemConfig = None,
     ):
         from ..v2.lint import default_validation_tasks
 
-        self.condition_df: pd.DataFrame | None = condition_df
-        self.experiment_df: pd.DataFrame | None = experiment_df
-        self.measurement_df: pd.DataFrame | None = measurement_df
-        self.parameter_df: pd.DataFrame | None = parameter_df
-        self.visualization_df: pd.DataFrame | None = visualization_df
-        self.observable_df: pd.DataFrame | None = observable_df
-        self.mapping_df: pd.DataFrame | None = mapping_df
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
         self.validation_tasks: list[ValidationTask] = (
@@ -97,44 +90,26 @@ class Problem:
         )
         self.config = config
 
-        from .core import (
-            ChangeSet,
-            ConditionsTable,
-            Experiment,
-            ExperimentsTable,
-            MappingTable,
-            MeasurementTable,
-            Observable,
-            ObservablesTable,
-            ParameterTable,
+        self.observables_table = observables_table or core.ObservablesTable(
+            observables=[]
+        )
+        self.conditions_table = conditions_table or core.ConditionsTable(
+            conditions=[]
+        )
+        self.experiments_table = experiments_table or core.ExperimentsTable(
+            experiments=[]
+        )
+        self.measurement_table = measurement_table or core.MeasurementTable(
+            measurements=[]
+        )
+        self.mapping_table = mapping_table or core.MappingTable(mappings=[])
+        self.parameter_table = parameters_table or core.ParameterTable(
+            parameters=[]
         )
 
-        self.observables_table: ObservablesTable = ObservablesTable.from_df(
-            self.observable_df
-        )
-        self.observables: list[Observable] = self.observables_table.observables
-
-        self.conditions_table: ConditionsTable = ConditionsTable.from_df(
-            self.condition_df
-        )
-        self.conditions: list[ChangeSet] = self.conditions_table.conditions
-
-        self.experiments_table: ExperimentsTable = ExperimentsTable.from_df(
-            self.experiment_df
-        )
-        self.experiments: list[Experiment] = self.experiments_table.experiments
-
-        self.measurement_table: MeasurementTable = MeasurementTable.from_df(
-            self.measurement_df,
-        )
-
-        self.mapping_table: MappingTable = MappingTable.from_df(
-            self.mapping_df
-        )
-        self.parameter_table: ParameterTable = ParameterTable.from_df(
-            self.parameter_df
-        )
-        # TODO: visualization table
+        self.visualization_df = visualization_df
+        self.config = config
+        self.extensions_config = extensions_config
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -273,9 +248,7 @@ class Problem:
         measurement_files = [get_path(f) for f in problem0.measurement_files]
         # If there are multiple tables, we will merge them
         measurement_df = (
-            core.concat_tables(
-                measurement_files, measurements.get_measurement_df
-            )
+            concat_tables(measurement_files, measurements.get_measurement_df)
             if measurement_files
             else None
         )
@@ -283,7 +256,7 @@ class Problem:
         condition_files = [get_path(f) for f in problem0.condition_files]
         # If there are multiple tables, we will merge them
         condition_df = (
-            core.concat_tables(condition_files, conditions.get_condition_df)
+            concat_tables(condition_files, conditions.get_condition_df)
             if condition_files
             else None
         )
@@ -291,7 +264,7 @@ class Problem:
         experiment_files = [get_path(f) for f in problem0.experiment_files]
         # If there are multiple tables, we will merge them
         experiment_df = (
-            core.concat_tables(experiment_files, experiments.get_experiment_df)
+            concat_tables(experiment_files, experiments.get_experiment_df)
             if experiment_files
             else None
         )
@@ -301,7 +274,7 @@ class Problem:
         ]
         # If there are multiple tables, we will merge them
         visualization_df = (
-            core.concat_tables(visualization_files, core.get_visualization_df)
+            concat_tables(visualization_files, get_visualization_df)
             if visualization_files
             else None
         )
@@ -309,7 +282,7 @@ class Problem:
         observable_files = [get_path(f) for f in problem0.observable_files]
         # If there are multiple tables, we will merge them
         observable_df = (
-            core.concat_tables(observable_files, observables.get_observable_df)
+            concat_tables(observable_files, observables.get_observable_df)
             if observable_files
             else None
         )
@@ -317,12 +290,12 @@ class Problem:
         mapping_files = [get_path(f) for f in problem0.mapping_files]
         # If there are multiple tables, we will merge them
         mapping_df = (
-            core.concat_tables(mapping_files, mapping.get_mapping_df)
+            concat_tables(mapping_files, mapping.get_mapping_df)
             if mapping_files
             else None
         )
 
-        return Problem(
+        return Problem.from_dfs(
             condition_df=condition_df,
             experiment_df=experiment_df,
             measurement_df=measurement_df,
@@ -332,6 +305,54 @@ class Problem:
             visualization_df=visualization_df,
             mapping_df=mapping_df,
             extensions_config=config.extensions,
+        )
+
+    @staticmethod
+    def from_dfs(
+        model: Model = None,
+        condition_df: pd.DataFrame = None,
+        experiment_df: pd.DataFrame = None,
+        measurement_df: pd.DataFrame = None,
+        parameter_df: pd.DataFrame = None,
+        visualization_df: pd.DataFrame = None,
+        observable_df: pd.DataFrame = None,
+        mapping_df: pd.DataFrame = None,
+        extensions_config: dict = None,
+        config: ProblemConfig = None,
+    ):
+        """
+        Construct a PEtab problem from dataframes.
+
+        Parameters:
+            condition_df: PEtab condition table
+            experiment_df: PEtab experiment table
+            measurement_df: PEtab measurement table
+            parameter_df: PEtab parameter table
+            observable_df: PEtab observable table
+            visualization_df: PEtab visualization table
+            mapping_df: PEtab mapping table
+            model: The underlying model
+            extensions_config: Information on the extensions used
+        """
+
+        observables_table = core.ObservablesTable.from_df(observable_df)
+        conditions_table = core.ConditionsTable.from_df(condition_df)
+        experiments_table = core.ExperimentsTable.from_df(experiment_df)
+        measurement_table = core.MeasurementTable.from_df(measurement_df)
+        mapping_table = core.MappingTable.from_df(mapping_df)
+        parameter_table = core.ParameterTable.from_df(parameter_df)
+
+        return Problem(
+            model=model,
+            conditions_table=conditions_table,
+            experiments_table=experiments_table,
+            observables_table=observables_table,
+            measurement_table=measurement_table,
+            parameters_table=parameter_table,
+            mapping_table=mapping_table,
+            visualization_df=visualization_df,
+            extensions_config=extensions_config,
+            config=config,
         )
 
     @staticmethod
@@ -389,6 +410,60 @@ class Problem:
             "The argument `problem` must be a path to a PEtab problem file "
             "or a PEtab problem object."
         )
+
+    @property
+    def condition_df(self) -> pd.DataFrame | None:
+        return self.conditions_table.to_df() if self.conditions_table else None
+
+    @condition_df.setter
+    def condition_df(self, value: pd.DataFrame):
+        self.conditions_table = core.ConditionsTable.from_df(value)
+
+    @property
+    def experiment_df(self) -> pd.DataFrame | None:
+        return (
+            self.experiments_table.to_df() if self.experiments_table else None
+        )
+
+    @experiment_df.setter
+    def experiment_df(self, value: pd.DataFrame):
+        self.experiments_table = core.ExperimentsTable.from_df(value)
+
+    @property
+    def measurement_df(self) -> pd.DataFrame | None:
+        return (
+            self.measurement_table.to_df() if self.measurement_table else None
+        )
+
+    @measurement_df.setter
+    def measurement_df(self, value: pd.DataFrame):
+        self.measurement_table = core.MeasurementTable.from_df(value)
+
+    @property
+    def parameter_df(self) -> pd.DataFrame | None:
+        return self.parameter_table.to_df() if self.parameter_table else None
+
+    @parameter_df.setter
+    def parameter_df(self, value: pd.DataFrame):
+        self.parameter_table = core.ParameterTable.from_df(value)
+
+    @property
+    def observable_df(self) -> pd.DataFrame | None:
+        return (
+            self.observables_table.to_df() if self.observables_table else None
+        )
+
+    @observable_df.setter
+    def observable_df(self, value: pd.DataFrame):
+        self.observables_table = core.ObservablesTable.from_df(value)
+
+    @property
+    def mapping_df(self) -> pd.DataFrame | None:
+        return self.mapping_table.to_df() if self.mapping_table else None
+
+    @mapping_df.setter
+    def mapping_df(self, value: pd.DataFrame):
+        self.mapping_table = core.MappingTable.from_df(value)
 
     def get_optimization_parameters(self) -> list[str]:
         """
@@ -839,25 +914,19 @@ class Problem:
 
         """
         record = {
-            OBSERVABLE_ID: [id_],
-            OBSERVABLE_FORMULA: [formula],
+            OBSERVABLE_ID: id_,
+            OBSERVABLE_FORMULA: formula,
         }
         if name is not None:
-            record[OBSERVABLE_NAME] = [name]
+            record[OBSERVABLE_NAME] = name
         if noise_formula is not None:
-            record[NOISE_FORMULA] = [noise_formula]
+            record[NOISE_FORMULA] = noise_formula
         if noise_distribution is not None:
-            record[NOISE_DISTRIBUTION] = [noise_distribution]
+            record[NOISE_DISTRIBUTION] = noise_distribution
         if transform is not None:
-            record[OBSERVABLE_TRANSFORMATION] = [transform]
+            record[OBSERVABLE_TRANSFORMATION] = transform
         record.update(kwargs)
-
-        tmp_df = pd.DataFrame(record).set_index([OBSERVABLE_ID])
-        self.observable_df = (
-            pd.concat([self.observable_df, tmp_df])
-            if self.observable_df is not None
-            else tmp_df
-        )
+        self.observables_table += core.Observable(**record)
 
     def add_parameter(
         self,
@@ -890,42 +959,37 @@ class Problem:
             kwargs: additional columns/values to add to the parameter table
         """
         record = {
-            PARAMETER_ID: [id_],
+            PARAMETER_ID: id_,
         }
         if estimate is not None:
-            record[ESTIMATE] = [int(estimate)]
+            record[ESTIMATE] = int(estimate)
         if nominal_value is not None:
-            record[NOMINAL_VALUE] = [nominal_value]
+            record[NOMINAL_VALUE] = nominal_value
         if scale is not None:
-            record[PARAMETER_SCALE] = [scale]
+            record[PARAMETER_SCALE] = scale
         if lb is not None:
-            record[LOWER_BOUND] = [lb]
+            record[LOWER_BOUND] = lb
         if ub is not None:
-            record[UPPER_BOUND] = [ub]
+            record[UPPER_BOUND] = ub
         if init_prior_type is not None:
-            record[INITIALIZATION_PRIOR_TYPE] = [init_prior_type]
+            record[INITIALIZATION_PRIOR_TYPE] = init_prior_type
         if init_prior_pars is not None:
             if not isinstance(init_prior_pars, str):
                 init_prior_pars = PARAMETER_SEPARATOR.join(
                     map(str, init_prior_pars)
                 )
-            record[INITIALIZATION_PRIOR_PARAMETERS] = [init_prior_pars]
+            record[INITIALIZATION_PRIOR_PARAMETERS] = init_prior_pars
         if obj_prior_type is not None:
-            record[OBJECTIVE_PRIOR_TYPE] = [obj_prior_type]
+            record[OBJECTIVE_PRIOR_TYPE] = obj_prior_type
         if obj_prior_pars is not None:
             if not isinstance(obj_prior_pars, str):
                 obj_prior_pars = PARAMETER_SEPARATOR.join(
                     map(str, obj_prior_pars)
                 )
-            record[OBJECTIVE_PRIOR_PARAMETERS] = [obj_prior_pars]
+            record[OBJECTIVE_PRIOR_PARAMETERS] = obj_prior_pars
         record.update(kwargs)
 
-        tmp_df = pd.DataFrame(record).set_index([PARAMETER_ID])
-        self.parameter_df = (
-            pd.concat([self.parameter_df, tmp_df])
-            if self.parameter_df is not None
-            else tmp_df
-        )
+        self.parameter_table += core.Parameter(**record)
 
     def add_measurement(
         self,
@@ -1013,6 +1077,32 @@ class Problem:
             if self.experiment_df is not None
             else tmp_df
         )
+
+    def __iadd__(self, other):
+        """Add Observable, Parameter, Measurement, Condition, or Experiment"""
+        from .core import (
+            Condition,
+            Experiment,
+            Measurement,
+            Observable,
+            Parameter,
+        )
+
+        if isinstance(other, Observable):
+            self.observables_table += other
+        elif isinstance(other, Parameter):
+            self.parameter_table += other
+        elif isinstance(other, Measurement):
+            self.measurement_table += other
+        elif isinstance(other, Condition):
+            self.conditions_table += other
+        elif isinstance(other, Experiment):
+            self.experiments_table += other
+        else:
+            raise ValueError(
+                f"Cannot add object of type {type(other)} to Problem."
+            )
+        return self
 
 
 class ModelFile(BaseModel):
