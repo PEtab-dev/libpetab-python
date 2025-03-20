@@ -207,6 +207,9 @@ class ObservablesTable(BaseModel):
             record[C.OBSERVABLE_FORMULA] = (
                 None
                 if obs is None
+                # TODO: we need a custom printer for sympy expressions
+                #  to avoid '**'
+                #  https://github.com/PEtab-dev/libpetab-python/issues/362
                 else str(obs)
                 if not obs.is_number
                 else float(obs)
