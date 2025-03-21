@@ -1041,10 +1041,13 @@ def assert_model_parameters_in_condition_or_parameter_table(
                 mapping_df[MODEL_ENTITY_ID],
                 strict=True,
             )
-            # mapping table entities mapping to already allowed parameters
-            if to_id in allowed_in_condition_cols
-            # mapping table entities mapping to species
-            or model.is_state_variable(to_id)
+            if not pd.isna(to_id)
+            and (
+                # mapping table entities mapping to already allowed parameters
+                to_id in allowed_in_condition_cols
+                # mapping table entities mapping to species
+                or model.is_state_variable(to_id)
+            )
         }
 
     allowed_in_parameter_table = (

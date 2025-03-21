@@ -226,8 +226,9 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     validation_issues = v2.lint_problem(new_yaml_file)
 
     if validation_issues:
+        validation_issues = "\n".join(map(str, validation_issues))
         raise ValueError(
-            "Generated PEtab v2 problem did not pass linting: "
+            "The generated PEtab v2 problem did not pass linting: "
             f"{validation_issues}"
         )
 
@@ -287,7 +288,7 @@ def v1v2_condition_df(
     condition_df = condition_df.copy().reset_index()
     with suppress(KeyError):
         # conditionName was dropped in PEtab v2
-        condition_df.drop(columns=[v2.C.CONDITION_NAME], inplace=True)
+        condition_df.drop(columns=[v1.C.CONDITION_NAME], inplace=True)
 
     condition_df = condition_df.melt(
         id_vars=[v1.C.CONDITION_ID],
@@ -301,7 +302,6 @@ def v1v2_condition_df(
             columns=[
                 v2.C.CONDITION_ID,
                 v2.C.TARGET_ID,
-                v2.C.OPERATION_TYPE,
                 v2.C.TARGET_VALUE,
             ]
         )
@@ -320,5 +320,4 @@ def v1v2_condition_df(
                 f"Unable to determine value type {target} in the condition "
                 "table."
             )
-    condition_df[v2.C.OPERATION_TYPE] = v2.C.OT_CUR_VAL
     return condition_df

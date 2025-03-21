@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
+from typing import Annotated
 
 import numpy as np
 import pandas as pd
 import sympy as sp
 from pydantic import (
+    AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     ValidationInfo,
@@ -29,7 +33,6 @@ __all__ = [
     "Change",
     "Condition",
     "ConditionsTable",
-    "OperationType",
     "ExperimentPeriod",
     "Experiment",
     "ExperimentsTable",
@@ -41,6 +44,20 @@ __all__ = [
     "ParameterScale",
     "ParameterTable",
 ]
+
+
+def is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
+    if not np.isfinite(v) and v != -np.inf:
+        raise ValueError(
+            f"{info.field_name} value must be finite or -inf but got {v}"
+        )
+    return v
+
+
+def _convert_nan_to_none(v):
+    if isinstance(v, float) and np.isnan(v):
+        return None
+    return v
 
 
 class ObservableTransformation(str, Enum):
@@ -248,16 +265,6 @@ class ObservablesTable(BaseModel):
         return self
 
 
-# TODO remove?!
-class OperationType(str, Enum):
-    """Operation types for model changes in the PEtab conditions table."""
-
-    # TODO update names
-    SET_CURRENT_VALUE = "setCurrentValue"
-    NO_CHANGE = "noChange"
-    ...
-
-
 class Change(BaseModel):
     """A change to the model or model state.
 
@@ -266,17 +273,13 @@ class Change(BaseModel):
 
     >>> Change(
     ...     target_id="k1",
-    ...     operation_type=OperationType.SET_CURRENT_VALUE,
     ...     target_value="10",
     ... )  # doctest: +NORMALIZE_WHITESPACE
-    Change(target_id='k1', operation_type='setCurrentValue',
-    target_value=10.0000000000000)
+    Change(target_id='k1', target_value=10.0000000000000)
     """
 
     #: The ID of the target entity to change.
     target_id: str | None = Field(alias=C.TARGET_ID, default=None)
-    # TODO: remove?!
-    operation_type: OperationType = Field(alias=C.OPERATION_TYPE)
     #: The value to set the target entity to.
     target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
 
@@ -290,14 +293,11 @@ class Change(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _validate_id(cls, data: dict):
-        if (
-            data.get("operation_type", data.get(C.OPERATION_TYPE))
-            != C.OT_NO_CHANGE
-        ):
-            target_id = data.get("target_id", data.get(C.TARGET_ID))
+        target_id = data.get("target_id", data.get(C.TARGET_ID))
 
-            if not is_valid_identifier(target_id):
-                raise ValueError(f"Invalid ID: {target_id}")
+        if not is_valid_identifier(target_id):
+            raise ValueError(f"Invalid ID: {target_id}")
+
         return data
 
     @field_validator("target_value", mode="before")
@@ -323,13 +323,12 @@ class Condition(BaseModel):
     ...     changes=[
     ...         Change(
     ...             target_id="k1",
-    ...             operation_type=OperationType.SET_CURRENT_VALUE,
     ...             target_value="10",
     ...         )
     ...     ],
     ... )  # doctest: +NORMALIZE_WHITESPACE
-    Condition(id='condition1', changes=[Change(target_id='k1',
-    operation_type='setCurrentValue', target_value=10.0000000000000)])
+    Condition(id='condition1',
+    changes=[Change(target_id='k1', target_value=10.0000000000000)])
     """
 
     #: The condition ID.
@@ -352,13 +351,13 @@ class Condition(BaseModel):
     def __add__(self, other: Change) -> Condition:
         """Add a change to the set."""
         if not isinstance(other, Change):
-            raise TypeError("Can only add Change to ChangeSet")
+            raise TypeError("Can only add Change to Condition")
         return Condition(id=self.id, changes=self.changes + [other])
 
     def __iadd__(self, other: Change) -> Condition:
         """Add a change to the set in place."""
         if not isinstance(other, Change):
-            raise TypeError("Can only add Change to ChangeSet")
+            raise TypeError("Can only add Change to Condition")
         self.changes.append(other)
         return self
 
@@ -379,11 +378,11 @@ class ConditionsTable(BaseModel):
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ConditionsTable:
         """Create a ConditionsTable from a DataFrame."""
-        if df is None:
+        if df is None or df.empty:
             return cls(conditions=[])
 
         conditions = []
-        for condition_id, sub_df in df.groupby(C.CONDITION_ID):
+        for condition_id, sub_df in df.reset_index().groupby(C.CONDITION_ID):
             changes = [Change(**row.to_dict()) for _, row in sub_df.iterrows()]
             conditions.append(Condition(id=condition_id, changes=changes))
 
@@ -422,13 +421,13 @@ class ConditionsTable(BaseModel):
     def __add__(self, other: Condition) -> ConditionsTable:
         """Add a condition to the table."""
         if not isinstance(other, Condition):
-            raise TypeError("Can only add ChangeSet to ConditionsTable")
+            raise TypeError("Can only add Conditions to ConditionsTable")
         return ConditionsTable(conditions=self.conditions + [other])
 
     def __iadd__(self, other: Condition) -> ConditionsTable:
         """Add a condition to the table in place."""
         if not isinstance(other, Condition):
-            raise TypeError("Can only add ChangeSet to ConditionsTable")
+            raise TypeError("Can only add Conditions to ConditionsTable")
         self.conditions.append(other)
         return self
 
@@ -441,11 +440,11 @@ class ExperimentPeriod(BaseModel):
     """
 
     #: The start time of the period in time units as defined in the model.
-    # TODO: Only finite times and -inf are allowed as start time
-    time: float = Field(alias=C.TIME)
-    # TODO: decide if optional
+    time: Annotated[float, AfterValidator(is_finite_or_neg_inf)] = Field(
+        alias=C.TIME
+    )
     #: The ID of the condition to be applied at the start time.
-    condition_id: str = Field(alias=C.CONDITION_ID)
+    condition_id: str | None = Field(alias=C.CONDITION_ID, default=None)
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
@@ -453,9 +452,8 @@ class ExperimentPeriod(BaseModel):
     @field_validator("condition_id", mode="before")
     @classmethod
     def _validate_id(cls, condition_id):
-        # TODO to be decided if optional
-        if pd.isna(condition_id):
-            return ""
+        if pd.isna(condition_id) or not condition_id:
+            return None
         # if not condition_id:
         #     raise ValueError("ID must not be empty.")
         if not is_valid_identifier(condition_id):
@@ -633,12 +631,17 @@ class Measurement(BaseModel):
     )
     @classmethod
     def _sympify_list(cls, v):
+        if v is None:
+            return []
+
         if isinstance(v, float) and np.isnan(v):
             return []
+
         if isinstance(v, str):
             v = v.split(C.PARAMETER_SEPARATOR)
-        else:
+        elif not isinstance(v, Sequence):
             v = [v]
+
         return [sympify_petab(x) for x in v]
 
 
@@ -710,7 +713,13 @@ class Mapping(BaseModel):
     #: PEtab entity ID.
     petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
     #: Model entity ID.
-    model_id: str = Field(alias=C.MODEL_ENTITY_ID)
+    model_id: Annotated[str | None, BeforeValidator(_convert_nan_to_none)] = (
+        Field(alias=C.MODEL_ENTITY_ID, default=None)
+    )
+    #: Arbitrary name
+    name: Annotated[str | None, BeforeValidator(_convert_nan_to_none)] = Field(
+        alias=C.NAME, default=None
+    )
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True)

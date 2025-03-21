@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
 
+import sympy as sp
+
 from petab.v2.core import (
     Change,
     Condition,
@@ -8,7 +10,6 @@ from petab.v2.core import (
     Experiment,
     ExperimentPeriod,
     ObservablesTable,
-    OperationType,
 )
 from petab.v2.petab1to2 import petab1to2
 
@@ -55,17 +56,17 @@ def test_experiment_add_periods():
     assert exp.periods == [p1, p2]
 
 
-def test_conditions_table_add_changeset():
+def test_conditions_table_add_changes():
     conditions_table = ConditionsTable()
     assert conditions_table.conditions == []
 
     c1 = Condition(
         id="condition1",
-        changes=[Change(operation_type=OperationType.NO_CHANGE)],
+        changes=[Change(target_id="k1", target_value=1)],
     )
     c2 = Condition(
         id="condition2",
-        changes=[Change(operation_type=OperationType.NO_CHANGE)],
+        changes=[Change(target_id="k2", target_value=sp.sympify("2 * x"))],
     )
 
     conditions_table += c1

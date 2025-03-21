@@ -101,6 +101,18 @@ class ValidationIssue:
     def __str__(self):
         return f"{self.level.name}: {self.message}"
 
+    def _get_task_name(self):
+        """Get the name of the ValidationTask that raised this error."""
+        import inspect
+
+        # walk up the stack until we find the ValidationTask.run method
+        for frame_info in inspect.stack():
+            frame = frame_info.frame
+            if "self" in frame.f_locals:
+                task = frame.f_locals["self"]
+                if isinstance(task, ValidationTask):
+                    return task.__class__.__name__
+
 
 @dataclass
 class ValidationError(ValidationIssue):
@@ -115,17 +127,19 @@ class ValidationError(ValidationIssue):
         if self.task is None:
             self.task = self._get_task_name()
 
-    def _get_task_name(self):
-        """Get the name of the ValidationTask that raised this error."""
-        import inspect
 
-        # walk up the stack until we find the ValidationTask.run method
-        for frame_info in inspect.stack():
-            frame = frame_info.frame
-            if "self" in frame.f_locals:
-                task = frame.f_locals["self"]
-                if isinstance(task, ValidationTask):
-                    return task.__class__.__name__
+@dataclass
+class ValidationWarning(ValidationIssue):
+    """A validation result with level WARNING."""
+
+    level: ValidationIssueSeverity = field(
+        default=ValidationIssueSeverity.WARNING, init=False
+    )
+    task: str | None = None
+
+    def __post_init__(self):
+        if self.task is None:
+            self.task = self._get_task_name()
 
 
 class ValidationResultList(list[ValidationIssue]):
@@ -518,13 +532,13 @@ class CheckExperimentConditionsExist(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
         available_conditions = {
-            c.id
-            for c in problem.conditions_table.conditions
-            if not pd.isna(c.id)
+            c.id for c in problem.conditions_table.conditions
         }
         for experiment in problem.experiments_table.experiments:
             missing_conditions = {
-                period.condition_id for period in experiment.periods
+                period.condition_id
+                for period in experiment.periods
+                if period.condition_id is not None
             } - available_conditions
             if missing_conditions:
                 messages.append(
@@ -617,6 +631,51 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
             )
 
 
+class CheckUnusedExperiments(ValidationTask):
+    """A task to check for experiments that are not used in the measurements
+    table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        used_experiments = {
+            m.experiment_id
+            for m in problem.measurement_table.measurements
+            if m.experiment_id is not None
+        }
+        available_experiments = {
+            e.id for e in problem.experiments_table.experiments
+        }
+
+        unused_experiments = available_experiments - used_experiments
+        if unused_experiments:
+            return ValidationWarning(
+                f"Experiments {unused_experiments} are not used in the "
+                "measurements table."
+            )
+
+
+class CheckUnusedConditions(ValidationTask):
+    """A task to check for conditions that are not used in the experiments
+    table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        used_conditions = {
+            p.condition_id
+            for e in problem.experiments_table.experiments
+            for p in e.periods
+            if p.condition_id is not None
+        }
+        available_conditions = {
+            c.id for c in problem.conditions_table.conditions
+        }
+
+        unused_conditions = available_conditions - used_conditions
+        if unused_conditions:
+            return ValidationWarning(
+                f"Conditions {unused_conditions} are not used in the "
+                "experiments table."
+            )
+
+
 class CheckVisualizationTable(ValidationTask):
     """A task to validate the visualization table of a PEtab problem."""
 
@@ -672,7 +731,7 @@ def get_valid_parameters_for_parameter_table(
         blackset |= placeholders
 
     if condition_df is not None:
-        blackset |= set(condition_df.columns.values) - {CONDITION_NAME}
+        blackset |= set(condition_df.columns.values)
 
     # don't use sets here, to have deterministic ordering,
     #  e.g. for creating parameter tables
@@ -836,4 +895,6 @@ default_validation_tasks = [
     # TODO: atomize checks, update to long condition table, re-enable
     # CheckVisualizationTable(),
     CheckValidParameterInConditionOrParameterTable(),
+    CheckUnusedExperiments(),
+    CheckUnusedConditions(),
 ]

@@ -125,28 +125,14 @@ OBJECTIVE = "objective"
 
 #: Condition ID column in the condition table
 CONDITION_ID = "conditionId"
-# TODO: removed?
-#: Condition name column in the condition table
-CONDITION_NAME = "conditionName"
 #: Column in the condition table with the ID of an entity that is changed
 TARGET_ID = "targetId"
-#: Column in the condition table with the operation type
-OPERATION_TYPE = "operationType"
 #: Column in the condition table with the new value of the target entity
 TARGET_VALUE = "targetValue"
-# operation types:
-OT_CUR_VAL = "setCurrentValue"
-OT_NO_CHANGE = "noChange"
-
-OPERATION_TYPES = [
-    OT_CUR_VAL,
-    OT_NO_CHANGE,
-]
 
 CONDITION_DF_COLS = [
     CONDITION_ID,
     TARGET_ID,
-    OPERATION_TYPE,
     TARGET_VALUE,
 ]
 
@@ -382,6 +368,9 @@ EXTENSIONS = "extensions"
 PETAB_ENTITY_ID = "petabEntityId"
 #: Model entity ID column in the mapping table
 MODEL_ENTITY_ID = "modelEntityId"
+#: Arbitrary name
+NAME = "name"
+
 #: Required columns of the mapping table
 MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 

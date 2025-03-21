@@ -31,9 +31,13 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
     if isinstance(expr, float) or isinstance(expr, np.floating):
         return sp.Float(expr)
 
-    # Set error listeners
-    input_stream = InputStream(expr)
+    try:
+        input_stream = InputStream(expr)
+    except TypeError as e:
+        raise TypeError(f"Error parsing {expr!r}: {e.args[0]}") from e
+
     lexer = PetabMathExprLexer(input_stream)
+    # Set error listeners
     lexer.removeErrorListeners()
     lexer.addErrorListener(MathErrorListener())
 

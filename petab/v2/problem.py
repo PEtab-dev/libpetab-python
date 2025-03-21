@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import sympy as sp
 from pydantic import AnyUrl, BaseModel, Field
 
 from ..v1 import (
@@ -883,7 +884,7 @@ class Problem:
         return validation_results
 
     def add_condition(
-        self, id_: str, name: str = None, **kwargs: tuple[str, Number | str]
+        self, id_: str, name: str = None, **kwargs: Number | str | sp.Expr
     ):
         """Add a simulation condition to the problem.
 
@@ -895,27 +896,20 @@ class Problem:
         """
         if not kwargs:
             return
-        records = [
-            {
-                CONDITION_ID: id_,
-                TARGET_ID: target_id,
-                OPERATION_TYPE: "setCurrentValue",
-                TARGET_VALUE: target_value
-                if not isinstance(target_value, tuple)
-                else target_value[1],
-            }
+        changes = [
+            core.Change(target_id=target_id, target_value=target_value)
             for target_id, target_value in kwargs.items()
         ]
-        # TODO: is the condition name supported in v2?
-        if name is not None:
-            for record in records:
-                record[CONDITION_NAME] = [name]
-        tmp_df = pd.DataFrame(records)
-        self.condition_df = (
-            pd.concat([self.condition_df, tmp_df], ignore_index=True)
-            if self.condition_df is not None
-            else tmp_df
+        self.conditions_table.conditions.append(
+            core.Condition(id=id_, changes=changes)
         )
+        if name is not None:
+            self.mapping_table.mappings.append(
+                core.Mapping(
+                    petab_id=id_,
+                    name=name,
+                )
+            )
 
     def add_observable(
         self,
@@ -1023,8 +1017,8 @@ class Problem:
         experiment_id: str,
         time: float,
         measurement: float,
-        observable_parameters: Sequence[str | float] = None,
-        noise_parameters: Sequence[str | float] = None,
+        observable_parameters: Sequence[str | float] | str | float = None,
+        noise_parameters: Sequence[str | float] | str | float = None,
     ):
         """Add a measurement to the problem.
 
@@ -1036,27 +1030,25 @@ class Problem:
             observable_parameters: The observable parameters
             noise_parameters: The noise parameters
         """
-        record = {
-            OBSERVABLE_ID: [obs_id],
-            EXPERIMENT_ID: [experiment_id],
-            TIME: [time],
-            MEASUREMENT: [measurement],
-        }
-        if observable_parameters is not None:
-            record[OBSERVABLE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(map(str, observable_parameters))
-            ]
-        if noise_parameters is not None:
-            record[NOISE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(map(str, noise_parameters))
-            ]
+        if observable_parameters is not None and not isinstance(
+            observable_parameters, Sequence
+        ):
+            observable_parameters = [observable_parameters]
+        if noise_parameters is not None and not isinstance(
+            noise_parameters, Sequence
+        ):
+            noise_parameters = [noise_parameters]
 
-        tmp_df = pd.DataFrame(record)
-        self.measurement_df = (
-            pd.concat([self.measurement_df, tmp_df])
-            if self.measurement_df is not None
-            else tmp_df
-        ).reset_index(drop=True)
+        self.measurement_table.measurements.append(
+            core.Measurement(
+                observable_id=obs_id,
+                experiment_id=experiment_id,
+                time=time,
+                measurement=measurement,
+                observable_parameters=observable_parameters,
+                noise_parameters=noise_parameters,
+            )
+        )
 
     def add_mapping(self, petab_id: str, model_id: str):
         """Add a mapping table entry to the problem.
