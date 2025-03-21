@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -496,29 +496,19 @@ class CheckExperimentTable(ValidationTask):
     """A task to validate the experiment table of a PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.experiment_df is None:
-            return
+        messages = []
+        for experiment in problem.experiments_table.experiments:
+            # Check that there are no duplicate timepoints
+            counter = Counter(period.time for period in experiment.periods)
+            duplicates = {time for time, count in counter.items() if count > 1}
+            if duplicates:
+                messages.append(
+                    f"Experiment {experiment.id} contains duplicate "
+                    f"timepoints: {duplicates}"
+                )
 
-        df = problem.experiment_df
-
-        try:
-            _check_df(df, EXPERIMENT_DF_REQUIRED_COLS, "experiment")
-        except AssertionError as e:
-            return ValidationError(str(e))
-
-        # valid timepoints
-        invalid = []
-        for time in df[TIME].values:
-            try:
-                time = float(time)
-                if not np.isfinite(time) and time != -np.inf:
-                    invalid.append(time)
-            except ValueError:
-                invalid.append(time)
-        if invalid:
-            return ValidationError(
-                f"Invalid timepoints in experiment table: {invalid}"
-            )
+        if messages:
+            return ValidationError("\n".join(messages))
 
 
 class CheckExperimentConditionsExist(ValidationTask):
@@ -526,32 +516,24 @@ class CheckExperimentConditionsExist(ValidationTask):
     in the condition table."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.experiment_df is None:
-            return
+        messages = []
+        available_conditions = {
+            c.id
+            for c in problem.conditions_table.conditions
+            if not pd.isna(c.id)
+        }
+        for experiment in problem.experiments_table.experiments:
+            missing_conditions = {
+                period.condition_id for period in experiment.periods
+            } - available_conditions
+            if missing_conditions:
+                messages.append(
+                    f"Experiment {experiment.id} requires conditions that are "
+                    f"not present in the condition table: {missing_conditions}"
+                )
 
-        if (
-            problem.condition_df is None
-            and problem.experiment_df is not None
-            and not problem.experiment_df.empty
-        ):
-            return ValidationError(
-                "Experiment table is non-empty, "
-                "but condition table is missing."
-            )
-
-        required_conditions = problem.experiment_df[CONDITION_ID].unique()
-        existing_conditions = problem.condition_df[CONDITION_ID].unique()
-
-        missing_conditions = set(required_conditions) - set(
-            existing_conditions
-        )
-        # TODO NA allowed?
-        missing_conditions = {x for x in missing_conditions if not pd.isna(x)}
-        if missing_conditions:
-            return ValidationError(
-                f"Experiment table contains conditions that are not present "
-                f"in the condition table: {missing_conditions}"
-            )
+        if messages:
+            return ValidationError("\n".join(messages))
 
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):

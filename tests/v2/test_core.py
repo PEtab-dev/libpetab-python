@@ -42,9 +42,9 @@ def test_experiment_add_periods():
     exp = Experiment(id="exp1")
     assert exp.periods == []
 
-    p1 = ExperimentPeriod(start=0, condition_id="p1")
-    p2 = ExperimentPeriod(start=1, condition_id="p2")
-    p3 = ExperimentPeriod(start=2, condition_id="p3")
+    p1 = ExperimentPeriod(time=0, condition_id="p1")
+    p2 = ExperimentPeriod(time=1, condition_id="p2")
+    p3 = ExperimentPeriod(time=2, condition_id="p3")
     exp += p1
     exp += p2
 

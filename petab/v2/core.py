@@ -441,7 +441,8 @@ class ExperimentPeriod(BaseModel):
     """
 
     #: The start time of the period in time units as defined in the model.
-    start: float = Field(alias=C.TIME)
+    # TODO: Only finite times and -inf are allowed as start time
+    time: float = Field(alias=C.TIME)
     # TODO: decide if optional
     #: The ID of the condition to be applied at the start time.
     condition_id: str = Field(alias=C.CONDITION_ID)
@@ -519,7 +520,7 @@ class ExperimentsTable(BaseModel):
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
             periods = [
                 ExperimentPeriod(
-                    start=row[C.TIME], condition_id=row[C.CONDITION_ID]
+                    time=row[C.TIME], condition_id=row[C.CONDITION_ID]
                 )
                 for _, row in cur_exp_df.iterrows()
             ]
@@ -566,6 +567,13 @@ class ExperimentsTable(BaseModel):
             raise TypeError("Can only add Experiment to ExperimentsTable")
         self.experiments.append(other)
         return self
+
+    def __getitem__(self, item):
+        """Get an experiment by ID."""
+        for experiment in self.experiments:
+            if experiment.id == item:
+                return experiment
+        raise KeyError(f"Experiment ID {item} not found")
 
 
 class Measurement(BaseModel):
@@ -770,6 +778,13 @@ class MappingTable(BaseModel):
         self.mappings.append(other)
         return self
 
+    def __getitem__(self, petab_id: str) -> Mapping:
+        """Get a mapping by PEtab ID."""
+        for mapping in self.mappings:
+            if mapping.petab_id == petab_id:
+                return mapping
+        raise KeyError(f"PEtab ID {petab_id} not found")
+
 
 class Parameter(BaseModel):
     """Parameter definition."""
@@ -862,3 +877,10 @@ class ParameterTable(BaseModel):
             raise TypeError("Can only add Parameter to ParameterTable")
         self.parameters.append(other)
         return self
+
+    def __getitem__(self, item) -> Parameter:
+        """Get a parameter by ID."""
+        for parameter in self.parameters:
+            if parameter.id == item:
+                return parameter
+        raise KeyError(f"Parameter ID {item} not found")

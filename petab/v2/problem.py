@@ -153,6 +153,32 @@ class Problem:
             f"{observables}, {measurements}, {parameters}"
         )
 
+    def __getitem__(self, key):
+        """Get PEtab entity by ID.
+
+        This allows accessing PEtab entities such as conditions, experiments,
+        observables, and parameters by their ID.
+
+        Accessing model entities is not currently not supported.
+        """
+        for table in (
+            self.conditions_table,
+            self.experiments_table,
+            self.observables_table,
+            self.measurement_table,
+            self.parameter_table,
+            self.mapping_table,
+        ):
+            if table is not None:
+                try:
+                    return table[key]
+                except KeyError:
+                    pass
+
+        raise KeyError(
+            f"Entity with ID '{key}' not found in the PEtab problem"
+        )
+
     @staticmethod
     def from_yaml(
         yaml_config: dict | Path | str, base_path: str | Path = None
@@ -1062,20 +1088,13 @@ class Problem:
                 "Arguments must be pairs of timepoints and condition IDs."
             )
 
-        records = []
-        for i in range(0, len(args), 2):
-            records.append(
-                {
-                    EXPERIMENT_ID: id_,
-                    TIME: args[i],
-                    CONDITION_ID: args[i + 1],
-                }
-            )
-        tmp_df = pd.DataFrame(records)
-        self.experiment_df = (
-            pd.concat([self.experiment_df, tmp_df])
-            if self.experiment_df is not None
-            else tmp_df
+        periods = [
+            core.ExperimentPeriod(time=args[i], condition_id=args[i + 1])
+            for i in range(0, len(args), 2)
+        ]
+
+        self.experiments_table.experiments.append(
+            core.Experiment(id=id_, periods=periods)
         )
 
     def __iadd__(self, other):
