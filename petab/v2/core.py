@@ -21,6 +21,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from typing_extensions import Self
 
 from ..v1.lint import is_valid_identifier
 from ..v1.math import sympify_petab
@@ -872,12 +873,52 @@ class Parameter(BaseModel):
             raise ValueError(f"Invalid ID: {v}")
         return v
 
+    @field_validator("estimate", mode="before")
+    @classmethod
+    def _validate_estimate_before(cls, v):
+        if isinstance(v, bool):
+            return v
+
+        if isinstance(v, int) or isinstance(v, float) and v.is_integer():
+            if v == 0:
+                return False
+            if v == 1:
+                return True
+
+        if isinstance(v, str):
+            if v == "0":
+                return False
+            if v == "1":
+                return True
+
+        raise ValueError(f"Invalid value for estimate: {v}. Must be 0 or 1.")
+
     @field_validator("lb", "ub", "nominal_value")
     @classmethod
     def _convert_nan_to_none(cls, v):
         if isinstance(v, float) and np.isnan(v):
             return None
         return v
+
+    @model_validator(mode="after")
+    def _validate(self) -> Self:
+        if not self.estimate and self.nominal_value is None:
+            raise ValueError(
+                "Non-estimated parameter must have a nominal value"
+            )
+
+        if self.estimate and (self.lb is None or self.ub is None):
+            raise ValueError(
+                "Estimated parameter must have lower and upper bounds set"
+            )
+
+        if self.lb is not None and self.ub is not None and self.lb >= self.ub:
+            raise ValueError("Lower bound must be less than upper bound")
+
+        # TODO parameterScale?
+
+        # TODO priorType, priorParameters
+        return self
 
 
 class ParameterTable(BaseModel):

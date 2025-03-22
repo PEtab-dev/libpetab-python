@@ -10,26 +10,10 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import sympy as sp
 
 from .. import v2
-from ..v1.lint import (
-    _check_df,
-    assert_model_parameters_in_condition_or_parameter_table,
-    assert_no_leading_trailing_whitespace,
-    assert_parameter_bounds_are_numeric,
-    assert_parameter_estimate_is_boolean,
-    assert_parameter_id_is_string,
-    assert_parameter_prior_parameters_are_valid,
-    assert_parameter_prior_type_is_valid,
-    assert_parameter_scale_is_valid,
-    assert_unique_parameter_ids,
-    check_ids,
-    check_observable_df,
-    check_parameter_bounds,
-)
 from ..v1.visualize.lint import validate_visualization_df
 from ..v2.C import *
 from .problem import Problem
@@ -45,9 +29,8 @@ __all__ = [
     "CheckModel",
     "CheckProblemConfig",
     "CheckPosLogMeasurements",
-    "CheckConditionTable",
-    "CheckObservableTable",
-    "CheckParameterTable",
+    "CheckValidConditionTargets",
+    "CheckUniquePrimaryKeys",
     "CheckExperimentTable",
     "CheckExperimentConditionsExist",
     "CheckAllParametersPresentInParameterTable",
@@ -208,9 +191,6 @@ class ValidationTask(ABC):
 
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
-
-
-# TODO: check for uniqueness of all primary keys
 
 
 class CheckProblemConfig(ValidationTask):
@@ -392,147 +372,87 @@ class CheckMeasuredExperimentsDefined(ValidationTask):
             )
 
 
-class CheckConditionTable(ValidationTask):
-    """A task to validate the condition table of a PEtab problem."""
+class CheckValidConditionTargets(ValidationTask):
+    """Check that all condition table targets are valid."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.condition_df is None:
-            return None
-
-        df = problem.condition_df
-
-        try:
-            _check_df(df, CONDITION_DF_REQUIRED_COLS, "condition")
-            check_ids(df[CONDITION_ID], kind="condition")
-            check_ids(df[TARGET_ID], kind="target")
-        except AssertionError as e:
-            return ValidationError(str(e))
-
-        # TODO: check value types
-
-        if problem.model is None:
-            return
-
-        # check targets are valid
         allowed_targets = set(
             problem.model.get_valid_ids_for_condition_table()
         )
-        if problem.observable_df is not None:
-            allowed_targets |= set(get_output_parameters(problem))
-        if problem.mapping_df is not None:
-            allowed_targets |= set(problem.mapping_df.index.values)
-        invalid = set(df[TARGET_ID].unique()) - allowed_targets
-        if invalid:
+        allowed_targets |= set(get_output_parameters(problem))
+        allowed_targets |= {
+            m.petab_id
+            for m in problem.mapping_table.mappings
+            if m.model_id is not None
+        }
+
+        used_targets = {
+            change.target_id
+            for cond in problem.conditions_table.conditions
+            for change in cond.changes
+        }
+
+        if invalid := (used_targets - allowed_targets):
             return ValidationError(
                 f"Condition table contains invalid targets: {invalid}"
             )
 
-        # TODO check that all value types are valid for the given targets
 
+class CheckUniquePrimaryKeys(ValidationTask):
+    """Check that all primary keys are unique."""
 
-class CheckObservableTable(ValidationTask):
-    """A task to validate the observable table of a PEtab problem."""
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        # check for uniqueness of all primary keys
+        counter = Counter(c.id for c in problem.conditions_table.conditions)
+        duplicates = {id for id, count in counter.items() if count > 1}
 
-    def run(self, problem: Problem):
-        if problem.observable_df is None:
-            return
-
-        try:
-            check_observable_df(
-                problem.observable_df,
+        if duplicates:
+            return ValidationError(
+                f"Condition table contains duplicate IDs: {duplicates}"
             )
-        except AssertionError as e:
-            return ValidationIssue(
-                level=ValidationIssueSeverity.ERROR, message=str(e)
+
+        counter = Counter(o.id for o in problem.observables_table.observables)
+        duplicates = {id for id, count in counter.items() if count > 1}
+
+        if duplicates:
+            return ValidationError(
+                f"Observable table contains duplicate IDs: {duplicates}"
+            )
+
+        counter = Counter(e.id for e in problem.experiments_table.experiments)
+        duplicates = {id for id, count in counter.items() if count > 1}
+
+        if duplicates:
+            return ValidationError(
+                f"Experiment table contains duplicate IDs: {duplicates}"
+            )
+
+        counter = Counter(p.id for p in problem.parameter_table.parameters)
+        duplicates = {id for id, count in counter.items() if count > 1}
+
+        if duplicates:
+            return ValidationError(
+                f"Parameter table contains duplicate IDs: {duplicates}"
             )
 
 
 class CheckObservablesDoNotShadowModelEntities(ValidationTask):
     """A task to check that observable IDs do not shadow model entities."""
 
+    # TODO: all PEtab entity IDs must be disjoint from the model entity IDs
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.observable_df is None or problem.model is None:
-            return
+        if not problem.observables_table.observables or problem.model is None:
+            return None
 
         shadowed_entities = [
-            obs_id
-            for obs_id in problem.observable_df.index
-            if problem.model.has_entity_with_id(obs_id)
+            o.id
+            for o in problem.observables_table.observables
+            if problem.model.has_entity_with_id(o.id)
         ]
         if shadowed_entities:
             return ValidationError(
                 f"Observable IDs {shadowed_entities} shadow model entities."
             )
-
-
-class CheckParameterTable(ValidationTask):
-    """A task to validate the parameter table of a PEtab problem."""
-
-    def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.parameter_df is None:
-            return
-
-        try:
-            df = problem.parameter_df
-            _check_df(df, PARAMETER_DF_REQUIRED_COLS[1:], "parameter")
-
-            if df.index.name != PARAMETER_ID:
-                return ValidationError(
-                    f"Parameter table has wrong index {df.index.name}."
-                    f" Expected {PARAMETER_ID}.",
-                )
-
-            check_ids(df.index.values, kind="parameter")
-
-            for column_name in PARAMETER_DF_REQUIRED_COLS[
-                1:
-            ]:  # 0 is PARAMETER_ID
-                if not np.issubdtype(df[column_name].dtype, np.number):
-                    assert_no_leading_trailing_whitespace(
-                        df[column_name].values, column_name
-                    )
-
-            # nominal value is required for non-estimated parameters
-            non_estimated_par_ids = list(
-                df.index[
-                    (df[ESTIMATE] != 1)
-                    | (
-                        pd.api.types.is_string_dtype(df[ESTIMATE])
-                        and df[ESTIMATE] != "1"
-                    )
-                ]
-            )
-            # TODO implement as validators
-            #  `assert_has_fixed_parameter_nominal_values`
-            #   and `assert_correct_table_dtypes`
-            if non_estimated_par_ids:
-                if NOMINAL_VALUE not in df:
-                    return ValidationError(
-                        "Parameter table contains parameters "
-                        f"{non_estimated_par_ids} that are not "
-                        "specified to be estimated, "
-                        f"but column {NOMINAL_VALUE} is missing."
-                    )
-                try:
-                    df.loc[non_estimated_par_ids, NOMINAL_VALUE].apply(float)
-                except ValueError:
-                    return ValidationError(
-                        f"Expected numeric values for `{NOMINAL_VALUE}` "
-                        "in parameter table "
-                        "for all non-estimated parameters."
-                    )
-
-            assert_parameter_id_is_string(df)
-            assert_parameter_scale_is_valid(df)
-            assert_parameter_bounds_are_numeric(df)
-            assert_parameter_estimate_is_boolean(df)
-            assert_unique_parameter_ids(df)
-            check_parameter_bounds(df)
-            assert_parameter_prior_type_is_valid(df)
-            assert_parameter_prior_parameters_are_valid(df)
-
-        except AssertionError as e:
-            return ValidationError(str(e))
 
 
 class CheckExperimentTable(ValidationTask):
@@ -584,12 +504,7 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
     with no additional ones."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if (
-            problem.model is None
-            or problem.parameter_df is None
-            or problem.observable_df is None
-            or problem.measurement_df is None
-        ):
+        if problem.model is None:
             return None
 
         required = get_required_parameters_for_parameter_table(problem)
@@ -601,17 +516,13 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
 
         # missing parameters might be present under a different name based on
         # the mapping table
-        if missing and problem.mapping_df is not None:
+        if missing:
             model_to_petab_mapping = {}
-            for map_from, map_to in zip(
-                problem.mapping_df.index.values,
-                problem.mapping_df[MODEL_ENTITY_ID],
-                strict=True,
-            ):
-                if map_to in model_to_petab_mapping:
-                    model_to_petab_mapping[map_to].append(map_from)
+            for m in problem.mapping_table.mappings:
+                if m.model_id in model_to_petab_mapping:
+                    model_to_petab_mapping[m.model_id].append(m.petab_id)
                 else:
-                    model_to_petab_mapping[map_to] = [map_from]
+                    model_to_petab_mapping[m.model_id] = [m.petab_id]
             missing = {
                 missing_id
                 for missing_id in missing
@@ -640,23 +551,71 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
     present in the condition or parameter table."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if (
-            problem.model is None
-            or problem.condition_df is None
-            or problem.parameter_df is None
-        ):
-            return
+        if problem.model is None:
+            return None
 
-        try:
-            assert_model_parameters_in_condition_or_parameter_table(
-                problem.model,
-                problem.condition_df,
-                problem.parameter_df,
-                problem.mapping_df,
+        allowed_in_condition_cols = set(
+            problem.model.get_valid_ids_for_condition_table()
+        )
+        allowed_in_condition_cols |= {
+            m.petab_id
+            for m in problem.mapping_table.mappings
+            if not pd.isna(m.model_id)
+            and (
+                # mapping table entities mapping to already allowed parameters
+                m.model_id in allowed_in_condition_cols
+                # mapping table entities mapping to species
+                or problem.model.is_state_variable(m.model_id)
             )
-        except AssertionError as e:
-            return ValidationIssue(
-                level=ValidationIssueSeverity.ERROR, message=str(e)
+        }
+
+        allowed_in_parameter_table = get_valid_parameters_for_parameter_table(
+            problem
+        )
+
+        entities_in_condition_table = {
+            change.target_id
+            for cond in problem.conditions_table.conditions
+            for change in cond.changes
+        }
+        entities_in_parameter_table = {
+            p.id for p in problem.parameter_table.parameters
+        }
+
+        disallowed_in_condition = {
+            x
+            for x in (entities_in_condition_table - allowed_in_condition_cols)
+            # we only check model entities here, not output parameters
+            if problem.model.has_entity_with_id(x)
+        }
+        if disallowed_in_condition:
+            is_or_are = "is" if len(disallowed_in_condition) == 1 else "are"
+            return ValidationError(
+                f"{disallowed_in_condition} {is_or_are} not "
+                "allowed to occur in condition table "
+                "columns."
+            )
+
+        disallowed_in_parameters = {
+            x
+            for x in (entities_in_parameter_table - allowed_in_parameter_table)
+            # we only check model entities here, not output parameters
+            if problem.model.has_entity_with_id(x)
+        }
+
+        if disallowed_in_parameters:
+            is_or_are = "is" if len(disallowed_in_parameters) == 1 else "are"
+            return ValidationError(
+                f"{disallowed_in_parameters} {is_or_are} not "
+                "allowed to occur in the parameters table."
+            )
+
+        in_both = entities_in_condition_table & entities_in_parameter_table
+        if in_both:
+            is_or_are = "is" if len(in_both) == 1 else "are"
+            return ValidationError(
+                f"{in_both} {is_or_are} present in both "
+                "the condition table and the parameter table."
             )
 
 
@@ -959,19 +918,18 @@ def get_placeholders(
 default_validation_tasks = [
     CheckProblemConfig(),
     CheckModel(),
-    CheckPosLogMeasurements(),
+    CheckUniquePrimaryKeys(),
     CheckMeasuredObservablesDefined(),
+    CheckPosLogMeasurements(),
     CheckOverridesMatchPlaceholders(),
-    CheckConditionTable(),
+    CheckValidConditionTargets(),
     CheckExperimentTable(),
     CheckExperimentConditionsExist(),
-    CheckObservableTable(),
     CheckObservablesDoNotShadowModelEntities(),
-    CheckParameterTable(),
     CheckAllParametersPresentInParameterTable(),
-    # TODO: atomize checks, update to long condition table, re-enable
-    # CheckVisualizationTable(),
     CheckValidParameterInConditionOrParameterTable(),
     CheckUnusedExperiments(),
     CheckUnusedConditions(),
+    # TODO: atomize checks, update to long condition table, re-enable
+    # CheckVisualizationTable(),
 ]
