@@ -76,7 +76,7 @@ class Problem:
         experiments_table: core.ExperimentsTable = None,
         observables_table: core.ObservablesTable = None,
         measurement_table: core.MeasurementTable = None,
-        parameters_table: core.ParametersTable = None,
+        parameters_table: core.ParameterTable = None,
         mapping_table: core.MappingTable = None,
         visualization_df: pd.DataFrame = None,
         extensions_config: dict = None,
@@ -84,12 +84,12 @@ class Problem:
     ):
         from ..v2.lint import default_validation_tasks
 
+        self.config = config
         self.model: Model | None = model
         self.extensions_config = extensions_config or {}
         self.validation_tasks: list[ValidationTask] = (
             default_validation_tasks.copy()
         )
-        self.config = config
 
         self.observables_table = observables_table or core.ObservablesTable(
             observables=[]
@@ -109,45 +109,24 @@ class Problem:
         )
 
         self.visualization_df = visualization_df
-        self.config = config
-        self.extensions_config = extensions_config
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
 
-        experiments = (
-            f"{self.experiment_df.shape[0]} experiments"
-            if self.experiment_df is not None
-            else "without experiments table"
-        )
+        ne = len(self.experiments_table.experiments)
+        experiments = f"{ne} experiments"
 
-        conditions = (
-            f"{self.condition_df.shape[0]} conditions"
-            if self.condition_df is not None
-            else "without conditions table"
-        )
+        nc = len(self.conditions_table.conditions)
+        conditions = f"{nc} conditions"
 
-        observables = (
-            f"{self.observable_df.shape[0]} observables"
-            if self.observable_df is not None
-            else "without observables table"
-        )
+        no = len(self.observables_table.observables)
+        observables = f"{no} observables"
 
-        measurements = (
-            f"{self.measurement_df.shape[0]} measurements"
-            if self.measurement_df is not None
-            else "without measurements table"
-        )
+        nm = len(self.measurement_table.measurements)
+        measurements = f"{nm} measurements"
 
-        if self.parameter_df is not None:
-            num_estimated_parameters = (
-                sum(self.parameter_df[ESTIMATE] == 1)
-                if ESTIMATE in self.parameter_df
-                else self.parameter_df.shape[0]
-            )
-            parameters = f"{num_estimated_parameters} estimated parameters"
-        else:
-            parameters = "without parameter_df table"
+        nest = self.parameter_table.n_estimated
+        parameters = f"{nest} estimated parameters"
 
         return (
             f"PEtab Problem {model}, {conditions}, {experiments}, "

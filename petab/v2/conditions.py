@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from itertools import chain
 from pathlib import Path
 
 import pandas as pd
 import sympy as sp
 
 from .. import v2
-from ..v1.math import sympify_petab
 from .C import *
 from .lint import assert_no_leading_trailing_whitespace
 
@@ -59,10 +59,11 @@ def get_condition_table_free_symbols(problem: v2.Problem) -> set[sp.Basic]:
 
     :returns: Set of free symbols.
     """
-    if problem.condition_df is None:
-        return set()
-
-    free_symbols = set()
-    for target_value in problem.condition_df[TARGET_VALUE]:
-        free_symbols |= sympify_petab(target_value).free_symbols
-    return free_symbols
+    return set(
+        chain.from_iterable(
+            change.target_value.free_symbols
+            for condition in problem.conditions_table.conditions
+            for change in condition.changes
+            if change.target_value is not None
+        )
+    )

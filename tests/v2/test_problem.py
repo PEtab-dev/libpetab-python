@@ -12,6 +12,7 @@ from petab.v2.C import (
     ESTIMATE,
     LOWER_BOUND,
     MODEL_ENTITY_ID,
+    NAME,
     NOISE_FORMULA,
     NOMINAL_VALUE,
     OBSERVABLE_FORMULA,
@@ -163,6 +164,7 @@ def test_modify_problem():
         data={
             PETAB_ENTITY_ID: ["new_petab_id"],
             MODEL_ENTITY_ID: ["some_model_entity_id"],
+            NAME: [None],
         }
     ).set_index([PETAB_ENTITY_ID])
     assert_frame_equal(problem.mapping_df, exp_mapping_df, check_dtype=False)

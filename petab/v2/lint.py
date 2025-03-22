@@ -12,13 +12,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sympy as sp
 
 from .. import v2
 from ..v1.lint import (
     _check_df,
-    assert_measured_observables_defined,
-    assert_measurements_not_null,
-    assert_measurements_numeric,
     assert_model_parameters_in_condition_or_parameter_table,
     assert_no_leading_trailing_whitespace,
     assert_parameter_bounds_are_numeric,
@@ -27,17 +25,11 @@ from ..v1.lint import (
     assert_parameter_prior_parameters_are_valid,
     assert_parameter_prior_type_is_valid,
     assert_parameter_scale_is_valid,
-    assert_unique_observable_ids,
     assert_unique_parameter_ids,
     check_ids,
     check_observable_df,
     check_parameter_bounds,
 )
-from ..v1.measurements import (
-    assert_overrides_match_parameter_count,
-    split_parameter_replacement_list,
-)
-from ..v1.observables import get_output_parameters, get_placeholders
 from ..v1.visualize.lint import validate_visualization_df
 from ..v2.C import *
 from .problem import Problem
@@ -51,9 +43,8 @@ __all__ = [
     "ValidationError",
     "ValidationTask",
     "CheckModel",
-    "CheckTableExists",
-    "CheckValidPetabIdColumn",
-    "CheckMeasurementTable",
+    "CheckProblemConfig",
+    "CheckPosLogMeasurements",
     "CheckConditionTable",
     "CheckObservableTable",
     "CheckParameterTable",
@@ -62,6 +53,9 @@ __all__ = [
     "CheckAllParametersPresentInParameterTable",
     "CheckValidParameterInConditionOrParameterTable",
     "CheckVisualizationTable",
+    "CheckUnusedExperiments",
+    "CheckObservablesDoNotShadowModelEntities",
+    "CheckUnusedConditions",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -91,6 +85,7 @@ class ValidationIssue:
 
     level: ValidationIssueSeverity
     message: str
+    task: str | None = None
 
     def __post_init__(self):
         if not isinstance(self.level, ValidationIssueSeverity):
@@ -121,7 +116,6 @@ class ValidationError(ValidationIssue):
     level: ValidationIssueSeverity = field(
         default=ValidationIssueSeverity.ERROR, init=False
     )
-    task: str | None = None
 
     def __post_init__(self):
         if self.task is None:
@@ -135,7 +129,6 @@ class ValidationWarning(ValidationIssue):
     level: ValidationIssueSeverity = field(
         default=ValidationIssueSeverity.WARNING, init=False
     )
-    task: str | None = None
 
     def __post_init__(self):
         if self.task is None:
@@ -153,17 +146,25 @@ class ValidationResultList(list[ValidationIssue]):
         *,
         logger: logging.Logger = logger,
         min_level: ValidationIssueSeverity = ValidationIssueSeverity.INFO,
+        max_level: ValidationIssueSeverity = ValidationIssueSeverity.CRITICAL,
     ):
-        """Log the validation results."""
+        """Log the validation results.
+
+        :param logger: The logger to use for logging.
+            Defaults to the module logger.
+        :param min_level: The minimum severity level to log.
+        :param max_level: The maximum severity level to log.
+        """
         for result in self:
-            if result.level < min_level:
+            if result.level < min_level or result.level > max_level:
                 continue
+            msg = f"{result.level.name}: {result.message} [{result.task}]"
             if result.level == ValidationIssueSeverity.INFO:
-                logger.info(result.message)
+                logger.info(msg)
             elif result.level == ValidationIssueSeverity.WARNING:
-                logger.warning(result.message)
+                logger.warning(msg)
             elif result.level >= ValidationIssueSeverity.ERROR:
-                logger.error(result.message)
+                logger.error(msg)
 
         if not self:
             logger.info("PEtab format check completed successfully.")
@@ -209,6 +210,41 @@ class ValidationTask(ABC):
         return self.run(*args, **kwargs)
 
 
+# TODO: check for uniqueness of all primary keys
+
+
+class CheckProblemConfig(ValidationTask):
+    """A task to validate the configuration of a PEtab problem.
+
+    This corresponds to checking the problem YAML file semantics.
+    """
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        if (config := problem.config) is None or config.base_path is None:
+            # This is allowed, so we can validate in-memory problems
+            #  that don't have the list of files populated
+            return None
+            # TODO: decide when this should be emitted
+            # return ValidationWarning("Problem configuration is missing.")
+
+        # TODO: we need some option for validating partial vs full problems
+        # check for unset but required files
+        missing_files = []
+        if not config.parameter_file:
+            missing_files.append("parameters")
+
+        if not [p.measurement_files for p in config.problems]:
+            missing_files.append("measurements")
+
+        if not [p.observable_files for p in config.problems]:
+            missing_files.append("observables")
+
+        if missing_files:
+            return ValidationError(
+                f"Missing files: {', '.join(missing_files)}"
+            )
+
+
 class CheckModel(ValidationTask):
     """A task to validate the model of a PEtab problem."""
 
@@ -221,134 +257,133 @@ class CheckModel(ValidationTask):
             return ValidationError("Model is invalid.")
 
 
-class CheckTableExists(ValidationTask):
-    """A task to check if a table exists in the PEtab problem."""
+class CheckMeasuredObservablesDefined(ValidationTask):
+    """A task to check that all observables referenced by the measurements
+    are defined."""
 
-    def __init__(self, table_name: str):
-        if table_name not in ["measurement", "observable", "parameter"]:
-            # all others are optional
-            raise ValueError(
-                f"Table name {table_name} is not supported. "
-                "Supported table names are 'measurement', 'observable', "
-                "'parameter'."
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        used_observables = {
+            m.observable_id for m in problem.measurement_table.measurements
+        }
+        defined_observables = {
+            o.id for o in problem.observables_table.observables
+        }
+        if undefined_observables := (used_observables - defined_observables):
+            return ValidationError(
+                f"Observables {undefined_observables} used in "
+                "measurement table but not defined in observables table."
             )
-        self.table_name = table_name
+
+
+class CheckOverridesMatchPlaceholders(ValidationTask):
+    """A task to check that the number of observable/noise parameters
+    in the measurements match the number of placeholders in the observables."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if getattr(problem, f"{self.table_name}_df") is None:
-            return ValidationError(f"{self.table_name} table is missing.")
-
-
-class CheckValidPetabIdColumn(ValidationTask):
-    """A task to check that a given column contains only valid PEtab IDs."""
-
-    def __init__(
-        self,
-        table_name: str,
-        column_name: str,
-        required_column: bool = True,
-        ignore_nan: bool = False,
-    ):
-        self.table_name = table_name
-        self.column_name = column_name
-        self.required_column = required_column
-        self.ignore_nan = ignore_nan
-
-    def run(self, problem: Problem) -> ValidationIssue | None:
-        df = getattr(problem, f"{self.table_name}_df")
-        if df is None:
-            return
-
-        if self.column_name not in df.columns:
-            if self.required_column:
-                return ValidationError(
-                    f"Column {self.column_name} is missing in "
-                    f"{self.table_name} table."
+        observable_parameters_count = {
+            o.id: len(o.observable_placeholders)
+            for o in problem.observables_table.observables
+        }
+        noise_parameters_count = {
+            o.id: len(o.noise_placeholders)
+            for o in problem.observables_table.observables
+        }
+        messages = []
+        for m in problem.measurement_table.measurements:
+            # check observable parameters
+            try:
+                expected = observable_parameters_count[m.observable_id]
+            except KeyError:
+                messages.append(
+                    f"Observable {m.observable_id} used in measurement "
+                    f"table is not defined."
                 )
-            return
+                continue
 
-        try:
-            ids = df[self.column_name].values
-            if self.ignore_nan:
-                ids = ids[~pd.isna(ids)]
-            check_ids(ids, kind=self.column_name)
-        except ValueError as e:
-            return ValidationError(str(e))
+            actual = len(m.observable_parameters)
 
+            if actual != expected:
+                formula = problem.observables_table[m.observable_id].formula
+                messages.append(
+                    f"Mismatch of observable parameter overrides for "
+                    f"{m.observable_id} ({formula})"
+                    f"in:\n{m}\n"
+                    f"Expected {expected} but got {actual}"
+                )
 
-class CheckMeasurementTable(ValidationTask):
-    """A task to validate the measurement table of a PEtab problem."""
-
-    def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.measurement_df is None:
-            return
-
-        df = problem.measurement_df
-        try:
-            _check_df(df, MEASUREMENT_DF_REQUIRED_COLS, "measurement")
-
-            for column_name in MEASUREMENT_DF_REQUIRED_COLS:
-                if not np.issubdtype(df[column_name].dtype, np.number):
-                    assert_no_leading_trailing_whitespace(
-                        df[column_name].values, column_name
-                    )
-
-            for column_name in MEASUREMENT_DF_OPTIONAL_COLS:
-                if column_name in df and not np.issubdtype(
-                    df[column_name].dtype, np.number
+            # check noise parameters
+            expected = noise_parameters_count[m.observable_id]
+            actual = len(m.noise_parameters)
+            if actual != expected:
+                # no overrides defined, but a numerical sigma can be provided
+                # anyway
+                if len(m.noise_parameters) != 1 or (
+                    len(m.noise_parameters) == 1
+                    and m.noise_parameters[0].is_number
                 ):
-                    assert_no_leading_trailing_whitespace(
-                        df[column_name].values, column_name
+                    messages.append(
+                        "No placeholders have been specified in the "
+                        f"noise model for observable {m.observable_id}, "
+                        "but a parameter ID "
+                        "or multiple overrides were specified in the "
+                        "noiseParameters column."
+                    )
+                else:
+                    formula = problem.observables_table[
+                        m.observable_id
+                    ].noise_formula
+                    messages.append(
+                        f"Mismatch of noise parameter overrides for "
+                        f"{m.observable_id} ({formula})"
+                        f"in:\n{m}\n"
+                        f"Expected {expected} but got {actual}"
                     )
 
-            if problem.observable_df is not None:
-                assert_measured_observables_defined(df, problem.observable_df)
-                assert_overrides_match_parameter_count(
-                    df, problem.observable_df
-                )
+        if messages:
+            return ValidationError("\n".join(messages))
 
-                if OBSERVABLE_TRANSFORMATION in problem.observable_df:
-                    # Check for positivity of measurements in case of
-                    #  log-transformation
-                    assert_unique_observable_ids(problem.observable_df)
-                    # If the above is not checked, in the following loop
-                    # trafo may become a pandas Series
-                    for measurement, obs_id in zip(
-                        df[MEASUREMENT], df[OBSERVABLE_ID], strict=True
-                    ):
-                        trafo = problem.observable_df.loc[
-                            obs_id, OBSERVABLE_TRANSFORMATION
-                        ]
-                        if measurement <= 0.0 and trafo in [LOG, LOG10]:
-                            raise ValueError(
-                                "Measurements with observable "
-                                f"transformation {trafo} must be "
-                                f"positive, but {measurement} <= 0."
-                            )
 
-            assert_measurements_not_null(df)
-            assert_measurements_numeric(df)
-        except AssertionError as e:
-            return ValidationError(str(e))
+class CheckPosLogMeasurements(ValidationTask):
+    """A task to check that measurements for observables with
+    log-transformation are positive."""
 
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        from .core import ObservableTransformation as ot
+
+        log_observables = {
+            o.id
+            for o in problem.observables_table.observables
+            if o.transformation in [ot.LOG, ot.LOG10]
+        }
+        if log_observables:
+            for m in problem.measurement_table.measurements:
+                if m.measurement <= 0 and m.observable_id in log_observables:
+                    return ValidationError(
+                        "Measurements with observable "
+                        f"log transformation must be "
+                        f"positive, but {m.measurement} <= 0 for {m}"
+                    )
+
+
+class CheckMeasuredExperimentsDefined(ValidationTask):
+    """A task to check that all experiments referenced by measurements
+    are defined."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
         # TODO: introduce some option for validation of partial vs full
         #  problem. if this is supposed to be a complete problem, a missing
         #  condition table should be an error if the measurement table refers
         #  to conditions, otherwise it should maximally be a warning
-        used_experiments = set(problem.measurement_df[EXPERIMENT_ID].values)
-        # handle default-experiment
-        used_experiments = set(
-            filter(
-                lambda x: not pd.isna(x),
-                used_experiments,
-            )
-        )
+        used_experiments = {
+            m.experiment_id
+            for m in problem.measurement_table.measurements
+            if m.experiment_id is not None
+        }
+
         # check that measured experiments exist
-        available_experiments = (
-            set(problem.experiment_df[EXPERIMENT_ID].unique())
-            if problem.experiment_df is not None
-            else set()
-        )
+        available_experiments = {
+            e.id for e in problem.experiments_table.experiments
+        }
         if missing_experiments := (used_experiments - available_experiments):
             return ValidationError(
                 "Measurement table references experiments that "
@@ -362,7 +397,7 @@ class CheckConditionTable(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.condition_df is None:
-            return
+            return None
 
         df = problem.condition_df
 
@@ -383,13 +418,7 @@ class CheckConditionTable(ValidationTask):
             problem.model.get_valid_ids_for_condition_table()
         )
         if problem.observable_df is not None:
-            allowed_targets |= set(
-                get_output_parameters(
-                    model=problem.model,
-                    observable_df=problem.observable_df,
-                    mapping_df=problem.mapping_df,
-                )
-            )
+            allowed_targets |= set(get_output_parameters(problem))
         if problem.mapping_df is not None:
             allowed_targets |= set(problem.mapping_df.index.values)
         invalid = set(df[TARGET_ID].unique()) - allowed_targets
@@ -561,12 +590,12 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
             or problem.observable_df is None
             or problem.measurement_df is None
         ):
-            return
+            return None
 
         required = get_required_parameters_for_parameter_table(problem)
         allowed = get_valid_parameters_for_parameter_table(problem)
 
-        actual = set(problem.parameter_df.index)
+        actual = {p.id for p in problem.parameter_table.parameters}
         missing = required - actual
         extraneous = actual - allowed
 
@@ -694,14 +723,9 @@ def get_valid_parameters_for_parameter_table(
     problem: Problem,
 ) -> set[str]:
     """
-    Get set of parameters which may be present inside the parameter table
+    Get the set of parameters which may be present inside the parameter table
 
-    Arguments:
-        model: PEtab model
-        condition_df: PEtab condition table
-        observable_df: PEtab observable table
-        measurement_df: PEtab measurement table
-        mapping_df: PEtab mapping table for additional checks
+    :param problem: The PEtab problem
 
     Returns:
         Set of parameter IDs which PEtab allows to be present in the
@@ -715,71 +739,49 @@ def get_valid_parameters_for_parameter_table(
     # - remove parameters for which condition table columns exist
     # - remove placeholder parameters
     #   (only partial overrides are not supported)
-    model = problem.model
-    condition_df = problem.condition_df
-    observable_df = problem.observable_df
-    measurement_df = problem.measurement_df
-    mapping_df = problem.mapping_df
-
     # must not go into parameter table
-    blackset = set()
+    blackset = set(get_placeholders(problem))
 
-    if observable_df is not None:
-        placeholders = set(get_placeholders(observable_df))
-
-        # collect assignment targets
-        blackset |= placeholders
-
-    if condition_df is not None:
-        blackset |= set(condition_df.columns.values)
+    # condition table targets
+    blackset |= {
+        change.target_id
+        for cond in problem.conditions_table.conditions
+        for change in cond.changes
+    }
 
     # don't use sets here, to have deterministic ordering,
     #  e.g. for creating parameter tables
     parameter_ids = OrderedDict.fromkeys(
         p
-        for p in model.get_valid_parameters_for_parameter_table()
+        for p in problem.model.get_valid_parameters_for_parameter_table()
         if p not in blackset
     )
 
-    if mapping_df is not None:
-        for from_id, to_id in mapping_df[MODEL_ENTITY_ID].items():
-            if to_id in parameter_ids.keys():
-                parameter_ids[from_id] = None
+    for mapping in problem.mapping_table.mappings:
+        if mapping.model_id and mapping.model_id in parameter_ids.keys():
+            parameter_ids[mapping.petab_id] = None
 
-    if observable_df is not None:
-        # add output parameters from observables table
-        output_parameters = get_output_parameters(
-            observable_df=observable_df, model=model
-        )
-        for p in output_parameters:
-            if p not in blackset:
-                parameter_ids[p] = None
+    # add output parameters from observables table
+    output_parameters = get_output_parameters(problem)
+    for p in output_parameters:
+        if p not in blackset:
+            parameter_ids[p] = None
 
     # Append parameters from measurement table, unless they occur as condition
     # table columns
     def append_overrides(overrides):
         for p in overrides:
-            if isinstance(p, str) and p not in blackset:
-                parameter_ids[p] = None
+            if isinstance(p, sp.Symbol) and (str_p := str(p)) not in blackset:
+                parameter_ids[str_p] = None
 
-    if measurement_df is not None:
-        for _, row in measurement_df.iterrows():
-            # we trust that the number of overrides matches
-            append_overrides(
-                split_parameter_replacement_list(
-                    row.get(OBSERVABLE_PARAMETERS, None)
-                )
-            )
-            append_overrides(
-                split_parameter_replacement_list(
-                    row.get(NOISE_PARAMETERS, None)
-                )
-            )
+    for measurement in problem.measurement_table.measurements:
+        # we trust that the number of overrides matches
+        append_overrides(measurement.observable_parameters)
+        append_overrides(measurement.noise_parameters)
 
     # Append parameter overrides from condition table
-    if condition_df is not None:
-        for p in v2.conditions.get_condition_table_free_symbols(problem):
-            parameter_ids[str(p)] = None
+    for p in v2.conditions.get_condition_table_free_symbols(problem):
+        parameter_ids[str(p)] = None
 
     return set(parameter_ids.keys())
 
@@ -799,34 +801,30 @@ def get_required_parameters_for_parameter_table(
         that are not defined in the model.
     """
     parameter_ids = set()
+    condition_targets = {
+        change.target_id
+        for cond in problem.conditions_table.conditions
+        for change in cond.changes
+    }
 
     # Add parameters from measurement table, unless they are fixed parameters
     def append_overrides(overrides):
         parameter_ids.update(
-            p
+            str_p
             for p in overrides
-            if isinstance(p, str)
-            and (
-                problem.condition_df is None
-                or p not in problem.condition_df[TARGET_ID]
-            )
+            if isinstance(p, sp.Symbol)
+            and (str_p := str(p)) not in condition_targets
         )
 
-    for _, row in problem.measurement_df.iterrows():
+    for m in problem.measurement_table.measurements:
         # we trust that the number of overrides matches
-        append_overrides(
-            split_parameter_replacement_list(
-                row.get(OBSERVABLE_PARAMETERS, None)
-            )
-        )
-        append_overrides(
-            split_parameter_replacement_list(row.get(NOISE_PARAMETERS, None))
-        )
+        append_overrides(m.observable_parameters)
+        append_overrides(m.noise_parameters)
 
-    # remove `observable_ids` when
-    # `get_output_parameters` is updated for PEtab v2/v1.1, where
-    # observable IDs are allowed in observable formulae
-    observable_ids = set(problem.observable_df.index)
+    # TODO remove `observable_ids` when
+    #  `get_output_parameters` is updated for PEtab v2/v1.1, where
+    #  observable IDs are allowed in observable formulae
+    observable_ids = {o.id for o in problem.observables_table.observables}
 
     # Add output parameters except for placeholders
     for formula_type, placeholder_sources in (
@@ -844,13 +842,11 @@ def get_required_parameters_for_parameter_table(
         ),
     ):
         output_parameters = get_output_parameters(
-            problem.observable_df,
-            problem.model,
-            mapping_df=problem.mapping_df,
+            problem,
             **formula_type,
         )
         placeholders = get_placeholders(
-            problem.observable_df,
+            problem,
             **placeholder_sources,
         )
         parameter_ids.update(
@@ -868,25 +864,106 @@ def get_required_parameters_for_parameter_table(
     )
 
     # parameters that are overridden via the condition table are not allowed
-    if problem.condition_df is not None:
-        parameter_ids -= set(problem.condition_df[TARGET_ID].unique())
+    parameter_ids -= condition_targets
 
     return parameter_ids
 
 
+def get_output_parameters(
+    problem: Problem,
+    observables: bool = True,
+    noise: bool = True,
+) -> list[str]:
+    """Get output parameters
+
+    Returns IDs of parameters used in observable and noise formulas that are
+    not defined in the model.
+
+    Arguments:
+        problem: The PEtab problem
+        observables: Include parameters from observableFormulas
+        noise: Include parameters from noiseFormulas
+
+    Returns:
+        List of output parameter IDs
+    """
+    formulas = []
+    if observables:
+        formulas.extend(
+            o.formula for o in problem.observables_table.observables
+        )
+    if noise:
+        formulas.extend(
+            o.noise_formula for o in problem.observables_table.observables
+        )
+    output_parameters = OrderedDict()
+
+    for formula in formulas:
+        free_syms = sorted(
+            formula.free_symbols,
+            key=lambda symbol: symbol.name,
+        )
+        for free_sym in free_syms:
+            sym = str(free_sym)
+            if problem.model.symbol_allowed_in_observable_formula(sym):
+                continue
+
+            # does it map to a model entity?
+
+            if (
+                (mapped := problem.mapping_table.get(sym)) is not None
+                and mapped.model_id is not None
+                and problem.model.symbol_allowed_in_observable_formula(
+                    mapped.model_id
+                )
+            ):
+                continue
+
+            output_parameters[sym] = None
+
+    return list(output_parameters.keys())
+
+
+def get_placeholders(
+    problem: Problem,
+    observables: bool = True,
+    noise: bool = True,
+) -> list[str]:
+    """Get all placeholder parameters from observable table observableFormulas
+    and noiseFormulas.
+
+    Arguments:
+        problem: The PEtab problem
+        observables: Include parameters from observableFormulas
+        noise: Include parameters from noiseFormulas
+
+    Returns:
+        List of placeholder parameters from observable table observableFormulas
+        and noiseFormulas.
+    """
+    # collect placeholder parameters overwritten by
+    # {observable,noise}Parameters
+    placeholders = []
+    for o in problem.observables_table.observables:
+        if observables:
+            placeholders.extend(map(str, o.observable_placeholders))
+        if noise:
+            placeholders.extend(map(str, o.noise_placeholders))
+
+    from ..v1.core import unique_preserve_order
+
+    return unique_preserve_order(placeholders)
+
+
 #: Validation tasks that should be run on any PEtab problem
 default_validation_tasks = [
-    CheckTableExists("measurement"),
-    CheckTableExists("observable"),
-    CheckTableExists("parameter"),
+    CheckProblemConfig(),
     CheckModel(),
-    CheckMeasurementTable(),
+    CheckPosLogMeasurements(),
+    CheckMeasuredObservablesDefined(),
+    CheckOverridesMatchPlaceholders(),
     CheckConditionTable(),
     CheckExperimentTable(),
-    CheckValidPetabIdColumn("measurement", EXPERIMENT_ID, ignore_nan=True),
-    CheckValidPetabIdColumn("experiment", EXPERIMENT_ID),
-    # TODO: NAN allowed?
-    CheckValidPetabIdColumn("experiment", CONDITION_ID, ignore_nan=True),
     CheckExperimentConditionsExist(),
     CheckObservableTable(),
     CheckObservablesDoNotShadowModelEntities(),

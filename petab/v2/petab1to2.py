@@ -226,11 +226,19 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     validation_issues = v2.lint_problem(new_yaml_file)
 
     if validation_issues:
-        validation_issues = "\n".join(map(str, validation_issues))
-        raise ValueError(
-            "The generated PEtab v2 problem did not pass linting: "
-            f"{validation_issues}"
+        sev = v2.lint.ValidationIssueSeverity
+        validation_issues.log(max_level=sev.WARNING)
+        errors = "\n".join(
+            map(
+                str,
+                (i for i in validation_issues if i.level > sev.WARNING),
+            )
         )
+        if errors:
+            raise ValueError(
+                "The generated PEtab v2 problem did not pass linting: "
+                f"{errors}"
+            )
 
 
 def _update_yaml(yaml_config: dict) -> dict:

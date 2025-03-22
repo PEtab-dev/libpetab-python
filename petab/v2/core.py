@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import numpy as np
 import pandas as pd
@@ -46,11 +47,17 @@ __all__ = [
 ]
 
 
-def is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
+def _is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
     if not np.isfinite(v) and v != -np.inf:
         raise ValueError(
             f"{info.field_name} value must be finite or -inf but got {v}"
         )
+    return v
+
+
+def _not_nan(v: float, info: ValidationInfo) -> float:
+    if np.isnan(v):
+        raise ValueError(f"{info.field_name} value must not be nan.")
     return v
 
 
@@ -149,6 +156,11 @@ class Observable(BaseModel):
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
     )
 
+    #: :meta private:
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, populate_by_name=True
+    )
+
     @field_validator("id")
     @classmethod
     def _validate_id(cls, v):
@@ -183,10 +195,31 @@ class Observable(BaseModel):
 
         return sympify_petab(v)
 
-    #: :meta private:
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True
-    )
+    def _placeholders(
+        self, type_: Literal["observable", "noise"]
+    ) -> set[sp.Symbol]:
+        # TODO: add field validator to check for 1-based consecutive numbering
+        t = f"{re.escape(type_)}Parameter"
+        o = re.escape(self.id)
+        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
+        formula = (
+            self.formula
+            if type_ == "observable"
+            else self.noise_formula
+            if type_ == "noise"
+            else None
+        )
+        return {s for s in formula.free_symbols if pattern.match(str(s))}
+
+    @property
+    def observable_placeholders(self) -> set[sp.Symbol]:
+        """Placeholder symbols for the observable formula."""
+        return self._placeholders("observable")
+
+    @property
+    def noise_placeholders(self) -> set[sp.Symbol]:
+        """Placeholder symbols for the noise formula."""
+        return self._placeholders("noise")
 
 
 class ObservablesTable(BaseModel):
@@ -440,7 +473,7 @@ class ExperimentPeriod(BaseModel):
     """
 
     #: The start time of the period in time units as defined in the model.
-    time: Annotated[float, AfterValidator(is_finite_or_neg_inf)] = Field(
+    time: Annotated[float, AfterValidator(_is_finite_or_neg_inf)] = Field(
         alias=C.TIME
     )
     #: The ID of the condition to be applied at the start time.
@@ -588,7 +621,9 @@ class Measurement(BaseModel):
     #: The time point of the measurement in time units as defined in the model.
     time: float = Field(alias=C.TIME)
     #: The measurement value.
-    measurement: float = Field(alias=C.MEASUREMENT)
+    measurement: Annotated[float, AfterValidator(_not_nan)] = Field(
+        alias=C.MEASUREMENT
+    )
     #: Values for placeholder parameters in the observable formula.
     observable_parameters: list[sp.Basic] = Field(
         alias=C.OBSERVABLE_PARAMETERS, default_factory=list
@@ -794,6 +829,13 @@ class MappingTable(BaseModel):
                 return mapping
         raise KeyError(f"PEtab ID {petab_id} not found")
 
+    def get(self, petab_id, default=None):
+        """Get a mapping by PEtab ID or return a default value."""
+        try:
+            return self[petab_id]
+        except KeyError:
+            return default
+
 
 class Parameter(BaseModel):
     """Parameter definition."""
@@ -893,3 +935,8 @@ class ParameterTable(BaseModel):
             if parameter.id == item:
                 return parameter
         raise KeyError(f"Parameter ID {item} not found")
+
+    @property
+    def n_estimated(self) -> int:
+        """Number of estimated parameters."""
+        return sum(p.estimate for p in self.parameters)
