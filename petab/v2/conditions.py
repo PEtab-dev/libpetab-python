@@ -9,8 +9,8 @@ import pandas as pd
 import sympy as sp
 
 from .. import v2
+from ..v1.lint import assert_no_leading_trailing_whitespace
 from .C import *
-from .lint import assert_no_leading_trailing_whitespace
 
 __all__ = [
     "get_condition_df",

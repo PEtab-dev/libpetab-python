@@ -68,6 +68,15 @@ def _convert_nan_to_none(v):
     return v
 
 
+def _valid_petab_id(v: str) -> str:
+    """Field validator for PEtab IDs."""
+    if not v:
+        raise ValueError("ID must not be empty.")
+    if not is_valid_identifier(v):
+        raise ValueError(f"Invalid ID: {v}")
+    return v
+
+
 class ObservableTransformation(str, Enum):
     """Observable transformation types.
 
@@ -141,7 +150,9 @@ class Observable(BaseModel):
     """Observable definition."""
 
     #: Observable ID.
-    id: str = Field(alias=C.OBSERVABLE_ID)
+    id: Annotated[str, AfterValidator(_valid_petab_id)] = Field(
+        alias=C.OBSERVABLE_ID
+    )
     #: Observable name.
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
     #: Observable formula.
@@ -161,15 +172,6 @@ class Observable(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
-
-    @field_validator("id")
-    @classmethod
-    def _validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
 
     @field_validator(
         "name",
@@ -313,9 +315,11 @@ class Change(BaseModel):
     """
 
     #: The ID of the target entity to change.
-    target_id: str | None = Field(alias=C.TARGET_ID, default=None)
+    target_id: Annotated[str, AfterValidator(_valid_petab_id)] = Field(
+        alias=C.TARGET_ID
+    )
     #: The value to set the target entity to.
-    target_value: sp.Basic | None = Field(alias=C.TARGET_VALUE, default=None)
+    target_value: sp.Basic = Field(alias=C.TARGET_VALUE)
 
     #: :meta private:
     model_config = ConfigDict(
@@ -323,16 +327,6 @@ class Change(BaseModel):
         populate_by_name=True,
         use_enum_values=True,
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_id(cls, data: dict):
-        target_id = data.get("target_id", data.get(C.TARGET_ID))
-
-        if not is_valid_identifier(target_id):
-            raise ValueError(f"Invalid ID: {target_id}")
-
-        return data
 
     @field_validator("target_value", mode="before")
     @classmethod
@@ -366,21 +360,14 @@ class Condition(BaseModel):
     """
 
     #: The condition ID.
-    id: str = Field(alias=C.CONDITION_ID)
+    id: Annotated[str, AfterValidator(_valid_petab_id)] = Field(
+        alias=C.CONDITION_ID
+    )
     #: The changes associated with this condition.
     changes: list[Change]
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
-
-    @field_validator("id")
-    @classmethod
-    def _validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
 
     def __add__(self, other: Change) -> Condition:
         """Add a change to the set."""
@@ -488,8 +475,6 @@ class ExperimentPeriod(BaseModel):
     def _validate_id(cls, condition_id):
         if pd.isna(condition_id) or not condition_id:
             return None
-        # if not condition_id:
-        #     raise ValueError("ID must not be empty.")
         if not is_valid_identifier(condition_id):
             raise ValueError(f"Invalid ID: {condition_id}")
         return condition_id
@@ -504,7 +489,9 @@ class Experiment(BaseModel):
     """
 
     #: The experiment ID.
-    id: str = Field(alias=C.EXPERIMENT_ID)
+    id: Annotated[str, AfterValidator(_valid_petab_id)] = Field(
+        alias=C.EXPERIMENT_ID
+    )
     #: The periods of the experiment.
     periods: list[ExperimentPeriod] = []
 
@@ -512,15 +499,6 @@ class Experiment(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True, populate_by_name=True
     )
-
-    @field_validator("id")
-    @classmethod
-    def _validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
 
     def __add__(self, other: ExperimentPeriod) -> Experiment:
         """Add a period to the experiment."""
@@ -747,7 +725,9 @@ class Mapping(BaseModel):
     """Mapping PEtab entities to model entities."""
 
     #: PEtab entity ID.
-    petab_id: str = Field(alias=C.PETAB_ENTITY_ID)
+    petab_id: Annotated[str, AfterValidator(_valid_petab_id)] = Field(
+        alias=C.PETAB_ENTITY_ID
+    )
     #: Model entity ID.
     model_id: Annotated[str | None, BeforeValidator(_convert_nan_to_none)] = (
         Field(alias=C.MODEL_ENTITY_ID, default=None)
@@ -759,17 +739,6 @@ class Mapping(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True)
-
-    @field_validator(
-        "petab_id",
-    )
-    @classmethod
-    def _validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
 
 
 class MappingTable(BaseModel):
@@ -913,7 +882,7 @@ class Parameter(BaseModel):
             )
 
         if self.lb is not None and self.ub is not None and self.lb >= self.ub:
-            raise ValueError("Lower bound must be less than upper bound")
+            raise ValueError("Lower bound must be less than upper bound.")
 
         # TODO parameterScale?
 

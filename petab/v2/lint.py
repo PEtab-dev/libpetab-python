@@ -14,8 +14,6 @@ import pandas as pd
 import sympy as sp
 
 from .. import v2
-from ..v1.visualize.lint import validate_visualization_df
-from ..v2.C import *
 from .problem import Problem
 
 logger = logging.getLogger(__name__)
@@ -165,7 +163,7 @@ def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
     Arguments:
         problem:
             PEtab problem to check. Instance of :class:`Problem` or path
-            to a PEtab problem yaml file.
+            to a PEtab problem YAML file.
     Returns:
         A list of validation results. Empty if no issues were found.
     """
@@ -324,7 +322,7 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
 
 
 class CheckPosLogMeasurements(ValidationTask):
-    """A task to check that measurements for observables with
+    """Check that measurements for observables with
     log-transformation are positive."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
@@ -669,7 +667,9 @@ class CheckVisualizationTable(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.visualization_df is None:
-            return
+            return None
+
+        from ..v1.visualize.lint import validate_visualization_df
 
         if validate_visualization_df(problem):
             return ValidationIssue(
@@ -698,22 +698,23 @@ def get_valid_parameters_for_parameter_table(
     # - remove parameters for which condition table columns exist
     # - remove placeholder parameters
     #   (only partial overrides are not supported)
+
     # must not go into parameter table
-    blackset = set(get_placeholders(problem))
+    invalid = set(get_placeholders(problem))
 
     # condition table targets
-    blackset |= {
+    invalid |= {
         change.target_id
         for cond in problem.conditions_table.conditions
         for change in cond.changes
     }
 
     # don't use sets here, to have deterministic ordering,
-    #  e.g. for creating parameter tables
+    #  e.g., for creating parameter tables
     parameter_ids = OrderedDict.fromkeys(
         p
         for p in problem.model.get_valid_parameters_for_parameter_table()
-        if p not in blackset
+        if p not in invalid
     )
 
     for mapping in problem.mapping_table.mappings:
@@ -723,14 +724,14 @@ def get_valid_parameters_for_parameter_table(
     # add output parameters from observables table
     output_parameters = get_output_parameters(problem)
     for p in output_parameters:
-        if p not in blackset:
+        if p not in invalid:
             parameter_ids[p] = None
 
     # Append parameters from measurement table, unless they occur as condition
     # table columns
     def append_overrides(overrides):
         for p in overrides:
-            if isinstance(p, sp.Symbol) and (str_p := str(p)) not in blackset:
+            if isinstance(p, sp.Symbol) and (str_p := str(p)) not in invalid:
                 parameter_ids[str_p] = None
 
     for measurement in problem.measurement_table.measurements:
@@ -932,4 +933,5 @@ default_validation_tasks = [
     CheckUnusedConditions(),
     # TODO: atomize checks, update to long condition table, re-enable
     # CheckVisualizationTable(),
+    # TODO validate mapping table
 ]
