@@ -1,5 +1,7 @@
 """Convert PEtab version 1 problems to version 2."""
 
+from __future__ import annotations
+
 import shutil
 from contextlib import suppress
 from itertools import chain
@@ -14,12 +16,13 @@ from .. import v1, v2
 from ..v1.yaml import get_path_prefix, load_yaml, validate
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
-from .problem import ProblemConfig
 
 __all__ = ["petab1to2"]
 
 
-def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
+def petab1to2(
+    yaml_config: Path | str, output_dir: Path | str = None
+) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
     Convert a PEtab problem from PEtab 1.0 to PEtab 2.0 format.
@@ -56,7 +59,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     get_dest_path = lambda filename: f"{output_dir}/{filename}"  # noqa: E731
 
-    # Validate original PEtab problem
+    # Validate the original PEtab problem
     validate(yaml_config, path_prefix=path_prefix)
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
@@ -72,7 +75,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     # Update YAML file
     new_yaml_config = _update_yaml(yaml_config)
-    new_yaml_config = ProblemConfig(**new_yaml_config)
+    new_yaml_config = v2.ProblemConfig(**new_yaml_config)
 
     # Update tables
     # condition tables, observable tables, SBML files, parameter table:
@@ -218,7 +221,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 measurement_df, get_dest_path(measurement_file)
             )
 
-    # Write new YAML file
+    # Write the new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
     new_yaml_config.to_yaml(new_yaml_file)
 

@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
 
 
-__all__ = ["Problem"]
+__all__ = ["Problem", "ProblemConfig"]
 
 
 class Problem:
@@ -56,17 +56,6 @@ class Problem:
     Optionally, it may contain visualization tables.
 
     See also :doc:`petab:v2/documentation_data_format`.
-
-    Parameters:
-        condition_df: PEtab condition table
-        experiment_df: PEtab experiment table
-        measurement_df: PEtab measurement table
-        parameter_df: PEtab parameter table
-        observable_df: PEtab observable table
-        visualization_df: PEtab visualization table
-        mapping_df: PEtab mapping table
-        model: The underlying model
-        extensions_config: Information on the extensions used
     """
 
     def __init__(
@@ -79,14 +68,12 @@ class Problem:
         parameters_table: core.ParameterTable = None,
         mapping_table: core.MappingTable = None,
         visualization_df: pd.DataFrame = None,
-        extensions_config: dict = None,
         config: ProblemConfig = None,
     ):
         from ..v2.lint import default_validation_tasks
 
         self.config = config
         self.model: Model | None = model
-        self.extensions_config = extensions_config or {}
         self.validation_tasks: list[ValidationTask] = (
             default_validation_tasks.copy()
         )
@@ -310,7 +297,7 @@ class Problem:
             model=model,
             visualization_df=visualization_df,
             mapping_df=mapping_df,
-            extensions_config=config.extensions,
+            config=config,
         )
 
     @staticmethod
@@ -323,7 +310,6 @@ class Problem:
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
-        extensions_config: dict = None,
         config: ProblemConfig = None,
     ):
         """
@@ -338,7 +324,7 @@ class Problem:
             visualization_df: PEtab visualization table
             mapping_df: PEtab mapping table
             model: The underlying model
-            extensions_config: Information on the extensions used
+            config: The PEtab problem configuration
         """
 
         observables_table = core.ObservablesTable.from_df(observable_df)
@@ -357,7 +343,6 @@ class Problem:
             parameters_table=parameter_table,
             mapping_table=mapping_table,
             visualization_df=visualization_df,
-            extensions_config=extensions_config,
             config=config,
         )
 
@@ -419,6 +404,8 @@ class Problem:
 
     @property
     def condition_df(self) -> pd.DataFrame | None:
+        """Conditions table as DataFrame."""
+        # TODO: return empty df?
         return self.conditions_table.to_df() if self.conditions_table else None
 
     @condition_df.setter
@@ -427,6 +414,7 @@ class Problem:
 
     @property
     def experiment_df(self) -> pd.DataFrame | None:
+        """Experiments table as DataFrame."""
         return (
             self.experiments_table.to_df() if self.experiments_table else None
         )
@@ -437,6 +425,7 @@ class Problem:
 
     @property
     def measurement_df(self) -> pd.DataFrame | None:
+        """Measurements table as DataFrame."""
         return (
             self.measurement_table.to_df() if self.measurement_table else None
         )
@@ -447,6 +436,7 @@ class Problem:
 
     @property
     def parameter_df(self) -> pd.DataFrame | None:
+        """Parameter table as DataFrame."""
         return self.parameter_table.to_df() if self.parameter_table else None
 
     @parameter_df.setter
@@ -455,6 +445,7 @@ class Problem:
 
     @property
     def observable_df(self) -> pd.DataFrame | None:
+        """Observables table as DataFrame."""
         return (
             self.observables_table.to_df() if self.observables_table else None
         )
@@ -465,6 +456,7 @@ class Problem:
 
     @property
     def mapping_df(self) -> pd.DataFrame | None:
+        """Mapping table as DataFrame."""
         return self.mapping_table.to_df() if self.mapping_table else None
 
     @mapping_df.setter
@@ -473,11 +465,16 @@ class Problem:
 
     def get_optimization_parameters(self) -> list[str]:
         """
-        Return list of optimization parameter IDs.
+        Get list of optimization parameter IDs from parameter table.
 
-        See :py:func:`petab.parameters.get_optimization_parameters`.
+        Arguments:
+            parameter_df: PEtab parameter DataFrame
+
+        Returns:
+            List of IDs of parameters selected for optimization
+            (i.e. those with estimate = True).
         """
-        return parameters.get_optimization_parameters(self.parameter_df)
+        return [p.id for p in self.parameter_table.parameters if p.estimate]
 
     def get_optimization_parameter_scales(self) -> dict[str, str]:
         """
@@ -485,13 +482,14 @@ class Problem:
 
         See :py:func:`petab.parameters.get_optimization_parameters`.
         """
+        # TODO: to be removed in v2?
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
 
     def get_observable_ids(self) -> list[str]:
         """
         Returns dictionary of observable ids.
         """
-        return list(self.observable_df.index)
+        return [o.id for o in self.observables_table.observables]
 
     def _apply_mask(self, v: list, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.
@@ -533,7 +531,7 @@ class Problem:
         -------
         The parameter IDs.
         """
-        v = list(self.parameter_df.index.values)
+        v = [p.id for p in self.parameter_table.parameters]
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
@@ -553,7 +551,7 @@ class Problem:
 
     def get_x_nominal(
         self, free: bool = True, fixed: bool = True, scaled: bool = False
-    ):
+    ) -> list:
         """Generic function to get parameter nominal values.
 
         Parameters
@@ -571,10 +569,10 @@ class Problem:
         -------
         The parameter nominal values.
         """
-        if NOMINAL_VALUE in self.parameter_df:
-            v = list(self.parameter_df[NOMINAL_VALUE])
-        else:
-            v = [nan] * len(self.parameter_df)
+        v = [
+            p.nominal_value if p.nominal_value is not None else nan
+            for p in self.parameter_table.parameters
+        ]
 
         if scaled:
             v = list(
@@ -636,7 +634,10 @@ class Problem:
         -------
         The lower parameter bounds.
         """
-        v = list(self.parameter_df[LOWER_BOUND])
+        v = [
+            p.lb if p.lb is not None else nan
+            for p in self.parameter_table.parameters
+        ]
         if scaled:
             v = list(
                 parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
@@ -673,7 +674,10 @@ class Problem:
         -------
         The upper parameter bounds.
         """
-        v = list(self.parameter_df[UPPER_BOUND])
+        v = [
+            p.ub if p.ub is not None else nan
+            for p in self.parameter_table.parameters
+        ]
         if scaled:
             v = list(
                 parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
@@ -693,19 +697,22 @@ class Problem:
     @property
     def x_free_indices(self) -> list[int]:
         """Parameter table estimated parameter indices."""
-        estimated = list(self.parameter_df[ESTIMATE])
-        return [j for j, val in enumerate(estimated) if val != 0]
+        return [
+            i
+            for i, p in enumerate(self.parameter_table.parameters)
+            if p.estimate
+        ]
 
     @property
     def x_fixed_indices(self) -> list[int]:
         """Parameter table non-estimated parameter indices."""
-        estimated = list(self.parameter_df[ESTIMATE])
-        return [j for j, val in enumerate(estimated) if val == 0]
+        return [
+            i
+            for i, p in enumerate(self.parameter_table.parameters)
+            if not p.estimate
+        ]
 
-    def get_simulation_conditions_from_measurement_df(self) -> pd.DataFrame:
-        """See :func:`petab.get_simulation_conditions`."""
-        return measurements.get_simulation_conditions(self.measurement_df)
-
+    # TODO remove in v2?
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """
         See
@@ -750,6 +757,7 @@ class Problem:
             )
         ]
 
+    # TODO: remove in v2?
     def unscale_parameters(
         self,
         x_dict: dict[str, float],
@@ -774,6 +782,7 @@ class Problem:
             for parameter_id, parameter_value in x_dict.items()
         }
 
+    # TODO: remove in v2?
     def scale_parameters(
         self,
         x_dict: dict[str, float],
@@ -806,8 +815,9 @@ class Problem:
     @property
     def n_measurements(self) -> int:
         """Number of measurements."""
-        return self.measurement_df[MEASUREMENT].notna().sum()
+        return len(self.measurement_table.measurements)
 
+    # TODO: update after implementing priors in `Parameter`
     @property
     def n_priors(self) -> int:
         """Number of priors."""
@@ -834,13 +844,14 @@ class Problem:
         )
 
         validation_results = ValidationResultList()
-        if self.extensions_config:
+        if self.config.extensions:
+            extensions = ",".join(e.name for e in self.config.extensions)
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
                     "Validation of PEtab extensions is not yet implemented, "
                     "but the given problem uses the following extensions: "
-                    f"{'', ''.join(self.extensions_config.keys())}",
+                    f"{extensions}",
                 )
             )
 
@@ -874,7 +885,8 @@ class Problem:
                 `target_id=(value_type, target_value)`.
         """
         if not kwargs:
-            return
+            raise ValueError("Cannot add condition without any changes")
+
         changes = [
             core.Change(target_id=target_id, target_value=target_value)
             for target_id, target_value in kwargs.items()
@@ -925,6 +937,7 @@ class Problem:
         if transform is not None:
             record[OBSERVABLE_TRANSFORMATION] = transform
         record.update(kwargs)
+
         self.observables_table += core.Observable(**record)
 
     def add_parameter(
@@ -1029,22 +1042,15 @@ class Problem:
             )
         )
 
-    def add_mapping(self, petab_id: str, model_id: str):
+    def add_mapping(self, petab_id: str, model_id: str, name: str = None):
         """Add a mapping table entry to the problem.
 
         Arguments:
             petab_id: The new PEtab-compatible ID mapping to `model_id`
             model_id: The ID of some entity in the model
         """
-        record = {
-            PETAB_ENTITY_ID: [petab_id],
-            MODEL_ENTITY_ID: [model_id],
-        }
-        tmp_df = pd.DataFrame(record).set_index([PETAB_ENTITY_ID])
-        self.mapping_df = (
-            pd.concat([self.mapping_df, tmp_df])
-            if self.mapping_df is not None
-            else tmp_df
+        self.mapping_table.mappings.append(
+            core.Mapping(petab_id=petab_id, model_id=model_id, name=name)
         )
 
     def add_experiment(self, id_: str, *args):
