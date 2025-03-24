@@ -24,6 +24,10 @@ from petab.v1.observables import (  # noqa: F401, E402
     get_observable_df,
     write_observable_df,
 )
+from petab.v1.parameters import (  # noqa: F401, E402
+    get_parameter_df,
+    write_parameter_df,
+)
 from petab.v1.yaml import load_yaml  # noqa: F401, E402
 
 # import after v1

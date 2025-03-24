@@ -25,7 +25,7 @@ from typing_extensions import Self
 
 from ..v1.lint import is_valid_identifier
 from ..v1.math import sympify_petab
-from . import C
+from . import C, get_observable_df
 
 __all__ = [
     "Observable",
@@ -170,7 +170,7 @@ class Observable(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True
+        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
     )
 
     @field_validator(
@@ -244,6 +244,7 @@ class ObservablesTable(BaseModel):
         if df is None:
             return cls(observables=[])
 
+        df = get_observable_df(df)
         observables = [
             Observable(**row.to_dict())
             for _, row in df.reset_index().iterrows()
@@ -326,6 +327,7 @@ class Change(BaseModel):
         arbitrary_types_allowed=True,
         populate_by_name=True,
         use_enum_values=True,
+        extra="allow",
     )
 
     @field_validator("target_value", mode="before")
@@ -367,7 +369,7 @@ class Condition(BaseModel):
     changes: list[Change]
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     def __add__(self, other: Change) -> Condition:
         """Add a change to the set."""
@@ -403,7 +405,7 @@ class ConditionsTable(BaseModel):
             return cls(conditions=[])
 
         conditions = []
-        for condition_id, sub_df in df.reset_index().groupby(C.CONDITION_ID):
+        for condition_id, sub_df in df.groupby(C.CONDITION_ID):
             changes = [Change(**row) for row in sub_df.to_dict("records")]
             conditions.append(Condition(id=condition_id, changes=changes))
 
@@ -468,7 +470,7 @@ class ExperimentPeriod(BaseModel):
     condition_id: str | None = Field(alias=C.CONDITION_ID, default=None)
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     @field_validator("condition_id", mode="before")
     @classmethod
@@ -497,7 +499,7 @@ class Experiment(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True
+        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
     )
 
     def __add__(self, other: ExperimentPeriod) -> Experiment:
@@ -614,7 +616,7 @@ class Measurement(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True
+        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
     )
 
     @field_validator(
@@ -738,7 +740,7 @@ class Mapping(BaseModel):
     )
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class MappingTable(BaseModel):
@@ -831,6 +833,7 @@ class Parameter(BaseModel):
         arbitrary_types_allowed=True,
         populate_by_name=True,
         use_enum_values=True,
+        extra="allow",
     )
 
     @field_validator("id")
