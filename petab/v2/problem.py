@@ -203,10 +203,10 @@ class Problem:
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(
-                "petab.Problem.from_yaml() can only be used for "
+                "petab.v2.Problem.from_yaml() can only be used for "
                 "yaml files comprising a single model. "
                 "Consider using "
-                "petab.CompositeProblem.from_yaml() instead."
+                "petab.v2.CompositeProblem.from_yaml() instead."
             )
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
@@ -350,13 +350,13 @@ class Problem:
     def from_combine(filename: Path | str) -> Problem:
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
-        See also :py:func:`petab.create_combine_archive`.
+        See also :py:func:`petab.v2.create_combine_archive`.
 
         Arguments:
             filename: Path to the PEtab-COMBINE archive
 
         Returns:
-            A :py:class:`petab.Problem` instance.
+            A :py:class:`petab.v2.Problem` instance.
         """
         # function-level import, because module-level import interfered with
         # other SWIG interfaces
@@ -882,7 +882,7 @@ class Problem:
             id_: The condition id
             name: The condition name
             kwargs: Entities to be added to the condition table in the form
-                `target_id=(value_type, target_value)`.
+                `target_id=target_value`.
         """
         if not kwargs:
             raise ValueError("Cannot add condition without any changes")
@@ -1132,19 +1132,25 @@ class ExtensionConfig(BaseModel):
 class ProblemConfig(BaseModel):
     """The PEtab problem configuration."""
 
+    #: The path to the PEtab problem configuration.
     filepath: str | AnyUrl | None = Field(
         None,
         description="The path to the PEtab problem configuration.",
         exclude=True,
     )
+    #: The base path to resolve relative paths.
     base_path: str | AnyUrl | None = Field(
         None,
         description="The base path to resolve relative paths.",
         exclude=True,
     )
+    #: The PEtab format version.
     format_version: str = "2.0.0"
+    #: The path to the parameter file, relative to ``base_path``.
     parameter_file: str | AnyUrl | None = None
+    #: The list of problems in the configuration.
     problems: list[SubProblem] = []
+    #: Extensiions used by the problem.
     extensions: list[ExtensionConfig] = []
 
     def to_yaml(self, filename: str | Path):

@@ -1,16 +1,12 @@
 import tempfile
 from pathlib import Path
 
+import pytest
 import sympy as sp
+from pydantic import ValidationError
+from sympy.abc import x, y
 
-from petab.v2.core import (
-    Change,
-    Condition,
-    ConditionsTable,
-    Experiment,
-    ExperimentPeriod,
-    ObservablesTable,
-)
+from petab.v2.core import *
 from petab.v2.petab1to2 import petab1to2
 
 example_dir_fujita = Path(__file__).parents[2] / "doc/example/example_Fujita"
@@ -73,3 +69,116 @@ def test_conditions_table_add_changes():
     conditions_table += c2
 
     assert conditions_table.conditions == [c1, c2]
+
+
+def test_measurments():
+    Measurement(
+        observable_id="obs1", time=1, experiment_id="exp1", measurement=1
+    )
+    Measurement(
+        observable_id="obs1", time="1", experiment_id="exp1", measurement="1"
+    )
+    Measurement(
+        observable_id="obs1", time="inf", experiment_id="exp1", measurement="1"
+    )
+
+    Measurement(
+        observable_id="obs1",
+        time=1,
+        experiment_id="exp1",
+        measurement=1,
+        observable_parameters=["p1"],
+        noise_parameters=["n1"],
+    )
+
+    Measurement(
+        observable_id="obs1",
+        time=1,
+        experiment_id="exp1",
+        measurement=1,
+        observable_parameters=[1],
+        noise_parameters=[2],
+    )
+
+    Measurement(
+        observable_id="obs1",
+        time=1,
+        experiment_id="exp1",
+        measurement=1,
+        observable_parameters=[sp.sympify("x ** y")],
+        noise_parameters=[sp.sympify("x ** y")],
+    )
+
+    assert (
+        Measurement(
+            observable_id="obs1",
+            time=1,
+            experiment_id="exp1",
+            measurement=1,
+            non_petab=1,
+        ).non_petab
+        == 1
+    )
+
+    with pytest.raises(ValidationError, match="got -inf"):
+        Measurement(
+            observable_id="obs1",
+            time="-inf",
+            experiment_id="exp1",
+            measurement=1,
+        )
+
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        Measurement(
+            observable_id="1_obs", time=1, experiment_id="exp1", measurement=1
+        )
+
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        Measurement(
+            observable_id="obs", time=1, experiment_id=" exp1", measurement=1
+        )
+
+
+def test_observable():
+    Observable(id="obs1", formula=x + y)
+    Observable(id="obs1", formula="x + y", noise_formula="x + y")
+    Observable(id="obs1", formula=1, noise_formula=2)
+    Observable(
+        id="obs1",
+        formula="x + y",
+        noise_formula="x + y",
+        observable_parameters=["p1"],
+        noise_parameters=["n1"],
+    )
+    Observable(
+        id="obs1",
+        formula=sp.sympify("x + y"),
+        noise_formula=sp.sympify("x + y"),
+        observable_parameters=[sp.Symbol("p1")],
+        noise_parameters=[sp.Symbol("n1")],
+    )
+    assert Observable(id="obs1", formula="x + y", non_petab=1).non_petab == 1
+
+    o = Observable(id="obs1", formula=x + y)
+    assert o.observable_placeholders == set()
+    assert o.noise_placeholders == set()
+
+    o = Observable(
+        id="obs1",
+        formula="observableParameter1_obs1",
+        noise_formula="noiseParameter1_obs1",
+    )
+    assert o.observable_placeholders == {
+        sp.Symbol("observableParameter1_obs1", real=True),
+    }
+    assert o.noise_placeholders == {
+        sp.Symbol("noiseParameter1_obs1", real=True)
+    }
+
+    # TODO: this should raise an error
+    #   (numbering is not consecutive / not starting from 1)
+    # TODO: clarify if observableParameter0_obs1 would be allowed
+    #  as regular parameter
+    #
+    # with pytest.raises(ValidationError):
+    #  Observable(id="obs1", formula="observableParameter2_obs1")

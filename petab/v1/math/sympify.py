@@ -15,6 +15,11 @@ __all__ = ["sympify_petab"]
 def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
     """Convert PEtab math expression to sympy expression.
 
+    .. note::
+
+        All symbols in the returned expression will have the `real=True`
+        assumption.
+
     Args:
         expr: PEtab math expression.
 
@@ -26,6 +31,10 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
         The sympy expression corresponding to `expr`.
         Boolean values are converted to numeric values.
     """
+    if isinstance(expr, sp.Expr):
+        # TODO: check if only PEtab-compatible symbols and functions are used
+        return expr
+
     if isinstance(expr, int) or isinstance(expr, np.integer):
         return sp.Integer(expr)
     if isinstance(expr, float) or isinstance(expr, np.floating):

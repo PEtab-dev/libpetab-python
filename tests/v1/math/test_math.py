@@ -74,6 +74,11 @@ def test_ids():
     """Test symbols in expressions."""
     assert sympify_petab("bla * 2") == 2.0 * sp.Symbol("bla", real=True)
 
+    # test that sympy expressions that are invalid in PEtab raise an error
+    # TODO: handle these cases after
+    #   https://github.com/PEtab-dev/libpetab-python/pull/364
+    # sympify_petab(sp.Symbol("föö"))
+
 
 def test_syntax_error():
     """Test exceptions upon syntax errors."""

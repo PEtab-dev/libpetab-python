@@ -56,6 +56,14 @@ def _is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
     return v
 
 
+def _is_finite_or_pos_inf(v: float, info: ValidationInfo) -> float:
+    if not np.isfinite(v) and v != np.inf:
+        raise ValueError(
+            f"{info.field_name} value must be finite or inf but got {v}"
+        )
+    return v
+
+
 def _not_nan(v: float, info: ValidationInfo) -> float:
     if np.isnan(v):
         raise ValueError(f"{info.field_name} value must not be nan.")
@@ -201,10 +209,6 @@ class Observable(BaseModel):
     def _placeholders(
         self, type_: Literal["observable", "noise"]
     ) -> set[sp.Symbol]:
-        # TODO: add field validator to check for 1-based consecutive numbering
-        t = f"{re.escape(type_)}Parameter"
-        o = re.escape(self.id)
-        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
         formula = (
             self.formula
             if type_ == "observable"
@@ -212,7 +216,17 @@ class Observable(BaseModel):
             if type_ == "noise"
             else None
         )
-        return {s for s in formula.free_symbols if pattern.match(str(s))}
+        if formula is None or formula.is_number:
+            return set()
+
+        if not (free_syms := formula.free_symbols):
+            return set()
+
+        # TODO: add field validator to check for 1-based consecutive numbering
+        t = f"{re.escape(type_)}Parameter"
+        o = re.escape(self.id)
+        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
+        return {s for s in free_syms if pattern.match(str(s))}
 
     @property
     def observable_placeholders(self) -> set[sp.Symbol]:
@@ -600,7 +614,9 @@ class Measurement(BaseModel):
     #: The experiment ID.
     experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
     #: The time point of the measurement in time units as defined in the model.
-    time: float = Field(alias=C.TIME)
+    time: Annotated[float, AfterValidator(_is_finite_or_pos_inf)] = Field(
+        alias=C.TIME
+    )
     #: The measurement value.
     measurement: Annotated[float, AfterValidator(_not_nan)] = Field(
         alias=C.MEASUREMENT
