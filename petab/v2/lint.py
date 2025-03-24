@@ -400,6 +400,9 @@ class CheckUniquePrimaryKeys(ValidationTask):
     """Check that all primary keys are unique."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
+        # TODO: check that IDs are globally unique
+        #  -- replaces CheckObservablesDoNotShadowModelEntities
+
         # check for uniqueness of all primary keys
         counter = Counter(c.id for c in problem.conditions_table.conditions)
         duplicates = {id for id, count in counter.items() if count > 1}

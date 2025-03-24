@@ -837,6 +837,7 @@ class Parameter(BaseModel):
     #: Nominal value.
     nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Parameter scale.
+    # TODO: keep or remove?
     scale: ParameterScale = Field(
         alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
     )
@@ -902,12 +903,19 @@ class Parameter(BaseModel):
                 "Estimated parameter must have lower and upper bounds set"
             )
 
-        if self.lb is not None and self.ub is not None and self.lb >= self.ub:
+        # TODO: also if not estimated?
+        if (
+            self.estimate
+            and self.lb is not None
+            and self.ub is not None
+            and self.lb >= self.ub
+        ):
             raise ValueError("Lower bound must be less than upper bound.")
 
         # TODO parameterScale?
 
         # TODO priorType, priorParameters
+
         return self
 
 
