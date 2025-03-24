@@ -842,7 +842,9 @@ class Parameter(BaseModel):
     )
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
+
     # TODO priors
+    #  pydantic vs. petab.v1.priors.Prior
 
     #: :meta private:
     model_config = ConfigDict(

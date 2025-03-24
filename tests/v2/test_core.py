@@ -182,3 +182,72 @@ def test_observable():
     #
     # with pytest.raises(ValidationError):
     #  Observable(id="obs1", formula="observableParameter2_obs1")
+
+
+def test_change():
+    Change(target_id="k1", target_value=1)
+    Change(target_id="k1", target_value="x * y")
+
+    assert (
+        Change(target_id="k1", target_value=x * y, non_petab="foo").non_petab
+        == "foo"
+    )
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        Change(target_id="1_k", target_value=x)
+
+    with pytest.raises(ValidationError, match="input_value=None"):
+        Change(target_id="k1", target_value=None)
+
+
+def test_period():
+    ExperimentPeriod(time=0)
+    ExperimentPeriod(time=1, condition_id="p1")
+    ExperimentPeriod(time="-inf", condition_id="p1")
+
+    assert (
+        ExperimentPeriod(time="1", condition_id="p1", non_petab=1).non_petab
+        == 1
+    )
+
+    with pytest.raises(ValidationError, match="got inf"):
+        ExperimentPeriod(time="inf", condition_id="p1")
+
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        ExperimentPeriod(time=1, condition_id="1_condition")
+
+    with pytest.raises(ValidationError, match="type=missing"):
+        ExperimentPeriod(condition_id="condition")
+
+
+def test_parameter():
+    Parameter(id="k1", lb=1, ub=2)
+    Parameter(id="k1", estimate=False, nominal_value=1)
+
+    assert Parameter(id="k1", lb=1, ub=2, non_petab=1).non_petab == 1
+
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        Parameter(id="1_k", lb=1, ub=2)
+
+    with pytest.raises(ValidationError, match="upper"):
+        Parameter(id="k1", lb=1)
+
+    with pytest.raises(ValidationError, match="lower"):
+        Parameter(id="k1", ub=1)
+
+    with pytest.raises(ValidationError, match="less than"):
+        Parameter(id="k1", lb=2, ub=1)
+
+
+def test_experiment():
+    Experiment(id="experiment1")
+    Experiment(
+        id="experiment1", periods=[ExperimentPeriod(time=1, condition_id="c1")]
+    )
+
+    assert Experiment(id="experiment1", non_petab=1).non_petab == 1
+
+    with pytest.raises(ValidationError, match="Field required"):
+        Experiment()
+
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        Experiment(id="experiment 1")
