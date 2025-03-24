@@ -3,19 +3,20 @@ import tempfile
 
 import pytest
 
+from petab.v2 import Problem
 from petab.v2.petab1to2 import petab1to2
 
 
 def test_petab1to2_remote():
+    """Test that we can upgrade a remote PEtab 1.0.0 problem."""
     yaml_url = (
         "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
         "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
 
-    with tempfile.TemporaryDirectory(prefix="test_petab1to2") as tmpdirname:
-        # TODO verify that the v2 files match "ground truth"
-        # in `petabtests/cases/v2.0.0/sbml/0001/_0001.yaml`
-        petab1to2(yaml_url, tmpdirname)
+    problem = petab1to2(yaml_url)
+    assert isinstance(problem, Problem)
+    assert len(problem.measurement_table.measurements)
 
 
 try:

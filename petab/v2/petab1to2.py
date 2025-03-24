@@ -6,6 +6,7 @@ import shutil
 from contextlib import suppress
 from itertools import chain
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -27,26 +28,37 @@ def petab1to2(
 
     Convert a PEtab problem from PEtab 1.0 to PEtab 2.0 format.
 
-    Parameters
-    ----------
-    yaml_config: dict | Path | str
+    :param yaml_config:
         The PEtab problem as dictionary or YAML file name.
-    output_dir: Path | str
+    :param output_dir:
         The output directory to save the converted PEtab problem, or ``None``,
         to return a :class:`petab.v2.Problem` instance.
 
-    Raises
-    ------
-    ValueError
+    :raises ValueError:
         If the input is invalid or does not pass linting or if the generated
         files do not pass linting.
     """
-    if output_dir is None:
-        # TODO requires petab.v2.Problem
-        raise NotImplementedError("Not implemented yet.")
-    elif isinstance(yaml_config, dict):
-        raise ValueError("If output_dir is given, yaml_config must be a file.")
+    if output_dir is not None:
+        return petab_files_1to2(yaml_config, output_dir)
 
+    with TemporaryDirectory() as tmp_dir:
+        petab_files_1to2(yaml_config, tmp_dir)
+        return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
+
+
+def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
+    """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
+
+
+    :param yaml_config:
+        The PEtab problem as dictionary or YAML file name.
+    :param output_dir:
+        The output directory to save the converted PEtab problem.
+
+    :raises ValueError:
+        If the input is invalid or does not pass linting or if the generated
+        files do not pass linting.
+    """
     if isinstance(yaml_config, Path | str):
         yaml_file = str(yaml_config)
         path_prefix = get_path_prefix(yaml_file)
@@ -64,6 +76,7 @@ def petab1to2(
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
     petab_problem = v1.Problem.from_yaml(yaml_file or yaml_config)
+    # TODO: move to mapping table
     # get rid of conditionName column if present (unsupported in v2)
     petab_problem.condition_df = petab_problem.condition_df.drop(
         columns=[v1.C.CONDITION_NAME], errors="ignore"
@@ -317,18 +330,4 @@ def v1v2_condition_df(
             ]
         )
 
-    targets = set(condition_df[v2.C.TARGET_ID].unique())
-    valid_cond_pars = set(model.get_valid_parameters_for_parameter_table())
-    # entities to which we assign constant values
-    constant = targets & valid_cond_pars
-    # entities to which we assign initial values
-    initial = set()
-    for target in targets - constant:
-        if model.is_state_variable(target):
-            initial.add(target)
-        else:
-            raise NotImplementedError(
-                f"Unable to determine value type {target} in the condition "
-                "table."
-            )
     return condition_df
