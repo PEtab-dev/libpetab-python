@@ -404,7 +404,7 @@ class ConditionsTable(BaseModel):
 
         conditions = []
         for condition_id, sub_df in df.reset_index().groupby(C.CONDITION_ID):
-            changes = [Change(**row.to_dict()) for _, row in sub_df.iterrows()]
+            changes = [Change(**row) for row in sub_df.to_dict("records")]
             conditions.append(Condition(id=condition_id, changes=changes))
 
         return cls(conditions=conditions)
