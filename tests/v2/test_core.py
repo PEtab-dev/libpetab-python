@@ -251,3 +251,28 @@ def test_experiment():
 
     with pytest.raises(ValidationError, match="Invalid ID"):
         Experiment(id="experiment 1")
+
+
+def test_conditions_table():
+    assert ConditionsTable().free_symbols == set()
+
+    assert (
+        ConditionsTable(
+            conditions=[
+                Condition(
+                    id="condition1",
+                    changes=[Change(target_id="k1", target_value="true")],
+                )
+            ]
+        ).free_symbols
+        == set()
+    )
+
+    assert ConditionsTable(
+        conditions=[
+            Condition(
+                id="condition1",
+                changes=[Change(target_id="k1", target_value=x / y)],
+            )
+        ]
+    ).free_symbols == {x, y}

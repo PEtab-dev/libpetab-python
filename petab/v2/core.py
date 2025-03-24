@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from enum import Enum
+from itertools import chain
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -467,6 +468,23 @@ class ConditionsTable(BaseModel):
             raise TypeError("Can only add Conditions to ConditionsTable")
         self.conditions.append(other)
         return self
+
+    @property
+    def free_symbols(self) -> set[sp.Symbol]:
+        """Get all free symbols in the conditions table.
+
+        This includes all free symbols in the target values of the changes,
+        independently of whether it is referenced by any experiment, or
+        (indirectly) by any measurement.
+        """
+        return set(
+            chain.from_iterable(
+                change.target_value.free_symbols
+                for condition in self.conditions
+                for change in condition.changes
+                if change.target_value is not None
+            )
+        )
 
 
 class ExperimentPeriod(BaseModel):

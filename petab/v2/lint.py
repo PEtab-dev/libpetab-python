@@ -13,7 +13,6 @@ from pathlib import Path
 import pandas as pd
 import sympy as sp
 
-from .. import v2
 from .problem import Problem
 
 logger = logging.getLogger(__name__)
@@ -743,7 +742,7 @@ def get_valid_parameters_for_parameter_table(
         append_overrides(measurement.noise_parameters)
 
     # Append parameter overrides from condition table
-    for p in v2.conditions.get_condition_table_free_symbols(problem):
+    for p in problem.conditions_table.free_symbols:
         parameter_ids[str(p)] = None
 
     return set(parameter_ids.keys())
@@ -822,7 +821,7 @@ def get_required_parameters_for_parameter_table(
     #  model
     parameter_ids.update(
         str(p)
-        for p in v2.conditions.get_condition_table_free_symbols(problem)
+        for p in problem.conditions_table.free_symbols
         if not problem.model.has_entity_with_id(str(p))
     )
 

@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-from itertools import chain
 from pathlib import Path
 
 import pandas as pd
-import sympy as sp
 
-from .. import v2
 from ..v1.lint import assert_no_leading_trailing_whitespace
-from .C import *
 
 __all__ = [
     "get_condition_df",
@@ -50,20 +46,3 @@ def write_condition_df(df: pd.DataFrame, filename: str | Path) -> None:
     """
     df = get_condition_df(df)
     df.to_csv(filename, sep="\t", index=False)
-
-
-def get_condition_table_free_symbols(problem: v2.Problem) -> set[sp.Basic]:
-    """Free symbols from condition table assignments.
-
-    Collects all free symbols from the condition table `targetValue` column.
-
-    :returns: Set of free symbols.
-    """
-    return set(
-        chain.from_iterable(
-            change.target_value.free_symbols
-            for condition in problem.conditions_table.conditions
-            for change in condition.changes
-            if change.target_value is not None
-        )
-    )
