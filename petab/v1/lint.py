@@ -906,21 +906,6 @@ def lint_problem(problem: "petab.Problem") -> bool:
     else:
         logger.warning("Model not available. Skipping.")
 
-    if problem.measurement_df is not None:
-        logger.info("Checking measurement table...")
-        try:
-            check_measurement_df(problem.measurement_df, problem.observable_df)
-
-            if problem.condition_df is not None:
-                assert_measurement_conditions_present_in_condition_table(
-                    problem.measurement_df, problem.condition_df
-                )
-        except AssertionError as e:
-            logger.error(e)
-            errors_occurred = True
-    else:
-        logger.warning("Measurement table not available. Skipping.")
-
     if problem.condition_df is not None:
         logger.info("Checking condition table...")
         try:
@@ -952,6 +937,21 @@ def lint_problem(problem: "petab.Problem") -> bool:
                     errors_occurred = True
     else:
         logger.warning("Observable table not available. Skipping.")
+
+    if problem.measurement_df is not None:
+        logger.info("Checking measurement table...")
+        try:
+            check_measurement_df(problem.measurement_df, problem.observable_df)
+
+            if problem.condition_df is not None:
+                assert_measurement_conditions_present_in_condition_table(
+                    problem.measurement_df, problem.condition_df
+                )
+        except AssertionError as e:
+            logger.error(e)
+            errors_occurred = True
+    else:
+        logger.warning("Measurement table not available. Skipping.")
 
     if problem.parameter_df is not None:
         logger.info("Checking parameter table...")
