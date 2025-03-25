@@ -1,5 +1,4 @@
 import logging
-import tempfile
 
 import pytest
 
@@ -37,10 +36,10 @@ def test_benchmark_collection(problem_id):
     logging.basicConfig(level=logging.DEBUG)
 
     if problem_id == "Froehlich_CellSystems2018":
+        # this is mostly about 6M sympifications in the condition table
         pytest.skip("Too slow. Re-enable once we are faster.")
 
     yaml_path = benchmark_models_petab.get_problem_yaml_path(problem_id)
-    with tempfile.TemporaryDirectory(
-        prefix=f"test_petab1to2_{problem_id}"
-    ) as tmpdirname:
-        petab1to2(yaml_path, tmpdirname)
+    problem = petab1to2(yaml_path)
+    assert isinstance(problem, Problem)
+    assert len(problem.measurement_table.measurements)

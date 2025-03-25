@@ -859,6 +859,8 @@ class Parameter(BaseModel):
     scale: ParameterScale = Field(
         alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
     )
+    # TODO: change to bool in PEtab, or serialize as 0/1?
+    #  https://github.com/PEtab-dev/PEtab/discussions/610
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
 
