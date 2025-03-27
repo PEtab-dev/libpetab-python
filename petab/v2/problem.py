@@ -970,7 +970,7 @@ class Problem:
             PARAMETER_ID: id_,
         }
         if estimate is not None:
-            record[ESTIMATE] = int(estimate)
+            record[ESTIMATE] = estimate
         if nominal_value is not None:
             record[NOMINAL_VALUE] = nominal_value
         if scale is not None:

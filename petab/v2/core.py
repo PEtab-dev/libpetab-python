@@ -890,19 +890,21 @@ class Parameter(BaseModel):
         if isinstance(v, bool):
             return v
 
-        if isinstance(v, int) or isinstance(v, float) and v.is_integer():
-            if v == 0:
-                return False
-            if v == 1:
-                return True
+        # FIXME: grace period for 0/1 values until the test suite was updated
+        if v in [0, 1, "0", "1"]:
+            return bool(int(v))
 
+        # TODO: clarify whether extra whitespace is allowed
         if isinstance(v, str):
-            if v == "0":
-                return False
-            if v == "1":
+            v = v.strip().lower()
+            if v == "true":
                 return True
+            if v == "false":
+                return False
 
-        raise ValueError(f"Invalid value for estimate: {v}. Must be 0 or 1.")
+        raise ValueError(
+            f"Invalid value for estimate: {v}. Must be `true` or `false`."
+        )
 
     @field_validator("lb", "ub", "nominal_value")
     @classmethod
