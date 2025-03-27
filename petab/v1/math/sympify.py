@@ -15,6 +15,11 @@ __all__ = ["sympify_petab"]
 def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
     """Convert PEtab math expression to sympy expression.
 
+    .. note::
+
+        All symbols in the returned expression will have the `real=True`
+        assumption.
+
     Args:
         expr: PEtab math expression.
 
@@ -26,14 +31,22 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
         The sympy expression corresponding to `expr`.
         Boolean values are converted to numeric values.
     """
+    if isinstance(expr, sp.Expr):
+        # TODO: check if only PEtab-compatible symbols and functions are used
+        return expr
+
     if isinstance(expr, int) or isinstance(expr, np.integer):
         return sp.Integer(expr)
     if isinstance(expr, float) or isinstance(expr, np.floating):
         return sp.Float(expr)
 
-    # Set error listeners
-    input_stream = InputStream(expr)
+    try:
+        input_stream = InputStream(expr)
+    except TypeError as e:
+        raise TypeError(f"Error parsing {expr!r}: {e.args[0]}") from e
+
     lexer = PetabMathExprLexer(input_stream)
+    # Set error listeners
     lexer.removeErrorListeners()
     lexer.addErrorListener(MathErrorListener())
 

@@ -16,6 +16,7 @@ API Reference
    petab.v1.core
    petab.v1.distributions
    petab.v1.lint
+   petab.v1.math
    petab.v1.measurements
    petab.v1.models
    petab.v1.observables

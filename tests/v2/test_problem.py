@@ -12,12 +12,11 @@ from petab.v2.C import (
     ESTIMATE,
     LOWER_BOUND,
     MODEL_ENTITY_ID,
+    NAME,
     NOISE_FORMULA,
     NOMINAL_VALUE,
     OBSERVABLE_FORMULA,
     OBSERVABLE_ID,
-    OPERATION_TYPE,
-    OT_CUR_VAL,
     PARAMETER_ID,
     PETAB_ENTITY_ID,
     TARGET_ID,
@@ -73,7 +72,7 @@ def test_problem_from_yaml_multiple_files():
 
         for i in (1, 2):
             problem = Problem()
-            problem.add_condition(f"condition{i}", parameter1=(OT_CUR_VAL, i))
+            problem.add_condition(f"condition{i}", parameter1=i)
             petab.write_condition_df(
                 problem.condition_df, Path(tmpdir, f"conditions{i}.tsv")
             )
@@ -109,14 +108,13 @@ def test_problem_from_yaml_multiple_files():
 def test_modify_problem():
     """Test modifying a problem via the API."""
     problem = Problem()
-    problem.add_condition("condition1", parameter1=(OT_CUR_VAL, 1))
-    problem.add_condition("condition2", parameter2=(OT_CUR_VAL, 2))
+    problem.add_condition("condition1", parameter1=1)
+    problem.add_condition("condition2", parameter2=2)
 
     exp_condition_df = pd.DataFrame(
         data={
             CONDITION_ID: ["condition1", "condition2"],
             TARGET_ID: ["parameter1", "parameter2"],
-            OPERATION_TYPE: [OT_CUR_VAL, OT_CUR_VAL],
             TARGET_VALUE: [1.0, 2.0],
         }
     )
@@ -130,12 +128,14 @@ def test_modify_problem():
     exp_observable_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["observable1", "observable2"],
-            OBSERVABLE_FORMULA: ["1", "2"],
+            OBSERVABLE_FORMULA: [1, 2],
             NOISE_FORMULA: [np.nan, 2.2],
         }
     ).set_index([OBSERVABLE_ID])
     assert_frame_equal(
-        problem.observable_df, exp_observable_df, check_dtype=False
+        problem.observable_df[[OBSERVABLE_FORMULA, NOISE_FORMULA]],
+        exp_observable_df,
+        check_dtype=False,
     )
 
     problem.add_parameter("parameter1", 1, 0, lb=1, ub=2)
@@ -151,7 +151,11 @@ def test_modify_problem():
         }
     ).set_index([PARAMETER_ID])
     assert_frame_equal(
-        problem.parameter_df, exp_parameter_df, check_dtype=False
+        problem.parameter_df[
+            [ESTIMATE, NOMINAL_VALUE, LOWER_BOUND, UPPER_BOUND]
+        ],
+        exp_parameter_df,
+        check_dtype=False,
     )
 
     problem.add_mapping("new_petab_id", "some_model_entity_id")
@@ -160,6 +164,7 @@ def test_modify_problem():
         data={
             PETAB_ENTITY_ID: ["new_petab_id"],
             MODEL_ENTITY_ID: ["some_model_entity_id"],
+            NAME: [None],
         }
     ).set_index([PETAB_ENTITY_ID])
     assert_frame_equal(problem.mapping_df, exp_mapping_df, check_dtype=False)
