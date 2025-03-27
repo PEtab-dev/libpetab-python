@@ -889,7 +889,7 @@ class Parameter(BaseModel):
         )
 
     @field_serializer("estimate")
-    def serialize_dt(self, estimate: bool, _info):
+    def _serialize_estimate(self, estimate: bool, _info):
         return str(estimate).lower()
 
     @field_validator("lb", "ub", "nominal_value")
