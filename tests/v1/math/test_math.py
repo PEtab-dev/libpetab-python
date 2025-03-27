@@ -24,6 +24,11 @@ def test_parse_simple():
     assert float(sympify_petab("1 + 2 * (3 + 4) / 2")) == 8
 
 
+def test_evaluate():
+    act = sympify_petab("piecewise(1, 1 > 2, 0)", evaluate=False)
+    assert str(act) == "Piecewise((1.0, 1.0 > 2.0), (0.0, True))"
+
+
 def read_cases():
     """Read test cases from YAML file in the petab_test_suite package."""
     yaml_file = importlib.resources.files("petabtests.cases").joinpath(

@@ -39,8 +39,12 @@ _trig_funcs = {
 }
 _unary_funcs = {
     "exp": sp.exp,
-    "log10": lambda x: -sp.oo if x.is_zero is True else sp.log(x, 10),
-    "log2": lambda x: -sp.oo if x.is_zero is True else sp.log(x, 2),
+    "log10": lambda x, evaluate=True: -sp.oo
+    if x.is_zero is True
+    else sp.log(x, 10, evaluate=evaluate),
+    "log2": lambda x, evaluate=True: -sp.oo
+    if x.is_zero is True
+    else sp.log(x, 2, evaluate=evaluate),
     "ln": sp.log,
     "sqrt": sp.sqrt,
     "abs": sp.Abs,
@@ -75,7 +79,13 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
     For a general introduction to ANTLR4 visitors, see:
     https://github.com/antlr/antlr4/blob/7d4cea92bc3f7d709f09c3f1ac77c5bbc71a6749/doc/python-target.md
+
+    :param evaluate: Whether to evaluate the expression.
     """
+
+    def __init__(self, evaluate=True):
+        super().__init__()
+        self.evaluate = evaluate
 
     def visitPetabExpression(
         self, ctx: PetabMathExprParser.PetabExpressionContext
@@ -101,9 +111,17 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             operand1 = bool2num(self.visit(ctx.getChild(0)))
             operand2 = bool2num(self.visit(ctx.getChild(2)))
             if ctx.ASTERISK():
-                return operand1 * operand2
+                return sp.Mul(operand1, operand2, evaluate=self.evaluate)
             if ctx.SLASH():
-                return operand1 / operand2
+                return (
+                    operand1 / operand2
+                    if self.evaluate
+                    else sp.Mul(
+                        operand1,
+                        sp.Pow(operand2, -1, evaluate=False),
+                        evaluate=False,
+                    )
+                )
 
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
@@ -112,9 +130,9 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         op1 = bool2num(self.visit(ctx.getChild(0)))
         op2 = bool2num(self.visit(ctx.getChild(2)))
         if ctx.PLUS():
-            return op1 + op2
+            return sp.Add(op1, op2, evaluate=self.evaluate)
         if ctx.MINUS():
-            return op1 - op2
+            return sp.Add(op1, -op2, evaluate=self.evaluate)
 
         raise AssertionError(
             f"Unexpected operator: {ctx.getChild(1).getText()} "
@@ -146,28 +164,32 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            return _trig_funcs[func_name](*args)
+            return _trig_funcs[func_name](*args, evaluate=self.evaluate)
         if func_name in _unary_funcs:
             if len(args) != 1:
                 raise AssertionError(
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            return _unary_funcs[func_name](*args)
+            return _unary_funcs[func_name](*args, evaluate=self.evaluate)
         if func_name in _binary_funcs:
             if len(args) != 2:
                 raise AssertionError(
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            return _binary_funcs[func_name](*args)
+            return _binary_funcs[func_name](*args, evaluate=self.evaluate)
         if func_name == "log":
             if len(args) not in [1, 2]:
                 raise AssertionError(
                     f"Unexpected number of arguments: {len(args)} "
                     f"in {ctx.getText()}"
                 )
-            return -sp.oo if args[0].is_zero is True else sp.log(*args)
+            return (
+                -sp.oo
+                if args[0].is_zero is True
+                else sp.log(*args, evaluate=self.evaluate)
+            )
 
         if func_name == "piecewise":
             if (len(args) - 1) % 2 != 0:
@@ -184,7 +206,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                     args[::2], args[1::2], strict=True
                 )
             )
-            return sp.Piecewise(*sp_args)
+            return sp.Piecewise(*sp_args, evaluate=self.evaluate)
 
         raise ValueError(f"Unknown function: {ctx.getText()}")
 
@@ -203,7 +225,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             )
         operand1 = bool2num(self.visit(ctx.getChild(0)))
         operand2 = bool2num(self.visit(ctx.getChild(2)))
-        return sp.Pow(operand1, operand2)
+        return sp.Pow(operand1, operand2, evaluate=self.evaluate)
 
     def visitUnaryExpr(
         self, ctx: PetabMathExprParser.UnaryExprContext
@@ -240,7 +262,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if op in ops:
             lhs = bool2num(lhs)
             rhs = bool2num(rhs)
-            return ops[op](lhs, rhs)
+            return ops[op](lhs, rhs, evaluate=self.evaluate)
 
         raise AssertionError(f"Unexpected operator: {op}")
 
@@ -301,4 +323,6 @@ def num2bool(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
         return sp.false
     if x.is_zero is False:
         return sp.true
+    if isinstance(x, Boolean):
+        return x
     return sp.Piecewise((True, x != 0.0), (False, True))

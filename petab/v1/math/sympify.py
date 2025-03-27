@@ -12,7 +12,9 @@ from .SympyVisitor import MathVisitorSympy, bool2num
 __all__ = ["sympify_petab"]
 
 
-def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
+def sympify_petab(
+    expr: str | int | float, evaluate: bool = True
+) -> sp.Expr | sp.Basic:
     """Convert PEtab math expression to sympy expression.
 
     .. note::
@@ -22,6 +24,7 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
 
     Args:
         expr: PEtab math expression.
+        evaluate: Whether to evaluate the expression.
 
     Raises:
         ValueError: Upon lexer/parser errors or if the expression is
@@ -30,6 +33,33 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
     Returns:
         The sympy expression corresponding to `expr`.
         Boolean values are converted to numeric values.
+
+
+    :example:
+    >>> from petab.math import sympify_petab
+    >>> sympify_petab("sin(0)")
+    0
+    >>> sympify_petab("sin(0)", evaluate=False)
+    sin(0.0)
+    >>> sympify_petab("sin(0)", evaluate=True)
+    0
+    >>> sympify_petab("1 + 2", evaluate=True)
+    3.00000000000000
+    >>> sympify_petab("1 + 2", evaluate=False)
+    1.0 + 2.0
+    >>> sympify_petab("piecewise(1, 1 > 2, 0)", evaluate=True)
+    0.0
+    >>> sympify_petab("piecewise(1, 1 > 2, 0)", evaluate=False)
+    Piecewise((1.0, 1.0 > 2.0), (0.0, True))
+    >>> # currently, boolean values are converted to numeric values
+    >>> #  independent of the `evaluate` flag
+    >>> sympify_petab("true", evaluate=True)
+    1.00000000000000
+    >>> sympify_petab("true", evaluate=False)
+    1.00000000000000
+    >>> # ... and integer values are converted to floats
+    >>> sympify_petab("2", evaluate=True)
+    2.00000000000000
     """
     if isinstance(expr, sp.Expr):
         # TODO: check if only PEtab-compatible symbols and functions are used
@@ -62,7 +92,7 @@ def sympify_petab(expr: str | int | float) -> sp.Expr | sp.Basic:
         raise ValueError(f"Error parsing {expr!r}: {e.args[0]}") from None
 
     # Convert to sympy expression
-    visitor = MathVisitorSympy()
+    visitor = MathVisitorSympy(evaluate=evaluate)
     expr = visitor.visit(tree)
     expr = bool2num(expr)
     # check for `False`, we'll accept both `True` and `None`
