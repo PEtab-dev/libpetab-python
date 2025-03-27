@@ -19,6 +19,7 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationInfo,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -875,10 +876,6 @@ class Parameter(BaseModel):
         if isinstance(v, bool):
             return v
 
-        # FIXME: grace period for 0/1 values until the test suite was updated
-        if v in [0, 1, "0", "1"]:
-            return bool(int(v))
-
         # TODO: clarify whether extra whitespace is allowed
         if isinstance(v, str):
             v = v.strip().lower()
@@ -890,6 +887,10 @@ class Parameter(BaseModel):
         raise ValueError(
             f"Invalid value for estimate: {v}. Must be `true` or `false`."
         )
+
+    @field_serializer("estimate")
+    def serialize_dt(self, estimate: bool, _info):
+        return str(estimate).lower()
 
     @field_validator("lb", "ub", "nominal_value")
     @classmethod

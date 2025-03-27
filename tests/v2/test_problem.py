@@ -140,13 +140,13 @@ def test_modify_problem():
         check_dtype=False,
     )
 
-    problem.add_parameter("parameter1", 1, 0, lb=1, ub=2)
+    problem.add_parameter("parameter1", True, 0, lb=1, ub=2)
     problem.add_parameter("parameter2", False, 2)
 
     exp_parameter_df = pd.DataFrame(
         data={
             PARAMETER_ID: ["parameter1", "parameter2"],
-            ESTIMATE: [1, 0],
+            ESTIMATE: ["true", "false"],
             NOMINAL_VALUE: [0.0, 2.0],
             LOWER_BOUND: [1.0, np.nan],
             UPPER_BOUND: [2.0, np.nan],
