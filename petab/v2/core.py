@@ -25,7 +25,7 @@ from pydantic import (
 from typing_extensions import Self
 
 from ..v1.lint import is_valid_identifier
-from ..v1.math import sympify_petab
+from ..v1.math import petab_math_str, sympify_petab
 from . import C, get_observable_df
 
 __all__ = [
@@ -273,23 +273,8 @@ class ObservableTable(BaseModel):
         for record in records:
             obs = record[C.OBSERVABLE_FORMULA]
             noise = record[C.NOISE_FORMULA]
-            record[C.OBSERVABLE_FORMULA] = (
-                None
-                if obs is None
-                # TODO: we need a custom printer for sympy expressions
-                #  to avoid '**'
-                #  https://github.com/PEtab-dev/libpetab-python/issues/362
-                else str(obs)
-                if not obs.is_number
-                else float(obs)
-            )
-            record[C.NOISE_FORMULA] = (
-                None
-                if noise is None
-                else str(noise)
-                if not noise.is_number
-                else float(noise)
-            )
+            record[C.OBSERVABLE_FORMULA] = petab_math_str(obs)
+            record[C.NOISE_FORMULA] = petab_math_str(noise)
         return pd.DataFrame(records).set_index([C.OBSERVABLE_ID])
 
     @classmethod

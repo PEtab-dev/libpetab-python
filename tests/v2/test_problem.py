@@ -133,7 +133,9 @@ def test_modify_problem():
         }
     ).set_index([OBSERVABLE_ID])
     assert_frame_equal(
-        problem.observable_df[[OBSERVABLE_FORMULA, NOISE_FORMULA]],
+        problem.observable_df[[OBSERVABLE_FORMULA, NOISE_FORMULA]].map(
+            lambda x: float(x) if x != "" else None
+        ),
         exp_observable_df,
         check_dtype=False,
     )
