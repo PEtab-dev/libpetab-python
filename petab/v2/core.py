@@ -241,7 +241,7 @@ class Observable(BaseModel):
 
 
 class ObservableTable(BaseModel):
-    """PEtab observables table."""
+    """PEtab observable table."""
 
     #: List of observables.
     observables: list[Observable]
@@ -255,7 +255,7 @@ class ObservableTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ObservableTable:
-        """Create an ObservablesTable from a DataFrame."""
+        """Create an ObservableTable from a DataFrame."""
         if df is None:
             return cls(observables=[])
 
@@ -268,7 +268,7 @@ class ObservableTable(BaseModel):
         return cls(observables=observables)
 
     def to_df(self) -> pd.DataFrame:
-        """Convert the ObservablesTable to a DataFrame."""
+        """Convert the ObservableTable to a DataFrame."""
         records = self.model_dump(by_alias=True)["observables"]
         for record in records:
             obs = record[C.OBSERVABLE_FORMULA]
@@ -294,25 +294,25 @@ class ObservableTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ObservableTable:
-        """Create an ObservablesTable from a TSV file."""
+        """Create an ObservableTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ObservablesTable to a TSV file."""
+        """Write the ObservableTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=True)
 
     def __add__(self, other: Observable) -> ObservableTable:
         """Add an observable to the table."""
         if not isinstance(other, Observable):
-            raise TypeError("Can only add Observable to ObservablesTable")
+            raise TypeError("Can only add Observable to ObservableTable")
         return ObservableTable(observables=self.observables + [other])
 
     def __iadd__(self, other: Observable) -> ObservableTable:
         """Add an observable to the table in place."""
         if not isinstance(other, Observable):
-            raise TypeError("Can only add Observable to ObservablesTable")
+            raise TypeError("Can only add Observable to ObservableTable")
         self.observables.append(other)
         return self
 
@@ -415,7 +415,7 @@ class ConditionTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ConditionTable:
-        """Create a ConditionsTable from a DataFrame."""
+        """Create a ConditionTable from a DataFrame."""
         if df is None or df.empty:
             return cls(conditions=[])
 
@@ -427,7 +427,7 @@ class ConditionTable(BaseModel):
         return cls(conditions=conditions)
 
     def to_df(self) -> pd.DataFrame:
-        """Convert the ConditionsTable to a DataFrame."""
+        """Convert the ConditionTable to a DataFrame."""
         records = [
             {C.CONDITION_ID: condition.id, **change.model_dump(by_alias=True)}
             for condition in self.conditions
@@ -447,31 +447,31 @@ class ConditionTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ConditionTable:
-        """Create a ConditionsTable from a TSV file."""
+        """Create a ConditionTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ConditionsTable to a TSV file."""
+        """Write the ConditionTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Condition) -> ConditionTable:
         """Add a condition to the table."""
         if not isinstance(other, Condition):
-            raise TypeError("Can only add Conditions to ConditionsTable")
+            raise TypeError("Can only add Condition to ConditionTable")
         return ConditionTable(conditions=self.conditions + [other])
 
     def __iadd__(self, other: Condition) -> ConditionTable:
         """Add a condition to the table in place."""
         if not isinstance(other, Condition):
-            raise TypeError("Can only add Conditions to ConditionsTable")
+            raise TypeError("Can only add Condition to ConditionTable")
         self.conditions.append(other)
         return self
 
     @property
     def free_symbols(self) -> set[sp.Symbol]:
-        """Get all free symbols in the conditions table.
+        """Get all free symbols in the condition table.
 
         This includes all free symbols in the target values of the changes,
         independently of whether it is referenced by any experiment, or
@@ -556,7 +556,7 @@ class ExperimentTable(BaseModel):
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ExperimentTable:
-        """Create an ExperimentsTable from a DataFrame."""
+        """Create an ExperimentTable from a DataFrame."""
         if df is None:
             return cls(experiments=[])
 
@@ -573,7 +573,7 @@ class ExperimentTable(BaseModel):
         return cls(experiments=experiments)
 
     def to_df(self) -> pd.DataFrame:
-        """Convert the ExperimentsTable to a DataFrame."""
+        """Convert the ExperimentTable to a DataFrame."""
         records = [
             {
                 C.EXPERIMENT_ID: experiment.id,
@@ -590,25 +590,25 @@ class ExperimentTable(BaseModel):
 
     @classmethod
     def from_tsv(cls, file_path: str | Path) -> ExperimentTable:
-        """Create an ExperimentsTable from a TSV file."""
+        """Create an ExperimentTable from a TSV file."""
         df = pd.read_csv(file_path, sep="\t")
         return cls.from_df(df)
 
     def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ExperimentsTable to a TSV file."""
+        """Write the ExperimentTable to a TSV file."""
         df = self.to_df()
         df.to_csv(file_path, sep="\t", index=False)
 
     def __add__(self, other: Experiment) -> ExperimentTable:
         """Add an experiment to the table."""
         if not isinstance(other, Experiment):
-            raise TypeError("Can only add Experiment to ExperimentsTable")
+            raise TypeError("Can only add Experiment to ExperimentTable")
         return ExperimentTable(experiments=self.experiments + [other])
 
     def __iadd__(self, other: Experiment) -> ExperimentTable:
         """Add an experiment to the table in place."""
         if not isinstance(other, Experiment):
-            raise TypeError("Can only add Experiment to ExperimentsTable")
+            raise TypeError("Can only add Experiment to ExperimentTable")
         self.experiments.append(other)
         return self
 
