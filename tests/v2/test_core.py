@@ -12,25 +12,25 @@ from petab.v2.petab1to2 import petab1to2
 example_dir_fujita = Path(__file__).parents[2] / "doc/example/example_Fujita"
 
 
-def test_observables_table_round_trip():
+def test_observable_table_round_trip():
     file = example_dir_fujita / "Fujita_observables.tsv"
-    observables = ObservablesTable.from_tsv(file)
+    observables = ObservableTable.from_tsv(file)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_file = Path(tmp_dir) / "observables.tsv"
         observables.to_tsv(tmp_file)
-        observables2 = ObservablesTable.from_tsv(tmp_file)
+        observables2 = ObservableTable.from_tsv(tmp_file)
         assert observables == observables2
 
 
-def test_conditions_table_round_trip():
+def test_condition_table_round_trip():
     with tempfile.TemporaryDirectory() as tmp_dir:
         petab1to2(example_dir_fujita / "Fujita.yaml", tmp_dir)
         file = Path(tmp_dir, "Fujita_experimentalCondition.tsv")
-        conditions = ConditionsTable.from_tsv(file)
+        conditions = ConditionTable.from_tsv(file)
         tmp_file = Path(tmp_dir) / "conditions.tsv"
         conditions.to_tsv(tmp_file)
-        conditions2 = ConditionsTable.from_tsv(tmp_file)
+        conditions2 = ConditionTable.from_tsv(tmp_file)
         assert conditions == conditions2
 
 
@@ -52,9 +52,9 @@ def test_experiment_add_periods():
     assert exp.periods == [p1, p2]
 
 
-def test_conditions_table_add_changes():
-    conditions_table = ConditionsTable()
-    assert conditions_table.conditions == []
+def test_condition_table_add_changes():
+    condition_table = ConditionTable()
+    assert condition_table.conditions == []
 
     c1 = Condition(
         id="condition1",
@@ -65,10 +65,10 @@ def test_conditions_table_add_changes():
         changes=[Change(target_id="k2", target_value=sp.sympify("2 * x"))],
     )
 
-    conditions_table += c1
-    conditions_table += c2
+    condition_table += c1
+    condition_table += c2
 
-    assert conditions_table.conditions == [c1, c2]
+    assert condition_table.conditions == [c1, c2]
 
 
 def test_measurments():
@@ -253,11 +253,11 @@ def test_experiment():
         Experiment(id="experiment 1")
 
 
-def test_conditions_table():
-    assert ConditionsTable().free_symbols == set()
+def test_condition_table():
+    assert ConditionTable().free_symbols == set()
 
     assert (
-        ConditionsTable(
+        ConditionTable(
             conditions=[
                 Condition(
                     id="condition1",
@@ -268,7 +268,7 @@ def test_conditions_table():
         == set()
     )
 
-    assert ConditionsTable(
+    assert ConditionTable(
         conditions=[
             Condition(
                 id="condition1",

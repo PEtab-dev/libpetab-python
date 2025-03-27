@@ -50,7 +50,7 @@ class Problem:
     - experiment table
     - measurement table
     - parameter table
-    - observables table
+    - observable table
     - mapping table
 
     Optionally, it may contain visualization tables.
@@ -61,11 +61,11 @@ class Problem:
     def __init__(
         self,
         model: Model = None,
-        conditions_table: core.ConditionsTable = None,
-        experiments_table: core.ExperimentsTable = None,
-        observables_table: core.ObservablesTable = None,
+        condition_table: core.ConditionTable = None,
+        experiment_table: core.ExperimentTable = None,
+        observable_table: core.ObservableTable = None,
         measurement_table: core.MeasurementTable = None,
-        parameters_table: core.ParameterTable = None,
+        parameter_table: core.ParameterTable = None,
         mapping_table: core.MappingTable = None,
         visualization_df: pd.DataFrame = None,
         config: ProblemConfig = None,
@@ -78,20 +78,20 @@ class Problem:
             default_validation_tasks.copy()
         )
 
-        self.observables_table = observables_table or core.ObservablesTable(
+        self.observable_table = observable_table or core.ObservableTable(
             observables=[]
         )
-        self.conditions_table = conditions_table or core.ConditionsTable(
+        self.condition_table = condition_table or core.ConditionTable(
             conditions=[]
         )
-        self.experiments_table = experiments_table or core.ExperimentsTable(
+        self.experiment_table = experiment_table or core.ExperimentTable(
             experiments=[]
         )
         self.measurement_table = measurement_table or core.MeasurementTable(
             measurements=[]
         )
         self.mapping_table = mapping_table or core.MappingTable(mappings=[])
-        self.parameter_table = parameters_table or core.ParameterTable(
+        self.parameter_table = parameter_table or core.ParameterTable(
             parameters=[]
         )
 
@@ -100,13 +100,13 @@ class Problem:
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
 
-        ne = len(self.experiments_table.experiments)
+        ne = len(self.experiment_table.experiments)
         experiments = f"{ne} experiments"
 
-        nc = len(self.conditions_table.conditions)
+        nc = len(self.condition_table.conditions)
         conditions = f"{nc} conditions"
 
-        no = len(self.observables_table.observables)
+        no = len(self.observable_table.observables)
         observables = f"{no} observables"
 
         nm = len(self.measurement_table.measurements)
@@ -129,9 +129,9 @@ class Problem:
         Accessing model entities is not currently not supported.
         """
         for table in (
-            self.conditions_table,
-            self.experiments_table,
-            self.observables_table,
+            self.condition_table,
+            self.experiment_table,
+            self.observable_table,
             self.measurement_table,
             self.parameter_table,
             self.mapping_table,
@@ -327,20 +327,20 @@ class Problem:
             config: The PEtab problem configuration
         """
 
-        observables_table = core.ObservablesTable.from_df(observable_df)
-        conditions_table = core.ConditionsTable.from_df(condition_df)
-        experiments_table = core.ExperimentsTable.from_df(experiment_df)
+        observable_table = core.ObservableTable.from_df(observable_df)
+        condition_table = core.ConditionTable.from_df(condition_df)
+        experiment_table = core.ExperimentTable.from_df(experiment_df)
         measurement_table = core.MeasurementTable.from_df(measurement_df)
         mapping_table = core.MappingTable.from_df(mapping_df)
         parameter_table = core.ParameterTable.from_df(parameter_df)
 
         return Problem(
             model=model,
-            conditions_table=conditions_table,
-            experiments_table=experiments_table,
-            observables_table=observables_table,
+            condition_table=condition_table,
+            experiment_table=experiment_table,
+            observable_table=observable_table,
             measurement_table=measurement_table,
-            parameters_table=parameter_table,
+            parameter_table=parameter_table,
             mapping_table=mapping_table,
             visualization_df=visualization_df,
             config=config,
@@ -404,28 +404,26 @@ class Problem:
 
     @property
     def condition_df(self) -> pd.DataFrame | None:
-        """Conditions table as DataFrame."""
+        """Condition table as DataFrame."""
         # TODO: return empty df?
-        return self.conditions_table.to_df() if self.conditions_table else None
+        return self.condition_table.to_df() if self.condition_table else None
 
     @condition_df.setter
     def condition_df(self, value: pd.DataFrame):
-        self.conditions_table = core.ConditionsTable.from_df(value)
+        self.condition_table = core.ConditionTable.from_df(value)
 
     @property
     def experiment_df(self) -> pd.DataFrame | None:
-        """Experiments table as DataFrame."""
-        return (
-            self.experiments_table.to_df() if self.experiments_table else None
-        )
+        """Experiment table as DataFrame."""
+        return self.experiment_table.to_df() if self.experiment_table else None
 
     @experiment_df.setter
     def experiment_df(self, value: pd.DataFrame):
-        self.experiments_table = core.ExperimentsTable.from_df(value)
+        self.experiment_table = core.ExperimentTable.from_df(value)
 
     @property
     def measurement_df(self) -> pd.DataFrame | None:
-        """Measurements table as DataFrame."""
+        """Measurement table as DataFrame."""
         return (
             self.measurement_table.to_df() if self.measurement_table else None
         )
@@ -445,14 +443,12 @@ class Problem:
 
     @property
     def observable_df(self) -> pd.DataFrame | None:
-        """Observables table as DataFrame."""
-        return (
-            self.observables_table.to_df() if self.observables_table else None
-        )
+        """Observable table as DataFrame."""
+        return self.observable_table.to_df() if self.observable_table else None
 
     @observable_df.setter
     def observable_df(self, value: pd.DataFrame):
-        self.observables_table = core.ObservablesTable.from_df(value)
+        self.observable_table = core.ObservableTable.from_df(value)
 
     @property
     def mapping_df(self) -> pd.DataFrame | None:
@@ -465,14 +461,14 @@ class Problem:
 
     def get_optimization_parameters(self) -> list[str]:
         """
-        Get list of optimization parameter IDs from parameter table.
+        Get the list of optimization parameter IDs from parameter table.
 
         Arguments:
             parameter_df: PEtab parameter DataFrame
 
         Returns:
-            List of IDs of parameters selected for optimization
-            (i.e. those with estimate = True).
+            A list of IDs of parameters selected for optimization
+            (i.e., those with estimate = True).
         """
         return [p.id for p in self.parameter_table.parameters if p.estimate]
 
@@ -489,7 +485,7 @@ class Problem:
         """
         Returns dictionary of observable ids.
         """
-        return [o.id for o in self.observables_table.observables]
+        return [o.id for o in self.observable_table.observables]
 
     def _apply_mask(self, v: list, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.
@@ -499,9 +495,9 @@ class Problem:
         v:
             The full vector the mask is to be applied to.
         free:
-            Whether to return free parameters, i.e. parameters to estimate.
+            Whether to return free parameters, i.e., parameters to estimate.
         fixed:
-            Whether to return fixed parameters, i.e. parameters not to
+            Whether to return fixed parameters, i.e., parameters not to
             estimate.
 
         Returns
@@ -891,7 +887,7 @@ class Problem:
             core.Change(target_id=target_id, target_value=target_value)
             for target_id, target_value in kwargs.items()
         ]
-        self.conditions_table.conditions.append(
+        self.condition_table.conditions.append(
             core.Condition(id=id_, changes=changes)
         )
         if name is not None:
@@ -938,7 +934,7 @@ class Problem:
             record[OBSERVABLE_TRANSFORMATION] = transform
         record.update(kwargs)
 
-        self.observables_table += core.Observable(**record)
+        self.observable_table += core.Observable(**record)
 
     def add_parameter(
         self,
@@ -1070,7 +1066,7 @@ class Problem:
             for i in range(0, len(args), 2)
         ]
 
-        self.experiments_table.experiments.append(
+        self.experiment_table.experiments.append(
             core.Experiment(id=id_, periods=periods)
         )
 
@@ -1085,15 +1081,15 @@ class Problem:
         )
 
         if isinstance(other, Observable):
-            self.observables_table += other
+            self.observable_table += other
         elif isinstance(other, Parameter):
             self.parameter_table += other
         elif isinstance(other, Measurement):
             self.measurement_table += other
         elif isinstance(other, Condition):
-            self.conditions_table += other
+            self.condition_table += other
         elif isinstance(other, Experiment):
-            self.experiments_table += other
+            self.experiment_table += other
         else:
             raise ValueError(
                 f"Cannot add object of type {type(other)} to Problem."

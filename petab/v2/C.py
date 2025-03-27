@@ -147,25 +147,25 @@ EXPERIMENT_DF_REQUIRED_COLS = [
 
 # OBSERVABLES
 
-#: Observable name column in the observables table
+#: Observable name column in the observable table
 OBSERVABLE_NAME = "observableName"
-#: Observable formula column in the observables table
+#: Observable formula column in the observable table
 OBSERVABLE_FORMULA = "observableFormula"
-#: Noise formula column in the observables table
+#: Noise formula column in the observable table
 NOISE_FORMULA = "noiseFormula"
-#: Observable transformation column in the observables table
+#: Observable transformation column in the observable table
 OBSERVABLE_TRANSFORMATION = "observableTransformation"
-#: Noise distribution column in the observables table
+#: Noise distribution column in the observable table
 NOISE_DISTRIBUTION = "noiseDistribution"
 
-#: Mandatory columns of observables table
+#: Mandatory columns of observable table
 OBSERVABLE_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
     OBSERVABLE_FORMULA,
     NOISE_FORMULA,
 ]
 
-#: Optional columns of observables table
+#: Optional columns of observable table
 OBSERVABLE_DF_OPTIONAL_COLS = [
     OBSERVABLE_NAME,
     OBSERVABLE_TRANSFORMATION,
@@ -378,7 +378,7 @@ MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
 #: Simulated value column in the simulation table
 SIMULATION = "simulation"
-#: Residual value column in the residuals table
+#: Residual value column in the residual table
 RESIDUAL = "residual"
 #: ???
 NOISE_VALUE = "noiseValue"
