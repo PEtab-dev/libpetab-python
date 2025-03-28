@@ -53,6 +53,9 @@ __all__ = [
     "observable_table_has_nontrivial_noise_formula",
 ]
 
+#: Regular expression pattern for valid PEtab IDs
+_petab_id_pattern = re.compile(r"^[a-zA-Z_]\w*$")
+
 
 def _check_df(df: pd.DataFrame, req_cols: Iterable, name: str) -> None:
     """Check if given columns are present in DataFrame
@@ -903,21 +906,6 @@ def lint_problem(problem: "petab.Problem") -> bool:
     else:
         logger.warning("Model not available. Skipping.")
 
-    if problem.measurement_df is not None:
-        logger.info("Checking measurement table...")
-        try:
-            check_measurement_df(problem.measurement_df, problem.observable_df)
-
-            if problem.condition_df is not None:
-                assert_measurement_conditions_present_in_condition_table(
-                    problem.measurement_df, problem.condition_df
-                )
-        except AssertionError as e:
-            logger.error(e)
-            errors_occurred = True
-    else:
-        logger.warning("Measurement table not available. Skipping.")
-
     if problem.condition_df is not None:
         logger.info("Checking condition table...")
         try:
@@ -949,6 +937,21 @@ def lint_problem(problem: "petab.Problem") -> bool:
                     errors_occurred = True
     else:
         logger.warning("Observable table not available. Skipping.")
+
+    if problem.measurement_df is not None:
+        logger.info("Checking measurement table...")
+        try:
+            check_measurement_df(problem.measurement_df, problem.observable_df)
+
+            if problem.condition_df is not None:
+                assert_measurement_conditions_present_in_condition_table(
+                    problem.measurement_df, problem.condition_df
+                )
+        except AssertionError as e:
+            logger.error(e)
+            errors_occurred = True
+    else:
+        logger.warning("Measurement table not available. Skipping.")
 
     if problem.parameter_df is not None:
         logger.info("Checking parameter table...")
@@ -1041,10 +1044,13 @@ def assert_model_parameters_in_condition_or_parameter_table(
                 mapping_df[MODEL_ENTITY_ID],
                 strict=True,
             )
-            # mapping table entities mapping to already allowed parameters
-            if to_id in allowed_in_condition_cols
-            # mapping table entities mapping to species
-            or model.is_state_variable(to_id)
+            if not pd.isna(to_id)
+            and (
+                # mapping table entities mapping to already allowed parameters
+                to_id in allowed_in_condition_cols
+                # mapping table entities mapping to species
+                or model.is_state_variable(to_id)
+            )
         }
 
     allowed_in_parameter_table = (
@@ -1186,7 +1192,7 @@ def is_valid_identifier(x: str) -> bool:
     if pd.isna(x):
         return False
 
-    return re.match(r"^[a-zA-Z_]\w*$", x) is not None
+    return _petab_id_pattern.match(x) is not None
 
 
 def check_ids(ids: Iterable[str], kind: str = "") -> None:

@@ -833,9 +833,10 @@ class VisSpecParser:
 
             ::
 
-                dataset_ids_per_plot = [['dataset_1', 'dataset_2'],
-                                        ['dataset_1', 'dataset_4',
-                                         'dataset_5']]
+                dataset_ids_per_plot = [
+                    ["dataset_1", "dataset_2"],
+                    ["dataset_1", "dataset_4", "dataset_5"],
+                ]
 
             or
 

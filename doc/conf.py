@@ -47,6 +47,7 @@ extensions = [
 ]
 
 intersphinx_mapping = {
+    "petab": ("https://petab.readthedocs.io/en/latest/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "numpy": ("https://numpy.org/devdocs/", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
@@ -62,6 +63,7 @@ templates_path = ["_templates"]
 exclude_patterns = [
     "build/doctrees",
     "build/html",
+    "build/jupyter_execute",
     "**.ipynb_checkpoints",
     "logo/LICENSE.md",
 ]
@@ -71,10 +73,10 @@ master_doc = "index"
 autosummary_generate = True
 
 autodoc_default_options = {
-    "members": None,
+    "members": True,
     "imported-members": ["petab"],
-    "inherited-members": None,
-    "show-inheritance": None,
+    "show-inheritance": True,
+    "undoc-members": True,
 }
 
 # For some reason causes sphinx import errors otherwise

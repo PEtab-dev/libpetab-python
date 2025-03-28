@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import sympy as sp
 from pydantic import AnyUrl, BaseModel, Field
 
 from ..v1 import (
-    core,
     mapping,
     measurements,
     observables,
@@ -25,114 +25,125 @@ from ..v1 import (
     sampling,
     yaml,
 )
+from ..v1.core import concat_tables, get_visualization_df
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..v2.C import *  # noqa: F403
 from ..versions import parse_version
-from . import conditions, experiments
+from . import conditions, core, experiments
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
 
 
-__all__ = ["Problem"]
+__all__ = ["Problem", "ProblemConfig"]
 
 
 class Problem:
     """
-    PEtab parameter estimation problem as defined by
+    PEtab parameter estimation problem
+
+    A PEtab parameter estimation problem as defined by
 
     - model
     - condition table
     - experiment table
     - measurement table
     - parameter table
-    - observables table
+    - observable table
     - mapping table
 
-    Optionally it may contain visualization tables.
+    Optionally, it may contain visualization tables.
 
-    Parameters:
-        condition_df: PEtab condition table
-        experiment_df: PEtab experiment table
-        measurement_df: PEtab measurement table
-        parameter_df: PEtab parameter table
-        observable_df: PEtab observable table
-        visualization_df: PEtab visualization table
-        mapping_df: PEtab mapping table
-        model: The underlying model
-        extensions_config: Information on the extensions used
+    See also :doc:`petab:v2/documentation_data_format`.
     """
 
     def __init__(
         self,
         model: Model = None,
-        condition_df: pd.DataFrame = None,
-        experiment_df: pd.DataFrame = None,
-        measurement_df: pd.DataFrame = None,
-        parameter_df: pd.DataFrame = None,
+        condition_table: core.ConditionTable = None,
+        experiment_table: core.ExperimentTable = None,
+        observable_table: core.ObservableTable = None,
+        measurement_table: core.MeasurementTable = None,
+        parameter_table: core.ParameterTable = None,
+        mapping_table: core.MappingTable = None,
         visualization_df: pd.DataFrame = None,
-        observable_df: pd.DataFrame = None,
-        mapping_df: pd.DataFrame = None,
-        extensions_config: dict = None,
         config: ProblemConfig = None,
     ):
         from ..v2.lint import default_validation_tasks
 
-        self.condition_df: pd.DataFrame | None = condition_df
-        self.experiment_df: pd.DataFrame | None = experiment_df
-        self.measurement_df: pd.DataFrame | None = measurement_df
-        self.parameter_df: pd.DataFrame | None = parameter_df
-        self.visualization_df: pd.DataFrame | None = visualization_df
-        self.observable_df: pd.DataFrame | None = observable_df
-        self.mapping_df: pd.DataFrame | None = mapping_df
+        self.config = config
         self.model: Model | None = model
-        self.extensions_config = extensions_config or {}
         self.validation_tasks: list[ValidationTask] = (
             default_validation_tasks.copy()
         )
-        self.config = config
+
+        self.observable_table = observable_table or core.ObservableTable(
+            observables=[]
+        )
+        self.condition_table = condition_table or core.ConditionTable(
+            conditions=[]
+        )
+        self.experiment_table = experiment_table or core.ExperimentTable(
+            experiments=[]
+        )
+        self.measurement_table = measurement_table or core.MeasurementTable(
+            measurements=[]
+        )
+        self.mapping_table = mapping_table or core.MappingTable(mappings=[])
+        self.parameter_table = parameter_table or core.ParameterTable(
+            parameters=[]
+        )
+
+        self.visualization_df = visualization_df
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
 
-        experiments = (
-            f"{self.experiment_df.shape[0]} experiments"
-            if self.experiment_df is not None
-            else "without experiments table"
-        )
+        ne = len(self.experiment_table.experiments)
+        experiments = f"{ne} experiments"
 
-        conditions = (
-            f"{self.condition_df.shape[0]} conditions"
-            if self.condition_df is not None
-            else "without conditions table"
-        )
+        nc = len(self.condition_table.conditions)
+        conditions = f"{nc} conditions"
 
-        observables = (
-            f"{self.observable_df.shape[0]} observables"
-            if self.observable_df is not None
-            else "without observables table"
-        )
+        no = len(self.observable_table.observables)
+        observables = f"{no} observables"
 
-        measurements = (
-            f"{self.measurement_df.shape[0]} measurements"
-            if self.measurement_df is not None
-            else "without measurements table"
-        )
+        nm = len(self.measurement_table.measurements)
+        measurements = f"{nm} measurements"
 
-        if self.parameter_df is not None:
-            num_estimated_parameters = (
-                sum(self.parameter_df[ESTIMATE] == 1)
-                if ESTIMATE in self.parameter_df
-                else self.parameter_df.shape[0]
-            )
-            parameters = f"{num_estimated_parameters} estimated parameters"
-        else:
-            parameters = "without parameter_df table"
+        nest = self.parameter_table.n_estimated
+        parameters = f"{nest} estimated parameters"
 
         return (
             f"PEtab Problem {model}, {conditions}, {experiments}, "
             f"{observables}, {measurements}, {parameters}"
+        )
+
+    def __getitem__(self, key):
+        """Get PEtab entity by ID.
+
+        This allows accessing PEtab entities such as conditions, experiments,
+        observables, and parameters by their ID.
+
+        Accessing model entities is not currently not supported.
+        """
+        for table in (
+            self.condition_table,
+            self.experiment_table,
+            self.observable_table,
+            self.measurement_table,
+            self.parameter_table,
+            self.mapping_table,
+        ):
+            if table is not None:
+                try:
+                    return table[key]
+                except KeyError:
+                    pass
+
+        raise KeyError(
+            f"Entity with ID '{key}' not found in the PEtab problem"
         )
 
     @staticmethod
@@ -192,10 +203,10 @@ class Problem:
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(
-                "petab.Problem.from_yaml() can only be used for "
+                "petab.v2.Problem.from_yaml() can only be used for "
                 "yaml files comprising a single model. "
                 "Consider using "
-                "petab.CompositeProblem.from_yaml() instead."
+                "petab.v2.CompositeProblem.from_yaml() instead."
             )
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
@@ -230,9 +241,7 @@ class Problem:
         measurement_files = [get_path(f) for f in problem0.measurement_files]
         # If there are multiple tables, we will merge them
         measurement_df = (
-            core.concat_tables(
-                measurement_files, measurements.get_measurement_df
-            )
+            concat_tables(measurement_files, measurements.get_measurement_df)
             if measurement_files
             else None
         )
@@ -240,7 +249,7 @@ class Problem:
         condition_files = [get_path(f) for f in problem0.condition_files]
         # If there are multiple tables, we will merge them
         condition_df = (
-            core.concat_tables(condition_files, conditions.get_condition_df)
+            concat_tables(condition_files, conditions.get_condition_df)
             if condition_files
             else None
         )
@@ -248,7 +257,7 @@ class Problem:
         experiment_files = [get_path(f) for f in problem0.experiment_files]
         # If there are multiple tables, we will merge them
         experiment_df = (
-            core.concat_tables(experiment_files, experiments.get_experiment_df)
+            concat_tables(experiment_files, experiments.get_experiment_df)
             if experiment_files
             else None
         )
@@ -258,7 +267,7 @@ class Problem:
         ]
         # If there are multiple tables, we will merge them
         visualization_df = (
-            core.concat_tables(visualization_files, core.get_visualization_df)
+            concat_tables(visualization_files, get_visualization_df)
             if visualization_files
             else None
         )
@@ -266,7 +275,7 @@ class Problem:
         observable_files = [get_path(f) for f in problem0.observable_files]
         # If there are multiple tables, we will merge them
         observable_df = (
-            core.concat_tables(observable_files, observables.get_observable_df)
+            concat_tables(observable_files, observables.get_observable_df)
             if observable_files
             else None
         )
@@ -274,12 +283,12 @@ class Problem:
         mapping_files = [get_path(f) for f in problem0.mapping_files]
         # If there are multiple tables, we will merge them
         mapping_df = (
-            core.concat_tables(mapping_files, mapping.get_mapping_df)
+            concat_tables(mapping_files, mapping.get_mapping_df)
             if mapping_files
             else None
         )
 
-        return Problem(
+        return Problem.from_dfs(
             condition_df=condition_df,
             experiment_df=experiment_df,
             measurement_df=measurement_df,
@@ -288,20 +297,66 @@ class Problem:
             model=model,
             visualization_df=visualization_df,
             mapping_df=mapping_df,
-            extensions_config=config.extensions,
+            config=config,
+        )
+
+    @staticmethod
+    def from_dfs(
+        model: Model = None,
+        condition_df: pd.DataFrame = None,
+        experiment_df: pd.DataFrame = None,
+        measurement_df: pd.DataFrame = None,
+        parameter_df: pd.DataFrame = None,
+        visualization_df: pd.DataFrame = None,
+        observable_df: pd.DataFrame = None,
+        mapping_df: pd.DataFrame = None,
+        config: ProblemConfig = None,
+    ):
+        """
+        Construct a PEtab problem from dataframes.
+
+        Parameters:
+            condition_df: PEtab condition table
+            experiment_df: PEtab experiment table
+            measurement_df: PEtab measurement table
+            parameter_df: PEtab parameter table
+            observable_df: PEtab observable table
+            visualization_df: PEtab visualization table
+            mapping_df: PEtab mapping table
+            model: The underlying model
+            config: The PEtab problem configuration
+        """
+
+        observable_table = core.ObservableTable.from_df(observable_df)
+        condition_table = core.ConditionTable.from_df(condition_df)
+        experiment_table = core.ExperimentTable.from_df(experiment_df)
+        measurement_table = core.MeasurementTable.from_df(measurement_df)
+        mapping_table = core.MappingTable.from_df(mapping_df)
+        parameter_table = core.ParameterTable.from_df(parameter_df)
+
+        return Problem(
+            model=model,
+            condition_table=condition_table,
+            experiment_table=experiment_table,
+            observable_table=observable_table,
+            measurement_table=measurement_table,
+            parameter_table=parameter_table,
+            mapping_table=mapping_table,
+            visualization_df=visualization_df,
+            config=config,
         )
 
     @staticmethod
     def from_combine(filename: Path | str) -> Problem:
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
-        See also :py:func:`petab.create_combine_archive`.
+        See also :py:func:`petab.v2.create_combine_archive`.
 
         Arguments:
             filename: Path to the PEtab-COMBINE archive
 
         Returns:
-            A :py:class:`petab.Problem` instance.
+            A :py:class:`petab.v2.Problem` instance.
         """
         # function-level import, because module-level import interfered with
         # other SWIG interfaces
@@ -347,13 +402,75 @@ class Problem:
             "or a PEtab problem object."
         )
 
+    @property
+    def condition_df(self) -> pd.DataFrame | None:
+        """Condition table as DataFrame."""
+        # TODO: return empty df?
+        return self.condition_table.to_df() if self.condition_table else None
+
+    @condition_df.setter
+    def condition_df(self, value: pd.DataFrame):
+        self.condition_table = core.ConditionTable.from_df(value)
+
+    @property
+    def experiment_df(self) -> pd.DataFrame | None:
+        """Experiment table as DataFrame."""
+        return self.experiment_table.to_df() if self.experiment_table else None
+
+    @experiment_df.setter
+    def experiment_df(self, value: pd.DataFrame):
+        self.experiment_table = core.ExperimentTable.from_df(value)
+
+    @property
+    def measurement_df(self) -> pd.DataFrame | None:
+        """Measurement table as DataFrame."""
+        return (
+            self.measurement_table.to_df() if self.measurement_table else None
+        )
+
+    @measurement_df.setter
+    def measurement_df(self, value: pd.DataFrame):
+        self.measurement_table = core.MeasurementTable.from_df(value)
+
+    @property
+    def parameter_df(self) -> pd.DataFrame | None:
+        """Parameter table as DataFrame."""
+        return self.parameter_table.to_df() if self.parameter_table else None
+
+    @parameter_df.setter
+    def parameter_df(self, value: pd.DataFrame):
+        self.parameter_table = core.ParameterTable.from_df(value)
+
+    @property
+    def observable_df(self) -> pd.DataFrame | None:
+        """Observable table as DataFrame."""
+        return self.observable_table.to_df() if self.observable_table else None
+
+    @observable_df.setter
+    def observable_df(self, value: pd.DataFrame):
+        self.observable_table = core.ObservableTable.from_df(value)
+
+    @property
+    def mapping_df(self) -> pd.DataFrame | None:
+        """Mapping table as DataFrame."""
+        return self.mapping_table.to_df() if self.mapping_table else None
+
+    @mapping_df.setter
+    def mapping_df(self, value: pd.DataFrame):
+        self.mapping_table = core.MappingTable.from_df(value)
+
     def get_optimization_parameters(self) -> list[str]:
         """
-        Return list of optimization parameter IDs.
+        Get the list of optimization parameter IDs from parameter table.
 
-        See :py:func:`petab.parameters.get_optimization_parameters`.
+        Arguments:
+            parameter_df: PEtab parameter DataFrame
+
+        Returns:
+            A list of IDs of parameters selected for optimization
+            (i.e., those with estimate = True).
         """
-        return parameters.get_optimization_parameters(self.parameter_df)
+        return [p.id for p in self.parameter_table.parameters if p.estimate]
 
     def get_optimization_parameter_scales(self) -> dict[str, str]:
         """
@@ -361,13 +478,14 @@ class Problem:
 
         See :py:func:`petab.parameters.get_optimization_parameters`.
         """
+        # TODO: to be removed in v2?
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
 
     def get_observable_ids(self) -> list[str]:
         """
         Returns dictionary of observable ids.
         """
-        return list(self.observable_df.index)
+        return [o.id for o in self.observable_table.observables]
 
     def _apply_mask(self, v: list, free: bool = True, fixed: bool = True):
         """Apply mask of only free or only fixed values.
@@ -377,9 +495,9 @@ class Problem:
         v:
             The full vector the mask is to be applied to.
         free:
-            Whether to return free parameters, i.e. parameters to estimate.
+            Whether to return free parameters, i.e., parameters to estimate.
         fixed:
-            Whether to return fixed parameters, i.e. parameters not to
+            Whether to return fixed parameters, i.e., parameters not to
             estimate.
 
         Returns
@@ -409,7 +527,7 @@ class Problem:
         -------
         The parameter IDs.
         """
-        v = list(self.parameter_df.index.values)
+        v = [p.id for p in self.parameter_table.parameters]
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
@@ -429,7 +547,7 @@ class Problem:
 
     def get_x_nominal(
         self, free: bool = True, fixed: bool = True, scaled: bool = False
-    ):
+    ) -> list:
         """Generic function to get parameter nominal values.
 
         Parameters
@@ -447,10 +565,10 @@ class Problem:
         -------
         The parameter nominal values.
         """
-        if NOMINAL_VALUE in self.parameter_df:
-            v = list(self.parameter_df[NOMINAL_VALUE])
-        else:
-            v = [nan] * len(self.parameter_df)
+        v = [
+            p.nominal_value if p.nominal_value is not None else nan
+            for p in self.parameter_table.parameters
+        ]
 
         if scaled:
             v = list(
@@ -512,7 +630,10 @@ class Problem:
         -------
         The lower parameter bounds.
         """
-        v = list(self.parameter_df[LOWER_BOUND])
+        v = [
+            p.lb if p.lb is not None else nan
+            for p in self.parameter_table.parameters
+        ]
         if scaled:
             v = list(
                 parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
@@ -549,7 +670,10 @@ class Problem:
         -------
         The upper parameter bounds.
         """
-        v = list(self.parameter_df[UPPER_BOUND])
+        v = [
+            p.ub if p.ub is not None else nan
+            for p in self.parameter_table.parameters
+        ]
         if scaled:
             v = list(
                 parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
@@ -569,19 +693,22 @@ class Problem:
     @property
     def x_free_indices(self) -> list[int]:
         """Parameter table estimated parameter indices."""
-        estimated = list(self.parameter_df[ESTIMATE])
-        return [j for j, val in enumerate(estimated) if val != 0]
+        return [
+            i
+            for i, p in enumerate(self.parameter_table.parameters)
+            if p.estimate
+        ]
 
     @property
     def x_fixed_indices(self) -> list[int]:
         """Parameter table non-estimated parameter indices."""
-        estimated = list(self.parameter_df[ESTIMATE])
-        return [j for j, val in enumerate(estimated) if val == 0]
+        return [
+            i
+            for i, p in enumerate(self.parameter_table.parameters)
+            if not p.estimate
+        ]
 
-    def get_simulation_conditions_from_measurement_df(self) -> pd.DataFrame:
-        """See :func:`petab.get_simulation_conditions`."""
-        return measurements.get_simulation_conditions(self.measurement_df)
-
+    # TODO remove in v2?
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """
         See
@@ -597,20 +724,6 @@ class Problem:
                 model=self.model,
                 **kwargs,
             )
-        )
-
-    def create_parameter_df(self, **kwargs) -> pd.DataFrame:
-        """Create a new PEtab parameter table
-
-        See :py:func:`create_parameter_df`.
-        """
-        return parameters.create_parameter_df(
-            model=self.model,
-            condition_df=self.condition_df,
-            observable_df=self.observable_df,
-            measurement_df=self.measurement_df,
-            mapping_df=self.mapping_df,
-            **kwargs,
         )
 
     def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
@@ -640,6 +753,7 @@ class Problem:
             )
         ]
 
+    # TODO: remove in v2?
     def unscale_parameters(
         self,
         x_dict: dict[str, float],
@@ -664,6 +778,7 @@ class Problem:
             for parameter_id, parameter_value in x_dict.items()
         }
 
+    # TODO: remove in v2?
     def scale_parameters(
         self,
         x_dict: dict[str, float],
@@ -696,8 +811,9 @@ class Problem:
     @property
     def n_measurements(self) -> int:
         """Number of measurements."""
-        return self.measurement_df[MEASUREMENT].notna().sum()
+        return len(self.measurement_table.measurements)
 
+    # TODO: update after implementing priors in `Parameter`
     @property
     def n_priors(self) -> int:
         """Number of priors."""
@@ -724,13 +840,14 @@ class Problem:
         )
 
         validation_results = ValidationResultList()
-        if self.extensions_config:
+        if self.config.extensions:
+            extensions = ",".join(e.name for e in self.config.extensions)
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
                     "Validation of PEtab extensions is not yet implemented, "
                     "but the given problem uses the following extensions: "
-                    f"{'', ''.join(self.extensions_config.keys())}",
+                    f"{extensions}",
                 )
             )
 
@@ -753,7 +870,7 @@ class Problem:
         return validation_results
 
     def add_condition(
-        self, id_: str, name: str = None, **kwargs: tuple[str, Number | str]
+        self, id_: str, name: str = None, **kwargs: Number | str | sp.Expr
     ):
         """Add a simulation condition to the problem.
 
@@ -761,29 +878,25 @@ class Problem:
             id_: The condition id
             name: The condition name
             kwargs: Entities to be added to the condition table in the form
-                `target_id=(value_type, target_value)`.
+                `target_id=target_value`.
         """
         if not kwargs:
-            return
-        records = [
-            {
-                CONDITION_ID: id_,
-                TARGET_ID: target_id,
-                VALUE_TYPE: value_type,
-                TARGET_VALUE: target_value,
-            }
-            for target_id, (value_type, target_value) in kwargs.items()
+            raise ValueError("Cannot add condition without any changes")
+
+        changes = [
+            core.Change(target_id=target_id, target_value=target_value)
+            for target_id, target_value in kwargs.items()
         ]
-        # TODO: is the condition name supported in v2?
-        if name is not None:
-            for record in records:
-                record[CONDITION_NAME] = [name]
-        tmp_df = pd.DataFrame(records)
-        self.condition_df = (
-            pd.concat([self.condition_df, tmp_df], ignore_index=True)
-            if self.condition_df is not None
-            else tmp_df
+        self.condition_table.conditions.append(
+            core.Condition(id=id_, changes=changes)
         )
+        if name is not None:
+            self.mapping_table.mappings.append(
+                core.Mapping(
+                    petab_id=id_,
+                    name=name,
+                )
+            )
 
     def add_observable(
         self,
@@ -808,30 +921,25 @@ class Problem:
 
         """
         record = {
-            OBSERVABLE_ID: [id_],
-            OBSERVABLE_FORMULA: [formula],
+            OBSERVABLE_ID: id_,
+            OBSERVABLE_FORMULA: formula,
         }
         if name is not None:
-            record[OBSERVABLE_NAME] = [name]
+            record[OBSERVABLE_NAME] = name
         if noise_formula is not None:
-            record[NOISE_FORMULA] = [noise_formula]
+            record[NOISE_FORMULA] = noise_formula
         if noise_distribution is not None:
-            record[NOISE_DISTRIBUTION] = [noise_distribution]
+            record[NOISE_DISTRIBUTION] = noise_distribution
         if transform is not None:
-            record[OBSERVABLE_TRANSFORMATION] = [transform]
+            record[OBSERVABLE_TRANSFORMATION] = transform
         record.update(kwargs)
 
-        tmp_df = pd.DataFrame(record).set_index([OBSERVABLE_ID])
-        self.observable_df = (
-            pd.concat([self.observable_df, tmp_df])
-            if self.observable_df is not None
-            else tmp_df
-        )
+        self.observable_table += core.Observable(**record)
 
     def add_parameter(
         self,
         id_: str,
-        estimate: bool | str | int = True,
+        estimate: bool | str = True,
         nominal_value: Number | None = None,
         scale: str = None,
         lb: Number = None,
@@ -859,42 +967,37 @@ class Problem:
             kwargs: additional columns/values to add to the parameter table
         """
         record = {
-            PARAMETER_ID: [id_],
+            PARAMETER_ID: id_,
         }
         if estimate is not None:
-            record[ESTIMATE] = [int(estimate)]
+            record[ESTIMATE] = estimate
         if nominal_value is not None:
-            record[NOMINAL_VALUE] = [nominal_value]
+            record[NOMINAL_VALUE] = nominal_value
         if scale is not None:
-            record[PARAMETER_SCALE] = [scale]
+            record[PARAMETER_SCALE] = scale
         if lb is not None:
-            record[LOWER_BOUND] = [lb]
+            record[LOWER_BOUND] = lb
         if ub is not None:
-            record[UPPER_BOUND] = [ub]
+            record[UPPER_BOUND] = ub
         if init_prior_type is not None:
-            record[INITIALIZATION_PRIOR_TYPE] = [init_prior_type]
+            record[INITIALIZATION_PRIOR_TYPE] = init_prior_type
         if init_prior_pars is not None:
             if not isinstance(init_prior_pars, str):
                 init_prior_pars = PARAMETER_SEPARATOR.join(
                     map(str, init_prior_pars)
                 )
-            record[INITIALIZATION_PRIOR_PARAMETERS] = [init_prior_pars]
+            record[INITIALIZATION_PRIOR_PARAMETERS] = init_prior_pars
         if obj_prior_type is not None:
-            record[OBJECTIVE_PRIOR_TYPE] = [obj_prior_type]
+            record[OBJECTIVE_PRIOR_TYPE] = obj_prior_type
         if obj_prior_pars is not None:
             if not isinstance(obj_prior_pars, str):
                 obj_prior_pars = PARAMETER_SEPARATOR.join(
                     map(str, obj_prior_pars)
                 )
-            record[OBJECTIVE_PRIOR_PARAMETERS] = [obj_prior_pars]
+            record[OBJECTIVE_PRIOR_PARAMETERS] = obj_prior_pars
         record.update(kwargs)
 
-        tmp_df = pd.DataFrame(record).set_index([PARAMETER_ID])
-        self.parameter_df = (
-            pd.concat([self.parameter_df, tmp_df])
-            if self.parameter_df is not None
-            else tmp_df
-        )
+        self.parameter_table += core.Parameter(**record)
 
     def add_measurement(
         self,
@@ -902,8 +1005,8 @@ class Problem:
         experiment_id: str,
         time: float,
         measurement: float,
-        observable_parameters: Sequence[str | float] = None,
-        noise_parameters: Sequence[str | float] = None,
+        observable_parameters: Sequence[str | float] | str | float = None,
+        noise_parameters: Sequence[str | float] | str | float = None,
     ):
         """Add a measurement to the problem.
 
@@ -915,44 +1018,35 @@ class Problem:
             observable_parameters: The observable parameters
             noise_parameters: The noise parameters
         """
-        record = {
-            OBSERVABLE_ID: [obs_id],
-            EXPERIMENT_ID: [experiment_id],
-            TIME: [time],
-            MEASUREMENT: [measurement],
-        }
-        if observable_parameters is not None:
-            record[OBSERVABLE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(map(str, observable_parameters))
-            ]
-        if noise_parameters is not None:
-            record[NOISE_PARAMETERS] = [
-                PARAMETER_SEPARATOR.join(map(str, noise_parameters))
-            ]
+        if observable_parameters is not None and not isinstance(
+            observable_parameters, Sequence
+        ):
+            observable_parameters = [observable_parameters]
+        if noise_parameters is not None and not isinstance(
+            noise_parameters, Sequence
+        ):
+            noise_parameters = [noise_parameters]
 
-        tmp_df = pd.DataFrame(record)
-        self.measurement_df = (
-            pd.concat([self.measurement_df, tmp_df])
-            if self.measurement_df is not None
-            else tmp_df
-        ).reset_index(drop=True)
+        self.measurement_table.measurements.append(
+            core.Measurement(
+                observable_id=obs_id,
+                experiment_id=experiment_id,
+                time=time,
+                measurement=measurement,
+                observable_parameters=observable_parameters,
+                noise_parameters=noise_parameters,
+            )
+        )
 
-    def add_mapping(self, petab_id: str, model_id: str):
+    def add_mapping(self, petab_id: str, model_id: str, name: str = None):
         """Add a mapping table entry to the problem.
 
         Arguments:
             petab_id: The new PEtab-compatible ID mapping to `model_id`
             model_id: The ID of some entity in the model
         """
-        record = {
-            PETAB_ENTITY_ID: [petab_id],
-            MODEL_ENTITY_ID: [model_id],
-        }
-        tmp_df = pd.DataFrame(record).set_index([PETAB_ENTITY_ID])
-        self.mapping_df = (
-            pd.concat([self.mapping_df, tmp_df])
-            if self.mapping_df is not None
-            else tmp_df
+        self.mapping_table.mappings.append(
+            core.Mapping(petab_id=petab_id, model_id=model_id, name=name)
         )
 
     def add_experiment(self, id_: str, *args):
@@ -967,21 +1061,40 @@ class Problem:
                 "Arguments must be pairs of timepoints and condition IDs."
             )
 
-        records = []
-        for i in range(0, len(args), 2):
-            records.append(
-                {
-                    EXPERIMENT_ID: id_,
-                    TIME: args[i],
-                    CONDITION_ID: args[i + 1],
-                }
-            )
-        tmp_df = pd.DataFrame(records)
-        self.experiment_df = (
-            pd.concat([self.experiment_df, tmp_df])
-            if self.experiment_df is not None
-            else tmp_df
+        periods = [
+            core.ExperimentPeriod(time=args[i], condition_id=args[i + 1])
+            for i in range(0, len(args), 2)
+        ]
+
+        self.experiment_table.experiments.append(
+            core.Experiment(id=id_, periods=periods)
         )
+
+    def __iadd__(self, other):
+        """Add Observable, Parameter, Measurement, Condition, or Experiment"""
+        from .core import (
+            Condition,
+            Experiment,
+            Measurement,
+            Observable,
+            Parameter,
+        )
+
+        if isinstance(other, Observable):
+            self.observable_table += other
+        elif isinstance(other, Parameter):
+            self.parameter_table += other
+        elif isinstance(other, Measurement):
+            self.measurement_table += other
+        elif isinstance(other, Condition):
+            self.condition_table += other
+        elif isinstance(other, Experiment):
+            self.experiment_table += other
+        else:
+            raise ValueError(
+                f"Cannot add object of type {type(other)} to Problem."
+            )
+        return self
 
 
 class ModelFile(BaseModel):
@@ -1015,19 +1128,25 @@ class ExtensionConfig(BaseModel):
 class ProblemConfig(BaseModel):
     """The PEtab problem configuration."""
 
+    #: The path to the PEtab problem configuration.
     filepath: str | AnyUrl | None = Field(
         None,
         description="The path to the PEtab problem configuration.",
         exclude=True,
     )
+    #: The base path to resolve relative paths.
     base_path: str | AnyUrl | None = Field(
         None,
         description="The base path to resolve relative paths.",
         exclude=True,
     )
+    #: The PEtab format version.
     format_version: str = "2.0.0"
+    #: The path to the parameter file, relative to ``base_path``.
     parameter_file: str | AnyUrl | None = None
+    #: The list of problems in the configuration.
     problems: list[SubProblem] = []
+    #: Extensiions used by the problem.
     extensions: list[ExtensionConfig] = []
 
     def to_yaml(self, filename: str | Path):

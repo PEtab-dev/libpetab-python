@@ -114,6 +114,7 @@ convention = "pep257"
 "tests/*" = ["T201"]
 
 [tool.ruff.format]
+docstring-code-format = true
 exclude = [
     "petab/math/_generated/*",  # auto-generated
 ]

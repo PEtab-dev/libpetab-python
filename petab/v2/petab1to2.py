@@ -1,9 +1,12 @@
 """Convert PEtab version 1 problems to version 2."""
 
+from __future__ import annotations
+
 import shutil
 from contextlib import suppress
 from itertools import chain
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -14,36 +17,48 @@ from .. import v1, v2
 from ..v1.yaml import get_path_prefix, load_yaml, validate
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
-from .problem import ProblemConfig
 
 __all__ = ["petab1to2"]
 
 
-def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
+def petab1to2(
+    yaml_config: Path | str, output_dir: Path | str = None
+) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
     Convert a PEtab problem from PEtab 1.0 to PEtab 2.0 format.
 
-    Parameters
-    ----------
-    yaml_config: dict | Path | str
+    :param yaml_config:
         The PEtab problem as dictionary or YAML file name.
-    output_dir: Path | str
+    :param output_dir:
         The output directory to save the converted PEtab problem, or ``None``,
         to return a :class:`petab.v2.Problem` instance.
 
-    Raises
-    ------
-    ValueError
+    :raises ValueError:
         If the input is invalid or does not pass linting or if the generated
         files do not pass linting.
     """
-    if output_dir is None:
-        # TODO requires petab.v2.Problem
-        raise NotImplementedError("Not implemented yet.")
-    elif isinstance(yaml_config, dict):
-        raise ValueError("If output_dir is given, yaml_config must be a file.")
+    if output_dir is not None:
+        return petab_files_1to2(yaml_config, output_dir)
 
+    with TemporaryDirectory() as tmp_dir:
+        petab_files_1to2(yaml_config, tmp_dir)
+        return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
+
+
+def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
+    """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
+
+
+    :param yaml_config:
+        The PEtab problem as dictionary or YAML file name.
+    :param output_dir:
+        The output directory to save the converted PEtab problem.
+
+    :raises ValueError:
+        If the input is invalid or does not pass linting or if the generated
+        files do not pass linting.
+    """
     if isinstance(yaml_config, Path | str):
         yaml_file = str(yaml_config)
         path_prefix = get_path_prefix(yaml_file)
@@ -56,11 +71,12 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     get_dest_path = lambda filename: f"{output_dir}/{filename}"  # noqa: E731
 
-    # Validate original PEtab problem
+    # Validate the original PEtab problem
     validate(yaml_config, path_prefix=path_prefix)
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
     petab_problem = v1.Problem.from_yaml(yaml_file or yaml_config)
+    # TODO: move to mapping table
     # get rid of conditionName column if present (unsupported in v2)
     petab_problem.condition_df = petab_problem.condition_df.drop(
         columns=[v1.C.CONDITION_NAME], errors="ignore"
@@ -72,15 +88,23 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
 
     # Update YAML file
     new_yaml_config = _update_yaml(yaml_config)
-    new_yaml_config = ProblemConfig(**new_yaml_config)
+    new_yaml_config = v2.ProblemConfig(**new_yaml_config)
 
     # Update tables
-    # condition tables, observable tables, SBML files, parameter table:
-    #  no changes - just copy
-    file = yaml_config[v2.C.PARAMETER_FILE]
-    _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
+    # parameter table:
+    # * parameter.estimate: int -> bool
+    parameter_df = petab_problem.parameter_df.copy()
+    parameter_df[v1.C.ESTIMATE] = parameter_df[v1.C.ESTIMATE].apply(
+        lambda x: str(bool(int(x))).lower()
+    )
+    file = yaml_config[v2.C.PARAMETER_FILE]
+    v2.write_parameter_df(parameter_df, get_dest_path(file))
+
+    # sub-problems
     for problem_config in new_yaml_config.problems:
+        # copy files that don't need conversion
+        #  (models, observables, visualizations)
         for file in chain(
             problem_config.observable_files,
             (model.location for model in problem_config.model_files.values()),
@@ -218,7 +242,7 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
                 measurement_df, get_dest_path(measurement_file)
             )
 
-    # Write new YAML file
+    # Write the new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
     new_yaml_config.to_yaml(new_yaml_file)
 
@@ -226,10 +250,19 @@ def petab1to2(yaml_config: Path | str, output_dir: Path | str = None):
     validation_issues = v2.lint_problem(new_yaml_file)
 
     if validation_issues:
-        raise ValueError(
-            "Generated PEtab v2 problem did not pass linting: "
-            f"{validation_issues}"
+        sev = v2.lint.ValidationIssueSeverity
+        validation_issues.log(max_level=sev.WARNING)
+        errors = "\n".join(
+            map(
+                str,
+                (i for i in validation_issues if i.level > sev.WARNING),
+            )
         )
+        if errors:
+            raise ValueError(
+                "The generated PEtab v2 problem did not pass linting: "
+                f"{errors}"
+            )
 
 
 def _update_yaml(yaml_config: dict) -> dict:
@@ -287,13 +320,13 @@ def v1v2_condition_df(
     condition_df = condition_df.copy().reset_index()
     with suppress(KeyError):
         # conditionName was dropped in PEtab v2
-        condition_df.drop(columns=[v2.C.CONDITION_NAME], inplace=True)
+        condition_df.drop(columns=[v1.C.CONDITION_NAME], inplace=True)
 
     condition_df = condition_df.melt(
         id_vars=[v1.C.CONDITION_ID],
         var_name=v2.C.TARGET_ID,
         value_name=v2.C.TARGET_VALUE,
-    )
+    ).dropna(subset=[v2.C.TARGET_VALUE])
 
     if condition_df.empty:
         # This happens if there weren't any condition-specific changes
@@ -301,26 +334,8 @@ def v1v2_condition_df(
             columns=[
                 v2.C.CONDITION_ID,
                 v2.C.TARGET_ID,
-                v2.C.VALUE_TYPE,
                 v2.C.TARGET_VALUE,
             ]
         )
 
-    targets = set(condition_df[v2.C.TARGET_ID].unique())
-    valid_cond_pars = set(model.get_valid_parameters_for_parameter_table())
-    # entities to which we assign constant values
-    constant = targets & valid_cond_pars
-    # entities to which we assign initial values
-    initial = set()
-    for target in targets - constant:
-        if model.is_state_variable(target):
-            initial.add(target)
-        else:
-            raise NotImplementedError(
-                f"Unable to determine value type {target} in the condition "
-                "table."
-            )
-    condition_df[v2.C.VALUE_TYPE] = condition_df[v2.C.TARGET_ID].apply(
-        lambda x: v2.C.VT_INITIAL if x in initial else v2.C.VT_CONSTANT
-    )
     return condition_df

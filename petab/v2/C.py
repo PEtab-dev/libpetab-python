@@ -125,35 +125,14 @@ OBJECTIVE = "objective"
 
 #: Condition ID column in the condition table
 CONDITION_ID = "conditionId"
-# TODO: removed?
-#: Condition name column in the condition table
-CONDITION_NAME = "conditionName"
 #: Column in the condition table with the ID of an entity that is changed
 TARGET_ID = "targetId"
-#: Column in the condition table with the type of value that is changed
-VALUE_TYPE = "valueType"
 #: Column in the condition table with the new value of the target entity
 TARGET_VALUE = "targetValue"
-# value types:
-VT_CONSTANT = "constant"
-VT_INITIAL = "initial"
-VT_RATE = "rate"
-VT_ASSIGNMENT = "assignment"
-VT_RELATIVE_RATE = "relativeRate"
-VT_RELATIVE_ASSIGNMENT = "relativeAssignment"
-VALUE_TYPES = [
-    VT_CONSTANT,
-    VT_INITIAL,
-    VT_RATE,
-    VT_ASSIGNMENT,
-    VT_RELATIVE_RATE,
-    VT_RELATIVE_ASSIGNMENT,
-]
 
 CONDITION_DF_COLS = [
     CONDITION_ID,
     TARGET_ID,
-    VALUE_TYPE,
     TARGET_VALUE,
 ]
 
@@ -168,25 +147,25 @@ EXPERIMENT_DF_REQUIRED_COLS = [
 
 # OBSERVABLES
 
-#: Observable name column in the observables table
+#: Observable name column in the observable table
 OBSERVABLE_NAME = "observableName"
-#: Observable formula column in the observables table
+#: Observable formula column in the observable table
 OBSERVABLE_FORMULA = "observableFormula"
-#: Noise formula column in the observables table
+#: Noise formula column in the observable table
 NOISE_FORMULA = "noiseFormula"
-#: Observable transformation column in the observables table
+#: Observable transformation column in the observable table
 OBSERVABLE_TRANSFORMATION = "observableTransformation"
-#: Noise distribution column in the observables table
+#: Noise distribution column in the observable table
 NOISE_DISTRIBUTION = "noiseDistribution"
 
-#: Mandatory columns of observables table
+#: Mandatory columns of observable table
 OBSERVABLE_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
     OBSERVABLE_FORMULA,
     NOISE_FORMULA,
 ]
 
-#: Optional columns of observables table
+#: Optional columns of observable table
 OBSERVABLE_DF_OPTIONAL_COLS = [
     OBSERVABLE_NAME,
     OBSERVABLE_TRANSFORMATION,
@@ -389,6 +368,9 @@ EXTENSIONS = "extensions"
 PETAB_ENTITY_ID = "petabEntityId"
 #: Model entity ID column in the mapping table
 MODEL_ENTITY_ID = "modelEntityId"
+#: Arbitrary name
+NAME = "name"
+
 #: Required columns of the mapping table
 MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
@@ -396,7 +378,7 @@ MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
 #: Simulated value column in the simulation table
 SIMULATION = "simulation"
-#: Residual value column in the residuals table
+#: Residual value column in the residual table
 RESIDUAL = "residual"
 #: ???
 NOISE_VALUE = "noiseValue"

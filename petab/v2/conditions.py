@@ -5,12 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-import sympy as sp
 
-from .. import v2
-from ..v1.math import sympify_petab
-from .C import *
-from .lint import assert_no_leading_trailing_whitespace
+from ..v1.lint import assert_no_leading_trailing_whitespace
 
 __all__ = [
     "get_condition_df",
@@ -50,19 +46,3 @@ def write_condition_df(df: pd.DataFrame, filename: str | Path) -> None:
     """
     df = get_condition_df(df)
     df.to_csv(filename, sep="\t", index=False)
-
-
-def get_condition_table_free_symbols(problem: v2.Problem) -> set[sp.Basic]:
-    """Free symbols from condition table assignments.
-
-    Collects all free symbols from the condition table `targetValue` column.
-
-    :returns: Set of free symbols.
-    """
-    if problem.condition_df is None:
-        return set()
-
-    free_symbols = set()
-    for target_value in problem.condition_df[TARGET_VALUE]:
-        free_symbols |= sympify_petab(target_value).free_symbols
-    return free_symbols
