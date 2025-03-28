@@ -91,12 +91,20 @@ def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
     new_yaml_config = v2.ProblemConfig(**new_yaml_config)
 
     # Update tables
-    # condition tables, observable tables, SBML files, parameter table:
-    #  no changes - just copy
-    file = yaml_config[v2.C.PARAMETER_FILE]
-    _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
+    # parameter table:
+    # * parameter.estimate: int -> bool
+    parameter_df = petab_problem.parameter_df.copy()
+    parameter_df[v1.C.ESTIMATE] = parameter_df[v1.C.ESTIMATE].apply(
+        lambda x: str(bool(int(x))).lower()
+    )
+    file = yaml_config[v2.C.PARAMETER_FILE]
+    v2.write_parameter_df(parameter_df, get_dest_path(file))
+
+    # sub-problems
     for problem_config in new_yaml_config.problems:
+        # copy files that don't need conversion
+        #  (models, observables, visualizations)
         for file in chain(
             problem_config.observable_files,
             (model.location for model in problem_config.model_files.values()),

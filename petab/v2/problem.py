@@ -939,7 +939,7 @@ class Problem:
     def add_parameter(
         self,
         id_: str,
-        estimate: bool | str | int = True,
+        estimate: bool | str = True,
         nominal_value: Number | None = None,
         scale: str = None,
         lb: Number = None,
