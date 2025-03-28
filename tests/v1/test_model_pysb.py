@@ -1,4 +1,5 @@
 """Test related to petab.models.model_pysb"""
+
 import pysb
 import pytest
 

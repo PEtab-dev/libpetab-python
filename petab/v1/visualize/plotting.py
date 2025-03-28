@@ -1,4 +1,5 @@
 """PEtab visualization data selection and visualization settings classes"""
+
 import warnings
 from numbers import Number, Real
 from pathlib import Path
@@ -609,9 +610,9 @@ class DataProvider:
                     isinstance(tmp_noise, Number)
                     or tmp_noise.dtype == "float64"
                 ):
-                    measurements_to_plot.at[
-                        var_cond_id, "noise_model"
-                    ] = tmp_noise
+                    measurements_to_plot.at[var_cond_id, "noise_model"] = (
+                        tmp_noise
+                    )
 
             # standard error of mean
             measurements_to_plot.at[var_cond_id, "sem"] = np.std(
@@ -619,9 +620,9 @@ class DataProvider:
             ) / np.sqrt(len(data_measurements))
 
             # single replicates
-            measurements_to_plot.at[
-                var_cond_id, "repl"
-            ] = data_measurements.values
+            measurements_to_plot.at[var_cond_id, "repl"] = (
+                data_measurements.values
+            )
 
         data_series = DataSeries(conditions_, measurements_to_plot)
         data_series.add_offsets(dataplot.xOffset, dataplot.yOffset)
@@ -964,7 +965,7 @@ class VisSpecParser:
 
         # get number of plots and create plotId-lists
         plot_id_column = [
-            "plot%s" % str(ind + 1)
+            f"plot{ind + 1}"
             for ind, inner_list in enumerate(dataset_id_list)
             for _ in inner_list
         ]

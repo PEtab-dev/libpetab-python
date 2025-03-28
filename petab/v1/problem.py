@@ -1,4 +1,5 @@
 """PEtab Problem class"""
+
 from __future__ import annotations
 
 import os
@@ -123,7 +124,7 @@ class Problem:
         if name in {"sbml_model", "sbml_reader", "sbml_document"}:
             return getattr(self.model, name) if self.model else None
         raise AttributeError(
-            f"'{self.__class__.__name__}' object has no " f"attribute '{name}'"
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
 
     def __setattr__(self, name, value):
@@ -486,7 +487,7 @@ class Problem:
         if self.model:
             if not isinstance(self.model, SbmlModel):
                 raise NotImplementedError(
-                    "Saving non-SBML models is " "currently not supported."
+                    "Saving non-SBML models is currently not supported."
                 )
             filenames["model_file"] = "model.xml"
 

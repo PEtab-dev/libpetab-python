@@ -6,6 +6,7 @@ PEtab comes with visualization functionality. Those need to be imported via
 ``import petab.visualize``.
 
 """
+
 # ruff: noqa: F401
 import importlib.util
 

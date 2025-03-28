@@ -1,4 +1,5 @@
 """Handling of PEtab version numbers."""
+
 from __future__ import annotations
 
 import re

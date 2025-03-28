@@ -8,6 +8,7 @@ Attributes:
         PEtab should use for operations that can be performed in parallel.
         By default, all operations are performed sequentially.
 """
+
 import importlib
 import sys
 from functools import partial

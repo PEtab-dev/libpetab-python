@@ -1,4 +1,5 @@
 """Tests related to ``petab.v2.experiments``."""
+
 from tempfile import TemporaryDirectory
 
 import pandas as pd

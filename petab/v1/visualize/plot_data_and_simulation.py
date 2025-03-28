@@ -2,7 +2,6 @@
 the same format.
 """
 
-
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -73,7 +72,7 @@ def plot_with_vis_spec(
         plotter = MPLPlotter(figure, dataprovider)
     else:
         raise NotImplementedError(
-            "Currently, only visualization with " "matplotlib is possible."
+            "Currently, only visualization with matplotlib is possible."
         )
 
     return plotter.generate_figure(subplot_dir, format_=format_)
@@ -150,7 +149,7 @@ def plot_without_vis_spec(
         plotter = MPLPlotter(figure, dataprovider)
     else:
         raise NotImplementedError(
-            "Currently, only visualization with " "matplotlib is possible."
+            "Currently, only visualization with matplotlib is possible."
         )
 
     return plotter.generate_figure(subplot_dir, format_=format_)

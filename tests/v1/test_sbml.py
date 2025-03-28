@@ -85,9 +85,9 @@ def check_model(condition_model):
         condition_model.getSpecies("species_4").getInitialConcentration()
         == 3.25
     )
-    assert (
-        len(condition_model.getListOfInitialAssignments()) == 0
-    ), "InitialAssignment not removed"
+    assert len(condition_model.getListOfInitialAssignments()) == 0, (
+        "InitialAssignment not removed"
+    )
     assert condition_model.getCompartment("compartment_1").getSize() == 2.0
     assert condition_model.getParameter("parameter_1").getValue() == 1.25
     assert condition_model.getParameter("parameter_2").getValue() == 2.25

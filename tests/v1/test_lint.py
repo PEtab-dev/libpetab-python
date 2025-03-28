@@ -202,9 +202,9 @@ def test_assert_overrides_match_parameter_count():
 
     # 3 observable parameters given, 2 expected
     measurement_df = measurement_df_orig.copy()
-    measurement_df.loc[
-        1, OBSERVABLE_PARAMETERS
-    ] = "override1;override2;oneTooMuch"
+    measurement_df.loc[1, OBSERVABLE_PARAMETERS] = (
+        "override1;override2;oneTooMuch"
+    )
     with pytest.raises(AssertionError):
         petab.assert_overrides_match_parameter_count(
             measurement_df, observable_df

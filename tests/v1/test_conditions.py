@@ -1,4 +1,5 @@
 """Tests related to petab.conditions"""
+
 import os
 import tempfile
 from pathlib import Path

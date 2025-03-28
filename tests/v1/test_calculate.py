@@ -15,7 +15,7 @@ from petab.C import *
 
 
 def model_simple():
-    "Simple model." ""
+    "Simple model."
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs_a", "obs_a", "obs_b", "obs_b"],

@@ -1,4 +1,5 @@
 """Functions related to prior handling."""
+
 from __future__ import annotations
 
 import copy
@@ -452,17 +453,17 @@ def priors_to_measurements(problem: Problem):
             ].iloc[0],
         }
         if PREEQUILIBRATION_CONDITION_ID in new_problem.measurement_df:
-            new_measurement[
-                PREEQUILIBRATION_CONDITION_ID
-            ] = new_problem.measurement_df[PREEQUILIBRATION_CONDITION_ID].iloc[
-                0
-            ]
+            new_measurement[PREEQUILIBRATION_CONDITION_ID] = (
+                new_problem.measurement_df[PREEQUILIBRATION_CONDITION_ID].iloc[
+                    0
+                ]
+            )
         new_measurement_dicts.append(new_measurement)
 
         # remove prior from parameter table
-        new_problem.parameter_df.loc[
-            parameter_id, OBJECTIVE_PRIOR_TYPE
-        ] = np.nan
+        new_problem.parameter_df.loc[parameter_id, OBJECTIVE_PRIOR_TYPE] = (
+            np.nan
+        )
         new_problem.parameter_df.loc[
             parameter_id, OBJECTIVE_PRIOR_PARAMETERS
         ] = np.nan

@@ -61,13 +61,13 @@ def test_parse_cases(expr_str, expected):
     else:
         try:
             result = float(result.evalf())
-            assert np.isclose(
-                result, expected
-            ), f"{expr_str}: Expected {expected}, got {result}"
+            assert np.isclose(result, expected), (
+                f"{expr_str}: Expected {expected}, got {result}"
+            )
         except TypeError:
-            assert (
-                result == expected
-            ), f"{expr_str}: Expected {expected}, got {result}"
+            assert result == expected, (
+                f"{expr_str}: Expected {expected}, got {result}"
+            )
 
 
 def test_ids():
