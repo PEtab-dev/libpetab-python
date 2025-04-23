@@ -59,8 +59,8 @@ class Prior:
         on the `parameter_scale` scale).
     :param bounds: The untransformed bounds of the sample (lower, upper).
     :param transformation: The transformation of the distribution.
-    :param bounds_truncate: Whether the generated prior will be truncated
-        at the bounds.
+    :param _bounds_truncate: **deprecated**
+        Whether the generated prior will be truncated at the bounds.
         If ``True``, the probability density will be rescaled
         accordingly and the sample is generated from the truncated
         distribution.
@@ -75,7 +75,7 @@ class Prior:
         parameters: tuple,
         bounds: tuple = None,
         transformation: str = C.LIN,
-        bounds_truncate: bool = True,
+        _bounds_truncate: bool = True,
     ):
         if transformation not in C.PARAMETER_SCALES:
             raise ValueError(
@@ -97,7 +97,7 @@ class Prior:
         self._parameters = parameters
         self._bounds = bounds
         self._transformation = transformation
-        self._bounds_truncate = bounds_truncate
+        self._bounds_truncate = _bounds_truncate
 
         truncation = bounds
         if truncation is not None:
@@ -267,14 +267,14 @@ class Prior:
     def from_par_dict(
         d,
         type_=Literal["initialization", "objective"],
-        bounds_truncate: bool = True,
+        _bounds_truncate: bool = True,
     ) -> Prior:
         """Create a distribution from a row of the parameter table.
 
         :param d: A dictionary representing a row of the parameter table.
         :param type_: The type of the distribution.
-        :param bounds_truncate: Whether the generated prior will be truncated
-            at the bounds.
+        :param _bounds_truncate: Whether the generated prior will be truncated
+            at the bounds. **deprecated**.
         :return: A distribution object.
         """
         dist_type = d.get(f"{type_}PriorType", C.PARAMETER_SCALE_UNIFORM)
@@ -300,7 +300,7 @@ class Prior:
             parameters=params,
             bounds=(d[C.LOWER_BOUND], d[C.UPPER_BOUND]),
             transformation=pscale,
-            bounds_truncate=bounds_truncate,
+            _bounds_truncate=_bounds_truncate,
         )
 
 
@@ -328,6 +328,12 @@ def priors_to_measurements(problem: Problem):
 
     - `measurement`: the PDF location
     - `noiseFormula`: the PDF scale
+
+    .. warning::
+
+       This function does not account for the truncation of the prior by
+       the bounds in the parameter table. The resulting observable will
+       not be truncated, and the PDF will not be rescaled.
 
     Arguments
     ---------

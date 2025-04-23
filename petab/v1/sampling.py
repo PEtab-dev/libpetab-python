@@ -32,7 +32,6 @@ def sample_from_prior(
         tuple(p_params),
         bounds=tuple(bounds),
         transformation=scaling,
-        bounds_truncate=True,
     )
     return prior.sample(shape=(n_starts,))
 
@@ -79,7 +78,8 @@ def sample_parameter_startpoints(
     return np.array(
         [
             Prior.from_par_dict(
-                row, type_="initialization", bounds_truncate=True
+                row,
+                type_="initialization",
             ).sample(n_starts, x_scaled=True)
             for row in par_to_estimate.to_dict("records")
         ]
