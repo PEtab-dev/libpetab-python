@@ -76,12 +76,12 @@ class Distribution(abc.ABC):
     @property
     def trunc_low(self) -> float:
         """The lower truncation limit of the transformed distribution."""
-        return self._exp(self._trunc[0]) if self._trunc else -np.inf
+        return self._trunc[0] if self._trunc else -np.inf
 
     @property
     def trunc_high(self) -> float:
         """The upper truncation limit of the transformed distribution."""
-        return self._exp(self._trunc[1]) if self._trunc else np.inf
+        return self._trunc[1] if self._trunc else np.inf
 
     def _exp(self, x: np.ndarray | float) -> np.ndarray | float:
         """Exponentiate / undo the log transformation if applicable.
@@ -275,17 +275,15 @@ class Normal(Distribution):
     :param loc: The location parameter of the distribution.
     :param scale: The scale parameter of the distribution.
     :param trunc: The truncation limits of the distribution.
-        ``None`` if the distribution is not truncated.
+        ``None`` if the distribution is not truncated. The truncation limits
+        are the truncation limits of the transformed distribution.
     :param log: If ``True``, the distribution is transformed to a log-normal
         distribution. If a float, the distribution is transformed to a
-        log-normal distribution with the given log-base.
+        log-normal distribution with the given base.
         If ``False``, no transformation is applied.
-
-        .. note::
-
-           If a transformation is applied, the location and scale parameters
-           and the truncation limits are the location, scale and truncation
-           limits of the underlying normal distribution.
+        If a transformation is applied, the location and scale parameters
+        and the truncation limits are the location, scale and truncation limits
+        of the underlying normal distribution.
     """
 
     def __init__(
@@ -336,11 +334,8 @@ class Uniform(Distribution):
         distribution. If a float, the distribution is transformed to a
         log-uniform distribution with the given base.
         If ``False``, no transformation is applied.
-
-        .. note::
-
-           If a transformation is applied, the lower and upper bounds are the
-           lower and upper bounds of the underlying uniform distribution.
+        If a transformation is applied, the lower and upper bounds are the
+        lower and upper bounds of the underlying uniform distribution.
     """
 
     def __init__(
@@ -377,17 +372,15 @@ class Laplace(Distribution):
     :param loc: The location parameter of the distribution.
     :param scale: The scale parameter of the distribution.
     :param trunc: The truncation limits of the distribution.
-        ``None`` if the distribution is not truncated.
+        ``None`` if the distribution is not truncated. The truncation limits
+        are the truncation limits of the transformed distribution.
     :param log: If ``True``, the distribution is transformed to a log-Laplace
         distribution. If a float, the distribution is transformed to a
         log-Laplace distribution with the given base.
         If ``False``, no transformation is applied.
-
-        .. note::
-
-           If a transformation is applied, the location and scale parameters
-           and the truncation limits are the location, scale and truncation
-           limits of the underlying Laplace distribution.
+        If a transformation is applied, the location and scale parameters
+        and the truncation limits are the location, scale and truncation limits
+        of the underlying Laplace distribution.
     """
 
     def __init__(
