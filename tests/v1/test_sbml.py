@@ -134,7 +134,7 @@ def test_sbml_model_repr():
     assert repr(petab_model) == "<SbmlModel 'test'>"
 
 
-def test_sbml_from_ant():
+def test_sbml_from_to_ant():
     ant_model = """
     model test
         R1: S1 -> S2; k1*S1
@@ -147,3 +147,6 @@ def test_sbml_from_ant():
     assert set(petab_model.get_valid_parameters_for_parameter_table()) == {
         "k1"
     }
+
+    # convert back to antimony
+    assert "R1: S1 -> S2; k1*S1" in petab_model.to_antimony()
