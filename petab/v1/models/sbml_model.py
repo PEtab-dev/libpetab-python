@@ -65,9 +65,7 @@ class SbmlModel(Model):
 
         # libsbml stuff cannot be serialized directly
         if self.sbml_model:
-            sbml_document = self.sbml_model.getSBMLDocument()
-            sbml_writer = libsbml.SBMLWriter()
-            state["sbml_string"] = sbml_writer.writeSBMLToString(sbml_document)
+            state["sbml_string"] = self.to_sbml_str()
 
         exclude = ["sbml_reader", "sbml_document", "sbml_model"]
         for key in exclude:
@@ -132,6 +130,26 @@ class SbmlModel(Model):
         """
         sbml_str = antimony2sbml(ant_model)
         return SbmlModel.from_string(sbml_str)
+
+    def to_antimony(self) -> str:
+        """Convert the SBML model to an Antimony string."""
+        import antimony as ant
+
+        sbml_str = self.to_sbml_str()
+
+        ant.clearPreviousLoads()
+        ant.freeAll()
+
+        if ant.loadSBMLString(sbml_str) < 0:
+            raise RuntimeError(ant.getLastError())
+
+        return ant.getAntimonyString()
+
+    def to_sbml_str(self) -> str:
+        """Convert the SBML model to an SBML/XML string."""
+        sbml_document = self.sbml_model.getSBMLDocument()
+        sbml_writer = libsbml.SBMLWriter()
+        return sbml_writer.writeSBMLToString(sbml_document)
 
     @property
     def model_id(self):

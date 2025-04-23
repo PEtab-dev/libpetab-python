@@ -5,6 +5,8 @@ from itertools import chain, islice
 import sympy as sp
 from sympy.printing.str import StrPrinter
 
+__all__ = ["PetabStrPrinter", "petab_math_str"]
+
 
 class PetabStrPrinter(StrPrinter):
     """A PEtab-compatible sympy string-printer."""
