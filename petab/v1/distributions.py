@@ -31,6 +31,9 @@ class Distribution(abc.ABC):
         If ``False``, no transformation is applied.
     :param trunc: The truncation points (lower, upper) of the distribution
         or ``None`` if the distribution is not truncated.
+        If the distribution is log-scaled, the truncation limits are expected
+        to be on the same log scale, rather than on the scale of the underlying
+        distribution.
     """
 
     def __init__(
@@ -275,8 +278,10 @@ class Normal(Distribution):
     :param loc: The location parameter of the distribution.
     :param scale: The scale parameter of the distribution.
     :param trunc: The truncation limits of the distribution.
-        ``None`` if the distribution is not truncated. The truncation limits
-        are the truncation limits of the transformed distribution.
+        ``None`` if the distribution is not truncated.
+        If the distribution is log-scaled, the truncation limits are expected
+        to be on the same log scale, rather than on the scale of the underlying
+        normal distribution.
     :param log: If ``True``, the distribution is transformed to a log-normal
         distribution. If a float, the distribution is transformed to a
         log-normal distribution with the given log-base.
@@ -371,8 +376,10 @@ class Laplace(Distribution):
     :param loc: The location parameter of the distribution.
     :param scale: The scale parameter of the distribution.
     :param trunc: The truncation limits of the distribution.
-        ``None`` if the distribution is not truncated. The truncation limits
-        are the truncation limits of the transformed distribution.
+        ``None`` if the distribution is not truncated.
+        If the distribution is log-scaled, the truncation limits are expected
+        to be on the same log scale, rather than on the scale of the underlying
+        normal distribution.
     :param log: If ``True``, the distribution is transformed to a log-Laplace
         distribution. If a float, the distribution is transformed to a
         log-Laplace distribution with the given log-base.
