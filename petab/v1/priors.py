@@ -261,7 +261,7 @@ class Prior:
         # we want to evaluate the prior on the untruncated distribution
         if x_scaled:
             x = unscale(x, self.transformation)
-        return -np.log(self.distribution._pdf_transformed_untruncated(x))
+        return -np.log(self.distribution._pdf_untruncated(x))
 
     @staticmethod
     def from_par_dict(

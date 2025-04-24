@@ -140,13 +140,14 @@ class Distribution(abc.ABC):
 
         :param x: The value at which to evaluate the PDF.
         :return: The value of the PDF at ``x``.
+            NaN, if ``x`` is outside the domain of the PDF.
         """
         if self._trunc is None:
-            return self._pdf_transformed_untruncated(x)
+            return self._pdf_untruncated(x)
 
         return np.where(
             (x >= self.trunc_low) & (x <= self.trunc_high),
-            self._pdf_transformed_untruncated(x) * self._truncation_normalizer,
+            self._pdf_untruncated(x) * self._truncation_normalizer,
             0,
         )
 
@@ -159,12 +160,12 @@ class Distribution(abc.ABC):
         """
         ...
 
-    def _pdf_transformed_untruncated(self, x) -> np.ndarray | float:
-        """Probability density function of the transformed, but untruncated
-        distribution at x.
+    def _pdf_untruncated(self, x) -> np.ndarray | float:
+        """Probability density function of the untruncated distribution at x.
 
         :param x: The value at which to evaluate the PDF.
-        :return: The value of the PDF at ``x``.
+        :return: The value of the PDF of the maybe-log-transformed distribution
+            at ``x``.
         """
         if self.logbase is False:
             return self._pdf_untransformed_untruncated(x)
