@@ -269,7 +269,7 @@ def test_sample_matches_pdf(prior_args, transform):
 
         assert p > 0.05, (p, prior)
 
-    # check that the integral of the PDF is 1 on the parameter scale
+    # check that the integral of the PDF is 1 for the unscaled parameters
     integral, abserr = quad(
         lambda x: prior.pdf(x, x_scaled=False),
         -np.inf,
