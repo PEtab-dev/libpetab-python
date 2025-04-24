@@ -32,8 +32,7 @@ class Distribution(abc.ABC):
     :param trunc: The truncation points (lower, upper) of the distribution
         or ``None`` if the distribution is not truncated.
         If the distribution is log-scaled, the truncation limits are expected
-        to be on the same log scale, rather than on the scale of the underlying
-        distribution.
+        to be on the same log scale.
     """
 
     def __init__(
@@ -280,8 +279,7 @@ class Normal(Distribution):
     :param trunc: The truncation limits of the distribution.
         ``None`` if the distribution is not truncated.
         If the distribution is log-scaled, the truncation limits are expected
-        to be on the same log scale, rather than on the scale of the underlying
-        normal distribution.
+        to be on the same log scale.
     :param log: If ``True``, the distribution is transformed to a log-normal
         distribution. If a float, the distribution is transformed to a
         log-normal distribution with the given log-base.
@@ -378,8 +376,7 @@ class Laplace(Distribution):
     :param trunc: The truncation limits of the distribution.
         ``None`` if the distribution is not truncated.
         If the distribution is log-scaled, the truncation limits are expected
-        to be on the same log scale, rather than on the scale of the underlying
-        normal distribution.
+        to be on the same log scale.
     :param log: If ``True``, the distribution is transformed to a log-Laplace
         distribution. If a float, the distribution is transformed to a
         log-Laplace distribution with the given log-base.
