@@ -813,14 +813,13 @@ class Problem:
         """Number of measurements."""
         return len(self.measurement_table.measurements)
 
-    # TODO: update after implementing priors in `Parameter`
     @property
     def n_priors(self) -> int:
         """Number of priors."""
-        if OBJECTIVE_PRIOR_PARAMETERS not in self.parameter_df:
-            return 0
-
-        return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
+        return sum(
+            p.prior_distribution is not None
+            for p in self.parameter_table.parameters
+        )
 
     def validate(
         self, validation_tasks: list[ValidationTask] = None
@@ -944,10 +943,8 @@ class Problem:
         scale: str = None,
         lb: Number = None,
         ub: Number = None,
-        init_prior_type: str = None,
-        init_prior_pars: str | Sequence = None,
-        obj_prior_type: str = None,
-        obj_prior_pars: str | Sequence = None,
+        prior_dist: str = None,
+        prior_pars: str | Sequence = None,
         **kwargs,
     ):
         """Add a parameter to the problem.
@@ -959,11 +956,8 @@ class Problem:
             scale: The parameter scale
             lb: The lower bound of the parameter
             ub: The upper bound of the parameter
-            init_prior_type: The type of the initialization prior distribution
-            init_prior_pars: The parameters of the initialization prior
-                distribution
-            obj_prior_type: The type of the objective prior distribution
-            obj_prior_pars: The parameters of the objective prior distribution
+            prior_dist: The type of the prior distribution
+            prior_pars: The parameters of the prior distribution
             kwargs: additional columns/values to add to the parameter table
         """
         record = {
@@ -979,22 +973,12 @@ class Problem:
             record[LOWER_BOUND] = lb
         if ub is not None:
             record[UPPER_BOUND] = ub
-        if init_prior_type is not None:
-            record[INITIALIZATION_PRIOR_TYPE] = init_prior_type
-        if init_prior_pars is not None:
-            if not isinstance(init_prior_pars, str):
-                init_prior_pars = PARAMETER_SEPARATOR.join(
-                    map(str, init_prior_pars)
-                )
-            record[INITIALIZATION_PRIOR_PARAMETERS] = init_prior_pars
-        if obj_prior_type is not None:
-            record[OBJECTIVE_PRIOR_TYPE] = obj_prior_type
-        if obj_prior_pars is not None:
-            if not isinstance(obj_prior_pars, str):
-                obj_prior_pars = PARAMETER_SEPARATOR.join(
-                    map(str, obj_prior_pars)
-                )
-            record[OBJECTIVE_PRIOR_PARAMETERS] = obj_prior_pars
+        if prior_dist is not None:
+            record[PRIOR_DISTRIBUTION] = prior_dist
+        if prior_pars is not None:
+            if not isinstance(prior_pars, str):
+                prior_pars = PARAMETER_SEPARATOR.join(map(str, prior_pars))
+            record[PRIOR_PARAMETERS] = prior_pars
         record.update(kwargs)
 
         self.parameter_table += core.Parameter(**record)
@@ -1127,7 +1111,7 @@ class Problem:
                          'id': 'par',
                          'lb': 0.0,
                          'nominal_value': None,
-                         'scale': <ParameterScale.LIN: 'lin'>,
+                         'prior_distribution': None,
                          'ub': 1.0}]}
         """
         res = {
