@@ -266,7 +266,6 @@ def test_sample_matches_pdf(prior_args, transform):
             plt.ylabel(("rescaled " if x_scaled else "") + "density")
             plt.title(str(prior))
             plt.show()
-            print()
 
         assert p > 0.05, (p, prior)
 
