@@ -109,7 +109,8 @@ class Distribution(abc.ABC):
         """
         if self._logbase is False:
             return x
-        return np.log(x) / np.log(self._logbase)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            return np.log(x) / np.log(self._logbase)
 
     def sample(self, shape=None) -> np.ndarray | float:
         """Sample from the distribution.
@@ -306,9 +307,16 @@ class Normal(Distribution):
         super().__init__(log=log, trunc=trunc)
 
     def __repr__(self):
+        if self._logbase is False:
+            log = ""
+        if self._logbase == np.exp(1):
+            log = ", log=True"
+        else:
+            log = f", log={self._logbase}"
+
         trunc = f", trunc={self._trunc}" if self._trunc else ""
-        log = f", log={self._logbase}" if self._logbase else ""
-        return f"Normal(loc={self._loc}, scale={self._scale}{trunc}{log})"
+
+        return f"Normal(loc={self._loc}, scale={self._scale}{log}{trunc})"
 
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.normal(loc=self._loc, scale=self._scale, size=shape)
