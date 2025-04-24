@@ -36,7 +36,7 @@ def test_priors_to_measurements_simple():
     prior_scale = 3
 
     for prior_type in [C.NORMAL, C.LAPLACE]:
-        # evaluate the orignal prior
+        # evaluate the original prior
         prior = Prior(
             prior_type, (prior_loc, prior_scale), transformation=C.LIN
         )
