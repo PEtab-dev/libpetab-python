@@ -485,7 +485,7 @@ class ExperimentPeriod(BaseModel):
         alias=C.TIME
     )
     #: The IDs of the conditions to be applied at the start time.
-    condition_ids: list[str] = []
+    condition_ids: list[str] = Field(default_factory=list)
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True, extra="allow")
