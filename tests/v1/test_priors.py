@@ -272,7 +272,7 @@ def test_sample_matches_pdf(prior_args, transform):
     # check that the integral of the PDF is 1 for the unscaled parameters
     integral, abserr = quad(
         lambda x: prior.pdf(x, x_scaled=False),
-        -np.inf,
+        -np.inf if prior.distribution.logbase is False else 0,
         np.inf,
         limit=100,
         epsabs=1e-10,

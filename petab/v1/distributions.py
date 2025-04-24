@@ -177,10 +177,15 @@ class Distribution(abc.ABC):
             )
 
             return np.where(
-                x > 0,
-                self._pdf_untransformed_untruncated(self._log(x))
-                * chain_rule_factor,
-                0,
+                x >= 0,
+                np.where(
+                    x > 0,
+                    self._pdf_untransformed_untruncated(self._log(x))
+                    * chain_rule_factor,
+                    0,
+                ),
+                # NaN outside its domain
+                np.nan,
             )
 
     @property
