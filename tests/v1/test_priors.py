@@ -6,7 +6,7 @@ import benchmark_models_petab
 import numpy as np
 import pandas as pd
 import pytest
-from scipy.integrate import cumulative_trapezoid
+from scipy.integrate import cumulative_trapezoid, quad
 from scipy.stats import kstest
 
 import petab.v1
@@ -20,7 +20,37 @@ from petab.v1 import (
     get_simulation_conditions,
     get_simulation_df,
 )
+from petab.v1.calculate import calculate_single_llh
 from petab.v1.priors import Prior, priors_to_measurements
+
+
+def test_priors_to_measurements_simple():
+    """Test the conversion of priors to measurements.
+
+    Illustrates & tests the conversion of a prior to a measurement.
+    """
+    # parameter value at which we evaluate the prior
+    par_value = 2.5
+    # location and scale parameters of the prior
+    prior_loc = 3
+    prior_scale = 3
+
+    for prior_type in [C.NORMAL, C.LAPLACE]:
+        # evaluate the original prior
+        prior = Prior(
+            prior_type, (prior_loc, prior_scale), transformation=C.LIN
+        )
+        logprior = -prior.neglogprior(par_value, x_scaled=False)
+
+        # evaluate the alternative implementation as a measurement
+        llh = calculate_single_llh(
+            measurement=prior_loc,
+            simulation=par_value,
+            scale=C.LIN,
+            noise_distribution=prior_type,
+            noise_value=prior_scale,
+        )
+        assert np.isclose(llh, logprior, rtol=1e-12, atol=1e-16)
 
 
 @pytest.mark.parametrize(
@@ -59,8 +89,13 @@ def test_priors_to_measurements(problem_id):
         )
     )
 
-    # convert priors to measurements
-    petab_problem_measurements = priors_to_measurements(petab_problem_priors)
+    try:
+        # convert priors to measurements
+        petab_problem_measurements = priors_to_measurements(
+            petab_problem_priors
+        )
+    except NotImplementedError as e:
+        pytest.skip(str(e))
 
     # check that the original problem is not modified
     for attr in [
@@ -121,9 +156,12 @@ def test_priors_to_measurements(problem_id):
         # apply the parameter values to the observable formula for the prior
         if row[OBSERVABLE_ID].startswith("prior_"):
             parameter_id = row[OBSERVABLE_ID].removeprefix("prior_")
-            if original_problem.parameter_df.loc[
-                parameter_id, OBJECTIVE_PRIOR_TYPE
-            ].startswith("parameterScale"):
+            if (
+                original_problem.parameter_df.loc[
+                    parameter_id, OBJECTIVE_PRIOR_TYPE
+                ]
+                in C.PARAMETER_SCALE_PRIOR_TYPES
+            ):
                 row[SIMULATION] = x_scaled_dict[parameter_id]
             else:
                 row[SIMULATION] = x_unscaled_dict[parameter_id]
@@ -156,13 +194,17 @@ def test_priors_to_measurements(problem_id):
     ]
     priors = [
         Prior.from_par_dict(
-            petab_problem_priors.parameter_df.loc[par_id], type_="objective"
+            petab_problem_priors.parameter_df.loc[par_id],
+            type_="objective",
+            _bounds_truncate=False,
         )
         for par_id in parameter_ids
     ]
     prior_contrib = 0
     for parameter_id, prior in zip(parameter_ids, priors, strict=True):
-        prior_contrib -= prior.neglogprior(x_scaled_dict[parameter_id])
+        prior_contrib -= prior.neglogprior(
+            x_scaled_dict[parameter_id], x_scaled=True
+        )
 
     assert np.isclose(
         llh_priors + prior_contrib, llh_measurements, rtol=1e-8, atol=1e-16
@@ -194,21 +236,46 @@ def test_sample_matches_pdf(prior_args, transform):
     """Test that the sample matches the PDF."""
     np.random.seed(1)
     N_SAMPLES = 10_000
+
     prior = Prior(*prior_args, transformation=transform)
-    sample = prior.sample(N_SAMPLES)
 
-    # pdf -> cdf
-    def cdf(x):
-        return cumulative_trapezoid(prior.pdf(x), x)
+    for x_scaled in [False, True]:
+        sample = prior.sample(N_SAMPLES, x_scaled=x_scaled)
 
-    # Kolmogorov-Smirnov test to check if the sample is drawn from the CDF
-    _, p = kstest(sample, cdf)
+        # pdf -> cdf
+        def cdf(x):
+            return cumulative_trapezoid(
+                prior.pdf(
+                    x,
+                    x_scaled=x_scaled,  # noqa B208
+                    rescale=x_scaled,  # noqa B208
+                ),
+                x,
+            )
 
-    # if p < 0.05:
-    #     import matplotlib.pyplot as plt
-    #     plt.hist(sample, bins=100, density=True)
-    #     x = np.linspace(min(sample), max(sample), 100)
-    #     plt.plot(x, distribution.pdf(x))
-    #     plt.show()
+        # Kolmogorov-Smirnov test to check if the sample is drawn from the CDF
+        _, p = kstest(sample, cdf)
 
-    assert p > 0.05, (p, prior)
+        if p < 0.05:
+            import matplotlib.pyplot as plt
+
+            plt.hist(sample, bins=100, density=True)
+            x = np.linspace(min(sample), max(sample), 100)
+            plt.plot(x, prior.pdf(x, x_scaled=x_scaled, rescale=x_scaled))
+            plt.xlabel(("scaled" if x_scaled else "unscaled") + " x")
+            plt.ylabel(("rescaled " if x_scaled else "") + "density")
+            plt.title(str(prior))
+            plt.show()
+
+        assert p > 0.05, (p, prior)
+
+    # check that the integral of the PDF is 1 for the unscaled parameters
+    integral, abserr = quad(
+        lambda x: prior.pdf(x, x_scaled=False),
+        -np.inf if prior.distribution.logbase is False else 0,
+        np.inf,
+        limit=100,
+        epsabs=1e-10,
+        epsrel=0,
+    )
+    assert np.isclose(integral, 1, rtol=0, atol=10 * abserr)
