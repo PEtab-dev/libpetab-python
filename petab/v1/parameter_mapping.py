@@ -404,7 +404,7 @@ def get_parameter_mapping_for_condition(
     # initialize mapping dicts
     # for the case of matching simulation and optimization parameter vector
     par_mapping = simulation_parameters.copy()
-    scale_mapping = {par_id: LIN for par_id in par_mapping.keys()}
+    scale_mapping = dict.fromkeys(par_mapping.keys(), LIN)
     _output_parameters_to_nan(par_mapping)
 
     # not strictly necessary for preequilibration, be we do it to have

@@ -59,6 +59,14 @@ class Prior:
         on the `parameter_scale` scale).
     :param bounds: The untransformed bounds of the sample (lower, upper).
     :param transformation: The transformation of the distribution.
+    :param _bounds_truncate: **deprecated**
+        Whether the generated prior will be truncated at the bounds.
+        If ``True``, the probability density will be rescaled
+        accordingly and the sample is generated from the truncated
+        distribution.
+        If ``False``, the probability density will not be rescaled
+        accordingly, but the sample will be generated from the truncated
+        distribution.
     """
 
     def __init__(
@@ -67,6 +75,7 @@ class Prior:
         parameters: tuple,
         bounds: tuple = None,
         transformation: str = C.LIN,
+        _bounds_truncate: bool = True,
     ):
         if transformation not in C.PARAMETER_SCALES:
             raise ValueError(
@@ -88,27 +97,51 @@ class Prior:
         self._parameters = parameters
         self._bounds = bounds
         self._transformation = transformation
+        self._bounds_truncate = _bounds_truncate
+
+        truncation = bounds
+        if truncation is not None:
+            # for uniform, we don't want to implement truncation and just
+            #  adapt the distribution parameters
+            if type_ == C.PARAMETER_SCALE_UNIFORM:
+                parameters = (
+                    max(parameters[0], scale(truncation[0], transformation)),
+                    min(parameters[1], scale(truncation[1], transformation)),
+                )
+            elif type_ == C.UNIFORM:
+                parameters = (
+                    max(parameters[0], truncation[0]),
+                    min(parameters[1], truncation[1]),
+                )
 
         # create the underlying distribution
         match type_, transformation:
             case (C.UNIFORM, _) | (C.PARAMETER_SCALE_UNIFORM, C.LIN):
                 self.distribution = Uniform(*parameters)
             case (C.NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LIN):
-                self.distribution = Normal(*parameters)
+                self.distribution = Normal(*parameters, trunc=truncation)
             case (C.LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LIN):
-                self.distribution = Laplace(*parameters)
+                self.distribution = Laplace(*parameters, trunc=truncation)
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG):
                 self.distribution = Uniform(*parameters, log=True)
             case (C.LOG_NORMAL, _) | (C.PARAMETER_SCALE_NORMAL, C.LOG):
-                self.distribution = Normal(*parameters, log=True)
+                self.distribution = Normal(
+                    *parameters, log=True, trunc=truncation
+                )
             case (C.LOG_LAPLACE, _) | (C.PARAMETER_SCALE_LAPLACE, C.LOG):
-                self.distribution = Laplace(*parameters, log=True)
+                self.distribution = Laplace(
+                    *parameters, log=True, trunc=truncation
+                )
             case (C.PARAMETER_SCALE_UNIFORM, C.LOG10):
                 self.distribution = Uniform(*parameters, log=10)
             case (C.PARAMETER_SCALE_NORMAL, C.LOG10):
-                self.distribution = Normal(*parameters, log=10)
+                self.distribution = Normal(
+                    *parameters, log=10, trunc=truncation
+                )
             case (C.PARAMETER_SCALE_LAPLACE, C.LOG10):
-                self.distribution = Laplace(*parameters, log=10)
+                self.distribution = Laplace(
+                    *parameters, log=10, trunc=truncation
+                )
             case _:
                 raise ValueError(
                     "Unsupported distribution type / transformation: "
@@ -124,69 +157,55 @@ class Prior:
         )
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self._type
 
     @property
-    def parameters(self):
+    def parameters(self) -> tuple:
+        """The parameters of the distribution."""
         return self._parameters
 
     @property
-    def bounds(self):
+    def bounds(self) -> tuple[float, float] | None:
+        """The non-scaled bounds of the distribution."""
         return self._bounds
 
     @property
-    def transformation(self):
+    def transformation(self) -> str:
+        """The `parameterScale`."""
         return self._transformation
 
-    def sample(self, shape=None) -> np.ndarray:
+    def sample(self, shape=None, x_scaled=False) -> np.ndarray | float:
         """Sample from the distribution.
 
         :param shape: The shape of the sample.
+        :param x_scaled: Whether the sample should be on the parameter scale.
         :return: A sample from the distribution.
         """
         raw_sample = self.distribution.sample(shape)
-        return self._clip_to_bounds(self._scale_sample(raw_sample))
+        if x_scaled:
+            return self._scale_sample(raw_sample)
+        else:
+            return raw_sample
 
     def _scale_sample(self, sample):
         """Scale the sample to the parameter space"""
-        # if self.on_parameter_scale:
-        #     return sample
-
+        # we also need to scale parameterScale* distributions, because
+        #  internally, they are handled as (unscaled) log-distributions
         return scale(sample, self.transformation)
 
-    def _clip_to_bounds(self, x):
-        """Clip `x` values to bounds.
-
-        :param x: The values to clip. Assumed to be on the parameter scale.
-        """
-        # TODO: replace this by proper truncation
-        if self.bounds is None:
-            return x
-
-        return np.maximum(
-            np.minimum(self.ub_scaled, x),
-            self.lb_scaled,
-        )
-
     @property
-    def lb_scaled(self):
+    def lb_scaled(self) -> float:
         """The lower bound on the parameter scale."""
         return scale(self.bounds[0], self.transformation)
 
     @property
-    def ub_scaled(self):
+    def ub_scaled(self) -> float:
         """The upper bound on the parameter scale."""
         return scale(self.bounds[1], self.transformation)
 
-    def pdf(self, x):
-        """Probability density function at x.
-
-        :param x: The value at which to evaluate the PDF.
-            ``x`` is assumed to be on the parameter scale.
-        :return: The value of the PDF at ``x``. Note that the PDF does
-            currently not account for the clipping at the bounds.
-        """
+    def _chain_rule_coeff(self, x) -> np.ndarray | float:
+        """The chain rule coefficient for the transformation at x."""
         x = unscale(x, self.transformation)
 
         # scale the PDF to the parameter scale
@@ -199,25 +218,63 @@ class Prior:
         else:
             raise ValueError(f"Unknown transformation: {self.transformation}")
 
-        return self.distribution.pdf(x) * coeff
+        return coeff
 
-    def neglogprior(self, x):
+    def pdf(
+        self, x, x_scaled: bool = False, rescale=False
+    ) -> np.ndarray | float:
+        """Probability density function at x.
+
+        This accounts for truncation, independent of the `bounds_truncate`
+        parameter.
+
+        :param x: The value at which to evaluate the PDF.
+            ``x`` is assumed to be on the parameter scale.
+        :param x_scaled: Whether ``x`` is on the parameter scale.
+        :param rescale: Whether to rescale the PDF to integrate to 1 on the
+            parameter scale. Only used if ``x_scaled`` is ``True``.
+        :return: The value of the PDF at ``x``.
+        """
+        if x_scaled:
+            coeff = self._chain_rule_coeff(x) if rescale else 1
+            x = unscale(x, self.transformation)
+            return self.distribution.pdf(x) * coeff
+
+        return self.distribution.pdf(x)
+
+    def neglogprior(
+        self, x: np.array | float, x_scaled: bool = False
+    ) -> np.ndarray | float:
         """Negative log-prior at x.
 
         :param x: The value at which to evaluate the negative log-prior.
-            ``x`` is assumed to be on the parameter scale.
+        :param x_scaled: Whether ``x`` is on the parameter scale.
+            Note that the prior is always evaluated on the non-scaled
+            parameters.
         :return: The negative log-prior at ``x``.
         """
-        return -np.log(self.pdf(x))
+        if self._bounds_truncate:
+            # the truncation is handled by the distribution
+            # the prior is always evaluated on the non-scaled parameters
+            return -np.log(self.pdf(x, x_scaled=x_scaled, rescale=False))
+
+        # we want to evaluate the prior on the untruncated distribution
+        if x_scaled:
+            x = unscale(x, self.transformation)
+        return -np.log(self.distribution._pdf_untruncated(x))
 
     @staticmethod
     def from_par_dict(
-        d, type_=Literal["initialization", "objective"]
+        d,
+        type_=Literal["initialization", "objective"],
+        _bounds_truncate: bool = True,
     ) -> Prior:
         """Create a distribution from a row of the parameter table.
 
         :param d: A dictionary representing a row of the parameter table.
         :param type_: The type of the distribution.
+        :param _bounds_truncate: Whether the generated prior will be truncated
+            at the bounds. **deprecated**.
         :return: A distribution object.
         """
         dist_type = d.get(f"{type_}PriorType", C.PARAMETER_SCALE_UNIFORM)
@@ -243,6 +300,7 @@ class Prior:
             parameters=params,
             bounds=(d[C.LOWER_BOUND], d[C.UPPER_BOUND]),
             transformation=pscale,
+            _bounds_truncate=_bounds_truncate,
         )
 
 
@@ -271,6 +329,12 @@ def priors_to_measurements(problem: Problem):
     - `measurement`: the PDF location
     - `noiseFormula`: the PDF scale
 
+    .. warning::
+
+       This function does not account for the truncation of the prior by
+       the bounds in the parameter table. The resulting observable will
+       not be truncated, and the PDF will not be rescaled.
+
     Arguments
     ---------
     problem:
@@ -295,6 +359,7 @@ def priors_to_measurements(problem: Problem):
         return new_problem
 
     def scaled_observable_formula(parameter_id, parameter_scale):
+        # The location parameter of the prior
         if parameter_scale == LIN:
             return parameter_id
         if parameter_scale == LOG:
@@ -323,6 +388,12 @@ def priors_to_measurements(problem: Problem):
             #  offset
             raise NotImplementedError("Uniform priors are not supported.")
 
+        if prior_type not in (C.NORMAL, C.LAPLACE):
+            # we can't (easily) handle parameterScale* priors or log*-priors
+            raise NotImplementedError(
+                f"Objective prior type {prior_type} is not implemented."
+            )
+
         parameter_id = row.name
         prior_parameters = tuple(
             map(
@@ -347,7 +418,9 @@ def priors_to_measurements(problem: Problem):
             OBSERVABLE_ID: new_obs_id,
             OBSERVABLE_FORMULA: scaled_observable_formula(
                 parameter_id,
-                parameter_scale if "parameterScale" in prior_type else LIN,
+                parameter_scale
+                if prior_type in C.PARAMETER_SCALE_PRIOR_TYPES
+                else LIN,
             ),
             NOISE_FORMULA: f"noiseParameter1_{new_obs_id}",
         }
@@ -356,12 +429,13 @@ def priors_to_measurements(problem: Problem):
         elif OBSERVABLE_TRANSFORMATION in new_problem.observable_df:
             # only set default if the column is already present
             new_observable[OBSERVABLE_TRANSFORMATION] = LIN
-
+        # type of the underlying distribution
         if prior_type in (NORMAL, PARAMETER_SCALE_NORMAL, LOG_NORMAL):
             new_observable[NOISE_DISTRIBUTION] = NORMAL
         elif prior_type in (LAPLACE, PARAMETER_SCALE_LAPLACE, LOG_LAPLACE):
             new_observable[NOISE_DISTRIBUTION] = LAPLACE
         else:
+            # we can't (easily) handle uniform priors in PEtab v1
             raise NotImplementedError(
                 f"Objective prior type {prior_type} is not implemented."
             )
