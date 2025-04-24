@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from math import nan
 from numbers import Number
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import sympy as sp
@@ -1100,6 +1100,52 @@ class Problem:
                 f"Cannot add object of type {type(other)} to Problem."
             )
         return self
+
+    def model_dump(self, **kwargs) -> dict[str, Any]:
+        """Convert this Problem to a dictionary.
+
+        This function is intended for debugging purposes and should not be
+        used for serialization. The output of this function may change
+        without notice.
+
+        The output includes all PEtab tables, but not the model itself.
+
+        See `pydantic.BaseModel.model_dump <https://docs.pydantic.dev/latest/api/base_model/#pydantic.BaseModel.model_dump>`__
+        for details.
+
+        :example:
+
+        >>> from pprint import pprint
+        >>> p = Problem()
+        >>> p += core.Parameter(id="par", lb=0, ub=1)
+        >>> pprint(p.model_dump())
+        {'conditions': [],
+         'config': {'extensions': [],
+                    'format_version': '2.0.0',
+                    'parameter_file': None,
+                    'problems': []},
+         'experiments': [],
+         'mappings': [],
+         'measurements': [],
+         'observables': [],
+         'parameters': [{'estimate': 'true',
+                         'id': 'par',
+                         'lb': 0.0,
+                         'nominal_value': None,
+                         'scale': <ParameterScale.LIN: 'lin'>,
+                         'ub': 1.0}]}
+        """
+        res = {
+            "config": (self.config or ProblemConfig()).model_dump(**kwargs),
+        }
+        res |= self.mapping_table.model_dump(**kwargs)
+        res |= self.condition_table.model_dump(**kwargs)
+        res |= self.experiment_table.model_dump(**kwargs)
+        res |= self.observable_table.model_dump(**kwargs)
+        res |= self.measurement_table.model_dump(**kwargs)
+        res |= self.parameter_table.model_dump(**kwargs)
+
+        return res
 
 
 class ModelFile(BaseModel):
