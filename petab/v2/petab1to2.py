@@ -416,15 +416,12 @@ def v1v2_parameter_df(
         if pd.isna(pscale):
             pscale = v1.C.LIN
 
-        if (
-            pscale == v1.C.LIN
-            or prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES
-        ):
+        if prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES:
             return prior_type
 
-        new_prior_type = (
-            f"{pscale}-{prior_type.removeprefix('parameterScale').lower()}"
-        )
+        new_prior_type = prior_type.removeprefix("parameterScale").lower()
+        if pscale != v1.C.LIN:
+            new_prior_type = f"{pscale}-{new_prior_type}"
 
         if new_prior_type not in v2.C.PRIOR_DISTRIBUTIONS:
             raise NotImplementedError(
