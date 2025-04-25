@@ -92,12 +92,8 @@ def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
 
     # Update tables
 
-    # parameter table:
-    # * parameter.estimate: int -> bool
-    parameter_df = petab_problem.parameter_df.copy()
-    parameter_df[v1.C.ESTIMATE] = parameter_df[v1.C.ESTIMATE].apply(
-        lambda x: str(bool(int(x))).lower()
-    )
+    # parameter table
+    parameter_df = v1v2_parameter_df(petab_problem.parameter_df.copy())
     file = yaml_config[v2.C.PARAMETER_FILE]
     v2.write_parameter_df(parameter_df, get_dest_path(file))
 
@@ -391,5 +387,75 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
 
         df[v2.C.NOISE_DISTRIBUTION] = df.apply(update_noise_dist, axis=1)
         df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
+
+    return df
+
+
+def v1v2_parameter_df(
+    parameter_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Convert parameter table from petab v1 to v2.
+
+    Do all the necessary conversions to the parameter table that can
+    be done with the parameter table alone.
+    """
+    df = parameter_df.copy().reset_index()
+
+    # parameter.estimate: int -> bool
+    df[v2.C.ESTIMATE] = df[v1.C.ESTIMATE].apply(
+        lambda x: str(bool(int(x))).lower()
+    )
+
+    def update_prior(row):
+        """Convert prior to v2 format."""
+        prior_type = row.get(v1.C.OBJECTIVE_PRIOR_TYPE)
+        if pd.isna(prior_type):
+            prior_type = v1.C.UNIFORM
+
+        pscale = row.get(v1.C.PARAMETER_SCALE)
+        if pd.isna(pscale):
+            pscale = v1.C.LIN
+
+        if (
+            pscale == v1.C.LIN
+            or prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES
+        ):
+            return prior_type
+
+        new_prior_type = (
+            f"{pscale}-{prior_type.removeprefix('parameterScale').lower()}"
+        )
+
+        if new_prior_type not in v2.C.PRIOR_DISTRIBUTIONS:
+            raise NotImplementedError(
+                f"PEtab v2 does not support prior type `{new_prior_type}' "
+                f"required for parameter `{row.index}'."
+            )
+
+        return new_prior_type
+
+    # update parameterScale*-priors
+    if v1.C.OBJECTIVE_PRIOR_TYPE in df.columns:
+        df[v1.C.OBJECTIVE_PRIOR_TYPE] = df.apply(update_prior, axis=1)
+
+    # rename objectivePrior* to prior*
+    df.rename(
+        columns={
+            v1.C.OBJECTIVE_PRIOR_TYPE: v2.C.PRIOR_DISTRIBUTION,
+            v1.C.OBJECTIVE_PRIOR_PARAMETERS: v2.C.PRIOR_PARAMETERS,
+        },
+        inplace=True,
+        errors="ignore",
+    )
+    # some columns were dropped in PEtab v2
+    df.drop(
+        columns=[
+            v1.C.INITIALIZATION_PRIOR_TYPE,
+            v1.C.INITIALIZATION_PRIOR_PARAMETERS,
+            v1.C.PARAMETER_SCALE,
+        ],
+        inplace=True,
+        errors="ignore",
+    )
 
     return df
