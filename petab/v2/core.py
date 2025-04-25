@@ -157,7 +157,7 @@ class PriorDistribution(str, Enum):
 
 
 assert set(C.PRIOR_DISTRIBUTIONS) == {e.value for e in PriorDistribution}, (
-    "PriorType enum does not match C.PRIOR_TYPES: "
+    "PriorDistribution enum does not match C.PRIOR_DISTRIBUTIONS "
     f"{set(C.PRIOR_DISTRIBUTIONS)} vs { {e.value for e in PriorDistribution} }"
 )
 

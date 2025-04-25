@@ -191,7 +191,7 @@ OBSERVABLE_TRANSFORMATIONS = [LIN, LOG, LOG10]
 #: Cauchy distribution.
 CAUCHY = "cauchy"
 #: Chi-squared distribution.
-# TODO: "chisquare" in PEtab and sbml-distrib, but usually "chi-squared"
+# FIXME: "chisquare" in PEtab and sbml-distrib, but usually "chi-squared"
 CHI_SQUARED = "chisquare"
 #: Exponential distribution.
 EXPONENTIAL = "exponential"
