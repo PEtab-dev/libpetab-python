@@ -973,6 +973,7 @@ class Parameter(BaseModel):
             log = False
 
         if cls == Exponential:
+            # `Exponential.__init__` does not accept the `log` parameter
             if log is not False:
                 raise ValueError(
                     "Exponential distribution does not support log "
