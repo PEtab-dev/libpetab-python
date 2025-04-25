@@ -976,7 +976,9 @@ class Problem:
         if prior_dist is not None:
             record[PRIOR_DISTRIBUTION] = prior_dist
         if prior_pars is not None:
-            if not isinstance(prior_pars, str):
+            if isinstance(prior_pars, Sequence) and not isinstance(
+                prior_pars, str
+            ):
                 prior_pars = PARAMETER_SEPARATOR.join(map(str, prior_pars))
             record[PRIOR_PARAMETERS] = prior_pars
         record.update(kwargs)
@@ -1117,6 +1119,7 @@ class Problem:
                          'lb': 0.0,
                          'nominal_value': None,
                          'prior_distribution': None,
+                         'prior_parameters': [],
                          'ub': 1.0}]}
         """
         res = {

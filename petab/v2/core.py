@@ -861,9 +861,10 @@ class Parameter(BaseModel):
     prior_distribution: PriorDistribution | None = Field(
         alias=C.PRIOR_DISTRIBUTION, default=None
     )
-
-    # TODO priors
-    #  pydantic vs. petab.v1.priors.Prior
+    #: Prior distribution parameters.
+    prior_parameters: list[float] = Field(
+        alias=C.PRIOR_PARAMETERS, default_factory=list
+    )
 
     #: :meta private:
     model_config = ConfigDict(
@@ -882,13 +883,22 @@ class Parameter(BaseModel):
             raise ValueError(f"Invalid ID: {v}")
         return v
 
+    @field_validator("prior_parameters", mode="before")
+    @classmethod
+    def _validate_prior_parameters(cls, v):
+        if isinstance(v, str):
+            v = v.split(C.PARAMETER_SEPARATOR)
+        elif not isinstance(v, Sequence):
+            v = [v]
+
+        return [float(x) for x in v]
+
     @field_validator("estimate", mode="before")
     @classmethod
     def _validate_estimate_before(cls, v):
         if isinstance(v, bool):
             return v
 
-        # TODO: clarify whether extra whitespace is allowed
         if isinstance(v, str):
             v = v.strip().lower()
             if v == "true":
@@ -931,8 +941,6 @@ class Parameter(BaseModel):
             and self.lb >= self.ub
         ):
             raise ValueError("Lower bound must be less than upper bound.")
-
-        # TODO parameterScale?
 
         # TODO priorType, priorParameters
 
