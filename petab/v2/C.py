@@ -79,14 +79,10 @@ UPPER_BOUND = "upperBound"
 NOMINAL_VALUE = "nominalValue"
 #: Estimate column in the parameter table
 ESTIMATE = "estimate"
-#: Initialization prior type column in the parameter table
-INITIALIZATION_PRIOR_TYPE = "initializationPriorType"
-#: Initialization prior parameters column in the parameter table
-INITIALIZATION_PRIOR_PARAMETERS = "initializationPriorParameters"
-#: Objective prior type column in the parameter table
-OBJECTIVE_PRIOR_TYPE = "objectivePriorType"
-#: Objective prior parameters column in the parameter table
-OBJECTIVE_PRIOR_PARAMETERS = "objectivePriorParameters"
+#: Prior distribution type column in the parameter table
+PRIOR_DISTRIBUTION = "priorDistribution"
+#: Prior parameters column in the parameter table
+PRIOR_PARAMETERS = "priorParameters"
 
 #: Mandatory columns of parameter table
 PARAMETER_DF_REQUIRED_COLS = [
@@ -101,10 +97,8 @@ PARAMETER_DF_REQUIRED_COLS = [
 PARAMETER_DF_OPTIONAL_COLS = [
     PARAMETER_NAME,
     NOMINAL_VALUE,
-    INITIALIZATION_PRIOR_TYPE,
-    INITIALIZATION_PRIOR_PARAMETERS,
-    OBJECTIVE_PRIOR_TYPE,
-    OBJECTIVE_PRIOR_PARAMETERS,
+    PRIOR_DISTRIBUTION,
+    PRIOR_PARAMETERS,
 ]
 
 #: Parameter table columns
@@ -193,34 +187,49 @@ OBSERVABLE_TRANSFORMATIONS = [LIN, LOG, LOG10]
 
 # NOISE MODELS
 
-#: Uniform distribution
-UNIFORM = "uniform"
-#: Uniform distribution on the parameter scale
-PARAMETER_SCALE_UNIFORM = "parameterScaleUniform"
-#: Normal distribution
-NORMAL = "normal"
-#: Normal distribution on the parameter scale
-PARAMETER_SCALE_NORMAL = "parameterScaleNormal"
+
+#: Cauchy distribution.
+CAUCHY = "cauchy"
+#: Chi-squared distribution.
+# FIXME: "chisquare" in PEtab and sbml-distrib, but usually "chi-squared"
+CHI_SQUARED = "chisquare"
+#: Exponential distribution.
+EXPONENTIAL = "exponential"
+#: Gamma distribution.
+GAMMA = "gamma"
 #: Laplace distribution
 LAPLACE = "laplace"
-#: Laplace distribution on the parameter scale
-PARAMETER_SCALE_LAPLACE = "parameterScaleLaplace"
-#: Log-normal distribution
-LOG_NORMAL = "logNormal"
+#: Log10-normal distribution.
+LOG10_NORMAL = "log10-normal"
 #: Log-Laplace distribution
-LOG_LAPLACE = "logLaplace"
+LOG_LAPLACE = "log-laplace"
+#: Log-normal distribution
+LOG_NORMAL = "log-normal"
+#: Log-uniform distribution.
+LOG_UNIFORM = "log-uniform"
+#: Normal distribution
+NORMAL = "normal"
+#: Rayleigh distribution.
+RAYLEIGH = "rayleigh"
+#: Uniform distribution
+UNIFORM = "uniform"
 
-#: Supported prior types
-PRIOR_TYPES = [
-    UNIFORM,
-    NORMAL,
+#: Supported prior distribution types
+PRIOR_DISTRIBUTIONS = [
+    CAUCHY,
+    CHI_SQUARED,
+    EXPONENTIAL,
+    GAMMA,
     LAPLACE,
-    LOG_NORMAL,
+    LOG10_NORMAL,
     LOG_LAPLACE,
-    PARAMETER_SCALE_UNIFORM,
-    PARAMETER_SCALE_NORMAL,
-    PARAMETER_SCALE_LAPLACE,
+    LOG_NORMAL,
+    LOG_UNIFORM,
+    NORMAL,
+    RAYLEIGH,
+    UNIFORM,
 ]
+
 
 #: Supported noise distributions
 NOISE_MODELS = [NORMAL, LAPLACE]

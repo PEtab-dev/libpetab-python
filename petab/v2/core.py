@@ -124,35 +124,41 @@ class NoiseDistribution(str, Enum):
     LAPLACE = C.LAPLACE
 
 
-class PriorType(str, Enum):
+class PriorDistribution(str, Enum):
     """Prior types.
 
     Prior types as used in the PEtab parameters table.
     """
 
-    #: Normal distribution.
-    NORMAL = C.NORMAL
+    #: Cauchy distribution.
+    CAUCHY = C.CAUCHY
+    #: Chi-squared distribution.
+    CHI_SQUARED = C.CHI_SQUARED
+    #: Exponential distribution.
+    EXPONENTIAL = C.EXPONENTIAL
+    #: Gamma distribution.
+    GAMMA = C.GAMMA
     #: Laplace distribution.
     LAPLACE = C.LAPLACE
-    #: Uniform distribution.
-    UNIFORM = C.UNIFORM
-    #: Log-normal distribution.
-    LOG_NORMAL = C.LOG_NORMAL
+    #: Log10-normal distribution.
+    LOG10_NORMAL = C.LOG10_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
-    PARAMETER_SCALE_NORMAL = C.PARAMETER_SCALE_NORMAL
-    PARAMETER_SCALE_LAPLACE = C.PARAMETER_SCALE_LAPLACE
-    PARAMETER_SCALE_UNIFORM = C.PARAMETER_SCALE_UNIFORM
+    #: Log-normal distribution.
+    LOG_NORMAL = C.LOG_NORMAL
+    #: Log-uniform distribution.
+    LOG_UNIFORM = C.LOG_UNIFORM
+    #: Normal distribution.
+    NORMAL = C.NORMAL
+    #: Rayleigh distribution.
+    RAYLEIGH = C.RAYLEIGH
+    #: Uniform distribution.
+    UNIFORM = C.UNIFORM
 
 
-#: Objective prior types as used in the PEtab parameters table.
-ObjectivePriorType = PriorType
-#: Initialization prior types as used in the PEtab parameters table.
-InitializationPriorType = PriorType
-
-assert set(C.PRIOR_TYPES) == {e.value for e in ObjectivePriorType}, (
-    "ObjectivePriorType enum does not match C.PRIOR_TYPES: "
-    f"{set(C.PRIOR_TYPES)} vs { {e.value for e in ObjectivePriorType} }"
+assert set(C.PRIOR_DISTRIBUTIONS) == {e.value for e in PriorDistribution}, (
+    "PriorDistribution enum does not match C.PRIOR_DISTRIBUTIONS "
+    f"{set(C.PRIOR_DISTRIBUTIONS)} vs { {e.value for e in PriorDistribution} }"
 )
 
 
@@ -849,18 +855,16 @@ class Parameter(BaseModel):
     ub: float | None = Field(alias=C.UPPER_BOUND, default=None)
     #: Nominal value.
     nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
-    #: Parameter scale.
-    # TODO: keep or remove?
-    scale: ParameterScale = Field(
-        alias=C.PARAMETER_SCALE, default=ParameterScale.LIN
-    )
-    # TODO: change to bool in PEtab, or serialize as 0/1?
-    #  https://github.com/PEtab-dev/PEtab/discussions/610
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
-
-    # TODO priors
-    #  pydantic vs. petab.v1.priors.Prior
+    #: Type of parameter prior distribution.
+    prior_distribution: PriorDistribution | None = Field(
+        alias=C.PRIOR_DISTRIBUTION, default=None
+    )
+    #: Prior distribution parameters.
+    prior_parameters: list[float] = Field(
+        alias=C.PRIOR_PARAMETERS, default_factory=list
+    )
 
     #: :meta private:
     model_config = ConfigDict(
@@ -879,13 +883,22 @@ class Parameter(BaseModel):
             raise ValueError(f"Invalid ID: {v}")
         return v
 
+    @field_validator("prior_parameters", mode="before")
+    @classmethod
+    def _validate_prior_parameters(cls, v):
+        if isinstance(v, str):
+            v = v.split(C.PARAMETER_SEPARATOR)
+        elif not isinstance(v, Sequence):
+            v = [v]
+
+        return [float(x) for x in v]
+
     @field_validator("estimate", mode="before")
     @classmethod
     def _validate_estimate_before(cls, v):
         if isinstance(v, bool):
             return v
 
-        # TODO: clarify whether extra whitespace is allowed
         if isinstance(v, str):
             v = v.strip().lower()
             if v == "true":
@@ -928,8 +941,6 @@ class Parameter(BaseModel):
             and self.lb >= self.ub
         ):
             raise ValueError("Lower bound must be less than upper bound.")
-
-        # TODO parameterScale?
 
         # TODO priorType, priorParameters
 
