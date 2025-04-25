@@ -104,13 +104,22 @@ def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
     # sub-problems
     for problem_config in new_yaml_config.problems:
         # copy files that don't need conversion
-        #  (models, observables, visualizations)
+        #  (models, visualizations)
         for file in chain(
-            problem_config.observable_files,
             (model.location for model in problem_config.model_files.values()),
             problem_config.visualization_files,
         ):
             _copy_file(get_src_path(file), Path(get_dest_path(file)))
+
+        # Update observable table
+        for observable_file in problem_config.observable_files:
+            observable_df = v1.get_observable_df(get_src_path(observable_file))
+            observable_df = v1v2_observable_df(
+                observable_df,
+            )
+            v2.write_observable_df(
+                observable_df, get_dest_path(observable_file)
+            )
 
         # Update condition table
         for condition_file in problem_config.condition_files:
@@ -339,3 +348,48 @@ def v1v2_condition_df(
         )
 
     return condition_df
+
+
+def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
+    """Convert observable table from petab v1 to v2.
+
+    Perform all updates that can be done solely on the observable table:
+    * drop observableTransformation, update noiseDistribution
+    """
+    df = observable_df.copy().reset_index()
+
+    # drop observableTransformation, update noiseDistribution
+    #  if there is no observableTransformation, no need to update
+    if v1.C.OBSERVABLE_TRANSFORMATION in df.columns:
+        df[v1.C.OBSERVABLE_TRANSFORMATION] = df[
+            v1.C.OBSERVABLE_TRANSFORMATION
+        ].fillna(v1.C.LIN)
+
+        if v1.C.NOISE_DISTRIBUTION in df:
+            df[v1.C.NOISE_DISTRIBUTION] = df[v1.C.NOISE_DISTRIBUTION].fillna(
+                v1.C.NORMAL
+            )
+        else:
+            df[v1.C.NOISE_DISTRIBUTION] = v1.C.NORMAL
+
+        # merge observableTransformation into noiseDistribution
+        def update_noise_dist(row):
+            dist = row.get(v1.C.NOISE_DISTRIBUTION)
+            trans = row.get(v1.C.OBSERVABLE_TRANSFORMATION)
+
+            if trans == v1.C.LIN:
+                new_dist = dist
+            else:
+                new_dist = f"{trans}-{dist}"
+
+            if new_dist not in v2.C.NOISE_DISTRIBUTIONS:
+                raise NotImplementedError(
+                    f"Noise distribution `{new_dist}' for "
+                    f"observable `{row[v1.C.OBSERVABLE_ID]}'"
+                    f" is not supported in PEtab v2."
+                )
+
+        df[v2.C.NOISE_DISTRIBUTION] = df.apply(update_noise_dist, axis=1)
+        df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
+
+    return df
