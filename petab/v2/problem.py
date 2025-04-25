@@ -1046,7 +1046,12 @@ class Problem:
             )
 
         periods = [
-            core.ExperimentPeriod(time=args[i], condition_id=args[i + 1])
+            core.ExperimentPeriod(
+                time=args[i],
+                condition_ids=[cond]
+                if isinstance((cond := args[i + 1]), str)
+                else cond,
+            )
             for i in range(0, len(args), 2)
         ]
 

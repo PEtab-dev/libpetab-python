@@ -8,6 +8,7 @@ from collections import Counter, OrderedDict
 from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
+from itertools import chain
 from pathlib import Path
 
 import pandas as pd
@@ -373,8 +374,10 @@ class CheckValidConditionTargets(ValidationTask):
     """Check that all condition table targets are valid."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        allowed_targets = set(
-            problem.model.get_valid_ids_for_condition_table()
+        allowed_targets = (
+            set(problem.model.get_valid_ids_for_condition_table())
+            if problem.model
+            else set()
         )
         allowed_targets |= set(get_output_parameters(problem))
         allowed_targets |= {
@@ -393,6 +396,28 @@ class CheckValidConditionTargets(ValidationTask):
             return ValidationError(
                 f"Condition table contains invalid targets: {invalid}"
             )
+
+        # Check that changes of simultaneously applied conditions don't
+        #  intersect
+        for experiment in problem.experiment_table.experiments:
+            for period in experiment.periods:
+                if not period.condition_ids:
+                    continue
+                period_targets = set()
+                for condition_id in period.condition_ids:
+                    condition_targets = {
+                        change.target_id
+                        for cond in problem.condition_table.conditions
+                        if cond.id == condition_id
+                        for change in cond.changes
+                    }
+                    if invalid := (period_targets & condition_targets):
+                        return ValidationError(
+                            "Simultaneously applied conditions for experiment "
+                            f"{experiment.id} have overlapping targets "
+                            f"{invalid} at time {period.time}."
+                        )
+                    period_targets |= condition_targets
 
 
 class CheckUniquePrimaryKeys(ValidationTask):
@@ -484,11 +509,14 @@ class CheckExperimentConditionsExist(ValidationTask):
             c.id for c in problem.condition_table.conditions
         }
         for experiment in problem.experiment_table.experiments:
-            missing_conditions = {
-                period.condition_id
-                for period in experiment.periods
-                if period.condition_id is not None
-            } - available_conditions
+            missing_conditions = (
+                set(
+                    chain.from_iterable(
+                        period.condition_ids for period in experiment.periods
+                    )
+                )
+                - available_conditions
+            )
             if missing_conditions:
                 messages.append(
                     f"Experiment {experiment.id} requires conditions that are "
@@ -646,12 +674,13 @@ class CheckUnusedConditions(ValidationTask):
     table."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        used_conditions = {
-            p.condition_id
-            for e in problem.experiment_table.experiments
-            for p in e.periods
-            if p.condition_id is not None
-        }
+        used_conditions = set(
+            chain.from_iterable(
+                p.condition_ids
+                for e in problem.experiment_table.experiments
+                for p in e.periods
+            )
+        )
         available_conditions = {
             c.id for c in problem.condition_table.conditions
         }

@@ -39,9 +39,9 @@ def test_experiment_add_periods():
     exp = Experiment(id="exp1")
     assert exp.periods == []
 
-    p1 = ExperimentPeriod(time=0, condition_id="p1")
-    p2 = ExperimentPeriod(time=1, condition_id="p2")
-    p3 = ExperimentPeriod(time=2, condition_id="p3")
+    p1 = ExperimentPeriod(time=0, condition_ids=["p1"])
+    p2 = ExperimentPeriod(time=1, condition_ids=["p2"])
+    p3 = ExperimentPeriod(time=2, condition_ids=["p3"])
     exp += p1
     exp += p2
 
@@ -201,8 +201,8 @@ def test_change():
 
 def test_period():
     ExperimentPeriod(time=0)
-    ExperimentPeriod(time=1, condition_id="p1")
-    ExperimentPeriod(time="-inf", condition_id="p1")
+    ExperimentPeriod(time=1, condition_ids=["p1"])
+    ExperimentPeriod(time="-inf", condition_ids=["p1"])
 
     assert (
         ExperimentPeriod(time="1", condition_id="p1", non_petab=1).non_petab
@@ -210,13 +210,13 @@ def test_period():
     )
 
     with pytest.raises(ValidationError, match="got inf"):
-        ExperimentPeriod(time="inf", condition_id="p1")
+        ExperimentPeriod(time="inf", condition_ids=["p1"])
 
     with pytest.raises(ValidationError, match="Invalid ID"):
-        ExperimentPeriod(time=1, condition_id="1_condition")
+        ExperimentPeriod(time=1, condition_ids=["1_condition"])
 
     with pytest.raises(ValidationError, match="type=missing"):
-        ExperimentPeriod(condition_id="condition")
+        ExperimentPeriod(condition_ids=["condition"])
 
 
 def test_parameter():
