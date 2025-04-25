@@ -173,7 +173,7 @@ def test_modify_problem():
     assert_frame_equal(problem.mapping_df, exp_mapping_df, check_dtype=False)
 
 
-def test_sample_startpoint():
+def test_sample_startpoint_shape():
     """Test startpoint sampling."""
     problem = Problem()
     problem += Parameter(id="p1", estimate=True, lb=1, ub=2)
