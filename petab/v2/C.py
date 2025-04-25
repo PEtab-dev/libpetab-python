@@ -147,8 +147,6 @@ OBSERVABLE_NAME = "observableName"
 OBSERVABLE_FORMULA = "observableFormula"
 #: Noise formula column in the observable table
 NOISE_FORMULA = "noiseFormula"
-#: Observable transformation column in the observable table
-OBSERVABLE_TRANSFORMATION = "observableTransformation"
 #: Noise distribution column in the observable table
 NOISE_DISTRIBUTION = "noiseDistribution"
 
@@ -162,7 +160,6 @@ OBSERVABLE_DF_REQUIRED_COLS = [
 #: Optional columns of observable table
 OBSERVABLE_DF_OPTIONAL_COLS = [
     OBSERVABLE_NAME,
-    OBSERVABLE_TRANSFORMATION,
     NOISE_DISTRIBUTION,
 ]
 
@@ -181,8 +178,6 @@ LIN = "lin"
 LOG = "log"
 #: Logarithmic base 10 transformation
 LOG10 = "log10"
-#: Supported observable transformations
-OBSERVABLE_TRANSFORMATIONS = [LIN, LOG, LOG10]
 
 
 # NOISE MODELS
@@ -232,7 +227,7 @@ PRIOR_DISTRIBUTIONS = [
 
 
 #: Supported noise distributions
-NOISE_MODELS = [NORMAL, LAPLACE]
+NOISE_DISTRIBUTIONS = [NORMAL, LAPLACE, LOG_NORMAL, LOG_LAPLACE]
 
 
 # VISUALIZATION

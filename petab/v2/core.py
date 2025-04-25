@@ -32,7 +32,6 @@ from . import C, get_observable_df
 __all__ = [
     "Observable",
     "ObservableTable",
-    "ObservableTransformation",
     "NoiseDistribution",
     "Change",
     "Condition",
@@ -87,20 +86,6 @@ def _valid_petab_id(v: str) -> str:
     return v
 
 
-class ObservableTransformation(str, Enum):
-    """Observable transformation types.
-
-    Observable transformations as used in the PEtab observables table.
-    """
-
-    #: No transformation
-    LIN = C.LIN
-    #: Logarithmic transformation (natural logarithm)
-    LOG = C.LOG
-    #: Logarithmic transformation (base 10)
-    LOG10 = C.LOG10
-
-
 class ParameterScale(str, Enum):
     """Parameter scales.
 
@@ -122,6 +107,10 @@ class NoiseDistribution(str, Enum):
     NORMAL = C.NORMAL
     #: Laplace distribution
     LAPLACE = C.LAPLACE
+    #: Log-normal distribution
+    LOG_NORMAL = C.LOG_NORMAL
+    #: Log-Laplace distribution
+    LOG_LAPLACE = C.LOG_LAPLACE
 
 
 class PriorDistribution(str, Enum):
@@ -173,10 +162,6 @@ class Observable(BaseModel):
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
     #: Observable formula.
     formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
-    #: Observable transformation.
-    transformation: ObservableTransformation = Field(
-        alias=C.OBSERVABLE_TRANSFORMATION, default=ObservableTransformation.LIN
-    )
     #: Noise formula.
     noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
     #: Noise distribution.
@@ -193,9 +178,7 @@ class Observable(BaseModel):
         "name",
         "formula",
         "noise_formula",
-        "noise_formula",
         "noise_distribution",
-        "transformation",
         mode="before",
     )
     @classmethod
