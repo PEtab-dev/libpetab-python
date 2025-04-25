@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 import abc
+from typing import Any
 
 import numpy as np
-from scipy.stats import laplace, norm, uniform
+from scipy.stats import (
+    cauchy,
+    chi2,
+    expon,
+    gamma,
+    laplace,
+    norm,
+    rayleigh,
+    uniform,
+)
 
 __all__ = [
     "Distribution",
@@ -277,6 +287,21 @@ class Distribution(abc.ABC):
         )
         return self._ppf_transformed_untruncated(uniform_sample)
 
+    def _repr(self, pars: dict[str, Any] = None) -> str:
+        """Return a string representation of the distribution."""
+        pars = ", ".join(f"{k}={v}" for k, v in pars.items()) if pars else ""
+
+        if self._logbase is False:
+            log = ""
+        elif self._logbase == np.exp(1):
+            log = ", log=True"
+        else:
+            log = f", log={self._logbase}"
+
+        trunc = f", trunc={self._trunc}" if self._trunc else ""
+
+        return f"{self.__class__.__name__}({pars}{log}{trunc})"
+
 
 class Normal(Distribution):
     """A (log-)normal distribution.
@@ -307,16 +332,7 @@ class Normal(Distribution):
         super().__init__(log=log, trunc=trunc)
 
     def __repr__(self):
-        if self._logbase is False:
-            log = ""
-        if self._logbase == np.exp(1):
-            log = ", log=True"
-        else:
-            log = f", log={self._logbase}"
-
-        trunc = f", trunc={self._trunc}" if self._trunc else ""
-
-        return f"Normal(loc={self._loc}, scale={self._scale}{log}{trunc})"
+        return self._repr({"loc": self._loc, "scale": self._scale})
 
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.normal(loc=self._loc, scale=self._scale, size=shape)
@@ -366,8 +382,7 @@ class Uniform(Distribution):
         super().__init__(log=log)
 
     def __repr__(self):
-        log = f", log={self._logbase}" if self._logbase else ""
-        return f"Uniform(low={self._low}, high={self._high}{log})"
+        return self._repr({"low": self._low, "high": self._high})
 
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.uniform(low=self._low, high=self._high, size=shape)
@@ -411,9 +426,7 @@ class Laplace(Distribution):
         super().__init__(log=log, trunc=trunc)
 
     def __repr__(self):
-        trunc = f", trunc={self._trunc}" if self._trunc else ""
-        log = f", log={self._logbase}" if self._logbase else ""
-        return f"Laplace(loc={self._loc}, scale={self._scale}{trunc}{log})"
+        return self._repr({"loc": self._loc, "scale": self._scale})
 
     def _sample(self, shape=None) -> np.ndarray | float:
         return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
@@ -431,6 +444,247 @@ class Laplace(Distribution):
     def loc(self) -> float:
         """The location parameter of the underlying distribution."""
         return self._loc
+
+    @property
+    def scale(self) -> float:
+        """The scale parameter of the underlying distribution."""
+        return self._scale
+
+
+class Cauchy(Distribution):
+    """Cauchy distribution.
+
+    A (possibly truncated) `Cauchy distribution
+    <https://en.wikipedia.org/wiki/Cauchy_distribution>`__.
+
+    :param loc: The location parameter of the distribution.
+    :param scale: The scale parameter of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated.
+        If the distribution is log-scaled, the truncation limits are expected
+        to be on the same log scale.
+    :param log: If ``True``, the distribution is transformed to a log-Cauchy
+        distribution. If a float, the distribution is transformed to a
+        log-Cauchy distribution with the given log-base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the location and scale parameters
+        are the location and scale of the underlying Cauchy distribution.
+    """
+
+    def __init__(
+        self,
+        loc: float,
+        scale: float,
+        trunc: tuple[float, float] | None = None,
+        log: bool | float = False,
+    ):
+        self._loc = loc
+        self._scale = scale
+        super().__init__(log=log, trunc=trunc)
+
+    def __repr__(self):
+        return self._repr({"loc": self._loc, "scale": self._scale})
+
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return cauchy.pdf(x, loc=self._loc, scale=self._scale)
+
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return cauchy.cdf(x, loc=self._loc, scale=self._scale)
+
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
+        return cauchy.ppf(q, loc=self._loc, scale=self._scale)
+
+    @property
+    def loc(self) -> float:
+        """The location parameter of the underlying distribution."""
+        return self._loc
+
+    @property
+    def scale(self) -> float:
+        """The scale parameter of the underlying distribution."""
+        return self._scale
+
+
+class ChiSquare(Distribution):
+    """Chi-squared distribution.
+
+    A (possibly truncated) `Chi-squared distribution
+    <https://en.wikipedia.org/wiki/Chi-squared_distribution>`__.
+
+    :param dof: The degrees of freedom parameter of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated.
+        If the distribution is log-scaled, the truncation limits are expected
+        to be on the same log scale.
+    :param log: If ``True``, the distribution is transformed to a
+        log-Chi-squared distribution.
+        If a float, the distribution is transformed to a
+        log-Chi-squared distribution with the given log-base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the degrees of freedom parameter
+        is the degrees of freedom of the underlying Chi-squared distribution.
+    """
+
+    def __init__(
+        self,
+        dof: int,
+        trunc: tuple[float, float] | None = None,
+        log: bool | float = False,
+    ):
+        if not dof.is_integer() or dof < 1:
+            raise ValueError(
+                f"`dof' must be a positive integer, but was `{dof}'."
+            )
+
+        self._dof = dof
+        super().__init__(log=log, trunc=trunc)
+
+    def __repr__(self):
+        return self._repr({"dof": self._dof})
+
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return chi2.pdf(x, df=self._dof)
+
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return chi2.cdf(x, df=self._dof)
+
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
+        return chi2.ppf(q, df=self._dof)
+
+    @property
+    def dof(self) -> int:
+        """The degrees of freedom parameter."""
+        return self._dof
+
+
+class Exponential(Distribution):
+    """Exponential distribution.
+
+    A (possibly truncated) `Exponential distribution
+    <https://en.wikipedia.org/wiki/Exponential_distribution>`__.
+
+    :param scale: The scale parameter of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated.
+    """
+
+    def __init__(
+        self,
+        scale: float,
+        trunc: tuple[float, float] | None = None,
+    ):
+        self._scale = scale
+        super().__init__(log=False, trunc=trunc)
+
+    def __repr__(self):
+        return self._repr({"scale": self._scale})
+
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return expon.pdf(x, scale=self._scale)
+
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return expon.cdf(x, scale=self._scale)
+
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
+        return expon.ppf(q, scale=self._scale)
+
+    @property
+    def scale(self) -> float:
+        """The scale parameter of the underlying distribution."""
+        return self._scale
+
+
+class Gamma(Distribution):
+    """Gamma distribution.
+
+    A (possibly truncated) `Gamma distribution
+    <https://en.wikipedia.org/wiki/Gamma_distribution>`__.
+
+    :param shape: The shape parameter of the distribution.
+    :param scale: The scale parameter of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated.
+    :param log: If ``True``, the distribution is transformed to a
+        log-Gamma distribution.
+        If a float, the distribution is transformed to a
+        log-Gamma distribution with the given log-base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the shape and scale parameters
+        are the shape and scale of the underlying Gamma distribution.
+    """
+
+    def __init__(
+        self,
+        shape: float,
+        scale: float,
+        trunc: tuple[float, float] | None = None,
+        log: bool | float = False,
+    ):
+        self._shape = shape
+        self._scale = scale
+        super().__init__(log=log, trunc=trunc)
+
+    def __repr__(self):
+        return self._repr({"shape": self._shape, "scale": self._scale})
+
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return gamma.pdf(x, a=self._shape, scale=self._scale)
+
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return gamma.cdf(x, a=self._shape, scale=self._scale)
+
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
+        return gamma.ppf(q, a=self._shape, scale=self._scale)
+
+    @property
+    def shape(self) -> float:
+        """The shape parameter of the underlying distribution."""
+        return self._shape
+
+    @property
+    def scale(self) -> float:
+        """The scale parameter of the underlying distribution."""
+        return self._scale
+
+
+class Rayleigh(Distribution):
+    """Rayleigh distribution.
+
+    A (possibly truncated) `Rayleigh distribution
+    <https://en.wikipedia.org/wiki/Rayleigh_distribution>`__.
+
+    :param scale: The scale parameter of the distribution.
+    :param trunc: The truncation limits of the distribution.
+        ``None`` if the distribution is not truncated.
+    :param log: If ``True``, the distribution is transformed to a
+        log-Rayleigh distribution.
+        If a float, the distribution is transformed to a
+        log-Rayleigh distribution with the given log-base.
+        If ``False``, no transformation is applied.
+        If a transformation is applied, the scale parameter
+        is the scale of the underlying Rayleigh distribution.
+    """
+
+    def __init__(
+        self,
+        scale: float,
+        trunc: tuple[float, float] | None = None,
+        log: bool | float = False,
+    ):
+        self._scale = scale
+        super().__init__(log=log, trunc=trunc)
+
+    def __repr__(self):
+        return self._repr({"scale": self._scale})
+
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return rayleigh.pdf(x, scale=self._scale)
+
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return rayleigh.cdf(x, scale=self._scale)
+
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
+        return rayleigh.ppf(q, scale=self._scale)
 
     @property
     def scale(self) -> float:
