@@ -326,12 +326,12 @@ class CheckPosLogMeasurements(ValidationTask):
     log-transformation are positive."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        from .core import ObservableTransformation as ot
+        from .core import NoiseDistribution as nd
 
         log_observables = {
             o.id
             for o in problem.observable_table.observables
-            if o.transformation in [ot.LOG, ot.LOG10]
+            if o.noise_distribution in [nd.LOG_NORMAL, nd.LOG_LAPLACE]
         }
         if log_observables:
             for m in problem.measurement_table.measurements:

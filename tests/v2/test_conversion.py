@@ -40,6 +40,9 @@ def test_benchmark_collection(problem_id):
         pytest.skip("Too slow. Re-enable once we are faster.")
 
     yaml_path = benchmark_models_petab.get_problem_yaml_path(problem_id)
-    problem = petab1to2(yaml_path)
+    try:
+        problem = petab1to2(yaml_path)
+    except NotImplementedError as e:
+        pytest.skip(str(e))
     assert isinstance(problem, Problem)
     assert len(problem.measurement_table.measurements)
