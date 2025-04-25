@@ -25,6 +25,7 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+from ..v1.distributions import *
 from ..v1.lint import is_valid_identifier
 from ..v1.math import petab_math_str, sympify_petab
 from . import C, get_observable_df
@@ -148,6 +149,26 @@ class PriorDistribution(str, Enum):
 assert set(C.PRIOR_DISTRIBUTIONS) == {e.value for e in PriorDistribution}, (
     "PriorDistribution enum does not match C.PRIOR_DISTRIBUTIONS "
     f"{set(C.PRIOR_DISTRIBUTIONS)} vs { {e.value for e in PriorDistribution} }"
+)
+
+_prior_to_cls = {
+    PriorDistribution.CAUCHY: Cauchy,
+    PriorDistribution.CHI_SQUARED: ChiSquare,
+    PriorDistribution.EXPONENTIAL: Exponential,
+    PriorDistribution.GAMMA: Gamma,
+    PriorDistribution.LAPLACE: Laplace,
+    PriorDistribution.LOG10_NORMAL: Normal,
+    PriorDistribution.LOG_LAPLACE: Laplace,
+    PriorDistribution.LOG_NORMAL: Normal,
+    PriorDistribution.LOG_UNIFORM: Uniform,
+    PriorDistribution.NORMAL: Normal,
+    PriorDistribution.RAYLEIGH: Rayleigh,
+    PriorDistribution.UNIFORM: Uniform,
+}
+
+assert not (_mismatch := set(PriorDistribution) ^ set(_prior_to_cls)), (
+    "PriorDistribution enum does not match _prior_to_cls. "
+    f"Mismatches: {_mismatch}"
 )
 
 
@@ -928,6 +949,37 @@ class Parameter(BaseModel):
         # TODO priorType, priorParameters
 
         return self
+
+    @property
+    def prior_dist(self) -> Distribution:
+        """Get the pior distribution of the parameter."""
+        if self.estimate is False:
+            raise ValueError(f"Parameter `{self.id}' is not estimated.")
+
+        if self.prior_distribution is None:
+            return Uniform(self.lb, self.ub)
+
+        if not (cls := _prior_to_cls.get(self.prior_distribution)):
+            raise ValueError(
+                f"Prior distribution `{self.prior_distribution}' not "
+                "supported."
+            )
+
+        if str(self.prior_distribution).startswith("log-"):
+            log = True
+        elif str(self.prior_distribution).startswith("log10-"):
+            log = 10
+        else:
+            log = False
+
+        if cls == Exponential:
+            if log is not False:
+                raise ValueError(
+                    "Exponential distribution does not support log "
+                    "transformation."
+                )
+            return cls(*self.prior_parameters, trunc=[self.lb, self.ub])
+        return cls(*self.prior_parameters, log=log, trunc=[self.lb, self.ub])
 
 
 class ParameterTable(BaseModel):

@@ -19,9 +19,14 @@ from scipy.stats import (
 
 __all__ = [
     "Distribution",
-    "Normal",
-    "Uniform",
+    "Cauchy",
+    "ChiSquare",
+    "Exponential",
+    "Gamma",
     "Laplace",
+    "Normal",
+    "Rayleigh",
+    "Uniform",
 ]
 
 
