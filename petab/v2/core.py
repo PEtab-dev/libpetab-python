@@ -475,7 +475,7 @@ class ConditionTable(BaseModel):
 
 class ExperimentPeriod(BaseModel):
     """A period of a timecourse or experiment defined by a start time
-    and a condition ID.
+    and a list of condition IDs.
 
     This corresponds to a row of the PEtab experiments table.
     """
@@ -484,20 +484,19 @@ class ExperimentPeriod(BaseModel):
     time: Annotated[float, AfterValidator(_is_finite_or_neg_inf)] = Field(
         alias=C.TIME
     )
-    #: The ID of the condition to be applied at the start time.
-    condition_id: str | None = Field(alias=C.CONDITION_ID, default=None)
+    #: The IDs of the conditions to be applied at the start time.
+    condition_ids: list[str] = Field(default_factory=list)
 
     #: :meta private:
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
-    @field_validator("condition_id", mode="before")
+    @field_validator("condition_ids", mode="before")
     @classmethod
-    def _validate_id(cls, condition_id):
-        if pd.isna(condition_id) or not condition_id:
-            return None
-        if not is_valid_identifier(condition_id):
-            raise ValueError(f"Invalid ID: {condition_id}")
-        return condition_id
+    def _validate_ids(cls, condition_ids):
+        for condition_id in condition_ids:
+            if not is_valid_identifier(condition_id):
+                raise ValueError(f"Invalid ID: {condition_id}")
+        return condition_ids
 
 
 class Experiment(BaseModel):
@@ -548,12 +547,20 @@ class ExperimentTable(BaseModel):
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
-            periods = [
-                ExperimentPeriod(
-                    time=row[C.TIME], condition_id=row[C.CONDITION_ID]
+            periods = []
+            for timepoint in cur_exp_df[C.TIME].unique():
+                condition_ids = [
+                    cid
+                    for cid in cur_exp_df.loc[
+                        cur_exp_df[C.TIME] == timepoint, C.CONDITION_ID
+                    ]
+                    if not pd.isna(cid)
+                ]
+                periods.append(
+                    ExperimentPeriod(
+                        time=timepoint, condition_ids=condition_ids
+                    )
                 )
-                for _, row in cur_exp_df.iterrows()
-            ]
             experiments.append(Experiment(id=experiment_id, periods=periods))
 
         return cls(experiments=experiments)
@@ -563,10 +570,12 @@ class ExperimentTable(BaseModel):
         records = [
             {
                 C.EXPERIMENT_ID: experiment.id,
-                **period.model_dump(by_alias=True),
+                C.TIME: period.time,
+                C.CONDITION_ID: condition_id,
             }
             for experiment in self.experiments
             for period in experiment.periods
+            for condition_id in period.condition_ids or [""]
         ]
         return (
             pd.DataFrame(records)
