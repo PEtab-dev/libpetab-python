@@ -212,7 +212,7 @@ def test_period():
     with pytest.raises(ValidationError, match="got inf"):
         ExperimentPeriod(time="inf", condition_ids=["p1"])
 
-    with pytest.raises(ValidationError, match="Invalid ID"):
+    with pytest.raises(ValidationError, match="Invalid conditionId"):
         ExperimentPeriod(time=1, condition_ids=["1_condition"])
 
     with pytest.raises(ValidationError, match="type=missing"):
