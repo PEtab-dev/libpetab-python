@@ -503,12 +503,11 @@ class ExperimentPeriod(BaseModel):
     @field_validator("condition_ids", mode="before")
     @classmethod
     def _validate_ids(cls, condition_ids):
-        if condition_ids is None:
+        if condition_ids in [None, []]:
             return []
 
         for condition_id in condition_ids:
-            # condition_id may be empty
-            if condition_id and not is_valid_identifier(condition_id):
+            if is_valid_identifier(condition_id):
                 raise ValueError(f"Invalid ID: `{condition_id}'")
         return condition_ids
 
@@ -900,7 +899,7 @@ class Parameter(BaseModel):
     @field_validator("prior_parameters", mode="before")
     @classmethod
     def _validate_prior_parameters(cls, v):
-        if isinstance(v, float) and np.isnan(v):
+        if pd.isna(v):
             return []
 
         if isinstance(v, str):
