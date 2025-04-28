@@ -23,6 +23,7 @@ from petab.v2.C import (
     TARGET_VALUE,
     UPPER_BOUND,
 )
+from petab.v2.core import *
 
 
 def test_load_remote():
@@ -170,3 +171,22 @@ def test_modify_problem():
         }
     ).set_index([PETAB_ENTITY_ID])
     assert_frame_equal(problem.mapping_df, exp_mapping_df, check_dtype=False)
+
+
+def test_sample_startpoint_shape():
+    """Test startpoint sampling."""
+    problem = Problem()
+    problem += Parameter(id="p1", estimate=True, lb=1, ub=2)
+    problem += Parameter(
+        id="p2",
+        estimate=True,
+        lb=2,
+        ub=3,
+        prior_distribution="normal",
+        prior_parameters=[2.5, 0.5],
+    )
+    problem += Parameter(id="p3", estimate=False, nominal_value=1)
+
+    n_starts = 10
+    sp = problem.sample_parameter_startpoints(n_starts=n_starts)
+    assert sp.shape == (n_starts, 2)

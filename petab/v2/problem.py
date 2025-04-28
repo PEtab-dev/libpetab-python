@@ -12,6 +12,7 @@ from numbers import Number
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 import sympy as sp
 from pydantic import AnyUrl, BaseModel, Field
@@ -22,10 +23,10 @@ from ..v1 import (
     observables,
     parameter_mapping,
     parameters,
-    sampling,
     yaml,
 )
 from ..v1.core import concat_tables, get_visualization_df
+from ..v1.distributions import Distribution
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..v2.C import *  # noqa: F403
@@ -726,24 +727,29 @@ class Problem:
             )
         )
 
-    def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
-        """Create 2D array with starting points for optimization
+    def get_priors(self) -> dict[str, Distribution]:
+        """Get prior distributions.
 
-        See :py:func:`petab.sample_parameter_startpoints`.
+        :returns: The prior distributions for the estimated parameters.
         """
-        return sampling.sample_parameter_startpoints(
-            self.parameter_df, n_starts=n_starts, **kwargs
-        )
+        return {
+            p.id: p.prior_dist
+            for p in self.parameter_table.parameters
+            if p.estimate
+        }
+
+    def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
+        """Create 2D array with starting points for optimization"""
+        priors = self.get_priors()
+        return np.vstack([p.sample(n_starts) for p in priors.values()]).T
 
     def sample_parameter_startpoints_dict(
         self, n_starts: int = 100
     ) -> list[dict[str, float]]:
         """Create dictionaries with starting points for optimization
 
-        See also :py:func:`petab.sample_parameter_startpoints`.
-
-        Returns:
-            A list of dictionaries with parameter IDs mapping to samples
+        :returns:
+            A list of dictionaries with parameter IDs mapping to sampled
             parameter values.
         """
         return [

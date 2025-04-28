@@ -1,4 +1,13 @@
-"""Probability distributions used by PEtab."""
+"""Probability distributions used by PEtab.
+
+This module provides a set of univariate probability distributions
+that can be used for sampling and evaluating the probability density
+function (PDF) and cumulative distribution function (CDF).
+Most of these distributions also support log transformations and truncation.
+
+Not all distributions that can be represented by these classes are valid
+as PEtab parameter prior or noise distributions.
+"""
 
 from __future__ import annotations
 
@@ -19,9 +28,14 @@ from scipy.stats import (
 
 __all__ = [
     "Distribution",
-    "Normal",
-    "Uniform",
+    "Cauchy",
+    "ChiSquare",
+    "Exponential",
+    "Gamma",
     "Laplace",
+    "Normal",
+    "Rayleigh",
+    "Uniform",
 ]
 
 
