@@ -909,6 +909,9 @@ class Parameter(BaseModel):
     def _validate_prior_parameters(
         cls, v: str | list[str] | float | None | np.ndarray
     ):
+        if v is None:
+            return []
+
         if isinstance(v, float) and np.isnan(v):
             return []
 
