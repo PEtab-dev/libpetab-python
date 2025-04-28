@@ -256,22 +256,23 @@ def sample_noise(
     observable_transformation = observable_row.get(
         petab.C.OBSERVABLE_TRANSFORMATION, petab.C.LIN
     )
+    transform = lambda x: x
     # observableTransformation=log -> the log of the simulated value is
     #  distributed according to `noise_distribution`
     if observable_transformation == petab.C.LOG:
         simulated_value = np.log(simulated_value)
+        transform = np.exp
     elif observable_transformation == petab.C.LOG10:
         simulated_value = np.log10(simulated_value)
+        transform = lambda x: np.power(10, x) 
 
     # below is e.g.: `np.random.normal(loc=simulation, scale=noise_value)`
     simulated_value_with_noise = getattr(rng, noise_distribution)(
         loc=simulated_value, scale=noise_value * noise_scaling_factor
     )
 
-    if observable_transformation == petab.C.LOG:
-        simulated_value_with_noise = np.exp(simulated_value_with_noise)
-    elif observable_transformation == petab.C.LOG10:
-        simulated_value_with_noise = np.power(10, simulated_value_with_noise)
+    # apply observable transformation, ensure `float` type
+    simulated_value_with_noise = float(transform(simulated_value_with_noise))
 
     if zero_bounded and np.sign(simulated_value) != np.sign(
         simulated_value_with_noise
