@@ -460,15 +460,15 @@ def v1v2_parameter_df(
         prior_type = row.get(v2.C.PRIOR_DISTRIBUTION)
         prior_pars = row.get(v2.C.PRIOR_PARAMETERS)
 
-        if prior_type not in (v2.C.UNIFORM, v2.C.LOG_UNIFORM) or not pd.isna(
+        if prior_type in (v2.C.UNIFORM, v2.C.LOG_UNIFORM) and pd.isna(
             prior_pars
         ):
-            return prior_pars
+            return (
+                f"{row[v2.C.LOWER_BOUND]}{v2.C.PARAMETER_SEPARATOR}"
+                f"{row[v2.C.UPPER_BOUND]}"
+            )
 
-        return (
-            f"{row[v2.C.LOWER_BOUND]}{v2.C.PARAMETER_SEPARATOR}"
-            f"{row[v2.C.UPPER_BOUND]}"
-        )
+        return prior_pars
 
     df[v2.C.PRIOR_PARAMETERS] = df.apply(update_prior_pars, axis=1)
 
