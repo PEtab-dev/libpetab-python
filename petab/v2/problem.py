@@ -1121,8 +1121,8 @@ class Problem:
                          'id': 'par',
                          'lb': 0.0,
                          'nominal_value': None,
-                         'prior_distribution': None,
-                         'prior_parameters': [],
+                         'prior_distribution': '',
+                         'prior_parameters': '',
                          'ub': 1.0}]}
         """
         res = {
