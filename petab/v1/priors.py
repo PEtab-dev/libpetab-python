@@ -278,7 +278,10 @@ class Prior:
         :return: A distribution object.
         """
         dist_type = d.get(f"{type_}PriorType", C.PARAMETER_SCALE_UNIFORM)
-        if not isinstance(dist_type, str) and np.isnan(dist_type):
+        if (
+            (not isinstance(dist_type, str) and np.isnan(dist_type))
+            or not dist_type
+        ):
             dist_type = C.PARAMETER_SCALE_UNIFORM
 
         pscale = d.get(C.PARAMETER_SCALE, C.LIN)
