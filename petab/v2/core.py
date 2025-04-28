@@ -906,11 +906,15 @@ class Parameter(BaseModel):
 
     @field_validator("prior_parameters", mode="before")
     @classmethod
-    def _validate_prior_parameters(cls, v):
+    def _validate_prior_parameters(
+        cls, v: str | list[str] | float | None | np.ndarray
+    ):
         if isinstance(v, float) and np.isnan(v):
             return []
 
         if isinstance(v, str):
+            if v == "":
+                return []
             v = v.split(C.PARAMETER_SEPARATOR)
         elif not isinstance(v, Sequence):
             v = [v]
@@ -919,7 +923,7 @@ class Parameter(BaseModel):
 
     @field_validator("estimate", mode="before")
     @classmethod
-    def _validate_estimate_before(cls, v):
+    def _validate_estimate_before(cls, v: bool | str):
         if isinstance(v, bool):
             return v
 
