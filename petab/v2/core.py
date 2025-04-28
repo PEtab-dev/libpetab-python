@@ -503,9 +503,13 @@ class ExperimentPeriod(BaseModel):
     @field_validator("condition_ids", mode="before")
     @classmethod
     def _validate_ids(cls, condition_ids):
+        if condition_ids is None:
+            return []
+
         for condition_id in condition_ids:
-            if not is_valid_identifier(condition_id):
-                raise ValueError(f"Invalid ID: {condition_id}")
+            # condition_id may be empty
+            if condition_id and not is_valid_identifier(condition_id):
+                raise ValueError(f"Invalid ID: `{condition_id}'")
         return condition_ids
 
 
@@ -854,17 +858,23 @@ class Parameter(BaseModel):
     #: Parameter ID.
     id: str = Field(alias=C.PARAMETER_ID)
     #: Lower bound.
-    lb: float | None = Field(alias=C.LOWER_BOUND, default=None)
+    lb: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
+        alias=C.LOWER_BOUND, default=None
+    )
     #: Upper bound.
-    ub: float | None = Field(alias=C.UPPER_BOUND, default=None)
+    ub: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
+        alias=C.UPPER_BOUND, default=None
+    )
     #: Nominal value.
-    nominal_value: float | None = Field(alias=C.NOMINAL_VALUE, default=None)
+    nominal_value: Annotated[
+        float | None, BeforeValidator(_convert_nan_to_none)
+    ] = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
     #: Type of parameter prior distribution.
-    prior_distribution: PriorDistribution | None = Field(
-        alias=C.PRIOR_DISTRIBUTION, default=None
-    )
+    prior_distribution: Annotated[
+        PriorDistribution | None, BeforeValidator(_convert_nan_to_none)
+    ] = Field(alias=C.PRIOR_DISTRIBUTION, default=None)
     #: Prior distribution parameters.
     prior_parameters: list[float] = Field(
         alias=C.PRIOR_PARAMETERS, default_factory=list
@@ -921,12 +931,17 @@ class Parameter(BaseModel):
     def _serialize_estimate(self, estimate: bool, _info):
         return str(estimate).lower()
 
-    @field_validator("lb", "ub", "nominal_value")
-    @classmethod
-    def _convert_nan_to_none(cls, v):
-        if isinstance(v, float) and np.isnan(v):
-            return None
-        return v
+    @field_serializer("prior_distribution")
+    def _serialize_prior_distribution(
+        self, prior_distribution: PriorDistribution | None, _info
+    ):
+        if prior_distribution is None:
+            return ""
+        return str(prior_distribution)
+
+    @field_serializer("prior_parameters")
+    def _serialize_prior_parameters(self, prior_parameters: list[str], _info):
+        return C.PARAMETER_SEPARATOR.join(prior_parameters)
 
     @model_validator(mode="after")
     def _validate(self) -> Self:
