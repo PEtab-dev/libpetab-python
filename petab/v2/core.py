@@ -73,7 +73,10 @@ def _not_nan(v: float, info: ValidationInfo) -> float:
 
 
 def _convert_nan_to_none(v):
+    """Convert NaN or "" to None."""
     if isinstance(v, float) and np.isnan(v):
+        return None
+    if isinstance(v, str) and v == "":
         return None
     return v
 
@@ -503,12 +506,17 @@ class ExperimentPeriod(BaseModel):
     @field_validator("condition_ids", mode="before")
     @classmethod
     def _validate_ids(cls, condition_ids):
-        if condition_ids in [None, []]:
+        if condition_ids in [None, "", [], [""]]:
+            # unspecified, or "use-model-as-is"
             return []
 
         for condition_id in condition_ids:
-            if is_valid_identifier(condition_id):
-                raise ValueError(f"Invalid ID: `{condition_id}'")
+            # The empty condition ID for "use-model-as-is" has been handled
+            #  above. Having a combination of empty and non-empty IDs is an
+            #  error, since the targets of conditions to be combined must be
+            #  disjoint.
+            if not is_valid_identifier(condition_id):
+                raise ValueError(f"Invalid {C.CONDITION_ID}: `{condition_id}'")
         return condition_ids
 
 
@@ -899,7 +907,7 @@ class Parameter(BaseModel):
     @field_validator("prior_parameters", mode="before")
     @classmethod
     def _validate_prior_parameters(cls, v):
-        if pd.isna(v):
+        if isinstance(v, float) and np.isnan(v):
             return []
 
         if isinstance(v, str):
@@ -969,7 +977,7 @@ class Parameter(BaseModel):
 
     @property
     def prior_dist(self) -> Distribution:
-        """Get the pior distribution of the parameter."""
+        """Get the prior distribution of the parameter."""
         if self.estimate is False:
             raise ValueError(f"Parameter `{self.id}' is not estimated.")
 
@@ -997,6 +1005,13 @@ class Parameter(BaseModel):
                     "transformation."
                 )
             return cls(*self.prior_parameters, trunc=[self.lb, self.ub])
+
+        if cls == Uniform:
+            # `Uniform.__init__` does not accept the `trunc` parameter
+            low = max(self.prior_parameters[0], self.lb)
+            high = min(self.prior_parameters[1], self.ub)
+            return cls(low, high, log=log)
+
         return cls(*self.prior_parameters, log=log, trunc=[self.lb, self.ub])
 
 

@@ -817,7 +817,17 @@ class CheckPriorDistribution(ValidationTask):
                     f"({parameter.prior_parameters})."
                 )
 
-            # TODO: check distribution parameter domains
+            # TODO: check distribution parameter domains more specifically
+            try:
+                if parameter.estimate:
+                    # .prior_dist fails for non-estimated parameters
+                    _ = parameter.prior_dist.sample(1)
+            except Exception as e:
+                messages.append(
+                    f"Prior parameters `{parameter.prior_parameters}' "
+                    f"for parameter `{parameter.id}' are invalid "
+                    f"(hint: {e})."
+                )
 
         if messages:
             return ValidationError("\n".join(messages))
