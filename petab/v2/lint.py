@@ -14,7 +14,6 @@ from pathlib import Path
 import pandas as pd
 import sympy as sp
 
-from ..v1.visualize.lint import validate_visualization_df
 from ..v2.C import *
 from .core import PriorDistribution
 from .problem import Problem
@@ -764,6 +763,8 @@ class CheckVisualizationTable(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.visualization_df is None:
             return None
+
+        from ..v1.visualize.lint import validate_visualization_df
 
         if validate_visualization_df(problem):
             return ValidationIssue(
