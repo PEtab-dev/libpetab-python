@@ -862,14 +862,14 @@ class VisSpecParser:
         if ids_per_plot is None:
             # this is the default case. If no grouping is specified,
             # each group_by category will be plotted on a separate plot
-            unique_obs_list = self._data_df[
+            unique_ids_list = self._data_df[
                 {
                     "dataset": DATASET_ID,
                     "observable": OBSERVABLE_ID,
                     "simulation": SIMULATION_CONDITION_ID,
                 }[group_by]
             ].unique()
-            ids_per_plot = [[obs_id] for obs_id in unique_obs_list]
+            ids_per_plot = [[id_] for id_ in unique_ids_list]
 
         if group_by == "dataset" and DATASET_ID not in self._data_df:
             raise ValueError(
