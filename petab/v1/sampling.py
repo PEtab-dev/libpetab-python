@@ -33,7 +33,7 @@ def sample_from_prior(
         bounds=tuple(bounds),
         transformation=scaling,
     )
-    return prior.sample(shape=(n_starts,))
+    return prior.sample(shape=(n_starts,), x_scaled=True)
 
 
 def sample_parameter_startpoints(
