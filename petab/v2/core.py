@@ -114,6 +114,8 @@ class NoiseDistribution(str, Enum):
     LOG_NORMAL = C.LOG_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
+    #: Log10-Normal
+    LOG10_NORMAL = C.LOG10_NORMAL
 
 
 class PriorDistribution(str, Enum):
@@ -552,6 +554,14 @@ class Experiment(BaseModel):
             raise TypeError("Can only add ExperimentPeriod to Experiment")
         self.periods.append(other)
         return self
+
+    def has_steady_state_presimulation(self) -> bool:
+        """Check if the experiment has a steady-state pre-simulation."""
+        return any(period.time == -np.inf for period in self.periods)
+
+    def sort_periods(self) -> None:
+        """Sort the periods of the experiment by time."""
+        self.periods.sort(key=lambda period: period.time)
 
 
 class ExperimentTable(BaseModel):
