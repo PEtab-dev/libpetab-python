@@ -216,13 +216,13 @@ class CheckProblemConfig(ValidationTask):
         # TODO: we need some option for validating partial vs full problems
         # check for unset but required files
         missing_files = []
-        if not config.parameter_file:
+        if not config.parameter_files:
             missing_files.append("parameters")
 
-        if not [p.measurement_files for p in config.problems]:
+        if not config.measurement_files:
             missing_files.append("measurements")
 
-        if not [p.observable_files for p in config.problems]:
+        if not config.observable_files:
             missing_files.append("observables")
 
         if missing_files:
