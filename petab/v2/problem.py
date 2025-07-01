@@ -23,6 +23,7 @@ from ..v1 import (
     observables,
     parameter_mapping,
     parameters,
+    validate_yaml_syntax,
     yaml,
 )
 from ..v1.core import concat_tables, get_visualization_df
@@ -169,6 +170,8 @@ class Problem:
         else:
             yaml_file = None
 
+        validate_yaml_syntax(yaml_config)
+
         def get_path(filename):
             if base_path is None:
                 return filename
@@ -202,7 +205,7 @@ class Problem:
                 f"{yaml_config[FORMAT_VERSION]}."
             )
 
-        if yaml.is_composite_problem(yaml_config):
+        if len(yaml_config[MODEL_FILES]) > 1:
             raise ValueError(
                 "petab.v2.Problem.from_yaml() can only be used for "
                 "yaml files comprising a single model. "
@@ -212,8 +215,6 @@ class Problem:
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
         )
-        problem0 = config.problems[0]
-
         if isinstance(config.parameter_file, list):
             parameter_df = parameters.get_parameter_df(
                 [get_path(f) for f in config.parameter_file]
@@ -225,21 +226,21 @@ class Problem:
                 else None
             )
 
-        if len(problem0.model_files or []) > 1:
+        if len(config.model_files or []) > 1:
             # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
             raise NotImplementedError(
                 "Support for multiple models is not yet implemented."
             )
         model = None
-        if problem0.model_files:
-            model_id, model_info = next(iter(problem0.model_files.items()))
+        if config.model_files:
+            model_id, model_info = next(iter(config.model_files.items()))
             model = model_factory(
                 get_path(model_info.location),
                 model_info.language,
                 model_id=model_id,
             )
 
-        measurement_files = [get_path(f) for f in problem0.measurement_files]
+        measurement_files = [get_path(f) for f in config.measurement_files]
         # If there are multiple tables, we will merge them
         measurement_df = (
             concat_tables(measurement_files, measurements.get_measurement_df)
@@ -247,7 +248,7 @@ class Problem:
             else None
         )
 
-        condition_files = [get_path(f) for f in problem0.condition_files]
+        condition_files = [get_path(f) for f in config.condition_files]
         # If there are multiple tables, we will merge them
         condition_df = (
             concat_tables(condition_files, conditions.get_condition_df)
@@ -255,7 +256,7 @@ class Problem:
             else None
         )
 
-        experiment_files = [get_path(f) for f in problem0.experiment_files]
+        experiment_files = [get_path(f) for f in config.experiment_files]
         # If there are multiple tables, we will merge them
         experiment_df = (
             concat_tables(experiment_files, experiments.get_experiment_df)
@@ -263,9 +264,8 @@ class Problem:
             else None
         )
 
-        visualization_files = [
-            get_path(f) for f in problem0.visualization_files
-        ]
+        # TODO: remove in v2?!
+        visualization_files = [get_path(f) for f in config.visualization_files]
         # If there are multiple tables, we will merge them
         visualization_df = (
             concat_tables(visualization_files, get_visualization_df)
@@ -273,7 +273,7 @@ class Problem:
             else None
         )
 
-        observable_files = [get_path(f) for f in problem0.observable_files]
+        observable_files = [get_path(f) for f in config.observable_files]
         # If there are multiple tables, we will merge them
         observable_df = (
             concat_tables(observable_files, observables.get_observable_df)
@@ -281,7 +281,7 @@ class Problem:
             else None
         )
 
-        mapping_files = [get_path(f) for f in problem0.mapping_files]
+        mapping_files = [get_path(f) for f in config.mapping_files]
         # If there are multiple tables, we will merge them
         mapping_df = (
             concat_tables(mapping_files, mapping.get_mapping_df)
@@ -1145,19 +1145,6 @@ class ModelFile(BaseModel):
     language: str
 
 
-class SubProblem(BaseModel):
-    """A `problems` object in the PEtab problem configuration."""
-
-    # TODO: consider changing str to Path
-    model_files: dict[str, ModelFile] | None = {}
-    measurement_files: list[str | AnyUrl] = []
-    condition_files: list[str | AnyUrl] = []
-    experiment_files: list[str | AnyUrl] = []
-    observable_files: list[str | AnyUrl] = []
-    visualization_files: list[str | AnyUrl] = []
-    mapping_files: list[str | AnyUrl] = []
-
-
 class ExtensionConfig(BaseModel):
     """The configuration of a PEtab extension."""
 
@@ -1184,11 +1171,22 @@ class ProblemConfig(BaseModel):
     #: The PEtab format version.
     format_version: str = "2.0.0"
     #: The path to the parameter file, relative to ``base_path``.
-    parameter_file: str | AnyUrl | None = None
-    #: The list of problems in the configuration.
-    problems: list[SubProblem] = []
-    #: Extensiions used by the problem.
-    extensions: list[ExtensionConfig] = []
+    # TODO: parameter_files for consistency with other files?
+    parameter_file: str | AnyUrl | None | list[str] = None
+
+    # TODO: consider changing str to Path
+    model_files: dict[str, ModelFile] | None = {}
+    measurement_files: list[str | AnyUrl] = []
+    condition_files: list[str | AnyUrl] = []
+    experiment_files: list[str | AnyUrl] = []
+    observable_files: list[str | AnyUrl] = []
+    visualization_files: list[str | AnyUrl] = []
+    mapping_files: list[str | AnyUrl] = []
+
+    #: Extensions used by the problem.
+    # TODO: only accept list -- requires proper conversion of the yaml objects
+    #  to ExtensionConfig
+    extensions: list[ExtensionConfig] | dict = []
 
     def to_yaml(self, filename: str | Path):
         """Write the configuration to a YAML file.
