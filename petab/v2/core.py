@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from enum import Enum
 from itertools import chain
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
 import numpy as np
 import pandas as pd
@@ -192,6 +191,14 @@ class Observable(BaseModel):
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
     )
+    #: Placeholder symbols for the observable formula.
+    observable_placeholders: list[sp.Symbol] = Field(
+        alias=C.OBSERVABLE_PLACEHOLDERS, default=[]
+    )
+    #: Placeholder symbols for the noise formula.
+    noise_placeholders: list[sp.Symbol] = Field(
+        alias=C.NOISE_PLACEHOLDERS, default=[]
+    )
 
     #: :meta private:
     model_config = ConfigDict(
@@ -221,37 +228,24 @@ class Observable(BaseModel):
 
         return sympify_petab(v)
 
-    def _placeholders(
-        self, type_: Literal["observable", "noise"]
-    ) -> set[sp.Symbol]:
-        formula = (
-            self.formula
-            if type_ == "observable"
-            else self.noise_formula
-            if type_ == "noise"
-            else None
-        )
-        if formula is None or formula.is_number:
-            return set()
+    @field_validator(
+        "observable_placeholders", "noise_placeholders", mode="before"
+    )
+    @classmethod
+    def _sympify_id_list(cls, v):
+        if v is None:
+            return []
 
-        if not (free_syms := formula.free_symbols):
-            return set()
+        if isinstance(v, float) and np.isnan(v):
+            return []
 
-        # TODO: add field validator to check for 1-based consecutive numbering
-        t = f"{re.escape(type_)}Parameter"
-        o = re.escape(self.id)
-        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
-        return {s for s in free_syms if pattern.match(str(s))}
+        if isinstance(v, str):
+            v = v.split(C.PARAMETER_SEPARATOR)
+        elif not isinstance(v, Sequence):
+            v = [v]
 
-    @property
-    def observable_placeholders(self) -> set[sp.Symbol]:
-        """Placeholder symbols for the observable formula."""
-        return self._placeholders("observable")
-
-    @property
-    def noise_placeholders(self) -> set[sp.Symbol]:
-        """Placeholder symbols for the noise formula."""
-        return self._placeholders("noise")
+        v = [pid.strip() for pid in v]
+        return [sympify_petab(_valid_petab_id(pid)) for pid in v if pid]
 
 
 class ObservableTable(BaseModel):
@@ -289,6 +283,12 @@ class ObservableTable(BaseModel):
             noise = record[C.NOISE_FORMULA]
             record[C.OBSERVABLE_FORMULA] = petab_math_str(obs)
             record[C.NOISE_FORMULA] = petab_math_str(noise)
+            record[C.OBSERVABLE_PLACEHOLDERS] = C.PARAMETER_SEPARATOR.join(
+                map(str, record[C.OBSERVABLE_PLACEHOLDERS])
+            )
+            record[C.NOISE_PLACEHOLDERS] = C.PARAMETER_SEPARATOR.join(
+                map(str, record[C.NOISE_PLACEHOLDERS])
+            )
         return pd.DataFrame(records).set_index([C.OBSERVABLE_ID])
 
     @classmethod
