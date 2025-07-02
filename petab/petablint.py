@@ -6,6 +6,7 @@ import argparse
 import logging
 import sys
 
+import pydantic
 from colorama import Fore
 from colorama import init as init_colorama
 from jsonschema.exceptions import ValidationError as SchemaValidationError
@@ -179,12 +180,24 @@ def main():
             case 2:
                 from petab.v2.lint import lint_problem
 
-                validation_issues = lint_problem(args.yaml_file_name)
-                if validation_issues:
-                    validation_issues.log(logger=logger)
+                try:
+                    validation_issues = lint_problem(args.yaml_file_name)
+                    if validation_issues:
+                        # Handle petab.v2.lint.ValidationTask issues
+                        validation_issues.log(logger=logger)
+                        sys.exit(1)
+                    logger.info("PEtab format check completed successfully.")
+                    sys.exit(0)
+                except pydantic.ValidationError as e:
+                    # Handle Pydantic validation errors
+                    for err in e.errors():
+                        loc = ", ".join(str(loc) for loc in err["loc"])
+                        msg = err["msg"]
+                        # TODO: include model info here once available
+                        #  https://github.com/pydantic/pydantic/issues/7224
+                        logger.error(f"Error in field(s) `{loc}`: {msg}")
                     sys.exit(1)
-                logger.info("PEtab format check completed successfully.")
-                sys.exit(0)
+
             case _:
                 logger.error(
                     "The provided PEtab files are of unsupported version "
