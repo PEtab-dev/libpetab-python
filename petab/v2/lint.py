@@ -39,7 +39,6 @@ __all__ = [
     "CheckUnusedExperiments",
     "CheckObservablesDoNotShadowModelEntities",
     "CheckUnusedConditions",
-    "CheckAllObservablesDefined",
     "CheckPriorDistribution",
     "lint_problem",
     "default_validation_tasks",
@@ -261,8 +260,8 @@ class CheckMeasuredObservablesDefined(ValidationTask):
         }
         if undefined_observables := (used_observables - defined_observables):
             return ValidationError(
-                f"Observables {undefined_observables} used in "
-                "measurement table but not defined in observable table."
+                f"Observable(s) {undefined_observables} are used in the "
+                "measurement table but are not defined in observable table."
             )
 
         return None
@@ -290,7 +289,7 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
             except KeyError:
                 messages.append(
                     f"Observable {m.observable_id} used in measurement "
-                    f"table is not defined."
+                    f"table is not defined in the observable table."
                 )
                 continue
 
@@ -440,31 +439,6 @@ class CheckValidConditionTargets(ValidationTask):
                             f"{invalid} at time {period.time}."
                         )
                     period_targets |= condition_targets
-        return None
-
-
-class CheckAllObservablesDefined(ValidationTask):
-    """A task to validate that all observables in the measurement table are
-    defined in the observable table."""
-
-    def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.measurement_df is None:
-            return None
-
-        measurement_df = problem.measurement_df
-        observable_df = problem.observable_df
-        used_observables = set(measurement_df[OBSERVABLE_ID].values)
-        defined_observables = (
-            set(observable_df.index.values)
-            if observable_df is not None
-            else set()
-        )
-        if undefined_observables := (used_observables - defined_observables):
-            return ValidationError(
-                f"Observables {undefined_observables} are used in the"
-                "measurements table but are not defined in observables table."
-            )
-
         return None
 
 
@@ -1092,7 +1066,6 @@ default_validation_tasks = [
     # CheckVisualizationTable(),
     # TODO validate mapping table
     CheckValidParameterInConditionOrParameterTable(),
-    CheckAllObservablesDefined(),
     CheckAllParametersPresentInParameterTable(),
     CheckValidConditionTargets(),
     CheckPriorDistribution(),
