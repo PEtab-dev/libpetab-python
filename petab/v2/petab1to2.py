@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from contextlib import suppress
 from itertools import chain
@@ -14,6 +15,7 @@ import pandas as pd
 from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
+from ..v1.math import sympify_petab
 from ..v1.yaml import get_path_prefix, load_yaml, validate
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
@@ -351,6 +353,7 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
 
     Perform all updates that can be done solely on the observable table:
     * drop observableTransformation, update noiseDistribution
+    * update placeholder parameters
     """
     df = observable_df.copy().reset_index()
 
@@ -387,6 +390,43 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
 
         df[v2.C.NOISE_DISTRIBUTION] = df.apply(update_noise_dist, axis=1)
         df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
+
+    def extract_placeholders(row: pd.Series, type_: str) -> str:
+        """Extract placeholders from observable formula."""
+        if type_ == "observable":
+            formula = row[v1.C.OBSERVABLE_FORMULA]
+        elif type_ == "noise":
+            formula = row[v1.C.NOISE_FORMULA]
+        else:
+            raise ValueError(f"Unknown placeholder type: {type_}")
+
+        if pd.isna(formula):
+            return ""
+
+        t = f"{re.escape(type_)}Parameter"
+        o = re.escape(row[v1.C.OBSERVABLE_ID])
+
+        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
+
+        expr = sympify_petab(formula)
+        # for 10+ placeholders, the current lexicographical sorting will result
+        #  in incorrect ordering of the placeholder IDs, so that they don't
+        #  align with the overrides in the measurement table, but who does
+        #  that anyway?
+        return v2.C.PARAMETER_SEPARATOR.join(
+            sorted(
+                str(sym)
+                for sym in expr.free_symbols
+                if sym.is_Symbol and pattern.match(str(sym))
+            )
+        )
+
+    df[v2.C.OBSERVABLE_PLACEHOLDERS] = df.apply(
+        extract_placeholders, args=("observable",), axis=1
+    )
+    df[v2.C.NOISE_PLACEHOLDERS] = df.apply(
+        extract_placeholders, args=("noise",), axis=1
+    )
 
     return df
 
