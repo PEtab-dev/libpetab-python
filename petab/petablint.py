@@ -160,9 +160,21 @@ def main():
         try:
             validate(args.yaml_file_name)
         except SchemaValidationError as e:
+            if e.absolute_path:
+                # construct a path to the error location inside the YAML file
+                path = list(e.absolute_path)
+                path = (
+                    path[0] + "".join(f"[{str(p)}]" for p in path[1:]) + ": "
+                )
+            else:
+                path = ""
             logger.error(
-                f"Provided YAML file does not adhere to PEtab schema: {e}"
+                "Provided YAML file does not adhere to PEtab schema: "
+                f"{path}{e.args[0]}"
             )
+            sys.exit(1)
+        except ValueError as e:
+            logger.error(e)
             sys.exit(1)
 
         if petab.is_composite_problem(args.yaml_file_name):
