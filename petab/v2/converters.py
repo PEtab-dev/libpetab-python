@@ -260,7 +260,9 @@ class ExperimentsToEventsConverter:
         the SBML model."""
         par_id = self._presim_indicator
         if self._model.getElementBySId(par_id) is not None:
-            raise AssertionError(f"Entity with ID {par_id} exists already.")
+            raise ValueError(
+                f"Entity with ID {par_id} already exists in the SBML model."
+            )
 
         # add the pre-steady-state indicator parameter
         add_sbml_parameter(self._model, id_=par_id, value=0, constant=False)
@@ -273,7 +275,7 @@ class ExperimentsToEventsConverter:
         experiment in the SBML model. It is a parameter that is set
         to 1 for the current experiment and 0 for all other
         experiments. The parameter is used in the event trigger
-        to determine when the event should be triggered.
+        to determine whether the event should be triggered.
 
         :param experiment_id: The ID of the experiment for which to create
             the experiment indicator parameter ID.
