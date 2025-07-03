@@ -179,14 +179,14 @@ def main():
             logger.error(e)
             sys.exit(1)
 
-        if petab.is_composite_problem(args.yaml_file_name):
-            # TODO: further checking:
-            #  https://github.com/ICB-DCM/PEtab/issues/191
-            #  problem = petab.CompositeProblem.from_yaml(args.yaml_file_name)
-            return
-
         match get_major_version(args.yaml_file_name):
             case 1:
+                if petab.is_composite_problem(args.yaml_file_name):
+                    # TODO: further checking:
+                    #  https://github.com/ICB-DCM/PEtab/issues/191
+                    #  petab.CompositeProblem.from_yaml(args.yaml_file_name)
+                    return
+
                 problem = petab.Problem.from_yaml(args.yaml_file_name)
                 ret = petab.lint.lint_problem(problem)
                 sys.exit(ret)
