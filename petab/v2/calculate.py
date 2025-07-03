@@ -1,6 +1,7 @@
 """Functions performing various calculations."""
 
 import numbers
+import operator
 from functools import reduce
 
 import numpy as np
@@ -121,7 +122,7 @@ def calculate_residuals_for_table(
             (simulation_df[col] == row[col]) | is_empty(row[col])
             for col in compared_cols
         ]
-        mask = reduce(lambda x, y: x & y, masks)
+        mask = reduce(operator.and_, masks)
         if mask.sum() == 0:
             raise ValueError(
                 f"Could not find simulation for measurement {row}."

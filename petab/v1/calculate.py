@@ -1,6 +1,7 @@
 """Functions performing various calculations."""
 
 import numbers
+import operator
 from functools import reduce
 
 import numpy as np
@@ -364,7 +365,7 @@ def calculate_llh_for_table(
             (simulation_df[col] == row[col]) | petab.is_empty(row[col])
             for col in compared_cols
         ]
-        mask = reduce(lambda x, y: x & y, masks)
+        mask = reduce(operator.and_, masks)
 
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
 
