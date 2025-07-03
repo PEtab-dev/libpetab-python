@@ -155,15 +155,13 @@ def calculate_residuals_for_table(
             measurement = scale(measurement, trafo)
 
         # non-normalized residual is just the difference
-        residual = simulation - measurement
+        residual = measurement - simulation
 
-        noise_value = 1
         if normalize:
-            # look up noise standard deviation
-            noise_value = evaluate_noise_formula(
+            # divide by standard deviation
+            residual /= evaluate_noise_formula(
                 row, noise_formulas, parameter_df, simulation, observable
             )
-        residual /= noise_value
 
         # fill in value
         residual_df.loc[irow, RESIDUAL] = residual
@@ -181,13 +179,10 @@ def get_symbolic_noise_formulas(observable_df) -> dict[str, sp.Expr]:
     """
     noise_formulas = {}
     # iterate over observables
-    for row in observable_df.itertuples():
-        observable_id = row.Index
-        if NOISE_FORMULA not in observable_df.columns:
-            noise_formula = None
-        else:
-            noise_formula = sympify_petab(row.noiseFormula)
-        noise_formulas[observable_id] = noise_formula
+    for observable_id, row in observable_df.iterrows():
+        noise_formulas[observable_id] = (
+            sympify_petab(row.noiseFormula) if NOISE_FORMULA in row else None
+        )
     return noise_formulas
 
 
