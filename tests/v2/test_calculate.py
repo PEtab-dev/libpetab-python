@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import petab
+from petab.v2 import get_observable_df, get_parameter_df
 from petab.v2.C import *
 from petab.v2.calculate import (
     calculate_chi2,
@@ -43,12 +43,12 @@ def model_simple():
     simulation_df[SIMULATION] = [2, 2, 19, 20]
 
     expected_residuals = {
-        (2 - 0) / 2,
-        (2 - 1) / 2,
-        (19 - 20) / 3,
-        (20 - 22) / 3,
+        (0 - 2) / 2,
+        (1 - 2) / 2,
+        (20 - 19) / 3,
+        (22 - 20) / 3,
     }
-    expected_residuals_nonorm = {2 - 0, 2 - 1, 19 - 20, 20 - 22}
+    expected_residuals_nonorm = {0 - 2, 1 - 2, 20 - 19, 22 - 20}
     expected_llh = (
         -0.5 * (np.array(list(expected_residuals)) ** 2).sum()
         - 0.5 * np.log(2 * np.pi * np.array([2, 2, 3, 3]) ** 2).sum()
@@ -56,8 +56,8 @@ def model_simple():
 
     return (
         measurement_df,
-        petab.get_observable_df(observable_df),
-        petab.get_parameter_df(parameter_df),
+        get_observable_df(observable_df),
+        get_parameter_df(parameter_df),
         simulation_df,
         expected_residuals,
         expected_residuals_nonorm,
@@ -93,8 +93,8 @@ def model_replicates():
     )
     simulation_df[SIMULATION] = [2, 2]
 
-    expected_residuals = {(2 - 0) / 2, (2 - 1) / 2}
-    expected_residuals_nonorm = {2 - 0, 2 - 1}
+    expected_residuals = {(0 - 2) / 2, (1 - 2) / 2}
+    expected_residuals_nonorm = {0 - 2, 1 - 2}
     expected_llh = (
         -0.5 * (np.array(list(expected_residuals)) ** 2).sum()
         - 0.5 * np.log(2 * np.pi * np.array([2, 2]) ** 2).sum()
@@ -141,12 +141,12 @@ def model_scalings():
     simulation_df[SIMULATION] = [2, 3]
 
     expected_residuals = {
-        (np.log(2) - np.log(0.5)) / 2,
-        (np.log(3) - np.log(1)) / 2,
+        (np.log(0.5) - np.log(2)) / 2,
+        (np.log(1) - np.log(3)) / 2,
     }
     expected_residuals_nonorm = {
-        np.log(2) - np.log(0.5),
-        np.log(3) - np.log(1),
+        np.log(0.5) - np.log(2),
+        np.log(1) - np.log(3),
     }
     expected_llh = (
         -0.5 * (np.array(list(expected_residuals)) ** 2).sum()
@@ -204,12 +204,12 @@ def model_non_numeric_overrides():
     simulation_df[SIMULATION] = [2, 3]
 
     expected_residuals = {
-        (np.log(2) - np.log(0.5)) / (2 * 7 + 8 + 4 + np.log(2)),
-        (np.log(3) - np.log(1)) / (2 * 2 + 3 + 4 + np.log(3)),
+        (np.log(0.5) - np.log(2)) / (2 * 7 + 8 + 4 + np.log(2)),
+        (np.log(1) - np.log(3)) / (2 * 2 + 3 + 4 + np.log(3)),
     }
     expected_residuals_nonorm = {
-        np.log(2) - np.log(0.5),
-        np.log(3) - np.log(1),
+        np.log(0.5) - np.log(2),
+        np.log(1) - np.log(3),
     }
     expected_llh = (
         -0.5 * (np.array(list(expected_residuals)) ** 2).sum()
@@ -263,8 +263,8 @@ def model_custom_likelihood():
     )
     simulation_df[SIMULATION] = [2, 3]
 
-    expected_residuals = {(np.log(2) - np.log(0.5)) / 2, (3 - 2) / 1.5}
-    expected_residuals_nonorm = {np.log(2) - np.log(0.5), 3 - 2}
+    expected_residuals = {(np.log(0.5) - np.log(2)) / 2, (2 - 3) / 1.5}
+    expected_residuals_nonorm = {np.log(0.5) - np.log(2), 2 - 3}
     expected_llh = (
         -np.abs(list(expected_residuals)).sum()
         - np.log(2 * np.array([2, 1.5]) * np.array([0.5, 1])).sum()

@@ -4,14 +4,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import petab
-from petab import (
+from petab.v1 import get_observable_df, get_parameter_df
+from petab.v1.C import *
+from petab.v1.calculate import (
     calculate_chi2,
     calculate_llh,
     calculate_residuals,
     calculate_single_llh,
 )
-from petab.C import *
 
 
 def model_simple():
@@ -56,8 +56,8 @@ def model_simple():
 
     return (
         measurement_df,
-        petab.get_observable_df(observable_df),
-        petab.get_parameter_df(parameter_df),
+        get_observable_df(observable_df),
+        get_parameter_df(parameter_df),
         simulation_df,
         expected_residuals,
         expected_residuals_nonorm,
