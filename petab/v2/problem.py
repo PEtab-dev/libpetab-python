@@ -909,6 +909,8 @@ class Problem:
         formula: str,
         noise_formula: str | float | int = None,
         noise_distribution: str = None,
+        observable_placeholders: list[str] = None,
+        noise_placeholders: list[str] = None,
         name: str = None,
         **kwargs,
     ):
@@ -919,6 +921,8 @@ class Problem:
             formula: The observable formula
             noise_formula: The noise formula
             noise_distribution: The noise distribution
+            observable_placeholders: Placeholders for the observable formula
+            noise_placeholders: Placeholders for the noise formula
             name: The observable name
             kwargs: additional columns/values to add to the observable table
 
@@ -933,7 +937,10 @@ class Problem:
             record[NOISE_FORMULA] = noise_formula
         if noise_distribution is not None:
             record[NOISE_DISTRIBUTION] = noise_distribution
-
+        if observable_placeholders is not None:
+            record[OBSERVABLE_PLACEHOLDERS] = observable_placeholders
+        if noise_placeholders is not None:
+            record[NOISE_PLACEHOLDERS] = noise_placeholders
         record.update(kwargs)
 
         self.observable_table += core.Observable(**record)

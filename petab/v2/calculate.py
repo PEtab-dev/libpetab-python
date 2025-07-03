@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import sympy as sp
 
-import petab.v1 as petab
+from petab.v1 import is_empty, split_parameter_replacement_list
 
 from .C import *
 from .math import sympify_petab
@@ -98,6 +98,8 @@ def calculate_residuals_for_table(
     Calculate residuals for a single measurement table.
     For the arguments, see `calculate_residuals`.
     """
+    from petab.v1 import scale
+
     # below, we rely on a unique index
     measurement_df = measurement_df.reset_index(drop=True)
 
@@ -117,10 +119,10 @@ def calculate_residuals_for_table(
         measurement = row[MEASUREMENT]
         # look up in simulation df
         masks = [
-            (simulation_df[col] == row[col]) | petab.is_empty(row[col])
+            (simulation_df[col] == row[col]) | is_empty(row[col])
             for col in compared_cols
         ]
-        mask = reduce(lambda x, y: x & y, masks)
+        mask = reduce(operator.and_, masks)
         if mask.sum() == 0:
             raise ValueError(
                 f"Could not find simulation for measurement {row}."
@@ -139,9 +141,19 @@ def calculate_residuals_for_table(
         if scale:
             # apply scaling
             observable = observable_df.loc[row[OBSERVABLE_ID]]
-            trafo = observable.get(OBSERVABLE_TRANSFORMATION, LIN)
-            scaled_simulation = petab.scale(simulation, trafo)
-            scaled_measurement = petab.scale(measurement, trafo)
+            # for v2, the transformation is part of the noise distribution
+            noise_distr = observable.get(NOISE_DISTRIBUTION, NORMAL)
+            if noise_distr.startswith("log-"):
+                trafo = LOG
+            elif noise_distr.startswith("log10-"):
+                trafo = LOG10
+            else:
+                trafo = LIN
+
+            # scale simulation and measurement
+
+            scaled_simulation = scale(simulation, trafo)
+            scaled_measurement = scale(measurement, trafo)
 
         # non-normalized residual is just the difference
         residual = scaled_measurement - scaled_simulation
@@ -149,7 +161,7 @@ def calculate_residuals_for_table(
         if normalize:
             # divide by standard deviation
             residual /= evaluate_noise_formula(
-                row, noise_formulas, parameter_df, simulation
+                row, noise_formulas, parameter_df, simulation, observable
             )
 
         # fill in value
@@ -180,6 +192,7 @@ def evaluate_noise_formula(
     noise_formulas: dict[str, sp.Expr],
     parameter_df: pd.DataFrame,
     simulation: numbers.Number,
+    observable: dict,
 ) -> float:
     """Fill in parameters for `measurement` and evaluate noise_formula.
 
@@ -189,6 +202,7 @@ def evaluate_noise_formula(
             `get_symbolic_noise_formulas`.
         parameter_df: The parameter table.
         simulation: The simulation corresponding to the measurement, scaled.
+        observable: The observable table row corresponding to the measurement.
 
     Returns:
         The noise value.
@@ -197,15 +211,32 @@ def evaluate_noise_formula(
     observable_id = measurement[OBSERVABLE_ID]
 
     # extract measurement specific overrides
-    observable_parameter_overrides = petab.split_parameter_replacement_list(
+    observable_parameter_overrides = split_parameter_replacement_list(
+        measurement.get(OBSERVABLE_PARAMETERS, None)
+    )
+    noise_parameter_overrides = split_parameter_replacement_list(
         measurement.get(NOISE_PARAMETERS, None)
     )
+    observable_parameter_placeholders = observable.get(
+        OBSERVABLE_PLACEHOLDERS, ""
+    ).split(PARAMETER_SEPARATOR)
+    noise_parameter_placeholders = observable.get(
+        NOISE_PLACEHOLDERS, ""
+    ).split(PARAMETER_SEPARATOR)
+
     # fill in measurement specific parameters
     overrides = {
-        sp.Symbol(
-            f"noiseParameter{i_obs_par + 1}_{observable_id}", real=True
-        ): obs_par
-        for i_obs_par, obs_par in enumerate(observable_parameter_overrides)
+        sp.Symbol(placeholder, real=True): override
+        for placeholder, override in zip(
+            [
+                p.strip()
+                for p in observable_parameter_placeholders
+                + noise_parameter_placeholders
+                if p.strip()
+            ],
+            observable_parameter_overrides + noise_parameter_overrides,
+            strict=False,
+        )
     }
 
     # fill in observables
@@ -343,6 +374,7 @@ def calculate_llh_for_table(
     """Calculate log-likelihood for one set of tables. For the arguments, see
     `calculate_llh`.
     """
+
     llhs = []
 
     # matching columns
@@ -357,28 +389,38 @@ def calculate_llh_for_table(
 
         # look up in simulation df
         masks = [
-            (simulation_df[col] == row[col]) | petab.is_empty(row[col])
+            (simulation_df[col] == row[col]) | is_empty(row[col])
             for col in compared_cols
         ]
-        mask = reduce(operator.and_, masks)
+        mask = reduce(lambda x, y: x & y, masks)
 
         simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
 
         observable = observable_df.loc[row[OBSERVABLE_ID]]
 
-        # get scale
-        scale = observable.get(OBSERVABLE_TRANSFORMATION, LIN)
+        # get noise distribution
+        noise_distr = observable.get(NOISE_DISTRIBUTION, NORMAL)
+
+        if noise_distr.startswith("log-"):
+            obs_scale = LOG
+            noise_distr = noise_distr.removeprefix("log-")
+        elif noise_distr.startswith("log10-"):
+            obs_scale = LOG10
+            noise_distr = noise_distr.removeprefix("log10-")
+        else:
+            obs_scale = LIN
 
         # get noise standard deviation
         noise_value = evaluate_noise_formula(
-            row, noise_formulas, parameter_df, simulation
+            row,
+            noise_formulas,
+            parameter_df,
+            simulation,
+            observable,
         )
 
-        # get noise distribution
-        noise_distribution = observable.get(NOISE_DISTRIBUTION, NORMAL)
-
         llh = calculate_single_llh(
-            measurement, simulation, scale, noise_distribution, noise_value
+            measurement, simulation, obs_scale, noise_distr, noise_value
         )
         llhs.append(llh)
     return sum(llhs)
@@ -404,6 +446,14 @@ def calculate_single_llh(
     Returns:
         The computed likelihood for the given values.
     """
+    # PEtab v2:
+    if noise_distribution == LOG10_NORMAL and scale == LIN:
+        noise_distribution = NORMAL
+        scale = LOG10
+    elif noise_distribution == LOG_NORMAL and scale == LIN:
+        noise_distribution = NORMAL
+        scale = LOG
+
     # short-hand
     m, s, sigma = measurement, simulation, noise_value
     pi, log, log10 = np.pi, np.log, np.log10

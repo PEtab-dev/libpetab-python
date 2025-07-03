@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from petab.v1 import get_observable_df, get_parameter_df
-from petab.v1.C import *
-from petab.v1.calculate import (
+from petab.v2 import get_observable_df, get_parameter_df
+from petab.v2.C import *
+from petab.v2.calculate import (
     calculate_chi2,
     calculate_llh,
     calculate_residuals,
@@ -19,7 +19,7 @@ def model_simple():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs_a", "obs_a", "obs_b", "obs_b"],
-            SIMULATION_CONDITION_ID: ["c0", "c1", "c0", "c1"],
+            EXPERIMENT_ID: ["c0", "c1", "c0", "c1"],
             TIME: [0, 10, 0, 10],
             MEASUREMENT: [0, 1, 20, 22],
         }
@@ -70,7 +70,7 @@ def model_replicates():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs_a", "obs_a"],
-            SIMULATION_CONDITION_ID: ["c0", "c0"],
+            EXPERIMENT_ID: ["c0", "c0"],
             TIME: [10, 10],
             MEASUREMENT: [0, 1],
         }
@@ -116,7 +116,7 @@ def model_scalings():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs_a", "obs_a"],
-            SIMULATION_CONDITION_ID: ["c0", "c0"],
+            EXPERIMENT_ID: ["c0", "c0"],
             TIME: [5, 10],
             MEASUREMENT: [0.5, 1],
         }
@@ -126,7 +126,7 @@ def model_scalings():
         data={
             OBSERVABLE_ID: ["obs_a"],
             OBSERVABLE_FORMULA: ["A"],
-            OBSERVABLE_TRANSFORMATION: [LOG],
+            NOISE_DISTRIBUTION: [LOG_NORMAL],
             NOISE_FORMULA: [2],
         }
     ).set_index([OBSERVABLE_ID])
@@ -172,7 +172,7 @@ def model_non_numeric_overrides():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs_a", "obs_a"],
-            SIMULATION_CONDITION_ID: ["c0", "c0"],
+            EXPERIMENT_ID: ["c0", "c0"],
             TIME: [5, 10],
             MEASUREMENT: [0.5, 1],
             NOISE_PARAMETERS: ["7;8", "2;par1"],
@@ -183,10 +183,13 @@ def model_non_numeric_overrides():
         data={
             OBSERVABLE_ID: ["obs_a"],
             OBSERVABLE_FORMULA: ["A"],
-            OBSERVABLE_TRANSFORMATION: [LOG],
+            NOISE_DISTRIBUTION: [LOG_NORMAL],
             NOISE_FORMULA: [
                 "2*noiseParameter1_obs_a + "
                 "noiseParameter2_obs_a + par2 + obs_a"
+            ],
+            NOISE_PLACEHOLDERS: [
+                "noiseParameter1_obs_a;noiseParameter2_obs_a"
             ],
         }
     ).set_index([OBSERVABLE_ID])
@@ -235,7 +238,7 @@ def model_custom_likelihood():
     measurement_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["obs_a", "obs_b"],
-            SIMULATION_CONDITION_ID: ["c0", "c0"],
+            EXPERIMENT_ID: ["c0", "c0"],
             TIME: [5, 10],
             MEASUREMENT: [0.5, 2],
         }
@@ -245,9 +248,8 @@ def model_custom_likelihood():
         data={
             OBSERVABLE_ID: ["obs_a", "obs_b"],
             OBSERVABLE_FORMULA: ["A", "B"],
-            OBSERVABLE_TRANSFORMATION: [LOG, LIN],
             NOISE_FORMULA: [2, 1.5],
-            NOISE_DISTRIBUTION: [LAPLACE, LAPLACE],
+            NOISE_DISTRIBUTION: [LOG_LAPLACE, LAPLACE],
         }
     ).set_index([OBSERVABLE_ID])
 
