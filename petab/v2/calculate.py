@@ -151,11 +151,11 @@ def calculate_residuals_for_table(
 
             # scale simulation and measurement
 
-            simulation = scale(simulation, trafo)
-            measurement = scale(measurement, trafo)
+            scaled_simulation = scale(simulation, trafo)
+            scaled_measurement = scale(measurement, trafo)
 
         # non-normalized residual is just the difference
-        residual = measurement - simulation
+        residual = scaled_measurement - scaled_simulation
 
         if normalize:
             # divide by standard deviation
@@ -373,7 +373,6 @@ def calculate_llh_for_table(
     """Calculate log-likelihood for one set of tables. For the arguments, see
     `calculate_llh`.
     """
-    from petab.v1 import scale
 
     llhs = []
 
@@ -415,7 +414,7 @@ def calculate_llh_for_table(
             row,
             noise_formulas,
             parameter_df,
-            scale(simulation, obs_scale),
+            simulation,
             observable,
         )
 

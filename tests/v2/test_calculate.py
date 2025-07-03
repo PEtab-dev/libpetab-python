@@ -204,8 +204,8 @@ def model_non_numeric_overrides():
     simulation_df[SIMULATION] = [2, 3]
 
     expected_residuals = {
-        (np.log(0.5) - np.log(2)) / (2 * 7 + 8 + 4 + np.log(2)),
-        (np.log(1) - np.log(3)) / (2 * 2 + 3 + 4 + np.log(3)),
+        (np.log(0.5) - np.log(2)) / (2 * 7 + 8 + 4 + 2),
+        (np.log(1) - np.log(3)) / (2 * 2 + 3 + 4 + 3),
     }
     expected_residuals_nonorm = {
         np.log(0.5) - np.log(2),
@@ -217,8 +217,7 @@ def model_non_numeric_overrides():
         * np.log(
             2
             * np.pi
-            * np.array([2 * 7 + 8 + 4 + np.log(2), 2 * 2 + 3 + 4 + np.log(3)])
-            ** 2
+            * np.array([2 * 7 + 8 + 4 + 2, 2 * 2 + 3 + 4 + 3]) ** 2
             * np.array([0.5, 1]) ** 2
         ).sum()
     )
