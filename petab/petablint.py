@@ -6,6 +6,7 @@ import argparse
 import logging
 import sys
 
+import pydantic
 from colorama import Fore
 from colorama import init as init_colorama
 from jsonschema.exceptions import ValidationError as SchemaValidationError
@@ -160,9 +161,22 @@ def main():
         try:
             validate(args.yaml_file_name)
         except SchemaValidationError as e:
+            path = ""
+            if e.absolute_path:
+                # construct a path to the error location inside the YAML file
+                path = list(e.absolute_path)
+                path = (
+                    f" at {path[0]}"
+                    + "".join(f"[{str(p)}]" for p in path[1:])
+                    + ": "
+                )
             logger.error(
-                f"Provided YAML file does not adhere to PEtab schema: {e}"
+                "Provided YAML file does not adhere to the PEtab schema"
+                f"{path}: {e.args[0]}"
             )
+            sys.exit(1)
+        except ValueError as e:
+            logger.error(e)
             sys.exit(1)
 
         if petab.is_composite_problem(args.yaml_file_name):
@@ -179,12 +193,24 @@ def main():
             case 2:
                 from petab.v2.lint import lint_problem
 
-                validation_issues = lint_problem(args.yaml_file_name)
-                if validation_issues:
-                    validation_issues.log(logger=logger)
+                try:
+                    validation_issues = lint_problem(args.yaml_file_name)
+                    if validation_issues:
+                        # Handle petab.v2.lint.ValidationTask issues
+                        validation_issues.log(logger=logger)
+                        sys.exit(1)
+                    logger.info("PEtab format check completed successfully.")
+                    sys.exit(0)
+                except pydantic.ValidationError as e:
+                    # Handle Pydantic validation errors
+                    for err in e.errors():
+                        loc = ", ".join(str(loc) for loc in err["loc"])
+                        msg = err["msg"]
+                        # TODO: include model info here once available
+                        #  https://github.com/pydantic/pydantic/issues/7224
+                        logger.error(f"Error in field(s) `{loc}`: {msg}")
                     sys.exit(1)
-                logger.info("PEtab format check completed successfully.")
-                sys.exit(0)
+
             case _:
                 logger.error(
                     "The provided PEtab files are of unsupported version "
