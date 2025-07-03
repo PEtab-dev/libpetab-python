@@ -261,7 +261,8 @@ class CheckMeasuredObservablesDefined(ValidationTask):
         if undefined_observables := (used_observables - defined_observables):
             return ValidationError(
                 f"Observable(s) {undefined_observables} are used in the "
-                "measurement table but are not defined in the observable table."
+                "measurement table but are not defined in the observable "
+                "table."
             )
 
         return None
