@@ -261,7 +261,7 @@ class CheckMeasuredObservablesDefined(ValidationTask):
         if undefined_observables := (used_observables - defined_observables):
             return ValidationError(
                 f"Observable(s) {undefined_observables} are used in the "
-                "measurement table but are not defined in observable table."
+                "measurement table but are not defined in the observable table."
             )
 
         return None
@@ -288,8 +288,8 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
                 expected = observable_parameters_count[m.observable_id]
             except KeyError:
                 messages.append(
-                    f"Observable {m.observable_id} used in measurement "
-                    f"table is not defined in the observable table."
+                    f"Observable {m.observable_id} is used in the measurement "
+                    f"table but is not defined in the observable table."
                 )
                 continue
 
