@@ -114,7 +114,7 @@ html_context = {
     "display_github": True,
     "github_user": "petab-dev",
     "github_repo": "libpetab-python",
-    "github_version": "develop",
+    "github_version": "main",
     "conf_py_path": "/doc",
 }
 
