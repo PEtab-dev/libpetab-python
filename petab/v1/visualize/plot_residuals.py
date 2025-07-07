@@ -150,7 +150,8 @@ def plot_goodness_of_fit(
     size:
         Figure size.
     color:
-        The marker colors, matches the `c` parameter of `matplotlib.pyplot.scatter`.
+        The marker colors, matches the `c` parameter of
+        `matplotlib.pyplot.scatter`.
     ax:
         Axis object.
 
