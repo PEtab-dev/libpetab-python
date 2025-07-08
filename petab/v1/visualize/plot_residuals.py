@@ -134,6 +134,7 @@ def plot_goodness_of_fit(
     petab_problem: Problem,
     simulations_df: str | Path | pd.DataFrame,
     size: tuple = (10, 7),
+    color=None,
     ax: plt.Axes | None = None,
 ) -> matplotlib.axes.Axes:
     """
@@ -148,6 +149,9 @@ def plot_goodness_of_fit(
         output data file.
     size:
         Figure size.
+    color:
+        The marker colors, matches the `c` parameter of
+        `matplotlib.pyplot.scatter`.
     ax:
         Axis object.
 
@@ -171,8 +175,8 @@ def plot_goodness_of_fit(
         parameter_dfs=petab_problem.parameter_df,
     )[0]
     slope, intercept, r_value, p_value, std_err = stats.linregress(
-        petab_problem.measurement_df["measurement"],
         simulations_df["simulation"],
+        petab_problem.measurement_df["measurement"],
     )  # x, y
 
     if ax is None:
@@ -182,6 +186,7 @@ def plot_goodness_of_fit(
     ax.scatter(
         petab_problem.measurement_df["measurement"],
         simulations_df["simulation"],
+        c=color,
     )
 
     ax.axis("square")
