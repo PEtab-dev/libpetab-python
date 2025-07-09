@@ -34,13 +34,13 @@ class ExperimentsToEventsConverter:
     will be removed from the condition table.
     Each experiment will have at most one period with a start time of ``-inf``
     and one period with a finite start time. The associated changes with
-    these periods are only the steady-state pre-simulation indicator
+    these periods are only the pre-equilibration indicator
     (if necessary), and the experiment indicator parameter.
     """
 
     #: ID of the parameter that indicates whether the model is in
-    #  the steady-state pre-simulation phase (1) or not (0).
-    PRE_SIM_INDICATOR = "_petab_pre_simulation_indicator"
+    #  the pre-equilibration phase (1) or not (0).
+    PREEQ_INDICATOR = "_petab_preequilibration_indicator"
 
     def __init__(self, problem: Problem):
         """Initialize the converter.
@@ -55,7 +55,7 @@ class ExperimentsToEventsConverter:
         self._new_problem = deepcopy(self._original_problem)
 
         self._model = self._new_problem.model.sbml_model
-        self._presim_indicator = self.PRE_SIM_INDICATOR
+        self._preeq_indicator = self.PREEQ_INDICATOR
 
         # The maximum event priority that was found in the unprocessed model.
         self._max_event_priority = None
@@ -137,7 +137,7 @@ class ExperimentsToEventsConverter:
         :return: The converted PEtab problem.
         """
 
-        self._add_presimulation_indicator()
+        self._add_preequilibration_indicator()
 
         problem = self._new_problem
         for experiment in problem.experiment_table.experiments:
@@ -154,7 +154,7 @@ class ExperimentsToEventsConverter:
         """Convert a single experiment to SBML events."""
         model = self._model
         experiment.sort_periods()
-        has_presimulation = (
+        has_preequilibration = (
             len(experiment.periods) and experiment.periods[0].time == -inf
         )
 
@@ -168,7 +168,7 @@ class ExperimentsToEventsConverter:
         kept_periods = []
         for i_period, period in enumerate(experiment.periods):
             # check for non-zero initial times of the first period
-            if (i_period == int(has_presimulation)) and period.time != 0:
+            if (i_period == int(has_preequilibration)) and period.time != 0:
                 # TODO: we could address that by offsetting all occurrences of
                 #  the SBML time in the model (except for the newly added
                 #  events triggers). Or we better just leave it to the
@@ -179,18 +179,17 @@ class ExperimentsToEventsConverter:
                 )
 
             if period.time == -inf:
-                # steady-state pre-simulation cannot be represented in SBML,
+                # pre-equilibration cannot be represented in SBML,
                 #  so we need to keep this period in the Problem.
                 kept_periods.append(period)
-            elif i_period == int(has_presimulation):
-                # we always keep the first non-presimulation period
+            elif i_period == int(has_preequilibration):
+                # we always keep the first non-pre-equilibration period
                 #  to set the indicator parameters
                 kept_periods.append(period)
             elif not period.changes:
                 # no condition, no changes, no need for an event,
-                #  no need to keep the period unless it's the initial
-                #  steady-state simulation or the only non-presimulation
-                #  period (handled above)
+                #  no need to keep the period unless it's the pre-equilibration
+                #  or the only non-equilibration period (handled above)
                 continue
 
             ev = self._create_period_begin_event(
@@ -213,9 +212,9 @@ class ExperimentsToEventsConverter:
         for period in kept_periods:
             period.condition_ids = [
                 f"_petab_experiment_condition_{experiment.id}",
-                "_petab_steady_state_pre_simulation"
+                "_petab_preequilibration"
                 if period.time == -inf
-                else "_petab_no_steady_state_pre_simulation",
+                else "_petab_no_preequilibration",
             ]
 
         experiment.periods = kept_periods
@@ -242,23 +241,23 @@ class ExperimentsToEventsConverter:
 
         if period.time == -inf:
             trig_math = libsbml.parseL3Formula(
-                f"({exp_ind_id} == 1) && ({self._presim_indicator} == 1)"
+                f"({exp_ind_id} == 1) && ({self._preeq_indicator} == 1)"
             )
         else:
             trig_math = libsbml.parseL3Formula(
-                f"({exp_ind_id} == 1) && ({self._presim_indicator} != 1) "
+                f"({exp_ind_id} == 1) && ({self._preeq_indicator} != 1) "
                 f"&& (time >= {period.time})"
             )
         check(trigger.setMath(trig_math))
 
         return ev
 
-    def _add_presimulation_indicator(
+    def _add_preequilibration_indicator(
         self,
     ) -> None:
-        """Add an indicator parameter for the steady-state presimulation to
-        the SBML model."""
-        par_id = self._presim_indicator
+        """Add an indicator parameter for the pre-equilibration to the SBML
+        model."""
+        par_id = self._preeq_indicator
         if self._model.getElementBySId(par_id) is not None:
             raise ValueError(
                 f"Entity with ID {par_id} already exists in the SBML model."
@@ -325,24 +324,24 @@ class ExperimentsToEventsConverter:
 
     def _add_indicators_to_conditions(self, problem: Problem) -> None:
         """After converting the experiments to events, add the indicator
-        parameters for the presimulation period and for the different
+        parameters for the pre-equilibration period and for the different
         experiments to the remaining conditions.
         Then remove all other conditions."""
 
         # create conditions for indicator parameters
         problem.condition_table.conditions.append(
             Condition(
-                id="_petab_steady_state_pre_simulation",
+                id="_petab_preequilibration",
                 changes=[
-                    Change(target_id=self._presim_indicator, target_value=1)
+                    Change(target_id=self._preeq_indicator, target_value=1)
                 ],
             )
         )
         problem.condition_table.conditions.append(
             Condition(
-                id="_petab_no_steady_state_pre_simulation",
+                id="_petab_no_preequilibration",
                 changes=[
-                    Change(target_id=self._presim_indicator, target_value=0)
+                    Change(target_id=self._preeq_indicator, target_value=0)
                 ],
             )
         )
