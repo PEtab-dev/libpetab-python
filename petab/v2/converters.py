@@ -8,7 +8,6 @@ from copy import deepcopy
 import libsbml
 from sbmlmath import sbml_math_to_sympy, set_math
 
-from .C import TIME_PREEQUILIBRATION
 from .core import Change, Condition, Experiment, ExperimentPeriod
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
@@ -165,16 +164,16 @@ class ExperimentsToEventsConverter:
         """Convert a single experiment to SBML events."""
         model = self._model
         experiment.sort_periods()
-        has_preequilibration = (
-            len(experiment.periods)
-            and experiment.periods[0].time == TIME_PREEQUILIBRATION
-        )
+        has_preequilibration = experiment.has_preequilibration
 
         # add experiment indicator
         exp_ind_id = self.get_experiment_indicator(experiment.id)
         if model.getElementBySId(exp_ind_id) is not None:
-            raise AssertionError(
-                f"Entity with ID {exp_ind_id} exists already."
+            raise ValueError(
+                f"The model has entity with ID `{exp_ind_id}`. "
+                "IDs starting with `petab_` are reserved for "
+                f"{self.__class__.__name__} and should not be used in the "
+                "model."
             )
         add_sbml_parameter(model, id_=exp_ind_id, constant=False, value=0)
         kept_periods = []
@@ -192,7 +191,7 @@ class ExperimentsToEventsConverter:
                     "This cannot be represented in SBML."
                 )
 
-            if period.time == TIME_PREEQUILIBRATION:
+            if period.is_preequilibration:
                 # pre-equilibration cannot be represented in SBML,
                 #  so we need to keep this period in the Problem.
                 kept_periods.append(period)
@@ -227,7 +226,7 @@ class ExperimentsToEventsConverter:
             period.condition_ids = [
                 self._get_experiment_indicator_condition_id(experiment.id),
                 self.CONDITION_ID_PREEQ_ON
-                if period.time == TIME_PREEQUILIBRATION
+                if period.is_preequilibration
                 else self.CONDITION_ID_PREEQ_OFF,
             ]
 
@@ -253,7 +252,7 @@ class ExperimentsToEventsConverter:
 
         exp_ind_id = self.get_experiment_indicator(experiment.id)
 
-        if period.time == TIME_PREEQUILIBRATION:
+        if period.is_preequilibration:
             trig_math = libsbml.parseL3Formula(
                 f"({exp_ind_id} == 1) && ({self._preeq_indicator} == 1)"
             )
@@ -324,7 +323,8 @@ class ExperimentsToEventsConverter:
                 sbml_model, id_=change.target_id, constant=False, value=0
             )
         else:
-            # TODO: can that break models??
+            # We can safely change the `constant` attribute of the target.
+            #  "Constant" does not imply "boundary condition" in SBML.
             target.setConstant(False)
 
         # the target value may depend on parameters that are only

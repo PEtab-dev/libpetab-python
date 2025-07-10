@@ -33,15 +33,14 @@ def check(res: int):
 
 def add_sbml_parameter(
     model: libsbml.Model,
-    id_: str = None,
+    id_: str,
     value: float = None,
     constant: bool = None,
 ) -> libsbml.Parameter:
     """Add a parameter to the SBML model."""
     param = model.createParameter()
 
-    if id_ is not None:
-        param.setId(id_)
+    param.setId(id_)
 
     if value is not None:
         param.setValue(value)

@@ -521,6 +521,11 @@ class ExperimentPeriod(BaseModel):
                 raise ValueError(f"Invalid {C.CONDITION_ID}: `{condition_id}'")
         return condition_ids
 
+    @property
+    def is_preequilibration(self) -> bool:
+        """Check if this period is a preequilibration period."""
+        return self.time == C.TIME_PREEQUILIBRATION
+
 
 class Experiment(BaseModel):
     """An experiment or a timecourse defined by an ID and a set of different
@@ -555,9 +560,10 @@ class Experiment(BaseModel):
         self.periods.append(other)
         return self
 
+    @property
     def has_preequilibration(self) -> bool:
         """Check if the experiment has preequilibration enabled."""
-        return any(period.time == -np.inf for period in self.periods)
+        return any(period.is_preequilibration for period in self.periods)
 
     def sort_periods(self) -> None:
         """Sort the periods of the experiment by time."""
