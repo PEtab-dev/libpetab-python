@@ -555,8 +555,8 @@ class Experiment(BaseModel):
         self.periods.append(other)
         return self
 
-    def has_steady_state_presimulation(self) -> bool:
-        """Check if the experiment has a steady-state pre-simulation."""
+    def has_preequilibration(self) -> bool:
+        """Check if the experiment has preequilibration enabled."""
         return any(period.time == -np.inf for period in self.periods)
 
     def sort_periods(self) -> None:
