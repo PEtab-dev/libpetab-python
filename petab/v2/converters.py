@@ -41,6 +41,12 @@ class ExperimentsToEventsConverter:
     #: ID of the parameter that indicates whether the model is in
     #  the pre-equilibration phase (1) or not (0).
     PREEQ_INDICATOR = "_petab_preequilibration_indicator"
+    #: The condition ID of the condition that sets the
+    #: pre-equilibration indicator to 1.
+    CONDITION_ID_PREEQ_ON = "_petab_preequilibration_on"
+    #: The condition ID of the condition that sets the
+    #: pre-equilibration indicator to 0.
+    CONDITION_ID_PREEQ_OFF = "_petab_preequilibration_off"
 
     def __init__(self, problem: Problem):
         """Initialize the converter.
@@ -220,9 +226,9 @@ class ExperimentsToEventsConverter:
         for period in kept_periods:
             period.condition_ids = [
                 self._get_experiment_indicator_condition_id(experiment.id),
-                "_petab_preequilibration"
+                self.CONDITION_ID_PREEQ_ON
                 if period.time == TIME_PREEQUILIBRATION
-                else "_petab_no_preequilibration",
+                else self.CONDITION_ID_PREEQ_OFF,
             ]
 
         experiment.periods = kept_periods
@@ -230,7 +236,7 @@ class ExperimentsToEventsConverter:
     def _create_period_start_event(
         self, experiment: Experiment, i_period: int, period: ExperimentPeriod
     ) -> libsbml.Event:
-        """Create an event that triggers at the beginning of a period."""
+        """Create an event that triggers at the start of a period."""
 
         # TODO: for now, add separate events for each experiment x period,
         #  this could be optimized to reuse events
@@ -340,7 +346,7 @@ class ExperimentsToEventsConverter:
         # create conditions for indicator parameters
         problem.condition_table.conditions.append(
             Condition(
-                id="_petab_preequilibration",
+                id=self.CONDITION_ID_PREEQ_ON,
                 changes=[
                     Change(target_id=self._preeq_indicator, target_value=1)
                 ],
@@ -348,7 +354,7 @@ class ExperimentsToEventsConverter:
         )
         problem.condition_table.conditions.append(
             Condition(
-                id="_petab_no_preequilibration",
+                id=self.CONDITION_ID_PREEQ_OFF,
                 changes=[
                     Change(target_id=self._preeq_indicator, target_value=0)
                 ],
