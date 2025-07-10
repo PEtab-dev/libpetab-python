@@ -40,12 +40,12 @@ def add_sbml_parameter(
     """Add a parameter to the SBML model."""
     param = model.createParameter()
 
-    param.setId(id_)
+    check(param.setId(id_))
 
     if value is not None:
-        param.setValue(value)
+        check(param.setValue(value))
 
     if constant is not None:
-        param.setConstant(constant)
+        check(param.setConstant(constant))
 
     return param
