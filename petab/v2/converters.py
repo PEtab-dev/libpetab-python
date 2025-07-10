@@ -47,11 +47,21 @@ class ExperimentsToEventsConverter:
     #: pre-equilibration indicator to 0.
     CONDITION_ID_PREEQ_OFF = "_petab_preequilibration_off"
 
-    def __init__(self, problem: Problem):
+    def __init__(self, problem: Problem, default_priority: float = None):
         """Initialize the converter.
 
         :param problem: The PEtab problem to convert.
             This will not be modified.
+        :param default_priority: The priority value to apply to any events that
+            preexist in the model and do not have a priority set.
+
+            In SBML, for event assignments that are to be applied at the same
+            simulation time, the order of event execution is determined by the
+            priority of the respective events.
+            If no priority is set, the order is undefined.
+            See SBML specs for details.
+            To ensure that the PEtab condition-start-events are executed before
+            any other events, all events should have a priority set.
         """
         if not isinstance(problem.model, SbmlModel):
             raise ValueError("Only SBML models are supported.")
@@ -66,7 +76,7 @@ class ExperimentsToEventsConverter:
         self._max_event_priority = None
         # The priority that will be used for the PEtab events.
         self._petab_event_priority = None
-
+        self._default_priority = default_priority
         self._preprocess()
 
     def _get_experiment_indicator_condition_id(
@@ -87,6 +97,18 @@ class ExperimentsToEventsConverter:
                     "because they do not support initial values for event "
                     "triggers and automatic upconversion of the model failed."
                 )
+
+        # Apply default priority to all events that do not have a priority
+        if self._default_priority is not None:
+            for event in model.getListOfEvents():
+                if (
+                    not event.getPriority()
+                    or event.getPriority().getMath() is None
+                ):
+                    priority = event.createPriority()
+                    priority.setMath(
+                        libsbml.parseL3Formula(str(self._default_priority))
+                    )
 
         # Collect event priorities
         event_priorities = {
@@ -122,7 +144,9 @@ class ExperimentsToEventsConverter:
                     f"Event `{event.getId()}` has no priority set. "
                     "Make sure that this event cannot trigger at the time of "
                     "a PEtab condition change, otherwise the behavior is "
-                    "undefined.",
+                    "undefined. To avoid this warning, see the "
+                    "`default_priority` parameter of "
+                    f"{self.__class__.__name__}.",
                     stacklevel=1,
                 )
 
