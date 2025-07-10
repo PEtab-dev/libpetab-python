@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from math import inf
 
 import libsbml
 from sbmlmath import sbml_math_to_sympy, set_math
 
+from .C import TIME_PREEQUILIBRATION
 from .core import Change, Condition, Experiment, ExperimentPeriod
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
@@ -64,6 +64,12 @@ class ExperimentsToEventsConverter:
 
         self._preprocess()
 
+    def _get_experiment_indicator_condition_id(
+        self, experiment_id: str
+    ) -> str:
+        """Get the condition ID for the experiment indicator parameter."""
+        return f"_petab_experiment_condition_{experiment_id}"
+
     def _preprocess(self):
         """Check whether we can handle the given problem and store some model
         information."""
@@ -74,7 +80,7 @@ class ExperimentsToEventsConverter:
                 raise ValueError(
                     "Cannot handle SBML models with SBML level < 3, "
                     "because they do not support initial values for event "
-                    "triggers and automatic upconversion failed."
+                    "triggers and automatic upconversion of the model failed."
                 )
 
         # Collect event priorities
@@ -139,23 +145,23 @@ class ExperimentsToEventsConverter:
 
         self._add_preequilibration_indicator()
 
-        problem = self._new_problem
-        for experiment in problem.experiment_table.experiments:
-            self._convert_experiment(problem, experiment)
+        for experiment in self._new_problem.experiment_table.experiments:
+            self._convert_experiment(experiment)
 
-        self._add_indicators_to_conditions(problem)
+        self._add_indicators_to_conditions()
 
-        validation_results = problem.validate()
+        validation_results = self._new_problem.validate()
         validation_results.log()
 
-        return problem
+        return self._new_problem
 
-    def _convert_experiment(self, problem: Problem, experiment: Experiment):
+    def _convert_experiment(self, experiment: Experiment):
         """Convert a single experiment to SBML events."""
         model = self._model
         experiment.sort_periods()
         has_preequilibration = (
-            len(experiment.periods) and experiment.periods[0].time == -inf
+            len(experiment.periods)
+            and experiment.periods[0].time == TIME_PREEQUILIBRATION
         )
 
         # add experiment indicator
@@ -175,10 +181,12 @@ class ExperimentsToEventsConverter:
                 #  simulator -- we anyways keep the first period in the
                 #  returned Problem.
                 raise NotImplementedError(
-                    "Cannot represent non-zero initial time in SBML."
+                    f"The initial simulation time for experiment "
+                    f"`{experiment.id}` is nonzero: `{period.time}`. "
+                    "This cannot be represented in SBML."
                 )
 
-            if period.time == -inf:
+            if period.time == TIME_PREEQUILIBRATION:
                 # pre-equilibration cannot be represented in SBML,
                 #  so we need to keep this period in the Problem.
                 kept_periods.append(period)
@@ -192,7 +200,7 @@ class ExperimentsToEventsConverter:
                 #  or the only non-equilibration period (handled above)
                 continue
 
-            ev = self._create_period_begin_event(
+            ev = self._create_period_start_event(
                 experiment=experiment,
                 i_period=i_period,
                 period=period,
@@ -200,7 +208,7 @@ class ExperimentsToEventsConverter:
             self._create_event_assignments_for_period(
                 ev,
                 [
-                    problem.condition_table[condition_id]
+                    self._new_problem.condition_table[condition_id]
                     for condition_id in period.condition_ids
                 ],
             )
@@ -211,15 +219,15 @@ class ExperimentsToEventsConverter:
         # add conditions that set the indicator parameters
         for period in kept_periods:
             period.condition_ids = [
-                f"_petab_experiment_condition_{experiment.id}",
+                self._get_experiment_indicator_condition_id(experiment.id),
                 "_petab_preequilibration"
-                if period.time == -inf
+                if period.time == TIME_PREEQUILIBRATION
                 else "_petab_no_preequilibration",
             ]
 
         experiment.periods = kept_periods
 
-    def _create_period_begin_event(
+    def _create_period_start_event(
         self, experiment: Experiment, i_period: int, period: ExperimentPeriod
     ) -> libsbml.Event:
         """Create an event that triggers at the beginning of a period."""
@@ -239,7 +247,7 @@ class ExperimentsToEventsConverter:
 
         exp_ind_id = self.get_experiment_indicator(experiment.id)
 
-        if period.time == -inf:
+        if period.time == TIME_PREEQUILIBRATION:
             trig_math = libsbml.parseL3Formula(
                 f"({exp_ind_id} == 1) && ({self._preeq_indicator} == 1)"
             )
@@ -322,11 +330,12 @@ class ExperimentsToEventsConverter:
                     sbml_model, id_=sym.name, constant=True, value=0
                 )
 
-    def _add_indicators_to_conditions(self, problem: Problem) -> None:
+    def _add_indicators_to_conditions(self) -> None:
         """After converting the experiments to events, add the indicator
         parameters for the pre-equilibration period and for the different
         experiments to the remaining conditions.
         Then remove all other conditions."""
+        problem = self._new_problem
 
         # create conditions for indicator parameters
         problem.condition_table.conditions.append(
@@ -347,17 +356,19 @@ class ExperimentsToEventsConverter:
         )
         # add conditions for the experiment indicators
         for experiment in problem.experiment_table.experiments:
+            cond_id = self._get_experiment_indicator_condition_id(
+                experiment.id
+            )
+            changes = [
+                Change(
+                    target_id=self.get_experiment_indicator(experiment.id),
+                    target_value=1,
+                )
+            ]
             problem.condition_table.conditions.append(
                 Condition(
-                    id=f"_petab_experiment_condition_{experiment.id}",
-                    changes=[
-                        Change(
-                            target_id=self.get_experiment_indicator(
-                                experiment.id
-                            ),
-                            target_value=1,
-                        )
-                    ],
+                    id=cond_id,
+                    changes=changes,
                 )
             )
 
