@@ -280,7 +280,7 @@ def _update_yaml(yaml_config: dict) -> dict:
     yaml_config[v2.C.FORMAT_VERSION] = "2.0.0"
 
     # Add extensions
-    yaml_config[v2.C.EXTENSIONS] = []
+    yaml_config[v2.C.EXTENSIONS] = {}
 
     # Move models and set IDs (filename for now)
     for problem in yaml_config[v2.C.PROBLEMS]:

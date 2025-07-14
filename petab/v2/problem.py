@@ -846,7 +846,7 @@ class Problem:
 
         validation_results = ValidationResultList()
         if self.config.extensions:
-            extensions = ",".join(e.name for e in self.config.extensions)
+            extensions = ",".join(self.config.extensions.keys())
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
@@ -1116,7 +1116,7 @@ class Problem:
         >>> p += core.Parameter(id="par", lb=0, ub=1)
         >>> pprint(p.model_dump())
         {'conditions': [],
-         'config': {'extensions': [],
+         'config': {'extensions': {},
                     'format_version': '2.0.0',
                     'parameter_file': None,
                     'problems': []},
@@ -1168,7 +1168,6 @@ class SubProblem(BaseModel):
 class ExtensionConfig(BaseModel):
     """The configuration of a PEtab extension."""
 
-    name: str
     version: str
     config: dict
 
@@ -1194,8 +1193,8 @@ class ProblemConfig(BaseModel):
     parameter_file: str | AnyUrl | None = None
     #: The list of problems in the configuration.
     problems: list[SubProblem] = []
-    #: Extensiions used by the problem.
-    extensions: list[ExtensionConfig] = []
+    #: Extensions used by the problem.
+    extensions: dict[str, ExtensionConfig] = {}
 
     def to_yaml(self, filename: str | Path):
         """Write the configuration to a YAML file.
