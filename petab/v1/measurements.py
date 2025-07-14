@@ -289,7 +289,7 @@ def assert_overrides_match_parameter_count(
             )
         }
         if NOISE_FORMULA in observable_df.columns
-        else {obs_id: 0 for obs_id in observable_df.index.values}
+        else dict.fromkeys(observable_df.index.values, 0)
     )
 
     for _, row in measurement_df.iterrows():

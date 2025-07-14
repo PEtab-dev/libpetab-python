@@ -8,14 +8,14 @@ import pytest
 
 import petab
 from petab.C import *
-from petab.visualize import (
+from petab.v1.visualize import (
     plot_goodness_of_fit,
     plot_residuals_vs_simulation,
     plot_with_vis_spec,
     plot_without_vis_spec,
 )
-from petab.visualize.lint import validate_visualization_df
-from petab.visualize.plotting import VisSpecParser
+from petab.v1.visualize.lint import validate_visualization_df
+from petab.v1.visualize.plotting import VisSpecParser
 
 # Avoid errors when plotting without X server
 plt.switch_backend("agg")

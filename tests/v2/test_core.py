@@ -160,28 +160,22 @@ def test_observable():
     assert Observable(id="obs1", formula="x + y", non_petab=1).non_petab == 1
 
     o = Observable(id="obs1", formula=x + y)
-    assert o.observable_placeholders == set()
-    assert o.noise_placeholders == set()
+    assert o.observable_placeholders == []
+    assert o.noise_placeholders == []
 
     o = Observable(
         id="obs1",
         formula="observableParameter1_obs1",
         noise_formula="noiseParameter1_obs1",
+        observable_placeholders="observableParameter1_obs1",
+        noise_placeholders="noiseParameter1_obs1",
     )
-    assert o.observable_placeholders == {
+    assert o.observable_placeholders == [
         sp.Symbol("observableParameter1_obs1", real=True),
-    }
-    assert o.noise_placeholders == {
+    ]
+    assert o.noise_placeholders == [
         sp.Symbol("noiseParameter1_obs1", real=True)
-    }
-
-    # TODO: this should raise an error
-    #   (numbering is not consecutive / not starting from 1)
-    # TODO: clarify if observableParameter0_obs1 would be allowed
-    #  as regular parameter
-    #
-    # with pytest.raises(ValidationError):
-    #  Observable(id="obs1", formula="observableParameter2_obs1")
+    ]
 
 
 def test_change():
@@ -212,7 +206,7 @@ def test_period():
     with pytest.raises(ValidationError, match="got inf"):
         ExperimentPeriod(time="inf", condition_ids=["p1"])
 
-    with pytest.raises(ValidationError, match="Invalid ID"):
+    with pytest.raises(ValidationError, match="Invalid conditionId"):
         ExperimentPeriod(time=1, condition_ids=["1_condition"])
 
     with pytest.raises(ValidationError, match="type=missing"):

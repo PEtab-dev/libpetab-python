@@ -27,9 +27,9 @@ It will require Python>=3.10 to run. (We are following the
 
 Development versions of the PEtab library can be installed using
 
-    pip3 install https://github.com/PEtab-dev/libpetab-python/archive/develop.zip
+    pip3 install https://github.com/PEtab-dev/libpetab-python/archive/main.zip
 
-(replace `develop` by the branch or commit you would like to install).
+(replace `main` by the branch or commit you would like to install).
 
 When setting up a new parameter estimation problem, the most useful tools will
 be:

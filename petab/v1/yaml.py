@@ -77,16 +77,14 @@ def validate_yaml_syntax(
         #  but let's still use the latest PEtab schema for full validation
         version = yaml_config.get(FORMAT_VERSION, None)
         version = (
-            parse_version(version)[:2]
-            if version
-            else list(SCHEMAS.values())[-1]
+            parse_version(version)[:2] if version else list(SCHEMAS.keys())[-1]
         )
 
         try:
             schema = SCHEMAS[version]
         except KeyError as e:
             raise ValueError(
-                "Unknown PEtab version given in problem "
+                "No or unknown PEtab version given in problem "
                 f"specification: {version}"
             ) from e
     schema = load_yaml(schema)

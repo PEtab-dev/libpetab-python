@@ -145,10 +145,14 @@ EXPERIMENT_DF_REQUIRED_COLS = [
 OBSERVABLE_NAME = "observableName"
 #: Observable formula column in the observable table
 OBSERVABLE_FORMULA = "observableFormula"
+#: Observable placeholders column in the observable table
+OBSERVABLE_PLACEHOLDERS = "observablePlaceholders"
 #: Noise formula column in the observable table
 NOISE_FORMULA = "noiseFormula"
 #: Noise distribution column in the observable table
 NOISE_DISTRIBUTION = "noiseDistribution"
+#: Noise placeholders column in the observable table
+NOISE_PLACEHOLDERS = "noisePlaceholders"
 
 #: Mandatory columns of observable table
 OBSERVABLE_DF_REQUIRED_COLS = [
