@@ -202,19 +202,6 @@ class ExperimentsToEventsConverter:
         add_sbml_parameter(model, id_=exp_ind_id, constant=False, value=0)
         kept_periods = []
         for i_period, period in enumerate(experiment.periods):
-            # check for non-zero initial times of the first period
-            if (i_period == int(has_preequilibration)) and period.time != 0:
-                # TODO: we could address that by offsetting all occurrences of
-                #  the SBML time in the model (except for the newly added
-                #  events triggers). Or we better just leave it to the
-                #  simulator -- we anyways keep the first period in the
-                #  returned Problem.
-                raise NotImplementedError(
-                    f"The initial simulation time for experiment "
-                    f"`{experiment.id}` is nonzero: `{period.time}`. "
-                    "This cannot be represented in SBML."
-                )
-
             if period.is_preequilibration:
                 # pre-equilibration cannot be represented in SBML,
                 #  so we need to keep this period in the Problem.
