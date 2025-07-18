@@ -276,13 +276,19 @@ class ExperimentsToEventsConverter:
 
         exp_ind_id = self.get_experiment_indicator(experiment.id)
 
+        # Create trigger expressions
+        # Since handling of == and !=, and distinguishing < and <=
+        # (and > and >=), is a bit tricky in terms of root-finding,
+        # we use these slightly more convoluted expressions.
+        # (assuming that the indicator parameters are {0, 1})
         if period.is_preequilibration:
             trig_math = libsbml.parseL3Formula(
-                f"({exp_ind_id} == 1) && ({self._preeq_indicator} == 1)"
+                f"({exp_ind_id} > 0.5) && ({self._preeq_indicator} > 0.5)"
             )
         else:
             trig_math = libsbml.parseL3Formula(
-                f"({exp_ind_id} == 1) && ({self._preeq_indicator} != 1) "
+                f"({exp_ind_id} > 0.5) "
+                f"&& ({self._preeq_indicator} < 0.5) "
                 f"&& (time >= {period.time})"
             )
         check(trigger.setMath(trig_math))
