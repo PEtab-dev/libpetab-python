@@ -210,7 +210,7 @@ class ExperimentsToEventsConverter:
                 # we always keep the first non-pre-equilibration period
                 #  to set the indicator parameters
                 kept_periods.append(period)
-            elif not period.changes:
+            elif not period.condition_ids:
                 # no condition, no changes, no need for an event,
                 #  no need to keep the period unless it's the pre-equilibration
                 #  or the only non-equilibration period (handled above)
