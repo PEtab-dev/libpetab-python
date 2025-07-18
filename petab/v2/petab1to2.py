@@ -99,155 +99,145 @@ def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
     file = yaml_config[v2.C.PARAMETER_FILE]
     v2.write_parameter_df(parameter_df, get_dest_path(file))
 
-    # sub-problems
-    for problem_config in new_yaml_config.problems:
-        # copy files that don't need conversion
-        #  (models, visualizations)
-        for file in chain(
-            (model.location for model in problem_config.model_files.values()),
-            problem_config.visualization_files,
-        ):
-            _copy_file(get_src_path(file), Path(get_dest_path(file)))
+    # copy files that don't need conversion
+    #  (models, visualizations)
+    for file in chain(
+        (model.location for model in new_yaml_config.model_files.values()),
+        new_yaml_config.visualization_files,
+    ):
+        _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
-        # Update observable table
-        for observable_file in problem_config.observable_files:
-            observable_df = v1.get_observable_df(get_src_path(observable_file))
-            observable_df = v1v2_observable_df(
-                observable_df,
-            )
-            v2.write_observable_df(
-                observable_df, get_dest_path(observable_file)
-            )
-
-        # Update condition table
-        for condition_file in problem_config.condition_files:
-            condition_df = v1.get_condition_df(get_src_path(condition_file))
-            condition_df = v1v2_condition_df(condition_df, petab_problem.model)
-            v2.write_condition_df(condition_df, get_dest_path(condition_file))
-
-        # records for the experiment table to be created
-        experiments = []
-
-        def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
-            if not sim_cond_id and not preeq_cond_id:
-                return ""
-            # check whether the conditions will exist in the v2 condition table
-            sim_cond_exists = (
-                petab_problem.condition_df.loc[sim_cond_id].notna().any()
-            )
-            preeq_cond_exists = (
-                preeq_cond_id
-                and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
-            )
-            if not sim_cond_exists and not preeq_cond_exists:
-                # if we have only all-NaN conditions, we don't create a new
-                #  experiment
-                return ""
-
-            if preeq_cond_id:
-                preeq_cond_id = f"{preeq_cond_id}_"
-            exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
-            if exp_id in experiments:  # noqa: B023
-                i = 1
-                while f"{exp_id}_{i}" in experiments:  # noqa: B023
-                    i += 1
-                exp_id = f"{exp_id}_{i}"
-            return exp_id
-
-        measured_experiments = (
-            petab_problem.get_simulation_conditions_from_measurement_df()
+    # Update observable table
+    for observable_file in new_yaml_config.observable_files:
+        observable_df = v1.get_observable_df(get_src_path(observable_file))
+        observable_df = v1v2_observable_df(
+            observable_df,
         )
-        for (
-            _,
-            row,
-        ) in measured_experiments.iterrows():
-            # generate a new experiment for each simulation / pre-eq condition
-            #  combination
-            sim_cond_id = row[v1.C.SIMULATION_CONDITION_ID]
-            preeq_cond_id = row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, "")
-            exp_id = create_experiment_id(sim_cond_id, preeq_cond_id)
-            if not exp_id:
-                continue
-            if preeq_cond_id:
-                experiments.append(
-                    {
-                        v2.C.EXPERIMENT_ID: exp_id,
-                        v2.C.CONDITION_ID: preeq_cond_id,
-                        v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
-                    }
-                )
+        v2.write_observable_df(observable_df, get_dest_path(observable_file))
+
+    # Update condition table
+    for condition_file in new_yaml_config.condition_files:
+        condition_df = v1.get_condition_df(get_src_path(condition_file))
+        condition_df = v1v2_condition_df(condition_df, petab_problem.model)
+        v2.write_condition_df(condition_df, get_dest_path(condition_file))
+
+    # records for the experiment table to be created
+    experiments = []
+
+    def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
+        if not sim_cond_id and not preeq_cond_id:
+            return ""
+        # check whether the conditions will exist in the v2 condition table
+        sim_cond_exists = (
+            petab_problem.condition_df.loc[sim_cond_id].notna().any()
+        )
+        preeq_cond_exists = (
+            preeq_cond_id
+            and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
+        )
+        if not sim_cond_exists and not preeq_cond_exists:
+            # if we have only all-NaN conditions, we don't create a new
+            #  experiment
+            return ""
+
+        if preeq_cond_id:
+            preeq_cond_id = f"{preeq_cond_id}_"
+        exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
+        if exp_id in experiments:  # noqa: B023
+            i = 1
+            while f"{exp_id}_{i}" in experiments:  # noqa: B023
+                i += 1
+            exp_id = f"{exp_id}_{i}"
+        return exp_id
+
+    measured_experiments = (
+        petab_problem.get_simulation_conditions_from_measurement_df()
+    )
+    for (
+        _,
+        row,
+    ) in measured_experiments.iterrows():
+        # generate a new experiment for each simulation / pre-eq condition
+        #  combination
+        sim_cond_id = row[v1.C.SIMULATION_CONDITION_ID]
+        preeq_cond_id = row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, "")
+        exp_id = create_experiment_id(sim_cond_id, preeq_cond_id)
+        if not exp_id:
+            continue
+        if preeq_cond_id:
             experiments.append(
                 {
                     v2.C.EXPERIMENT_ID: exp_id,
-                    v2.C.CONDITION_ID: sim_cond_id,
-                    v2.C.TIME: 0,
+                    v2.C.CONDITION_ID: preeq_cond_id,
+                    v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
                 }
             )
-        if experiments:
-            exp_table_path = output_dir / "experiments.tsv"
-            if exp_table_path.exists():
-                raise ValueError(
-                    f"Experiment table file {exp_table_path} already exists."
-                )
-            problem_config.experiment_files.append("experiments.tsv")
-            v2.write_experiment_df(
-                v2.get_experiment_df(pd.DataFrame(experiments)), exp_table_path
+        experiments.append(
+            {
+                v2.C.EXPERIMENT_ID: exp_id,
+                v2.C.CONDITION_ID: sim_cond_id,
+                v2.C.TIME: 0,
+            }
+        )
+    if experiments:
+        exp_table_path = output_dir / "experiments.tsv"
+        if exp_table_path.exists():
+            raise ValueError(
+                f"Experiment table file {exp_table_path} already exists."
             )
+        new_yaml_config.experiment_files.append("experiments.tsv")
+        v2.write_experiment_df(
+            v2.get_experiment_df(pd.DataFrame(experiments)), exp_table_path
+        )
 
-        for measurement_file in problem_config.measurement_files:
-            measurement_df = v1.get_measurement_df(
-                get_src_path(measurement_file)
+    for measurement_file in new_yaml_config.measurement_files:
+        measurement_df = v1.get_measurement_df(get_src_path(measurement_file))
+        # if there is already an experiment ID column, we rename it
+        if v2.C.EXPERIMENT_ID in measurement_df.columns:
+            measurement_df.rename(
+                columns={v2.C.EXPERIMENT_ID: f"experiment_id_{uuid4()}"},
+                inplace=True,
             )
-            # if there is already an experiment ID column, we rename it
-            if v2.C.EXPERIMENT_ID in measurement_df.columns:
-                measurement_df.rename(
-                    columns={v2.C.EXPERIMENT_ID: f"experiment_id_{uuid4()}"},
-                    inplace=True,
-                )
-            # add pre-eq condition id if not present or convert to string
-            #  for simplicity
+        # add pre-eq condition id if not present or convert to string
+        #  for simplicity
+        if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
+            measurement_df.fillna(
+                {v1.C.PREEQUILIBRATION_CONDITION_ID: ""}, inplace=True
+            )
+        else:
+            measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
+
+        if (
+            petab_problem.condition_df is not None
+            and len(
+                set(petab_problem.condition_df.columns) - {v1.C.CONDITION_NAME}
+            )
+            == 0
+        ):
+            # we can't have "empty" conditions with no overrides in v2,
+            #  therefore, we drop the respective condition ID completely
+            #   TODO: or can we?
+            # TODO: this needs to be checked condition-wise, not globally
+            measurement_df[v1.C.SIMULATION_CONDITION_ID] = ""
             if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
-                measurement_df.fillna(
-                    {v1.C.PREEQUILIBRATION_CONDITION_ID: ""}, inplace=True
-                )
-            else:
                 measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
-
-            if (
-                petab_problem.condition_df is not None
-                and len(
-                    set(petab_problem.condition_df.columns)
-                    - {v1.C.CONDITION_NAME}
-                )
-                == 0
-            ):
-                # we can't have "empty" conditions with no overrides in v2,
-                #  therefore, we drop the respective condition ID completely
-                #   TODO: or can we?
-                # TODO: this needs to be checked condition-wise, not globally
-                measurement_df[v1.C.SIMULATION_CONDITION_ID] = ""
-                if (
-                    v1.C.PREEQUILIBRATION_CONDITION_ID
-                    in measurement_df.columns
-                ):
-                    measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
-            # condition IDs to experiment IDs
-            measurement_df.insert(
-                0,
-                v2.C.EXPERIMENT_ID,
-                measurement_df.apply(
-                    lambda row: create_experiment_id(
-                        row[v1.C.SIMULATION_CONDITION_ID],
-                        row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, ""),
-                    ),
-                    axis=1,
+        # condition IDs to experiment IDs
+        measurement_df.insert(
+            0,
+            v2.C.EXPERIMENT_ID,
+            measurement_df.apply(
+                lambda row: create_experiment_id(
+                    row[v1.C.SIMULATION_CONDITION_ID],
+                    row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, ""),
                 ),
-            )
-            del measurement_df[v1.C.SIMULATION_CONDITION_ID]
-            del measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID]
-            v2.write_measurement_df(
-                measurement_df, get_dest_path(measurement_file)
-            )
+                axis=1,
+            ),
+        )
+        del measurement_df[v1.C.SIMULATION_CONDITION_ID]
+        del measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID]
+        v2.write_measurement_df(
+            measurement_df, get_dest_path(measurement_file)
+        )
 
     # Write the new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
@@ -283,18 +273,27 @@ def _update_yaml(yaml_config: dict) -> dict:
     yaml_config[v2.C.EXTENSIONS] = {}
 
     # Move models and set IDs (filename for now)
-    for problem in yaml_config[v2.C.PROBLEMS]:
-        problem[v2.C.MODEL_FILES] = {}
-        models = problem[v2.C.MODEL_FILES]
+    yaml_config[v2.C.MODEL_FILES] = {}
+    for problem in yaml_config[v1.C.PROBLEMS]:
+        models = {}
         for sbml_file in problem[v1.C.SBML_FILES]:
             model_id = sbml_file.split("/")[-1].split(".")[0]
             models[model_id] = {
                 v2.C.MODEL_LANGUAGE: MODEL_TYPE_SBML,
                 v2.C.MODEL_LOCATION: sbml_file,
             }
-            problem[v2.C.MODEL_FILES] = problem.get(v2.C.MODEL_FILES, {})
+            yaml_config[v2.C.MODEL_FILES] |= models
         del problem[v1.C.SBML_FILES]
 
+        for file_type in (
+            v1.C.CONDITION_FILES,
+            v1.C.MEASUREMENT_FILES,
+            v1.C.OBSERVABLE_FILES,
+            v1.C.VISUALIZATION_FILES,
+        ):
+            if file_type in problem:
+                yaml_config[file_type] = problem[file_type]
+                del problem[file_type]
     return yaml_config
 
 
