@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import sympy as sp
-from pydantic import AnyUrl, BaseModel, Field
+from pydantic import AnyUrl, BaseModel, Field, field_validator
 
 from ..v1 import (
     mapping,
@@ -23,6 +23,7 @@ from ..v1 import (
     observables,
     parameter_mapping,
     parameters,
+    validate_yaml_syntax,
     yaml,
 )
 from ..v1.core import concat_tables, get_visualization_df
@@ -169,6 +170,8 @@ class Problem:
         else:
             yaml_file = None
 
+        validate_yaml_syntax(yaml_config)
+
         def get_path(filename):
             if base_path is None:
                 return filename
@@ -202,7 +205,7 @@ class Problem:
                 f"{yaml_config[FORMAT_VERSION]}."
             )
 
-        if yaml.is_composite_problem(yaml_config):
+        if len(yaml_config[MODEL_FILES]) > 1:
             raise ValueError(
                 "petab.v2.Problem.from_yaml() can only be used for "
                 "yaml files comprising a single model. "
@@ -212,34 +215,25 @@ class Problem:
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
         )
-        problem0 = config.problems[0]
+        parameter_df = parameters.get_parameter_df(
+            [get_path(f) for f in config.parameter_files]
+        )
 
-        if isinstance(config.parameter_file, list):
-            parameter_df = parameters.get_parameter_df(
-                [get_path(f) for f in config.parameter_file]
-            )
-        else:
-            parameter_df = (
-                parameters.get_parameter_df(get_path(config.parameter_file))
-                if config.parameter_file
-                else None
-            )
-
-        if len(problem0.model_files or []) > 1:
+        if len(config.model_files or []) > 1:
             # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
             raise NotImplementedError(
                 "Support for multiple models is not yet implemented."
             )
         model = None
-        if problem0.model_files:
-            model_id, model_info = next(iter(problem0.model_files.items()))
+        if config.model_files:
+            model_id, model_info = next(iter(config.model_files.items()))
             model = model_factory(
                 get_path(model_info.location),
                 model_info.language,
                 model_id=model_id,
             )
 
-        measurement_files = [get_path(f) for f in problem0.measurement_files]
+        measurement_files = [get_path(f) for f in config.measurement_files]
         # If there are multiple tables, we will merge them
         measurement_df = (
             concat_tables(measurement_files, measurements.get_measurement_df)
@@ -247,7 +241,7 @@ class Problem:
             else None
         )
 
-        condition_files = [get_path(f) for f in problem0.condition_files]
+        condition_files = [get_path(f) for f in config.condition_files]
         # If there are multiple tables, we will merge them
         condition_df = (
             concat_tables(condition_files, conditions.get_condition_df)
@@ -255,7 +249,7 @@ class Problem:
             else None
         )
 
-        experiment_files = [get_path(f) for f in problem0.experiment_files]
+        experiment_files = [get_path(f) for f in config.experiment_files]
         # If there are multiple tables, we will merge them
         experiment_df = (
             concat_tables(experiment_files, experiments.get_experiment_df)
@@ -263,9 +257,8 @@ class Problem:
             else None
         )
 
-        visualization_files = [
-            get_path(f) for f in problem0.visualization_files
-        ]
+        # TODO: remove in v2?!
+        visualization_files = [get_path(f) for f in config.visualization_files]
         # If there are multiple tables, we will merge them
         visualization_df = (
             concat_tables(visualization_files, get_visualization_df)
@@ -273,7 +266,7 @@ class Problem:
             else None
         )
 
-        observable_files = [get_path(f) for f in problem0.observable_files]
+        observable_files = [get_path(f) for f in config.observable_files]
         # If there are multiple tables, we will merge them
         observable_df = (
             concat_tables(observable_files, observables.get_observable_df)
@@ -281,7 +274,7 @@ class Problem:
             else None
         )
 
-        mapping_files = [get_path(f) for f in problem0.mapping_files]
+        mapping_files = [get_path(f) for f in config.mapping_files]
         # If there are multiple tables, we will merge them
         mapping_df = (
             concat_tables(mapping_files, mapping.get_mapping_df)
@@ -846,7 +839,7 @@ class Problem:
 
         validation_results = ValidationResultList()
         if self.config.extensions:
-            extensions = ",".join(e.name for e in self.config.extensions)
+            extensions = ",".join(self.config.extensions.keys())
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
@@ -1116,10 +1109,16 @@ class Problem:
         >>> p += core.Parameter(id="par", lb=0, ub=1)
         >>> pprint(p.model_dump())
         {'conditions': [],
-         'config': {'extensions': [],
+         'config': {'condition_files': [],
+                    'experiment_files': [],
+                    'extensions': {},
                     'format_version': '2.0.0',
-                    'parameter_file': None,
-                    'problems': []},
+                    'mapping_files': [],
+                    'measurement_files': [],
+                    'model_files': {},
+                    'observable_files': [],
+                    'parameter_file': [],
+                    'visualization_files': []},
          'experiments': [],
          'mappings': [],
          'measurements': [],
@@ -1133,7 +1132,9 @@ class Problem:
                          'ub': 1.0}]}
         """
         res = {
-            "config": (self.config or ProblemConfig()).model_dump(**kwargs),
+            "config": (self.config or ProblemConfig()).model_dump(
+                **kwargs, by_alias=True
+            ),
         }
         res |= self.mapping_table.model_dump(**kwargs)
         res |= self.condition_table.model_dump(**kwargs)
@@ -1152,23 +1153,9 @@ class ModelFile(BaseModel):
     language: str
 
 
-class SubProblem(BaseModel):
-    """A `problems` object in the PEtab problem configuration."""
-
-    # TODO: consider changing str to Path
-    model_files: dict[str, ModelFile] | None = {}
-    measurement_files: list[str | AnyUrl] = []
-    condition_files: list[str | AnyUrl] = []
-    experiment_files: list[str | AnyUrl] = []
-    observable_files: list[str | AnyUrl] = []
-    visualization_files: list[str | AnyUrl] = []
-    mapping_files: list[str | AnyUrl] = []
-
-
 class ExtensionConfig(BaseModel):
     """The configuration of a PEtab extension."""
 
-    name: str
     version: str
     config: dict
 
@@ -1191,11 +1178,39 @@ class ProblemConfig(BaseModel):
     #: The PEtab format version.
     format_version: str = "2.0.0"
     #: The path to the parameter file, relative to ``base_path``.
-    parameter_file: str | AnyUrl | None = None
-    #: The list of problems in the configuration.
-    problems: list[SubProblem] = []
-    #: Extensiions used by the problem.
-    extensions: list[ExtensionConfig] = []
+    # TODO https://github.com/PEtab-dev/PEtab/pull/641:
+    #  rename to parameter_files in yaml for consistency with other files?
+    #   always a list?
+    parameter_files: list[str | AnyUrl] = Field(
+        default=[], alias=PARAMETER_FILE
+    )
+
+    # TODO: consider changing str to Path
+    model_files: dict[str, ModelFile] | None = {}
+    measurement_files: list[str | AnyUrl] = []
+    condition_files: list[str | AnyUrl] = []
+    experiment_files: list[str | AnyUrl] = []
+    observable_files: list[str | AnyUrl] = []
+    visualization_files: list[str | AnyUrl] = []
+    mapping_files: list[str | AnyUrl] = []
+
+    #: Extensions used by the problem.
+    extensions: list[ExtensionConfig] | dict = {}
+
+    # convert parameter_file to list
+    @field_validator(
+        "parameter_files",
+        mode="before",
+    )
+    def _convert_parameter_file(cls, v):
+        """Convert parameter_file to a list."""
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list):
+            return v
+        raise ValueError(
+            "parameter_files must be a string or a list of strings."
+        )
 
     def to_yaml(self, filename: str | Path):
         """Write the configuration to a YAML file.
@@ -1205,7 +1220,7 @@ class ProblemConfig(BaseModel):
         """
         from ..v1.yaml import write_yaml
 
-        write_yaml(self.model_dump(), filename)
+        write_yaml(self.model_dump(by_alias=True), filename)
 
     @property
     def format_version_tuple(self) -> tuple[int, int, int, str]:
