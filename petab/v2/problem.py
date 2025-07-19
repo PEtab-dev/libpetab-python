@@ -838,7 +838,7 @@ class Problem:
         )
 
         validation_results = ValidationResultList()
-        if self.config.extensions:
+        if self.config and self.config.extensions:
             extensions = ",".join(self.config.extensions.keys())
             validation_results.append(
                 ValidationIssue(

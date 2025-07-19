@@ -40,9 +40,11 @@ class ExperimentsToEventsConverter:
     #: ID of the parameter that indicates whether the model is in
     #  the pre-equilibration phase (1) or not (0).
     PREEQ_INDICATOR = "_petab_preequilibration_indicator"
+
     #: The condition ID of the condition that sets the
     #: pre-equilibration indicator to 1.
     CONDITION_ID_PREEQ_ON = "_petab_preequilibration_on"
+
     #: The condition ID of the condition that sets the
     #: pre-equilibration indicator to 0.
     CONDITION_ID_PREEQ_OFF = "_petab_preequilibration_off"
@@ -69,7 +71,7 @@ class ExperimentsToEventsConverter:
         self._original_problem = problem
         self._new_problem = deepcopy(self._original_problem)
 
-        self._model = self._new_problem.model.sbml_model
+        self._model: libsbml.Model = self._new_problem.model.sbml_model
         self._preeq_indicator = self.PREEQ_INDICATOR
 
         # The maximum event priority that was found in the unprocessed model.
@@ -85,7 +87,7 @@ class ExperimentsToEventsConverter:
         """Get the condition ID for the experiment indicator parameter."""
         return f"_petab_experiment_condition_{experiment_id}"
 
-    def _preprocess(self):
+    def _preprocess(self) -> None:
         """Check whether we can handle the given problem and store some model
         information."""
         model = self._model
@@ -184,7 +186,7 @@ class ExperimentsToEventsConverter:
 
         return self._new_problem
 
-    def _convert_experiment(self, experiment: Experiment):
+    def _convert_experiment(self, experiment: Experiment) -> None:
         """Convert a single experiment to SBML events."""
         model = self._model
         experiment.sort_periods()
@@ -323,7 +325,9 @@ class ExperimentsToEventsConverter:
                 )
 
     @staticmethod
-    def _change_to_event_assignment(change: Change, event: libsbml.Event):
+    def _change_to_event_assignment(
+        change: Change, event: libsbml.Event
+    ) -> None:
         """Convert a PEtab ``Change``  to an SBML event assignment."""
         sbml_model = event.getModel()
 
