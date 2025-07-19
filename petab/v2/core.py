@@ -114,6 +114,8 @@ class NoiseDistribution(str, Enum):
     LOG_NORMAL = C.LOG_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
+    #: Log10-Normal
+    LOG10_NORMAL = C.LOG10_NORMAL
 
 
 class PriorDistribution(str, Enum):
@@ -519,6 +521,11 @@ class ExperimentPeriod(BaseModel):
                 raise ValueError(f"Invalid {C.CONDITION_ID}: `{condition_id}'")
         return condition_ids
 
+    @property
+    def is_preequilibration(self) -> bool:
+        """Check if this period is a preequilibration period."""
+        return self.time == C.TIME_PREEQUILIBRATION
+
 
 class Experiment(BaseModel):
     """An experiment or a timecourse defined by an ID and a set of different
@@ -552,6 +559,15 @@ class Experiment(BaseModel):
             raise TypeError("Can only add ExperimentPeriod to Experiment")
         self.periods.append(other)
         return self
+
+    @property
+    def has_preequilibration(self) -> bool:
+        """Check if the experiment has preequilibration enabled."""
+        return any(period.is_preequilibration for period in self.periods)
+
+    def sort_periods(self) -> None:
+        """Sort the periods of the experiment by time."""
+        self.periods.sort(key=lambda period: period.time)
 
 
 class ExperimentTable(BaseModel):
