@@ -15,7 +15,7 @@ def test_petab1to2_remote():
 
     problem = petab1to2(yaml_url)
     assert isinstance(problem, Problem)
-    assert len(problem.measurement_table.measurements)
+    assert len(problem.measurements)
 
 
 try:
@@ -45,4 +45,4 @@ def test_benchmark_collection(problem_id):
     except NotImplementedError as e:
         pytest.skip(str(e))
     assert isinstance(problem, Problem)
-    assert len(problem.measurement_table.measurements)
+    assert len(problem.measurements)
