@@ -251,12 +251,8 @@ class CheckMeasuredObservablesDefined(ValidationTask):
     are defined."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        used_observables = {
-            m.observable_id for m in problem.measurement_table.measurements
-        }
-        defined_observables = {
-            o.id for o in problem.observable_table.observables
-        }
+        used_observables = {m.observable_id for m in problem.measurements}
+        defined_observables = {o.id for o in problem.observables}
         if undefined_observables := (used_observables - defined_observables):
             return ValidationError(
                 f"Observable(s) {undefined_observables} are used in the "
@@ -274,15 +270,14 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         observable_parameters_count = {
-            o.id: len(o.observable_placeholders)
-            for o in problem.observable_table.observables
+            o.id: len(o.observable_placeholders) for o in problem.observables
         }
         noise_parameters_count = {
-            o.id: len(o.noise_placeholders)
-            for o in problem.observable_table.observables
+            o.id: len(o.noise_placeholders) for o in problem.observables
         }
         messages = []
-        for m in problem.measurement_table.measurements:
+        observables = {o.id: o for o in problem.observables}
+        for m in problem.measurements:
             # check observable parameters
             try:
                 expected = observable_parameters_count[m.observable_id]
@@ -296,7 +291,7 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
             actual = len(m.observable_parameters)
 
             if actual != expected:
-                formula = problem.observable_table[m.observable_id].formula
+                formula = observables[m.observable_id].formula
                 messages.append(
                     f"Mismatch of observable parameter overrides for "
                     f"{m.observable_id} ({formula})"
@@ -322,9 +317,7 @@ class CheckOverridesMatchPlaceholders(ValidationTask):
                         "noiseParameters column."
                     )
                 else:
-                    formula = problem.observable_table[
-                        m.observable_id
-                    ].noise_formula
+                    formula = observables[m.observable_id].noise_formula
                     messages.append(
                         f"Mismatch of noise parameter overrides for "
                         f"{m.observable_id} ({formula})"
@@ -347,11 +340,11 @@ class CheckPosLogMeasurements(ValidationTask):
 
         log_observables = {
             o.id
-            for o in problem.observable_table.observables
+            for o in problem.observables
             if o.noise_distribution in [ND.LOG_NORMAL, ND.LOG_LAPLACE]
         }
         if log_observables:
-            for m in problem.measurement_table.measurements:
+            for m in problem.measurements:
                 if m.measurement <= 0 and m.observable_id in log_observables:
                     return ValidationError(
                         "Measurements with observable "
@@ -373,14 +366,12 @@ class CheckMeasuredExperimentsDefined(ValidationTask):
         #  to conditions, otherwise it should maximally be a warning
         used_experiments = {
             m.experiment_id
-            for m in problem.measurement_table.measurements
+            for m in problem.measurements
             if m.experiment_id is not None
         }
 
         # check that measured experiments exist
-        available_experiments = {
-            e.id for e in problem.experiment_table.experiments
-        }
+        available_experiments = {e.id for e in problem.experiments}
         if missing_experiments := (used_experiments - available_experiments):
             return ValidationError(
                 "Measurement table references experiments that "
@@ -402,14 +393,12 @@ class CheckValidConditionTargets(ValidationTask):
         )
         allowed_targets |= set(get_output_parameters(problem))
         allowed_targets |= {
-            m.petab_id
-            for m in problem.mapping_table.mappings
-            if m.model_id is not None
+            m.petab_id for m in problem.mappings if m.model_id is not None
         }
 
         used_targets = {
             change.target_id
-            for cond in problem.condition_table.conditions
+            for cond in problem.conditions
             for change in cond.changes
         }
 
@@ -420,7 +409,7 @@ class CheckValidConditionTargets(ValidationTask):
 
         # Check that changes of simultaneously applied conditions don't
         #  intersect
-        for experiment in problem.experiment_table.experiments:
+        for experiment in problem.experiments:
             for period in experiment.periods:
                 if not period.condition_ids:
                     continue
@@ -428,7 +417,7 @@ class CheckValidConditionTargets(ValidationTask):
                 for condition_id in period.condition_ids:
                     condition_targets = {
                         change.target_id
-                        for cond in problem.condition_table.conditions
+                        for cond in problem.conditions
                         if cond.id == condition_id
                         for change in cond.changes
                     }
@@ -450,7 +439,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
         #  -- replaces CheckObservablesDoNotShadowModelEntities
 
         # check for uniqueness of all primary keys
-        counter = Counter(c.id for c in problem.condition_table.conditions)
+        counter = Counter(c.id for c in problem.conditions)
         duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
@@ -458,7 +447,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
                 f"Condition table contains duplicate IDs: {duplicates}"
             )
 
-        counter = Counter(o.id for o in problem.observable_table.observables)
+        counter = Counter(o.id for o in problem.observables)
         duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
@@ -466,7 +455,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
                 f"Observable table contains duplicate IDs: {duplicates}"
             )
 
-        counter = Counter(e.id for e in problem.experiment_table.experiments)
+        counter = Counter(e.id for e in problem.experiments)
         duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
@@ -474,7 +463,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
                 f"Experiment table contains duplicate IDs: {duplicates}"
             )
 
-        counter = Counter(p.id for p in problem.parameter_table.parameters)
+        counter = Counter(p.id for p in problem.parameters)
         duplicates = {id_ for id_, count in counter.items() if count > 1}
 
         if duplicates:
@@ -490,12 +479,12 @@ class CheckObservablesDoNotShadowModelEntities(ValidationTask):
 
     # TODO: all PEtab entity IDs must be disjoint from the model entity IDs
     def run(self, problem: Problem) -> ValidationIssue | None:
-        if not problem.observable_table.observables or problem.model is None:
+        if not problem.observables or problem.model is None:
             return None
 
         shadowed_entities = [
             o.id
-            for o in problem.observable_table.observables
+            for o in problem.observables
             if problem.model.has_entity_with_id(o.id)
         ]
         if shadowed_entities:
@@ -511,7 +500,7 @@ class CheckExperimentTable(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
-        for experiment in problem.experiment_table.experiments:
+        for experiment in problem.experiments:
             # Check that there are no duplicate timepoints
             counter = Counter(period.time for period in experiment.periods)
             duplicates = {time for time, count in counter.items() if count > 1}
@@ -533,10 +522,8 @@ class CheckExperimentConditionsExist(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
-        available_conditions = {
-            c.id for c in problem.condition_table.conditions
-        }
-        for experiment in problem.experiment_table.experiments:
+        available_conditions = {c.id for c in problem.conditions}
+        for experiment in problem.experiments:
             missing_conditions = (
                 set(
                     chain.from_iterable(
@@ -568,7 +555,7 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
         required = get_required_parameters_for_parameter_table(problem)
         allowed = get_valid_parameters_for_parameter_table(problem)
 
-        actual = {p.id for p in problem.parameter_table.parameters}
+        actual = {p.id for p in problem.parameters}
         missing = required - actual
         extraneous = actual - allowed
 
@@ -576,7 +563,7 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
         # the mapping table
         if missing:
             model_to_petab_mapping = {}
-            for m in problem.mapping_table.mappings:
+            for m in problem.mappings:
                 if m.model_id in model_to_petab_mapping:
                     model_to_petab_mapping[m.model_id].append(m.petab_id)
                 else:
@@ -619,7 +606,7 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
         )
         allowed_in_condition_cols |= {
             m.petab_id
-            for m in problem.mapping_table.mappings
+            for m in problem.mappings
             if not pd.isna(m.model_id)
             and (
                 # mapping table entities mapping to already allowed parameters
@@ -635,12 +622,10 @@ class CheckValidParameterInConditionOrParameterTable(ValidationTask):
 
         entities_in_condition_table = {
             change.target_id
-            for cond in problem.condition_table.conditions
+            for cond in problem.conditions
             for change in cond.changes
         }
-        entities_in_parameter_table = {
-            p.id for p in problem.parameter_table.parameters
-        }
+        entities_in_parameter_table = {p.id for p in problem.parameters}
 
         disallowed_in_condition = {
             x
@@ -688,12 +673,10 @@ class CheckUnusedExperiments(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         used_experiments = {
             m.experiment_id
-            for m in problem.measurement_table.measurements
+            for m in problem.measurements
             if m.experiment_id is not None
         }
-        available_experiments = {
-            e.id for e in problem.experiment_table.experiments
-        }
+        available_experiments = {e.id for e in problem.experiments}
 
         unused_experiments = available_experiments - used_experiments
         if unused_experiments:
@@ -712,14 +695,10 @@ class CheckUnusedConditions(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         used_conditions = set(
             chain.from_iterable(
-                p.condition_ids
-                for e in problem.experiment_table.experiments
-                for p in e.periods
+                p.condition_ids for e in problem.experiments for p in e.periods
             )
         )
-        available_conditions = {
-            c.id for c in problem.condition_table.conditions
-        }
+        available_conditions = {c.id for c in problem.conditions}
 
         unused_conditions = available_conditions - used_conditions
         if unused_conditions:
@@ -751,7 +730,7 @@ class CheckPriorDistribution(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
-        for parameter in problem.parameter_table.parameters:
+        for parameter in problem.parameters:
             if parameter.prior_distribution is None:
                 continue
 
@@ -818,7 +797,7 @@ def get_valid_parameters_for_parameter_table(
     # condition table targets
     invalid |= {
         change.target_id
-        for cond in problem.condition_table.conditions
+        for cond in problem.conditions
         for change in cond.changes
     }
 
@@ -830,7 +809,7 @@ def get_valid_parameters_for_parameter_table(
         if p not in invalid
     )
 
-    for mapping in problem.mapping_table.mappings:
+    for mapping in problem.mappings:
         if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
 
@@ -847,14 +826,15 @@ def get_valid_parameters_for_parameter_table(
             if isinstance(p, sp.Symbol) and (str_p := str(p)) not in invalid:
                 parameter_ids[str_p] = None
 
-    for measurement in problem.measurement_table.measurements:
+    for measurement in problem.measurements:
         # we trust that the number of overrides matches
         append_overrides(measurement.observable_parameters)
         append_overrides(measurement.noise_parameters)
 
     # Append parameter overrides from condition table
-    for p in problem.condition_table.free_symbols:
-        parameter_ids[str(p)] = None
+    for ct in problem.condition_tables:
+        for p in ct.free_symbols:
+            parameter_ids[str(p)] = None
 
     return set(parameter_ids.keys())
 
@@ -876,7 +856,7 @@ def get_required_parameters_for_parameter_table(
     parameter_ids = set()
     condition_targets = {
         change.target_id
-        for cond in problem.condition_table.conditions
+        for cond in problem.conditions
         for change in cond.changes
     }
 
@@ -889,7 +869,7 @@ def get_required_parameters_for_parameter_table(
             and (str_p := str(p)) not in condition_targets
         )
 
-    for m in problem.measurement_table.measurements:
+    for m in problem.measurements:
         # we trust that the number of overrides matches
         append_overrides(m.observable_parameters)
         append_overrides(m.noise_parameters)
@@ -897,7 +877,7 @@ def get_required_parameters_for_parameter_table(
     # TODO remove `observable_ids` when
     #  `get_output_parameters` is updated for PEtab v2/v1.1, where
     #  observable IDs are allowed in observable formulae
-    observable_ids = {o.id for o in problem.observable_table.observables}
+    observable_ids = {o.id for o in problem.observables}
 
     # Add output parameters except for placeholders
     for formula_type, placeholder_sources in (
@@ -932,7 +912,8 @@ def get_required_parameters_for_parameter_table(
     #  model
     parameter_ids.update(
         str(p)
-        for p in problem.condition_table.free_symbols
+        for ct in problem.condition_tables
+        for p in ct.free_symbols
         if not problem.model.has_entity_with_id(str(p))
     )
 
@@ -962,13 +943,9 @@ def get_output_parameters(
     """
     formulas = []
     if observables:
-        formulas.extend(
-            o.formula for o in problem.observable_table.observables
-        )
+        formulas.extend(o.formula for o in problem.observables)
     if noise:
-        formulas.extend(
-            o.noise_formula for o in problem.observable_table.observables
-        )
+        formulas.extend(o.noise_formula for o in problem.observables)
     output_parameters = OrderedDict()
 
     for formula in formulas:
@@ -982,17 +959,15 @@ def get_output_parameters(
                 continue
 
             # does it map to a model entity?
-
-            if (
-                (mapped := problem.mapping_table.get(sym)) is not None
-                and mapped.model_id is not None
-                and problem.model.symbol_allowed_in_observable_formula(
-                    mapped.model_id
-                )
-            ):
-                continue
-
-            output_parameters[sym] = None
+            for mapping in problem.mappings:
+                if mapping.petab_id == sym and mapping.model_id is not None:
+                    if problem.model.symbol_allowed_in_observable_formula(
+                        mapping.model_id
+                    ):
+                        break
+            else:
+                # no mapping to a model entity, so it is an output parameter
+                output_parameters[sym] = None
 
     return list(output_parameters.keys())
 
@@ -1017,7 +992,7 @@ def get_placeholders(
     # collect placeholder parameters overwritten by
     # {observable,noise}Parameters
     placeholders = []
-    for o in problem.observable_table.observables:
+    for o in problem.observables:
         if observables:
             placeholders.extend(map(str, o.observable_placeholders))
         if noise:
