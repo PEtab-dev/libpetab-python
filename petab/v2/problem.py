@@ -16,7 +16,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import sympy as sp
-from pydantic import AnyUrl, BaseModel, Field, field_validator
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+)
 
 from ..v1 import (
     parameter_mapping,
@@ -1124,8 +1130,12 @@ class Problem:
 class ModelFile(BaseModel):
     """A file in the PEtab problem configuration."""
 
-    location: str | AnyUrl
+    location: AnyUrl | Path
     language: str
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
 
 class ExtensionConfig(BaseModel):
@@ -1139,13 +1149,13 @@ class ProblemConfig(BaseModel):
     """The PEtab problem configuration."""
 
     #: The path to the PEtab problem configuration.
-    filepath: str | AnyUrl | None = Field(
+    filepath: AnyUrl | Path | None = Field(
         None,
         description="The path to the PEtab problem configuration.",
         exclude=True,
     )
     #: The base path to resolve relative paths.
-    base_path: str | AnyUrl | None = Field(
+    base_path: AnyUrl | Path | None = Field(
         None,
         description="The base path to resolve relative paths.",
         exclude=True,
@@ -1156,20 +1166,23 @@ class ProblemConfig(BaseModel):
     # TODO https://github.com/PEtab-dev/PEtab/pull/641:
     #  rename to parameter_files in yaml for consistency with other files?
     #   always a list?
-    parameter_files: list[str | AnyUrl] = Field(
+    parameter_files: list[AnyUrl | Path] = Field(
         default=[], alias=PARAMETER_FILES
     )
 
-    # TODO: consider changing str to Path
     model_files: dict[str, ModelFile] | None = {}
-    measurement_files: list[str | AnyUrl] = []
-    condition_files: list[str | AnyUrl] = []
-    experiment_files: list[str | AnyUrl] = []
-    observable_files: list[str | AnyUrl] = []
-    mapping_files: list[str | AnyUrl] = []
+    measurement_files: list[AnyUrl | Path] = []
+    condition_files: list[AnyUrl | Path] = []
+    experiment_files: list[AnyUrl | Path] = []
+    observable_files: list[AnyUrl | Path] = []
+    mapping_files: list[AnyUrl | Path] = []
 
     #: Extensions used by the problem.
     extensions: list[ExtensionConfig] | dict = {}
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
     # convert parameter_file to list
     @field_validator(
@@ -1194,7 +1207,24 @@ class ProblemConfig(BaseModel):
         """
         from ..v1.yaml import write_yaml
 
-        write_yaml(self.model_dump(by_alias=True), filename)
+        data = self.model_dump(by_alias=True)
+        # convert Paths to strings for YAML serialization
+        for key in (
+            "measurement_files",
+            "condition_files",
+            "experiment_files",
+            "observable_files",
+            "mapping_files",
+            "parameter_files",
+        ):
+            data[key] = list(map(str, data[key]))
+
+        for model_id in data.get("model_files", {}):
+            data["model_files"][model_id][MODEL_LOCATION] = str(
+                data["model_files"][model_id]["location"]
+            )
+
+        write_yaml(data, filename)
 
     @property
     def format_version_tuple(self) -> tuple[int, int, int, str]:
