@@ -32,7 +32,7 @@ def test_load_remote():
 
     yaml_url = (
         "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/update_v2/petabtests/cases/v2.0.0/sbml/0010/_0010.yaml"
+        "/main/petabtests/cases/v2.0.0/sbml/0010/_0010.yaml"
     )
 
     try:
