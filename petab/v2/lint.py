@@ -35,7 +35,6 @@ __all__ = [
     "CheckExperimentConditionsExist",
     "CheckAllParametersPresentInParameterTable",
     "CheckValidParameterInConditionOrParameterTable",
-    "CheckVisualizationTable",
     "CheckUnusedExperiments",
     "CheckObservablesDoNotShadowModelEntities",
     "CheckUnusedConditions",
@@ -732,24 +731,6 @@ class CheckUnusedConditions(ValidationTask):
         return None
 
 
-class CheckVisualizationTable(ValidationTask):
-    """A task to validate the visualization table of a PEtab problem."""
-
-    def run(self, problem: Problem) -> ValidationIssue | None:
-        if problem.visualization_df is None:
-            return None
-
-        from ..v1.visualize.lint import validate_visualization_df
-
-        if validate_visualization_df(problem):
-            return ValidationIssue(
-                level=ValidationIssueSeverity.ERROR,
-                message="Visualization table is invalid.",
-            )
-
-        return None
-
-
 class CheckPriorDistribution(ValidationTask):
     """A task to validate the prior distribution of a PEtab problem."""
 
@@ -1064,7 +1045,6 @@ default_validation_tasks = [
     CheckUnusedExperiments(),
     CheckUnusedConditions(),
     # TODO: atomize checks, update to long condition table, re-enable
-    # CheckVisualizationTable(),
     # TODO validate mapping table
     CheckValidParameterInConditionOrParameterTable(),
     CheckAllParametersPresentInParameterTable(),
