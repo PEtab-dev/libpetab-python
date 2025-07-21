@@ -344,8 +344,8 @@ PLOT_TYPES_DATA = [MEAN_AND_SD, MEAN_AND_SEM, REPLICATE, PROVIDED]
 # YAML
 #: PEtab version key in the YAML file
 FORMAT_VERSION = "format_version"
-#: Parameter file key in the YAML file
-PARAMETER_FILE = "parameter_file"
+#: Parameter files key in the YAML file
+PARAMETER_FILES = "parameter_files"
 #: Problems key in the YAML file
 PROBLEMS = "problems"
 #: Model files key in the YAML file

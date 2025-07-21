@@ -67,7 +67,7 @@ def test_problem_from_yaml_multiple_files():
     """
     yaml_config = """
     format_version: 2.0.0
-    parameter_file: []
+    parameter_files: []
     condition_files: [conditions1.tsv, conditions2.tsv]
     measurement_files: [measurements1.tsv, measurements2.tsv]
     observable_files: [observables1.tsv, observables2.tsv]

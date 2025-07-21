@@ -23,14 +23,14 @@ properties:
       - type: integer
     description: Version of the PEtab format
 
-  parameter_file:
-    oneOf:
-    - type: string
-    - type: array
+  parameter_files:
+    type: array
     description: |
-      File name (absolute or relative) or URL to PEtab parameter table
-      containing parameters of all models listed in `problems`. A single
-      table may be split into multiple files and described as an array here.
+      List of PEtab parameter files.
+    items:
+      type: string
+      description: |
+        File name (absolute or relative) or URL to a PEtab parameter table.
 
   model_files:
     type: object
@@ -95,7 +95,7 @@ properties:
 
 required:
   - format_version
-  - parameter_file
+  - parameter_files
   - model_files
   - observable_files
   - measurement_files

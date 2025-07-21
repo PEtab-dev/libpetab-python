@@ -1298,7 +1298,7 @@ class ProblemConfig(BaseModel):
     #  rename to parameter_files in yaml for consistency with other files?
     #   always a list?
     parameter_files: list[str | AnyUrl] = Field(
-        default=[], alias=PARAMETER_FILE
+        default=[], alias=PARAMETER_FILES
     )
 
     # TODO: consider changing str to Path
