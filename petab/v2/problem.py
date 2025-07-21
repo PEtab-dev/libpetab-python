@@ -420,10 +420,9 @@ class Problem:
     @property
     def experiment_df(self) -> pd.DataFrame | None:
         """Experiment table as DataFrame."""
-        experiments = self.experiments
         return (
             core.ExperimentTable(experiments=experiments).to_df()
-            if experiments
+            if (experiments := self.experiments)
             else None
         )
 
@@ -933,7 +932,9 @@ class Problem:
 
         Arguments:
             id_: The condition id
-            name: The condition name
+            name: The condition name. If given, this will be added to the
+                last mapping table. If no mapping table exists,
+                a new mapping table will be created.
             kwargs: Entities to be added to the condition table in the form
                 `target_id=target_value`.
         """
@@ -950,14 +951,7 @@ class Problem:
             core.Condition(id=id_, changes=changes)
         )
         if name is not None:
-            if not self.mapping_tables:
-                self.mapping_tables.append(core.MappingTable(mappings=[]))
-            self.mapping_tables[-1].mappings.append(
-                core.Mapping(
-                    petab_id=id_,
-                    name=name,
-                )
-            )
+            self.add_mapping(petab_id=id_, name=name)
 
     def add_observable(
         self,
@@ -1110,7 +1104,9 @@ class Problem:
             )
         )
 
-    def add_mapping(self, petab_id: str, model_id: str, name: str = None):
+    def add_mapping(
+        self, petab_id: str, model_id: str = None, name: str = None
+    ):
         """Add a mapping table entry to the problem.
 
         If there are more than one mapping tables, the mapping
@@ -1119,6 +1115,7 @@ class Problem:
         Arguments:
             petab_id: The new PEtab-compatible ID mapping to `model_id`
             model_id: The ID of some entity in the model
+            name: A name (any string) for the entity referenced by `petab_id`.
         """
         if not self.mapping_tables:
             self.mapping_tables.append(core.MappingTable(mappings=[]))
@@ -1262,7 +1259,6 @@ class Problem:
                 if table_list
                 else []
             )
-
         return res
 
 
