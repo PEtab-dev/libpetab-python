@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import shutil
 from contextlib import suppress
-from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
@@ -100,11 +99,9 @@ def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
         parameter_df, get_dest_path(new_yaml_config.parameter_files[0])
     )
 
-    # copy files that don't need conversion
-    #  (models, visualizations)
-    for file in chain(
-        (model.location for model in new_yaml_config.model_files.values()),
-        new_yaml_config.visualization_files,
+    # copy files that don't need conversion: models
+    for file in (
+        model.location for model in new_yaml_config.model_files.values()
     ):
         _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
@@ -290,7 +287,6 @@ def _update_yaml(yaml_config: dict) -> dict:
             v1.C.CONDITION_FILES,
             v1.C.MEASUREMENT_FILES,
             v1.C.OBSERVABLE_FILES,
-            v1.C.VISUALIZATION_FILES,
         ):
             if file_type in problem:
                 yaml_config[file_type] = problem[file_type]

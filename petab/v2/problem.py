@@ -24,7 +24,6 @@ from ..v1 import (
     validate_yaml_syntax,
     yaml,
 )
-from ..v1.core import concat_tables, get_visualization_df
 from ..v1.distributions import Distribution
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
@@ -53,8 +52,6 @@ class Problem:
     - observable table
     - mapping table
 
-    Optionally, it may contain visualization tables.
-
     See also :doc:`petab:v2/documentation_data_format`.
     """
 
@@ -67,8 +64,6 @@ class Problem:
         measurement_tables: list[core.MeasurementTable] = None,
         parameter_tables: list[core.ParameterTable] = None,
         mapping_tables: list[core.MappingTable] = None,
-        # TODO: remove
-        visualization_df: pd.DataFrame = None,
         config: ProblemConfig = None,
     ):
         from ..v2.lint import default_validation_tasks
@@ -97,8 +92,6 @@ class Problem:
         self.parameter_tables = parameter_tables or [
             core.ParameterTable(parameters=[])
         ]
-
-        self.visualization_df = visualization_df
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -262,15 +255,6 @@ class Problem:
             else None
         )
 
-        # TODO: remove in v2?!
-        visualization_files = [get_path(f) for f in config.visualization_files]
-        # If there are multiple tables, we will merge them
-        visualization_df = (
-            concat_tables(visualization_files, get_visualization_df)
-            if visualization_files
-            else None
-        )
-
         observable_tables = (
             [
                 core.ObservableTable.from_tsv(get_path(f))
@@ -298,7 +282,6 @@ class Problem:
             measurement_tables=measurement_tables,
             parameter_tables=parameter_tables,
             mapping_tables=mapping_tables,
-            visualization_df=visualization_df,
         )
 
     @staticmethod
@@ -308,7 +291,6 @@ class Problem:
         experiment_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
-        visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
         config: ProblemConfig = None,
@@ -322,7 +304,6 @@ class Problem:
             measurement_df: PEtab measurement table
             parameter_df: PEtab parameter table
             observable_df: PEtab observable table
-            visualization_df: PEtab visualization table
             mapping_df: PEtab mapping table
             model: The underlying model
             config: The PEtab problem configuration
@@ -343,7 +324,6 @@ class Problem:
             measurement_tables=[measurement_table],
             parameter_tables=[parameter_table],
             mapping_tables=[mapping_table],
-            visualization_df=visualization_df,
             config=config,
         )
 
@@ -1227,8 +1207,7 @@ class Problem:
                     'measurement_files': [],
                     'model_files': {},
                     'observable_files': [],
-                    'parameter_file': [],
-                    'visualization_files': []},
+                    'parameter_file': []},
          'experiments': [],
          'mappings': [],
          'measurements': [],
@@ -1307,7 +1286,6 @@ class ProblemConfig(BaseModel):
     condition_files: list[str | AnyUrl] = []
     experiment_files: list[str | AnyUrl] = []
     observable_files: list[str | AnyUrl] = []
-    visualization_files: list[str | AnyUrl] = []
     mapping_files: list[str | AnyUrl] = []
 
     #: Extensions used by the problem.
