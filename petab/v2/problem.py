@@ -20,7 +20,6 @@ from pydantic import AnyUrl, BaseModel, Field, field_validator
 
 from ..v1 import (
     parameter_mapping,
-    parameters,
     validate_yaml_syntax,
     yaml,
 )
@@ -522,15 +521,6 @@ class Problem:
         """
         return [p.id for p in self.parameters if p.estimate]
 
-    def get_optimization_parameter_scales(self) -> dict[str, str]:
-        """
-        Return list of optimization parameter scaling strings.
-
-        See :py:func:`petab.parameters.get_optimization_parameters`.
-        """
-        # TODO: to be removed in v2?
-        return parameters.get_optimization_parameter_scaling(self.parameter_df)
-
     def get_observable_ids(self) -> list[str]:
         """
         Returns dictionary of observable ids.
@@ -595,9 +585,7 @@ class Problem:
         """Parameter table parameter IDs, for fixed parameters."""
         return self.get_x_ids(free=False)
 
-    def get_x_nominal(
-        self, free: bool = True, fixed: bool = True, scaled: bool = False
-    ) -> list:
+    def get_x_nominal(self, free: bool = True, fixed: bool = True) -> list:
         """Generic function to get parameter nominal values.
 
         Parameters
@@ -607,9 +595,6 @@ class Problem:
         fixed:
             Whether to return fixed parameters, i.e. parameters not to
             estimate.
-        scaled:
-            Whether to scale the values according to the parameter scale,
-            or return them on linear scale.
 
         Returns
         -------
@@ -620,10 +605,6 @@ class Problem:
             for p in self.parameters
         ]
 
-        if scaled:
-            v = list(
-                parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
-            )
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
@@ -641,28 +622,7 @@ class Problem:
         """Parameter table nominal values, for fixed parameters."""
         return self.get_x_nominal(free=False)
 
-    @property
-    def x_nominal_scaled(self) -> list:
-        """Parameter table nominal values with applied parameter scaling"""
-        return self.get_x_nominal(scaled=True)
-
-    @property
-    def x_nominal_free_scaled(self) -> list:
-        """Parameter table nominal values with applied parameter scaling,
-        for free parameters.
-        """
-        return self.get_x_nominal(fixed=False, scaled=True)
-
-    @property
-    def x_nominal_fixed_scaled(self) -> list:
-        """Parameter table nominal values with applied parameter scaling,
-        for fixed parameters.
-        """
-        return self.get_x_nominal(free=False, scaled=True)
-
-    def get_lb(
-        self, free: bool = True, fixed: bool = True, scaled: bool = False
-    ):
+    def get_lb(self, free: bool = True, fixed: bool = True):
         """Generic function to get lower parameter bounds.
 
         Parameters
@@ -672,19 +632,12 @@ class Problem:
         fixed:
             Whether to return fixed parameters, i.e. parameters not to
             estimate.
-        scaled:
-            Whether to scale the values according to the parameter scale,
-            or return them on linear scale.
 
         Returns
         -------
         The lower parameter bounds.
         """
         v = [p.lb if p.lb is not None else nan for p in self.parameters]
-        if scaled:
-            v = list(
-                parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
-            )
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
@@ -692,14 +645,7 @@ class Problem:
         """Parameter table lower bounds."""
         return self.get_lb()
 
-    @property
-    def lb_scaled(self) -> list:
-        """Parameter table lower bounds with applied parameter scaling"""
-        return self.get_lb(scaled=True)
-
-    def get_ub(
-        self, free: bool = True, fixed: bool = True, scaled: bool = False
-    ):
+    def get_ub(self, free: bool = True, fixed: bool = True):
         """Generic function to get upper parameter bounds.
 
         Parameters
@@ -709,30 +655,18 @@ class Problem:
         fixed:
             Whether to return fixed parameters, i.e. parameters not to
             estimate.
-        scaled:
-            Whether to scale the values according to the parameter scale,
-            or return them on linear scale.
 
         Returns
         -------
         The upper parameter bounds.
         """
         v = [p.ub if p.ub is not None else nan for p in self.parameters]
-        if scaled:
-            v = list(
-                parameters.map_scale(v, self.parameter_df[PARAMETER_SCALE])
-            )
         return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
     def ub(self) -> list:
         """Parameter table upper bounds"""
         return self.get_ub()
-
-    @property
-    def ub_scaled(self) -> list:
-        """Parameter table upper bounds with applied parameter scaling"""
-        return self.get_ub(scaled=True)
 
     @property
     def x_free_indices(self) -> list[int]:
@@ -789,56 +723,6 @@ class Problem:
                 n_starts=n_starts
             )
         ]
-
-    # TODO: remove in v2?
-    def unscale_parameters(
-        self,
-        x_dict: dict[str, float],
-    ) -> dict[str, float]:
-        """Unscale parameter values.
-
-        Parameters
-        ----------
-        x_dict:
-            Keys are parameter IDs in the PEtab problem, values are scaled
-            parameter values.
-
-        Returns
-        -------
-        The unscaled parameter values.
-        """
-        return {
-            parameter_id: parameters.unscale(
-                parameter_value,
-                self.parameter_df[PARAMETER_SCALE][parameter_id],
-            )
-            for parameter_id, parameter_value in x_dict.items()
-        }
-
-    # TODO: remove in v2?
-    def scale_parameters(
-        self,
-        x_dict: dict[str, float],
-    ) -> dict[str, float]:
-        """Scale parameter values.
-
-        Parameters
-        ----------
-        x_dict:
-            Keys are parameter IDs in the PEtab problem, values are unscaled
-            parameter values.
-
-        Returns
-        -------
-        The scaled parameter values.
-        """
-        return {
-            parameter_id: parameters.scale(
-                parameter_value,
-                self.parameter_df[PARAMETER_SCALE][parameter_id],
-            )
-            for parameter_id, parameter_value in x_dict.items()
-        }
 
     @property
     def n_estimated(self) -> int:
@@ -986,7 +870,6 @@ class Problem:
         id_: str,
         estimate: bool | str = True,
         nominal_value: Number | None = None,
-        scale: str = None,
         lb: Number = None,
         ub: Number = None,
         prior_dist: str = None,
@@ -1002,7 +885,6 @@ class Problem:
             id_: The parameter id
             estimate: Whether the parameter is estimated
             nominal_value: The nominal value of the parameter
-            scale: The parameter scale
             lb: The lower bound of the parameter
             ub: The upper bound of the parameter
             prior_dist: The type of the prior distribution
@@ -1016,8 +898,6 @@ class Problem:
             record[ESTIMATE] = estimate
         if nominal_value is not None:
             record[NOMINAL_VALUE] = nominal_value
-        if scale is not None:
-            record[PARAMETER_SCALE] = scale
         if lb is not None:
             record[LOWER_BOUND] = lb
         if ub is not None:
