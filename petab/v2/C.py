@@ -236,8 +236,8 @@ NOISE_DISTRIBUTIONS = [NORMAL, LAPLACE, LOG_NORMAL, LOG_LAPLACE]
 # YAML
 #: PEtab version key in the YAML file
 FORMAT_VERSION = "format_version"
-#: Parameter file key in the YAML file
-PARAMETER_FILE = "parameter_file"
+#: Parameter files key in the YAML file
+PARAMETER_FILES = "parameter_files"
 #: Problems key in the YAML file
 PROBLEMS = "problems"
 #: Model files key in the YAML file

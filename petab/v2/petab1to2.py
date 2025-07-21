@@ -95,8 +95,9 @@ def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
 
     # parameter table
     parameter_df = v1v2_parameter_df(petab_problem.parameter_df.copy())
-    file = yaml_config[v2.C.PARAMETER_FILE]
-    v2.write_parameter_df(parameter_df, get_dest_path(file))
+    v2.write_parameter_df(
+        parameter_df, get_dest_path(new_yaml_config.parameter_files[0])
+    )
 
     # copy files that don't need conversion: models
     for file in (
@@ -290,6 +291,15 @@ def _update_yaml(yaml_config: dict) -> dict:
             if file_type in problem:
                 yaml_config[file_type] = problem[file_type]
                 del problem[file_type]
+    del yaml_config[v1.C.PROBLEMS]
+
+    # parameter_file -> parameter_files
+    if not isinstance(
+        (par_files := yaml_config.pop(v1.C.PARAMETER_FILE, [])), list
+    ):
+        par_files = [par_files]
+    yaml_config[v2.C.PARAMETER_FILES] = par_files
+
     return yaml_config
 
 
