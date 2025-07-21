@@ -25,7 +25,7 @@ def test_experiments_to_events_converter():
     sbml_model = converted.model.sbml_model
 
     assert sbml_model.getNumEvents() == 2
-    assert converted.condition_table.conditions == [
+    assert converted.conditions == [
         Condition(
             id="_petab_preequilibration_on",
             changes=[
@@ -53,7 +53,7 @@ def test_experiments_to_events_converter():
             ],
         ),
     ]
-    assert converted.experiment_table.experiments == [
+    assert converted.experiments == [
         Experiment(
             id="e1",
             periods=[

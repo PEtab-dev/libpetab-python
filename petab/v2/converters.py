@@ -8,7 +8,13 @@ from copy import deepcopy
 import libsbml
 from sbmlmath import sbml_math_to_sympy, set_math
 
-from .core import Change, Condition, Experiment, ExperimentPeriod
+from .core import (
+    Change,
+    Condition,
+    ConditionTable,
+    Experiment,
+    ExperimentPeriod,
+)
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
 from .problem import Problem
@@ -176,7 +182,7 @@ class ExperimentsToEventsConverter:
 
         self._add_preequilibration_indicator()
 
-        for experiment in self._new_problem.experiment_table.experiments:
+        for experiment in self._new_problem.experiments:
             self._convert_experiment(experiment)
 
         self._add_indicators_to_conditions()
@@ -226,7 +232,7 @@ class ExperimentsToEventsConverter:
             self._create_event_assignments_for_period(
                 ev,
                 [
-                    self._new_problem.condition_table[condition_id]
+                    self._new_problem[condition_id]
                     for condition_id in period.condition_ids
                 ],
             )
@@ -365,24 +371,18 @@ class ExperimentsToEventsConverter:
         problem = self._new_problem
 
         # create conditions for indicator parameters
-        problem.condition_table.conditions.append(
-            Condition(
-                id=self.CONDITION_ID_PREEQ_ON,
-                changes=[
-                    Change(target_id=self._preeq_indicator, target_value=1)
-                ],
-            )
+        problem += Condition(
+            id=self.CONDITION_ID_PREEQ_ON,
+            changes=[Change(target_id=self._preeq_indicator, target_value=1)],
         )
-        problem.condition_table.conditions.append(
-            Condition(
-                id=self.CONDITION_ID_PREEQ_OFF,
-                changes=[
-                    Change(target_id=self._preeq_indicator, target_value=0)
-                ],
-            )
+
+        problem += Condition(
+            id=self.CONDITION_ID_PREEQ_OFF,
+            changes=[Change(target_id=self._preeq_indicator, target_value=0)],
         )
+
         # add conditions for the experiment indicators
-        for experiment in problem.experiment_table.experiments:
+        for experiment in problem.experiments:
             cond_id = self._get_experiment_indicator_condition_id(
                 experiment.id
             )
@@ -392,17 +392,19 @@ class ExperimentsToEventsConverter:
                     target_value=1,
                 )
             ]
-            problem.condition_table.conditions.append(
-                Condition(
-                    id=cond_id,
-                    changes=changes,
-                )
+            problem += Condition(
+                id=cond_id,
+                changes=changes,
             )
 
         #  All changes have been encoded in event assignments and can be
         #  removed. Only keep the conditions setting our indicators.
-        problem.condition_table.conditions = [
-            condition
-            for condition in problem.condition_table.conditions
-            if condition.id.startswith("_petab")
+        problem.condition_tables = [
+            ConditionTable(
+                conditions=[
+                    condition
+                    for condition in problem.conditions
+                    if condition.id.startswith("_petab")
+                ]
+            )
         ]
