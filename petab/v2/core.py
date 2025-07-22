@@ -204,7 +204,10 @@ class Observable(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator(
@@ -344,6 +347,7 @@ class Change(BaseModel):
         populate_by_name=True,
         use_enum_values=True,
         extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator("target_value", mode="before")
@@ -385,7 +389,9 @@ class Condition(BaseModel):
     changes: list[Change]
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True, extra="allow", validate_assignment=True
+    )
 
     def __add__(self, other: Change) -> Condition:
         """Add a change to the set."""
@@ -503,7 +509,9 @@ class ExperimentPeriod(BaseModel):
     condition_ids: list[str] = Field(default_factory=list)
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True, extra="allow", validate_assignment=True
+    )
 
     @field_validator("condition_ids", mode="before")
     @classmethod
@@ -544,7 +552,10 @@ class Experiment(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
     )
 
     def __add__(self, other: ExperimentPeriod) -> Experiment:
@@ -682,7 +693,10 @@ class Measurement(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator(
@@ -806,7 +820,9 @@ class Mapping(BaseModel):
     )
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True, extra="allow", validate_assignment=True
+    )
 
 
 class MappingTable(BaseModel):
@@ -909,6 +925,7 @@ class Parameter(BaseModel):
         populate_by_name=True,
         use_enum_values=True,
         extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator("id")

@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
+from pydantic import AnyUrl
 
 import petab.v2 as petab
 from petab.v2 import Problem
@@ -198,3 +199,29 @@ def test_sample_startpoint_shape():
     n_starts = 10
     sp = problem.sample_parameter_startpoints(n_starts=n_starts)
     assert sp.shape == (n_starts, 2)
+
+
+def test_problem_config_paths():
+    """Test handling of URLS and local paths in ProblemConfig."""
+
+    pc = petab.ProblemConfig(
+        parameter_files=["https://example.com/params.tsv"],
+        condition_files=["conditions.tsv"],
+        measurement_files=["measurements.tsv"],
+        observable_files=["observables.tsv"],
+        experiment_files=["experiments.tsv"],
+    )
+    assert isinstance(pc.parameter_files[0], AnyUrl)
+    assert isinstance(pc.condition_files[0], Path)
+    assert isinstance(pc.measurement_files[0], Path)
+    assert isinstance(pc.observable_files[0], Path)
+    assert isinstance(pc.experiment_files[0], Path)
+
+    # Auto-convert to Path on assignment
+    pc.parameter_files = ["foo.tsv"]
+    assert isinstance(pc.parameter_files[0], Path)
+
+    # We can't easily intercept mutations to the list:
+    #  pc.parameter_files[0] = "foo.tsv"
+    #  assert isinstance(pc.parameter_files[0], Path)
+    # see also https://github.com/pydantic/pydantic/issues/8575
