@@ -277,9 +277,11 @@ class Prior:
             at the bounds. **deprecated**.
         :return: A distribution object.
         """
-        dist_type = d.get(f"{type_}PriorType", C.PARAMETER_SCALE_UNIFORM)
-        if not isinstance(dist_type, str) and np.isnan(dist_type):
-            dist_type = C.PARAMETER_SCALE_UNIFORM
+        dist_type = C.PARAMETER_SCALE_UNIFORM
+        if (_table_dist_type := d.get(f"{type_}PriorType")) and (
+            isinstance(_table_dist_type, str) or not np.isnan(_table_dist_type)
+        ):
+            dist_type = _table_dist_type
 
         pscale = d.get(C.PARAMETER_SCALE, C.LIN)
         params = d.get(f"{type_}PriorParameters", None)
