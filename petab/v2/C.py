@@ -69,8 +69,6 @@ MEASUREMENT_DF_COLS = [
 PARAMETER_ID = "parameterId"
 #: Parameter name column in the parameter table
 PARAMETER_NAME = "parameterName"
-#: Parameter scale column in the parameter table
-PARAMETER_SCALE = "parameterScale"
 #: Lower bound column in the parameter table
 LOWER_BOUND = "lowerBound"
 #: Upper bound column in the parameter table
@@ -87,7 +85,6 @@ PRIOR_PARAMETERS = "priorParameters"
 #: Mandatory columns of parameter table
 PARAMETER_DF_REQUIRED_COLS = [
     PARAMETER_ID,
-    PARAMETER_SCALE,
     LOWER_BOUND,
     UPPER_BOUND,
     ESTIMATE,
