@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import warnings
 from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -385,6 +386,16 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
                 new_dist = dist
             else:
                 new_dist = f"{trans}-{dist}"
+
+            if new_dist == "log10-normal":
+                warnings.warn(
+                    f"Noise distribution `{new_dist}' for "
+                    f"observable `{row[v1.C.OBSERVABLE_ID]}'"
+                    f" is not supported in PEtab v2. "
+                    "Using `log-normal` instead.",
+                    stacklevel=2,
+                )
+                new_dist = v2.C.LOG_NORMAL
 
             if new_dist not in v2.C.NOISE_DISTRIBUTIONS:
                 raise NotImplementedError(
