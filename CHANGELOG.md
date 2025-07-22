@@ -1,5 +1,62 @@
 # PEtab changelog
 
+## 0.6 series
+
+### 0.6.0
+
+**Fixes**
+
+* Fix `get_required_parameters_for_parameter_table` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/340
+* Fix `Prior.from_par_dict` for missing `priorParameters` columns by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/341
+* Fix petablint v2 warning by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/342
+* Doc: fix deprecated petablint invocation by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/343
+* lint: Don't fail on missing `noiseFormula` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/367
+* Fix v2 import Deprecation warning by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/346
+* petab.calculate: compare all common columns by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/347
+* Fix version checks by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/350
+* Create output directories in `write_*_df` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/352
+* Handle `observableTransformation` in `petab.v1.simulate.sample_noise` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/383
+* Fixed residual calculation in `v1.calculate` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/395
+* Allow empty string "" in columns to be overridden with default values in priors by @PaulJonasJost in https://github.com/PEtab-dev/libpetab-python/pull/384
+* Fix `goodness_of_fit` plot and add color parameter by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/402
+* Plot without vis spec without `ids_per_plot` by @PaulJonasJost in https://github.com/PEtab-dev/libpetab-python/pull/386
+
+**Deprecations**
+
+* Using any PEtab-v2-related functionality currently in `petab.v1` is
+  deprecated and will be removed in a subsequent release.
+  Use `petab.v2` instead.
+
+  This affects, for example, PEtab-v2-specific constants `petab.v1.C`
+  (use `petab.v2.C` instead), `petab.v1.mapping`,
+  or anything mapping-table-related in `petab.v1.Problem`.
+
+**Features**
+
+* Substantially extended and updated `petab.v2` for working with PEtab v2 problems.
+
+  PEtab v2 is still in [draft](https://petab.readthedocs.io/en/latest/v2/documentation_data_format.html) stage -- feedback is welcome!
+
+  * PEtab v2 support for `petablint`
+  * The library uses pydantic-based objects for most PEtab entities instead of
+    plain DataFrames
+  * Functionality for converting PEtab v1 problems to PEtab v2
+
+  At least until PEtab v2 is finalized, the `petab.v2` API may change rapidly, and should not be considered stable.
+
+* Implement proper truncation for prior distributions (parameter bounds now truncate the prior distribution instead of putting extra probability mass on the bounds) by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/335
+* SbmlModel enhancements by @fbergmann in https://github.com/PEtab-dev/libpetab-python/pull/333
+* Added `SbmlModel.from_antimony` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/331
+* Add SbmlModel.{to_antimony,to_sbml_str} by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/371
+* Enable passing the base path to Problem.from_yaml by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/327
+* Functions for adding conditions/observables/parameter to Problem by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/328
+* Add `evaluate: bool` argument to math parser by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/365
+* Add petab-compatible sympy string-printer by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/364
+* Prettify linter output by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/401
+* Store problem configuration in `Problem` by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/326
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.5.0...v0.6.0
+
 ## 0.5 series
 
 ### 0.5.0
