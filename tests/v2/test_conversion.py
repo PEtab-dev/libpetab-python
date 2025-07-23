@@ -30,6 +30,9 @@ except ImportError:
     )
 
 
+@pytest.mark.filterwarnings(
+    "ignore:.*Using `log-normal` instead.*:UserWarning"
+)
 @parametrize_or_skip
 def test_benchmark_collection(problem_id):
     """Test that we can upgrade all benchmark collection models."""
