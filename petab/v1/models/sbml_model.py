@@ -10,6 +10,7 @@ import libsbml
 import sympy as sp
 from sympy.abc import _clash
 
+from ..._utils import _generate_path
 from ..sbml import (
     get_sbml_model,
     is_sbml_consistent,
@@ -33,6 +34,8 @@ class SbmlModel(Model):
         sbml_reader: libsbml.SBMLReader = None,
         sbml_document: libsbml.SBMLDocument = None,
         model_id: str = None,
+        rel_path: Path | str | None = None,
+        base_path: str | Path | None = None,
     ):
         """Constructor.
 
@@ -41,6 +44,9 @@ class SbmlModel(Model):
         :param sbml_document: SBML document. Optional if `sbml_model` is given.
         :param model_id: Model ID. Defaults to the SBML model ID."""
         super().__init__()
+
+        self.rel_path = rel_path
+        self.base_path = base_path
 
         if sbml_model is None and sbml_document is None:
             raise ValueError(
@@ -87,15 +93,19 @@ class SbmlModel(Model):
         self.__dict__.update(state)
 
     @staticmethod
-    def from_file(filepath_or_buffer, model_id: str = None) -> SbmlModel:
+    def from_file(
+        filepath_or_buffer, model_id: str = None, base_path: str | Path = None
+    ) -> SbmlModel:
         sbml_reader, sbml_document, sbml_model = get_sbml_model(
-            filepath_or_buffer
+            _generate_path(filepath_or_buffer, base_path=base_path)
         )
         return SbmlModel(
             sbml_model=sbml_model,
             sbml_reader=sbml_reader,
             sbml_document=sbml_document,
             model_id=model_id,
+            rel_path=filepath_or_buffer,
+            base_path=base_path,
         )
 
     @staticmethod
@@ -159,9 +169,10 @@ class SbmlModel(Model):
     def model_id(self, model_id):
         self._model_id = model_id
 
-    def to_file(self, filename: [str, Path]):
+    def to_file(self, filename: str | Path | None = None) -> None:
         write_sbml(
-            self.sbml_document or self.sbml_model.getSBMLDocument(), filename
+            self.sbml_document or self.sbml_model.getSBMLDocument(),
+            filename or _generate_path(self.rel_path, self.base_path),
         )
 
     def get_parameter_value(self, id_: str) -> float:
