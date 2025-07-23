@@ -44,4 +44,3 @@ from .experiments import (  # noqa: F401, E402
 )
 from .lint import lint_problem  # noqa: F401, E402
 from .models import MODEL_TYPE_PYSB, MODEL_TYPE_SBML, Model  # noqa: F401, E402
-from .problem import Problem, ProblemConfig  # noqa: F401, E402

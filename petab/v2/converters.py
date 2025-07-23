@@ -14,10 +14,10 @@ from .core import (
     ConditionTable,
     Experiment,
     ExperimentPeriod,
+    Problem,
 )
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
-from .problem import Problem
 
 __all__ = ["ExperimentsToEventsConverter"]
 
