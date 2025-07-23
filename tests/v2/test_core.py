@@ -10,7 +10,7 @@ from pydantic import AnyUrl, ValidationError
 from sympy.abc import x, y
 
 import petab.v2 as petab
-from petab.v2 import C, Problem
+from petab.v2 import C
 from petab.v2.C import (
     CONDITION_ID,
     ESTIMATE,
@@ -40,7 +40,8 @@ def test_observable_table_round_trip():
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_file = Path(tmp_dir) / "observables.tsv"
-        observables.to_tsv(tmp_file)
+        observables.rel_path = tmp_file
+        observables.to_tsv()
         observables2 = ObservableTable.from_tsv(tmp_file)
         assert observables == observables2
 
@@ -51,7 +52,8 @@ def test_condition_table_round_trip():
         file = Path(tmp_dir, "Fujita_experimentalCondition.tsv")
         conditions = ConditionTable.from_tsv(file)
         tmp_file = Path(tmp_dir) / "conditions.tsv"
-        conditions.to_tsv(tmp_file)
+        conditions.rel_path = tmp_file
+        conditions.to_tsv()
         conditions2 = ConditionTable.from_tsv(tmp_file)
         assert conditions == conditions2
 
@@ -353,7 +355,6 @@ def test_problem_from_yaml_multiple_files():
     """
     yaml_config = """
     format_version: 2.0.0
-    parameter_files: []
     model_files:
         model1:
             location: model1.xml
@@ -361,6 +362,7 @@ def test_problem_from_yaml_multiple_files():
         model2:
             location: model2.xml
             language: sbml
+    parameter_files: [parameters1.tsv, parameters2.tsv]
     condition_files: [conditions1.tsv, conditions2.tsv]
     measurement_files: [measurements1.tsv, measurements2.tsv]
     observable_files: [observables1.tsv, observables2.tsv]
@@ -396,6 +398,10 @@ def test_problem_from_yaml_multiple_files():
             petab.write_observable_df(
                 problem.observable_df, Path(tmpdir, f"observables{i}.tsv")
             )
+            problem.add_parameter(f"parameter{i}", False, nominal_value=i)
+            petab.write_parameter_df(
+                problem.parameter_df, Path(tmpdir, f"parameters{i}.tsv")
+            )
 
         petab_problem1 = petab.Problem.from_yaml(yaml_path)
 
@@ -403,12 +409,25 @@ def test_problem_from_yaml_multiple_files():
         yaml_config = petab.load_yaml(yaml_path)
         petab_problem2 = petab.Problem.from_yaml(yaml_config, base_path=tmpdir)
 
-    for petab_problem in (petab_problem1, petab_problem2):
-        assert len(petab_problem.models) == 2
-        assert petab_problem.measurement_df.shape[0] == 2
-        assert petab_problem.observable_df.shape[0] == 2
-        assert petab_problem.condition_df.shape[0] == 2
-        assert petab_problem.experiment_df.shape[0] == 2
+        # test that we can save the problem to a new directory
+        with tempfile.TemporaryDirectory() as tmpdir2:
+            petab_problem1.to_files(tmpdir2)
+            # check the same files are created
+            assert {
+                file.relative_to(tmpdir) for file in Path(tmpdir).iterdir()
+            } == {
+                file.relative_to(tmpdir2) for file in Path(tmpdir2).iterdir()
+            }
+            petab_problem3 = petab.Problem.from_yaml(
+                Path(tmpdir2, "problem.yaml")
+            )
+
+        for petab_problem in (petab_problem1, petab_problem2, petab_problem3):
+            assert len(petab_problem.models) == 2
+            assert petab_problem.measurement_df.shape[0] == 2
+            assert petab_problem.observable_df.shape[0] == 2
+            assert petab_problem.condition_df.shape[0] == 2
+            assert petab_problem.experiment_df.shape[0] == 2
 
 
 def test_modify_problem():
@@ -599,3 +618,36 @@ def test_get_measurements_for_experiment():
 
     assert problem.get_measurements_for_experiment(e1) == [m1, m2]
     assert problem.get_measurements_for_experiment(e2) == [m3]
+
+
+def test_generate_path():
+    import platform
+
+    from petab._utils import _generate_path as gp
+
+    assert gp("foo") == "foo"
+    assert gp(Path("foo")) == "foo"
+    assert gp("https://example.com/foo") == "https://example.com/foo"
+    assert gp(AnyUrl("https://example.com/foo")) == "https://example.com/foo"
+
+    assert gp("foo", "bar") == str(Path("bar", "foo"))
+    assert gp(Path("foo"), "bar") == str(Path("bar", "foo"))
+    assert gp(Path("foo"), Path("bar")) == str(Path("bar", "foo"))
+    assert (
+        gp("bar", AnyUrl("https://example.com/foo"))
+        == "https://example.com/foo/bar"
+    )
+    assert (
+        gp("bar", "https://example.com/foo") == "https://example.com/foo/bar"
+    )
+    assert (
+        gp("https://example.com/foo", "https://example.com/bar")
+        == "https://example.com/foo"
+    )
+
+    if platform.system() == "Windows":
+        assert gp(Path("foo"), "c:/bar") == "c:/bar/foo"
+        assert gp("c:/foo", "c:/bar") == "c:/foo"
+    else:
+        assert gp(Path("foo"), "/bar") == "/bar/foo"
+        assert gp("/foo", "bar") == "/foo"

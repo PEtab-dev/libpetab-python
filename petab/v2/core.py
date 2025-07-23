@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import tempfile
@@ -32,6 +33,7 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+from .._utils import _generate_path
 from ..v1 import (
     validate_yaml_syntax,
     yaml,
@@ -212,13 +214,21 @@ T = TypeVar("T", bound=BaseModel)
 class BaseTable(BaseModel, Generic[T]):
     """Base class for PEtab tables."""
 
+    #: The table elements
     elements: list[T]
+    #: The path to the table file, if applicable.
+    #: Relative to the base path, if the base path is set and rel_path is not
+    #: an absolute path.
+    rel_path: AnyUrl | Path | None = Field(exclude=True, default=None)
+    #: The base path for the table file, if applicable.
+    #: This is usually the directory of the PEtab YAML file.
+    base_path: AnyUrl | Path | None = Field(exclude=True, default=None)
 
-    def __init__(self, elements: list[T] = None) -> None:
+    def __init__(self, elements: list[T] = None, **kwargs) -> None:
         """Initialize the BaseTable with a list of elements."""
         if elements is None:
             elements = []
-        super().__init__(elements=elements)
+        super().__init__(elements=elements, **kwargs)
 
     def __getitem__(self, id_: str) -> T:
         """Get an element by ID.
@@ -252,16 +262,20 @@ class BaseTable(BaseModel, Generic[T]):
         pass
 
     @classmethod
-    def from_tsv(cls, file_path: str | Path) -> BaseTable[T]:
+    def from_tsv(
+        cls, file_path: str | Path, base_path: str | Path | None = None
+    ) -> BaseTable[T]:
         """Create table from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
+        df = pd.read_csv(_generate_path(file_path, base_path), sep="\t")
+        return cls.from_df(df, rel_path=file_path, base_path=base_path)
 
-    def to_tsv(self, file_path: str | Path) -> None:
+    def to_tsv(self, file_path: str | Path = None) -> None:
         """Write the table to a TSV file."""
         df = self.to_df()
         df.to_csv(
-            file_path, sep="\t", index=not isinstance(df.index, pd.RangeIndex)
+            file_path or _generate_path(self.rel_path, self.base_path),
+            sep="\t",
+            index=not isinstance(df.index, pd.RangeIndex),
         )
 
     @classmethod
@@ -375,18 +389,17 @@ class ObservableTable(BaseTable[Observable]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ObservableTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ObservableTable:
         """Create an ObservableTable from a DataFrame."""
         if df is None:
-            return cls()
+            return cls(**kwargs)
 
         df = get_observable_df(df)
         observables = [
             Observable(**row.to_dict())
             for _, row in df.reset_index().iterrows()
         ]
-
-        return cls(observables)
+        return cls(observables, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ObservableTable to a DataFrame."""
@@ -500,17 +513,17 @@ class ConditionTable(BaseTable[Condition]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ConditionTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ConditionTable:
         """Create a ConditionTable from a DataFrame."""
         if df is None or df.empty:
-            return cls()
+            return cls(**kwargs)
 
         conditions = []
         for condition_id, sub_df in df.groupby(C.CONDITION_ID):
             changes = [Change(**row) for row in sub_df.to_dict("records")]
             conditions.append(Condition(id=condition_id, changes=changes))
 
-        return cls(conditions)
+        return cls(conditions, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ConditionTable to a DataFrame."""
@@ -650,10 +663,10 @@ class ExperimentTable(BaseTable[Experiment]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ExperimentTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ExperimentTable:
         """Create an ExperimentTable from a DataFrame."""
         if df is None:
-            return cls()
+            return cls(**kwargs)
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
@@ -668,12 +681,13 @@ class ExperimentTable(BaseTable[Experiment]):
                 ]
                 periods.append(
                     ExperimentPeriod(
-                        time=timepoint, condition_ids=condition_ids
+                        time=timepoint,
+                        condition_ids=condition_ids,
                     )
                 )
             experiments.append(Experiment(id=experiment_id, periods=periods))
 
-        return cls(experiments)
+        return cls(experiments, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ExperimentTable to a DataFrame."""
@@ -778,13 +792,10 @@ class MeasurementTable(BaseTable[Measurement]):
         return self.elements
 
     @classmethod
-    def from_df(
-        cls,
-        df: pd.DataFrame,
-    ) -> MeasurementTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> MeasurementTable:
         """Create a MeasurementTable from a DataFrame."""
         if df is None:
-            return cls()
+            return cls(**kwargs)
 
         if C.MODEL_ID in df.columns:
             df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
@@ -796,7 +807,7 @@ class MeasurementTable(BaseTable[Measurement]):
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(measurements)
+        return cls(measurements, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MeasurementTable to a DataFrame."""
@@ -843,16 +854,15 @@ class MappingTable(BaseTable[Mapping]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> MappingTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> MappingTable:
         """Create a MappingTable from a DataFrame."""
         if df is None:
-            return cls()
+            return cls(**kwargs)
 
         mappings = [
             Mapping(**row.to_dict()) for _, row in df.reset_index().iterrows()
         ]
-
-        return cls(mappings)
+        return cls(mappings, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MappingTable to a DataFrame."""
@@ -1044,17 +1054,17 @@ class ParameterTable(BaseTable[Parameter]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ParameterTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ParameterTable:
         """Create a ParameterTable from a DataFrame."""
         if df is None:
-            return cls()
+            return cls(**kwargs)
 
         parameters = [
             Parameter(**row.to_dict())
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(parameters)
+        return cls(parameters, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ParameterTable to a DataFrame."""
@@ -1184,11 +1194,6 @@ class Problem:
 
         validate_yaml_syntax(yaml_config)
 
-        def get_path(filename):
-            if base_path is None:
-                return filename
-            return f"{base_path}/{filename}"
-
         if (format_version := parse_version(yaml_config[C.FORMAT_VERSION]))[
             0
         ] != 2:
@@ -1220,15 +1225,17 @@ class Problem:
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
         )
+
         parameter_tables = [
-            ParameterTable.from_tsv(get_path(f))
+            ParameterTable.from_tsv(f, base_path=base_path)
             for f in config.parameter_files
         ]
 
         models = [
             model_factory(
-                get_path(model_info.location),
-                model_info.language,
+                model_info.location,
+                base_path=base_path,
+                model_language=model_info.language,
                 model_id=model_id,
             )
             for model_id, model_info in (config.model_files or {}).items()
@@ -1236,7 +1243,7 @@ class Problem:
 
         measurement_tables = (
             [
-                MeasurementTable.from_tsv(get_path(f))
+                MeasurementTable.from_tsv(f, base_path)
                 for f in config.measurement_files
             ]
             if config.measurement_files
@@ -1245,7 +1252,7 @@ class Problem:
 
         condition_tables = (
             [
-                ConditionTable.from_tsv(get_path(f))
+                ConditionTable.from_tsv(f, base_path)
                 for f in config.condition_files
             ]
             if config.condition_files
@@ -1254,7 +1261,7 @@ class Problem:
 
         experiment_tables = (
             [
-                ExperimentTable.from_tsv(get_path(f))
+                ExperimentTable.from_tsv(f, base_path)
                 for f in config.experiment_files
             ]
             if config.experiment_files
@@ -1263,7 +1270,7 @@ class Problem:
 
         observable_tables = (
             [
-                ObservableTable.from_tsv(get_path(f))
+                ObservableTable.from_tsv(f, base_path)
                 for f in config.observable_files
             ]
             if config.observable_files
@@ -1271,7 +1278,7 @@ class Problem:
         )
 
         mapping_tables = (
-            [MappingTable.from_tsv(get_path(f)) for f in config.mapping_files]
+            [MappingTable.from_tsv(f, base_path) for f in config.mapping_files]
             if config.mapping_files
             else None
         )
@@ -1385,6 +1392,78 @@ class Problem:
         raise TypeError(
             "The argument `problem` must be a path to a PEtab problem file "
             "or a PEtab problem object."
+        )
+
+    def to_files(self, base_path: str | Path | None) -> None:
+        """Write the PEtab problem to files.
+
+        Writes the model, condition, experiment, measurement, parameter,
+        observable, and mapping tables to their respective files as specified
+        in the respective objects.
+
+        This expects that all objects have their `rel_path` and `base_path`
+        set correctly, which is usually done by Problem.from_yaml().
+        """
+        config = copy.deepcopy(self.config) or ProblemConfig(
+            format_version="2.0.0"
+        )
+
+        for model in self.models:
+            model.to_file(
+                _generate_path(model.rel_path, base_path or model.base_path)
+            )
+
+        config.model_files = {
+            model.model_id: ModelFile(
+                location=model.rel_path, language=model.type_id
+            )
+            for model in self.models
+        }
+
+        config.condition_files = [
+            table.rel_path for table in self.condition_tables if table.rel_path
+        ]
+        config.experiment_files = [
+            table.rel_path
+            for table in self.experiment_tables
+            if table.rel_path
+        ]
+        config.observable_files = [
+            table.rel_path
+            for table in self.observable_tables
+            if table.rel_path
+        ]
+        config.measurement_files = [
+            table.rel_path
+            for table in self.measurement_tables
+            if table.rel_path
+        ]
+        config.parameter_files = [
+            table.rel_path for table in self.parameter_tables if table.rel_path
+        ]
+        config.mapping_files = [
+            table.rel_path for table in self.mapping_tables if table.rel_path
+        ]
+
+        for table in chain(
+            self.condition_tables,
+            self.experiment_tables,
+            self.observable_tables,
+            self.measurement_tables,
+            self.parameter_tables,
+            self.mapping_tables,
+        ):
+            if table.rel_path:
+                table.to_tsv(
+                    _generate_path(
+                        table.rel_path, base_path or table.base_path
+                    )
+                )
+
+        config.to_yaml(
+            _generate_path(
+                Path(str(config.filepath)).name, base_path or config.base_path
+            )
         )
 
     @property
