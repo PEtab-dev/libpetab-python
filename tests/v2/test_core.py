@@ -491,3 +491,81 @@ def test_problem_config_paths():
     #  pc.parameter_files[0] = "foo.tsv"
     #  assert isinstance(pc.parameter_files[0], Path)
     # see also https://github.com/pydantic/pydantic/issues/8575
+
+
+def test_get_changes_for_period():
+    """Test getting changes for a specific period."""
+    problem = Problem()
+    ch1 = Change(target_id="target1", target_value=1.0)
+    ch2 = Change(target_id="target2", target_value=2.0)
+    ch3 = Change(target_id="target3", target_value=3.0)
+    cond1 = Condition(id="condition1_1", changes=[ch1])
+    cond2 = Condition(id="condition1_2", changes=[ch2])
+    cond3 = Condition(id="condition2", changes=[ch3])
+    problem += cond1
+    problem += cond2
+    problem += cond3
+
+    p1 = ExperimentPeriod(
+        id="p1", time=0, condition_ids=["condition1_1", "condition1_2"]
+    )
+    p2 = ExperimentPeriod(id="p2", time=1, condition_ids=["condition2"])
+    problem += Experiment(
+        id="exp1",
+        periods=[p1, p2],
+    )
+    assert problem.get_changes_for_period(p1) == [ch1, ch2]
+    assert problem.get_changes_for_period(p2) == [ch3]
+
+
+def test_get_measurements_for_experiment():
+    """Test getting measurements for an experiment."""
+    problem = Problem()
+    problem += Condition(
+        id="condition1",
+        changes=[Change(target_id="target1", target_value=1.0)],
+    )
+    problem += Condition(
+        id="condition2",
+        changes=[Change(target_id="target2", target_value=2.0)],
+    )
+
+    e1 = Experiment(
+        id="exp1",
+        periods=[
+            ExperimentPeriod(id="p1", time=0, condition_ids=["condition1"]),
+        ],
+    )
+    e2 = Experiment(
+        id="exp2",
+        periods=[
+            ExperimentPeriod(id="p2", time=1, condition_ids=["condition2"]),
+        ],
+    )
+    problem += e1
+    problem += e2
+
+    m1 = Measurement(
+        observable_id="observable1",
+        experiment_id="exp1",
+        time=0,
+        measurement=10.0,
+    )
+    m2 = Measurement(
+        observable_id="observable2",
+        experiment_id="exp1",
+        time=1,
+        measurement=20.0,
+    )
+    m3 = Measurement(
+        observable_id="observable3",
+        experiment_id="exp2",
+        time=1,
+        measurement=30.0,
+    )
+    problem += m1
+    problem += m2
+    problem += m3
+
+    assert problem.get_measurements_for_experiment(e1) == [m1, m2]
+    assert problem.get_measurements_for_experiment(e2) == [m3]

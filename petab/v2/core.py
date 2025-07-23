@@ -2207,6 +2207,32 @@ class Problem:
             )
         return res
 
+    def get_changes_for_period(self, period: ExperimentPeriod) -> list[Change]:
+        """Get the changes for a given experiment period.
+
+        :param period: The experiment period to get the changes for.
+        :return: A list of changes for the given period.
+        """
+        return list(
+            chain.from_iterable(
+                self[condition].changes for condition in period.condition_ids
+            )
+        )
+
+    def get_measurements_for_experiment(
+        self, experiment: Experiment
+    ) -> list[Measurement]:
+        """Get the measurements for a given experiment.
+
+        :param experiment: The experiment to get the measurements for.
+        :return: A list of measurements for the given experiment.
+        """
+        return [
+            measurement
+            for measurement in self.measurements
+            if measurement.experiment_id == experiment.id
+        ]
+
 
 class ModelFile(BaseModel):
     """A file in the PEtab problem configuration."""
