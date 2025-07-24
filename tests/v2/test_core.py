@@ -10,7 +10,7 @@ from pydantic import AnyUrl, ValidationError
 from sympy.abc import x, y
 
 import petab.v2 as petab
-from petab.v2 import Problem
+from petab.v2 import C, Problem
 from petab.v2.C import (
     CONDITION_ID,
     ESTIMATE,
@@ -255,17 +255,35 @@ def test_parameter():
 
 def test_experiment():
     Experiment(id="experiment1")
-    Experiment(
-        id="experiment1", periods=[ExperimentPeriod(time=1, condition_id="c1")]
-    )
 
+    # extra fields allowed
     assert Experiment(id="experiment1", non_petab=1).non_petab == 1
 
+    # ID required
     with pytest.raises(ValidationError, match="Field required"):
         Experiment()
 
+    # valid ID required
     with pytest.raises(ValidationError, match="Invalid ID"):
         Experiment(id="experiment 1")
+
+    periods = [
+        ExperimentPeriod(time=C.TIME_PREEQUILIBRATION, condition_ids=["c1"]),
+        ExperimentPeriod(time=-1, condition_id="c1"),
+        ExperimentPeriod(time=1, condition_id="c1"),
+    ]
+    e = Experiment(id="experiment1", periods=list(reversed(periods)))
+
+    assert e.has_preequilibration is True
+
+    assert e.sorted_periods == periods
+    assert e.periods != periods
+
+    e.sort_periods()
+    assert e.periods == periods
+
+    e.periods.pop(0)
+    assert e.has_preequilibration is False
 
 
 def test_condition_table():
