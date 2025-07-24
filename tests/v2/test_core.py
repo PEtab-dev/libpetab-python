@@ -28,6 +28,7 @@ from petab.v2.C import (
     UPPER_BOUND,
 )
 from petab.v2.core import *
+from petab.v2.models.sbml_model import SbmlModel
 from petab.v2.petab1to2 import petab1to2
 
 example_dir_fujita = Path(__file__).parents[2] / "doc/example/example_Fujita"
@@ -335,10 +336,16 @@ def test_problem_from_yaml_multiple_files():
     yaml_config = """
     format_version: 2.0.0
     parameter_files: []
+    model_files:
+        model1:
+            location: model1.xml
+            language: sbml
+        model2:
+            location: model2.xml
+            language: sbml
     condition_files: [conditions1.tsv, conditions2.tsv]
     measurement_files: [measurements1.tsv, measurements2.tsv]
     observable_files: [observables1.tsv, observables2.tsv]
-    model_files: {}
     experiment_files: [experiments1.tsv, experiments2.tsv]
     """
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -347,6 +354,10 @@ def test_problem_from_yaml_multiple_files():
             f.write(yaml_config)
 
         for i in (1, 2):
+            SbmlModel.from_antimony("a = 1;").to_file(
+                Path(tmpdir, f"model{i}.xml")
+            )
+
             problem = Problem()
             problem.add_condition(f"condition{i}", parameter1=i)
             petab.write_condition_df(
@@ -375,6 +386,7 @@ def test_problem_from_yaml_multiple_files():
         petab_problem2 = petab.Problem.from_yaml(yaml_config, base_path=tmpdir)
 
     for petab_problem in (petab_problem1, petab_problem2):
+        assert len(petab_problem.models) == 2
         assert petab_problem.measurement_df.shape[0] == 2
         assert petab_problem.observable_df.shape[0] == 2
         assert petab_problem.condition_df.shape[0] == 2

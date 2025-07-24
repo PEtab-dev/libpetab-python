@@ -769,6 +769,10 @@ class CheckPriorDistribution(ValidationTask):
         return None
 
 
+# TODO: check that Measurements model IDs match the available ones
+#  https://github.com/PEtab-dev/libpetab-python/issues/392
+
+
 def get_valid_parameters_for_parameter_table(
     problem: Problem,
 ) -> set[str]:

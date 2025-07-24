@@ -38,6 +38,9 @@ DATASET_ID = "datasetId"
 #: Replicate ID column in the measurement table
 REPLICATE_ID = "replicateId"
 
+#: The model ID column in the measurement table
+MODEL_ID = "modelId"
+
 #: Mandatory columns of measurement table
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
@@ -52,6 +55,7 @@ MEASUREMENT_DF_OPTIONAL_COLS = [
     NOISE_PARAMETERS,
     DATASET_ID,
     REPLICATE_ID,
+    MODEL_ID,
 ]
 
 #: Measurement table columns
