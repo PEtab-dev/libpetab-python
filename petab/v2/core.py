@@ -32,7 +32,6 @@ from pydantic import (
 from typing_extensions import Self
 
 from ..v1 import (
-    parameter_mapping,
     validate_yaml_syntax,
     yaml,
 )
@@ -1774,24 +1773,6 @@ class Problem:
     def x_fixed_indices(self) -> list[int]:
         """Parameter table non-estimated parameter indices."""
         return [i for i, p in enumerate(self.parameters) if not p.estimate]
-
-    # TODO remove in v2?
-    def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
-        """
-        See
-        :py:func:`petab.parameter_mapping.get_optimization_to_simulation_parameter_mapping`,
-        to which all keyword arguments are forwarded.
-        """
-        return (
-            parameter_mapping.get_optimization_to_simulation_parameter_mapping(
-                condition_df=self.condition_df,
-                measurement_df=self.measurement_df,
-                parameter_df=self.parameter_df,
-                observable_df=self.observable_df,
-                model=self.model,
-                **kwargs,
-            )
-        )
 
     def get_priors(self) -> dict[str, Distribution]:
         """Get prior distributions.
