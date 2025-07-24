@@ -273,7 +273,7 @@ def test_condition_table():
 
     assert (
         ConditionTable(
-            conditions=[
+            [
                 Condition(
                     id="condition1",
                     changes=[Change(target_id="k1", target_value="true")],
@@ -284,7 +284,7 @@ def test_condition_table():
     )
 
     assert ConditionTable(
-        conditions=[
+        [
             Condition(
                 id="condition1",
                 changes=[Change(target_id="k1", target_value=x / y)],

@@ -401,7 +401,7 @@ class ExperimentsToEventsConverter:
         #  removed. Only keep the conditions setting our indicators.
         problem.condition_tables = [
             ConditionTable(
-                conditions=[
+                [
                     condition
                     for condition in problem.conditions
                     if condition.id.startswith("_petab")
