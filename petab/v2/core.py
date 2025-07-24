@@ -110,6 +110,15 @@ def _valid_petab_id(v: str) -> str:
     return v
 
 
+def _valid_petab_id_or_none(v: str) -> str:
+    """Field validator for optional PEtab IDs."""
+    if not v:
+        return None
+    if not is_valid_identifier(v):
+        raise ValueError(f"Invalid ID: {v}")
+    return v
+
+
 class ParameterScale(str, Enum):
     """Parameter scales.
 
@@ -687,10 +696,18 @@ class Measurement(BaseModel):
     experiment.
     """
 
+    #: The model ID.
+    model_id: Annotated[
+        str | None, BeforeValidator(_valid_petab_id_or_none)
+    ] = Field(alias=C.MODEL_ID, default=None)
     #: The observable ID.
-    observable_id: str = Field(alias=C.OBSERVABLE_ID)
+    observable_id: Annotated[str, BeforeValidator(_valid_petab_id)] = Field(
+        alias=C.OBSERVABLE_ID
+    )
     #: The experiment ID.
-    experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
+    experiment_id: Annotated[
+        str | None, BeforeValidator(_valid_petab_id_or_none)
+    ] = Field(alias=C.EXPERIMENT_ID, default=None)
     #: The time point of the measurement in time units as defined in the model.
     time: Annotated[float, AfterValidator(_is_finite_or_pos_inf)] = Field(
         alias=C.TIME
@@ -728,17 +745,6 @@ class Measurement(BaseModel):
             return cls.model_fields[info.field_name].default
         return v
 
-    @field_validator("observable_id", "experiment_id")
-    @classmethod
-    def _validate_id(cls, v, info: ValidationInfo):
-        if not v:
-            if info.field_name == "experiment_id":
-                return None
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
-
     @field_validator(
         "observable_parameters", "noise_parameters", mode="before"
     )
@@ -774,6 +780,9 @@ class MeasurementTable(BaseTable[Measurement]):
         """Create a MeasurementTable from a DataFrame."""
         if df is None:
             return cls()
+
+        if C.MODEL_ID in df.columns:
+            df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
 
         measurements = [
             Measurement(
@@ -868,7 +877,9 @@ class Parameter(BaseModel):
     """Parameter definition."""
 
     #: Parameter ID.
-    id: str = Field(alias=C.PARAMETER_ID)
+    id: Annotated[str, BeforeValidator(_valid_petab_id)] = Field(
+        alias=C.PARAMETER_ID
+    )
     #: Lower bound.
     lb: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
         alias=C.LOWER_BOUND, default=None
@@ -900,15 +911,6 @@ class Parameter(BaseModel):
         extra="allow",
         validate_assignment=True,
     )
-
-    @field_validator("id")
-    @classmethod
-    def _validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
 
     @field_validator("prior_parameters", mode="before")
     @classmethod
@@ -1067,20 +1069,20 @@ class Problem:
 
     A PEtab parameter estimation problem as defined by
 
-    - model
-    - condition table
-    - experiment table
-    - measurement table
-    - parameter table
-    - observable table
-    - mapping table
+    - models
+    - condition tables
+    - experiment tables
+    - measurement tables
+    - parameter tables
+    - observable tables
+    - mapping tables
 
     See also :doc:`petab:v2/documentation_data_format`.
     """
 
     def __init__(
         self,
-        model: Model = None,
+        models: list[Model] = None,
         condition_tables: list[ConditionTable] = None,
         experiment_tables: list[ExperimentTable] = None,
         observable_tables: list[ObservableTable] = None,
@@ -1092,7 +1094,7 @@ class Problem:
         from ..v2.lint import default_validation_tasks
 
         self.config = config
-        self.model: Model | None = model
+        self.models: list[Model] = models or []
         self.validation_tasks: list[ValidationTask] = (
             default_validation_tasks.copy()
         )
@@ -1210,13 +1212,6 @@ class Problem:
                 f"{yaml_config[C.FORMAT_VERSION]}."
             )
 
-        if len(yaml_config[C.MODEL_FILES]) > 1:
-            raise ValueError(
-                "petab.v2.Problem.from_yaml() can only be used for "
-                "yaml files comprising a single model. "
-                "Consider using "
-                "petab.v2.CompositeProblem.from_yaml() instead."
-            )
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
         )
@@ -1225,19 +1220,14 @@ class Problem:
             for f in config.parameter_files
         ]
 
-        if len(config.model_files or []) > 1:
-            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-            raise NotImplementedError(
-                "Support for multiple models is not yet implemented."
-            )
-        model = None
-        if config.model_files:
-            model_id, model_info = next(iter(config.model_files.items()))
-            model = model_factory(
+        models = [
+            model_factory(
                 get_path(model_info.location),
                 model_info.language,
                 model_id=model_id,
             )
+            for model_id, model_info in (config.model_files or {}).items()
+        ]
 
         measurement_tables = (
             [
@@ -1283,7 +1273,7 @@ class Problem:
 
         return Problem(
             config=config,
-            model=model,
+            models=models,
             condition_tables=condition_tables,
             experiment_tables=experiment_tables,
             observable_tables=observable_tables,
@@ -1316,6 +1306,7 @@ class Problem:
             model: The underlying model
             config: The PEtab problem configuration
         """
+        # TODO: do we really need this?
 
         observable_table = ObservableTable.from_df(observable_df)
         condition_table = ConditionTable.from_df(condition_df)
@@ -1325,7 +1316,7 @@ class Problem:
         parameter_table = ParameterTable.from_df(parameter_df)
 
         return Problem(
-            model=model,
+            models=[model],
             condition_tables=[condition_table],
             experiment_tables=[experiment_table],
             observable_tables=[observable_table],
@@ -1390,6 +1381,39 @@ class Problem:
             "The argument `problem` must be a path to a PEtab problem file "
             "or a PEtab problem object."
         )
+
+    @property
+    def model(self) -> Model | None:
+        """The model of the problem.
+
+        This is a convenience property for `Problem`s with only one single
+        model.
+
+        :return:
+            The model of the problem, or None if no model is defined.
+        :raises:
+            ValueError: If the problem has more than one model defined.
+        """
+        if len(self.models) == 1:
+            return self.models[0]
+
+        if len(self.models) == 0:
+            return None
+
+        raise ValueError(
+            "Problem contains more than one model. "
+            "Use `Problem.models` to access all models."
+        )
+
+    @model.setter
+    def model(self, value: Model):
+        """Set the model of the problem.
+
+        This is a convenience setter for `Problem`s with only one single
+        model. This will replace any existing models in the problem with the
+        provided model.
+        """
+        self.models = [value]
 
     @property
     def condition_df(self) -> pd.DataFrame | None:
@@ -1745,6 +1769,7 @@ class Problem:
         )
 
         validation_results = ValidationResultList()
+
         if self.config and self.config.extensions:
             extensions = ",".join(self.config.extensions.keys())
             validation_results.append(
@@ -1753,6 +1778,19 @@ class Problem:
                     "Validation of PEtab extensions is not yet implemented, "
                     "but the given problem uses the following extensions: "
                     f"{extensions}",
+                )
+            )
+
+        if len(self.models) > 1:
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/392
+            #  We might just want to split the problem into multiple
+            #  problems, one for each model, and then validate each
+            #  problem separately.
+            validation_results.append(
+                ValidationIssue(
+                    ValidationIssueSeverity.WARNING,
+                    "Problem contains multiple models. "
+                    "Validation is not yet fully supported.",
                 )
             )
 
@@ -2043,7 +2081,7 @@ class Problem:
         used for serialization. The output of this function may change
         without notice.
 
-        The output includes all PEtab tables, but not the model itself.
+        The output includes all PEtab tables, but not the models.
 
         See `pydantic.BaseModel.model_dump <https://docs.pydantic.dev/latest/api/base_model/#pydantic.BaseModel.model_dump>`__
         for details.
