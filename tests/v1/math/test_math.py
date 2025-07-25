@@ -38,9 +38,11 @@ def test_assumptions():
 
 
 def test_printer():
+    a, b, c, d = sp.symbols("a b c d", real=True)
     assert petab_math_str(None) == ""
     assert petab_math_str(BooleanTrue()) == "true"
     assert petab_math_str(BooleanFalse()) == "false"
+    assert petab_math_str((a + b) ** (c + d)) == "(a + b) ^ (c + d)"
 
 
 def read_cases():
