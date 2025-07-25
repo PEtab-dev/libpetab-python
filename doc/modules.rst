@@ -37,5 +37,4 @@ API Reference
    petab.v2.experiments
    petab.v2.lint
    petab.v2.models
-   petab.v2.problem
    petab.v2.petab1to2
