@@ -37,7 +37,13 @@ class PetabStrPrinter(StrPrinter):
     def _print_Pow(self, expr: sp.Pow):
         """Custom printing for the power operator"""
         base, exp = expr.as_base_exp()
-        return f"{self._print(base)} ^ {self._print(exp)}"
+        str_base = self._print(base)
+        str_exp = self._print(exp)
+        if not base.is_Atom:
+            str_base = f"({str_base})"
+        if not exp.is_Atom:
+            str_exp = f"({str_exp})"
+        return f"{str_base} ^ {str_exp}"
 
     def _print_Infinity(self, expr):
         """Custom printing for infinity"""
