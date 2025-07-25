@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import tempfile
 import traceback
+from abc import abstractmethod
 from collections.abc import Sequence
 from enum import Enum
 from itertools import chain
 from math import nan
 from numbers import Number
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, get_args
 
 import numpy as np
 import pandas as pd
@@ -31,6 +33,7 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+from .._utils import _generate_path
 from ..v1 import (
     parameter_mapping,
     validate_yaml_syntax,
@@ -113,7 +116,7 @@ def _valid_petab_id(v: str) -> str:
 class ParameterScale(str, Enum):
     """Parameter scales.
 
-    Parameter scales as used in the PEtab parameters table.
+    Parameter scales as used in the PEtab parameter table.
     """
 
     LIN = C.LIN
@@ -124,7 +127,7 @@ class ParameterScale(str, Enum):
 class NoiseDistribution(str, Enum):
     """Noise distribution types.
 
-    Noise distributions as used in the PEtab observables table.
+    Noise distributions as used in the PEtab observable table.
     """
 
     #: Normal distribution
@@ -142,7 +145,7 @@ class NoiseDistribution(str, Enum):
 class PriorDistribution(str, Enum):
     """Prior types.
 
-    Prior types as used in the PEtab parameters table.
+    Prior types as used in the PEtab parameter table.
     """
 
     #: Cauchy distribution.
@@ -195,6 +198,101 @@ assert not (_mismatch := set(PriorDistribution) ^ set(_prior_to_cls)), (
     "PriorDistribution enum does not match _prior_to_cls. "
     f"Mismatches: {_mismatch}"
 )
+
+
+T = TypeVar("T", bound=BaseModel)
+
+
+class BaseTable(BaseModel, Generic[T]):
+    """Base class for PEtab tables."""
+
+    #: The table elements
+    elements: list[T]
+    #: The path to the table file, if applicable.
+    #: Relative to the base path, if the base path is set and rel_path is not
+    #: an absolute path.
+    rel_path: AnyUrl | Path | None = Field(exclude=True, default=None)
+    #: The base path for the table file, if applicable.
+    #: This is usually the directory of the PEtab YAML file.
+    base_path: AnyUrl | Path | None = Field(exclude=True, default=None)
+
+    def __init__(self, elements: list[T] = None, **kwargs) -> None:
+        """Initialize the BaseTable with a list of elements."""
+        if elements is None:
+            elements = []
+        super().__init__(elements=elements, **kwargs)
+
+    def __getitem__(self, id_: str) -> T:
+        """Get an element by ID.
+
+        :param id_: The ID of the element to retrieve.
+        :return: The element with the given ID.
+        :raises KeyError: If no element with the given ID exists.
+        :raises NotImplementedError:
+            If the element type does not have an ID attribute.
+        """
+        if "id" not in self._element_class().model_fields:
+            raise NotImplementedError(
+                f"__getitem__ is not implemented for {self.__class__.__name__}"
+            )
+
+        for element in self.elements:
+            if element.id == id_:
+                return element
+
+        raise KeyError(f"{T.__name__} ID {id_} not found")
+
+    @classmethod
+    @abstractmethod
+    def from_df(cls, df: pd.DataFrame) -> BaseTable[T]:
+        """Create a table from a DataFrame."""
+        pass
+
+    @abstractmethod
+    def to_df(self) -> pd.DataFrame:
+        """Convert the table to a DataFrame."""
+        pass
+
+    @classmethod
+    def from_tsv(
+        cls, file_path: str | Path, base_path: str | Path | None = None
+    ) -> BaseTable[T]:
+        """Create table from a TSV file."""
+        df = pd.read_csv(_generate_path(file_path, base_path), sep="\t")
+        return cls.from_df(df, rel_path=file_path, base_path=base_path)
+
+    def to_tsv(self, file_path: str | Path = None) -> None:
+        """Write the table to a TSV file."""
+        df = self.to_df()
+        df.to_csv(
+            file_path or _generate_path(self.rel_path, self.base_path),
+            sep="\t",
+            index=not isinstance(df.index, pd.RangeIndex),
+        )
+
+    @classmethod
+    def _element_class(cls) -> type[T]:
+        """Get the class of the elements in the table."""
+        return get_args(cls.model_fields["elements"].annotation)[0]
+
+    def __add__(self, other: T) -> BaseTable[T]:
+        """Add an item to the table."""
+        if not isinstance(other, self._element_class()):
+            raise TypeError(
+                f"Can only add {self._element_class().__name__} "
+                f"to {self.__class__.__name__}"
+            )
+        return self.__class__(elements=self.elements + [other])
+
+    def __iadd__(self, other: T) -> BaseTable[T]:
+        """Add an item to the table in place."""
+        if not isinstance(other, self._element_class()):
+            raise TypeError(
+                f"Can only add {self._element_class().__name__} "
+                f"to {self.__class__.__name__}"
+            )
+        self.elements.append(other)
+        return self
 
 
 class Observable(BaseModel):
@@ -274,36 +372,30 @@ class Observable(BaseModel):
         return [sympify_petab(_valid_petab_id(pid)) for pid in v if pid]
 
 
-class ObservableTable(BaseModel):
+class ObservableTable(BaseTable[Observable]):
     """PEtab observable table."""
 
-    #: List of observables.
-    observables: list[Observable]
-
-    def __getitem__(self, observable_id: str) -> Observable:
-        """Get an observable by ID."""
-        for observable in self.observables:
-            if observable.id == observable_id:
-                return observable
-        raise KeyError(f"Observable ID {observable_id} not found")
+    @property
+    def observables(self) -> list[Observable]:
+        """List of observables."""
+        return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ObservableTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ObservableTable:
         """Create an ObservableTable from a DataFrame."""
         if df is None:
-            return cls(observables=[])
+            return cls(**kwargs)
 
         df = get_observable_df(df)
         observables = [
             Observable(**row.to_dict())
             for _, row in df.reset_index().iterrows()
         ]
-
-        return cls(observables=observables)
+        return cls(observables, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ObservableTable to a DataFrame."""
-        records = self.model_dump(by_alias=True)["observables"]
+        records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             obs = record[C.OBSERVABLE_FORMULA]
             noise = record[C.NOISE_FORMULA]
@@ -316,30 +408,6 @@ class ObservableTable(BaseModel):
                 map(str, record[C.NOISE_PLACEHOLDERS])
             )
         return pd.DataFrame(records).set_index([C.OBSERVABLE_ID])
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ObservableTable:
-        """Create an ObservableTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ObservableTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=True)
-
-    def __add__(self, other: Observable) -> ObservableTable:
-        """Add an observable to the table."""
-        if not isinstance(other, Observable):
-            raise TypeError("Can only add Observable to ObservableTable")
-        return ObservableTable(observables=self.observables + [other])
-
-    def __iadd__(self, other: Observable) -> ObservableTable:
-        """Add an observable to the table in place."""
-        if not isinstance(other, Observable):
-            raise TypeError("Can only add Observable to ObservableTable")
-        self.observables.append(other)
-        return self
 
 
 class Change(BaseModel):
@@ -387,7 +455,7 @@ class Condition(BaseModel):
 
     A set of simultaneously occurring changes to the model or model state,
     corresponding to a perturbation of the underlying system. This corresponds
-    to all rows of the PEtab conditions table with the same condition ID.
+    to all rows of the PEtab condition table with the same condition ID.
 
     >>> Condition(
     ...     id="condition1",
@@ -428,31 +496,26 @@ class Condition(BaseModel):
         return self
 
 
-class ConditionTable(BaseModel):
-    """PEtab conditions table."""
+class ConditionTable(BaseTable[Condition]):
+    """PEtab condition table."""
 
-    #: List of conditions.
-    conditions: list[Condition] = []
-
-    def __getitem__(self, condition_id: str) -> Condition:
-        """Get a condition by ID."""
-        for condition in self.conditions:
-            if condition.id == condition_id:
-                return condition
-        raise KeyError(f"Condition ID {condition_id} not found")
+    @property
+    def conditions(self) -> list[Condition]:
+        """List of conditions."""
+        return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ConditionTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ConditionTable:
         """Create a ConditionTable from a DataFrame."""
         if df is None or df.empty:
-            return cls(conditions=[])
+            return cls(**kwargs)
 
         conditions = []
         for condition_id, sub_df in df.groupby(C.CONDITION_ID):
             changes = [Change(**row) for row in sub_df.to_dict("records")]
             conditions.append(Condition(id=condition_id, changes=changes))
 
-        return cls(conditions=conditions)
+        return cls(conditions, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ConditionTable to a DataFrame."""
@@ -472,30 +535,6 @@ class ConditionTable(BaseModel):
             if records
             else pd.DataFrame(columns=C.CONDITION_DF_REQUIRED_COLS)
         )
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ConditionTable:
-        """Create a ConditionTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ConditionTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Condition) -> ConditionTable:
-        """Add a condition to the table."""
-        if not isinstance(other, Condition):
-            raise TypeError("Can only add Condition to ConditionTable")
-        return ConditionTable(conditions=self.conditions + [other])
-
-    def __iadd__(self, other: Condition) -> ConditionTable:
-        """Add a condition to the table in place."""
-        if not isinstance(other, Condition):
-            raise TypeError("Can only add Condition to ConditionTable")
-        self.conditions.append(other)
-        return self
 
     @property
     def free_symbols(self) -> set[sp.Symbol]:
@@ -519,7 +558,7 @@ class ExperimentPeriod(BaseModel):
     """A period of a timecourse or experiment defined by a start time
     and a list of condition IDs.
 
-    This corresponds to a row of the PEtab experiments table.
+    This corresponds to a row of the PEtab experiment table.
     """
 
     #: The start time of the period in time units as defined in the model.
@@ -560,7 +599,7 @@ class Experiment(BaseModel):
     """An experiment or a timecourse defined by an ID and a set of different
     periods.
 
-    Corresponds to a group of rows of the PEtab experiments table with the same
+    Corresponds to a group of rows of the PEtab experiment table with the same
     experiment ID.
     """
 
@@ -602,17 +641,19 @@ class Experiment(BaseModel):
         self.periods.sort(key=lambda period: period.time)
 
 
-class ExperimentTable(BaseModel):
-    """PEtab experiments table."""
+class ExperimentTable(BaseTable[Experiment]):
+    """PEtab experiment table."""
 
-    #: List of experiments.
-    experiments: list[Experiment]
+    @property
+    def experiments(self) -> list[Experiment]:
+        """List of experiments."""
+        return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ExperimentTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ExperimentTable:
         """Create an ExperimentTable from a DataFrame."""
         if df is None:
-            return cls(experiments=[])
+            return cls(**kwargs)
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
@@ -627,12 +668,13 @@ class ExperimentTable(BaseModel):
                 ]
                 periods.append(
                     ExperimentPeriod(
-                        time=timepoint, condition_ids=condition_ids
+                        time=timepoint,
+                        condition_ids=condition_ids,
                     )
                 )
             experiments.append(Experiment(id=experiment_id, periods=periods))
 
-        return cls(experiments=experiments)
+        return cls(experiments, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ExperimentTable to a DataFrame."""
@@ -651,37 +693,6 @@ class ExperimentTable(BaseModel):
             if records
             else pd.DataFrame(columns=C.EXPERIMENT_DF_REQUIRED_COLS)
         )
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ExperimentTable:
-        """Create an ExperimentTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ExperimentTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Experiment) -> ExperimentTable:
-        """Add an experiment to the table."""
-        if not isinstance(other, Experiment):
-            raise TypeError("Can only add Experiment to ExperimentTable")
-        return ExperimentTable(experiments=self.experiments + [other])
-
-    def __iadd__(self, other: Experiment) -> ExperimentTable:
-        """Add an experiment to the table in place."""
-        if not isinstance(other, Experiment):
-            raise TypeError("Can only add Experiment to ExperimentTable")
-        self.experiments.append(other)
-        return self
-
-    def __getitem__(self, item):
-        """Get an experiment by ID."""
-        for experiment in self.experiments:
-            if experiment.id == item:
-                return experiment
-        raise KeyError(f"Experiment ID {item} not found")
 
 
 class Measurement(BaseModel):
@@ -762,20 +773,19 @@ class Measurement(BaseModel):
         return [sympify_petab(x) for x in v]
 
 
-class MeasurementTable(BaseModel):
+class MeasurementTable(BaseTable[Measurement]):
     """PEtab measurement table."""
 
-    #: List of measurements.
-    measurements: list[Measurement]
+    @property
+    def measurements(self) -> list[Measurement]:
+        """List of measurements."""
+        return self.elements
 
     @classmethod
-    def from_df(
-        cls,
-        df: pd.DataFrame,
-    ) -> MeasurementTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> MeasurementTable:
         """Create a MeasurementTable from a DataFrame."""
         if df is None:
-            return cls(measurements=[])
+            return cls(**kwargs)
 
         measurements = [
             Measurement(
@@ -784,11 +794,11 @@ class MeasurementTable(BaseModel):
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(measurements=measurements)
+        return cls(measurements, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MeasurementTable to a DataFrame."""
-        records = self.model_dump(by_alias=True)["measurements"]
+        records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             record[C.OBSERVABLE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
                 map(str, record[C.OBSERVABLE_PARAMETERS])
@@ -798,30 +808,6 @@ class MeasurementTable(BaseModel):
             )
 
         return pd.DataFrame(records)
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
-        """Create a MeasurementTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the MeasurementTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Measurement) -> MeasurementTable:
-        """Add a measurement to the table."""
-        if not isinstance(other, Measurement):
-            raise TypeError("Can only add Measurement to MeasurementTable")
-        return MeasurementTable(measurements=self.measurements + [other])
-
-    def __iadd__(self, other: Measurement) -> MeasurementTable:
-        """Add a measurement to the table in place."""
-        if not isinstance(other, Measurement):
-            raise TypeError("Can only add Measurement to MeasurementTable")
-        self.measurements.append(other)
-        return self
 
 
 class Mapping(BaseModel):
@@ -846,56 +832,33 @@ class Mapping(BaseModel):
     )
 
 
-class MappingTable(BaseModel):
+class MappingTable(BaseTable[Mapping]):
     """PEtab mapping table."""
 
-    #: List of mappings.
-    mappings: list[Mapping]
+    @property
+    def mappings(self) -> list[Mapping]:
+        """List of mappings."""
+        return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> MappingTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> MappingTable:
         """Create a MappingTable from a DataFrame."""
         if df is None:
-            return cls(mappings=[])
+            return cls(**kwargs)
 
         mappings = [
             Mapping(**row.to_dict()) for _, row in df.reset_index().iterrows()
         ]
-
-        return cls(mappings=mappings)
+        return cls(mappings, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MappingTable to a DataFrame."""
         res = (
-            pd.DataFrame(self.model_dump(by_alias=True)["mappings"])
+            pd.DataFrame(self.model_dump(by_alias=True)["elements"])
             if self.mappings
             else pd.DataFrame(columns=C.MAPPING_DF_REQUIRED_COLS)
         )
         return res.set_index([C.PETAB_ENTITY_ID])
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> MappingTable:
-        """Create a MappingTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the MappingTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Mapping) -> MappingTable:
-        """Add a mapping to the table."""
-        if not isinstance(other, Mapping):
-            raise TypeError("Can only add Mapping to MappingTable")
-        return MappingTable(mappings=self.mappings + [other])
-
-    def __iadd__(self, other: Mapping) -> MappingTable:
-        """Add a mapping to the table in place."""
-        if not isinstance(other, Mapping):
-            raise TypeError("Can only add Mapping to MappingTable")
-        self.mappings.append(other)
-        return self
 
     def __getitem__(self, petab_id: str) -> Mapping:
         """Get a mapping by PEtab ID."""
@@ -1076,69 +1039,37 @@ class Parameter(BaseModel):
         return cls(*self.prior_parameters, log=log, trunc=[self.lb, self.ub])
 
 
-class ParameterTable(BaseModel):
+class ParameterTable(BaseTable[Parameter]):
     """PEtab parameter table."""
 
-    #: List of parameters.
-    parameters: list[Parameter]
+    @property
+    def parameters(self) -> list[Parameter]:
+        """List of parameters."""
+        return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame) -> ParameterTable:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> ParameterTable:
         """Create a ParameterTable from a DataFrame."""
         if df is None:
-            return cls(parameters=[])
+            return cls(**kwargs)
 
         parameters = [
             Parameter(**row.to_dict())
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(parameters=parameters)
+        return cls(parameters, **kwargs)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ParameterTable to a DataFrame."""
         return pd.DataFrame(
-            self.model_dump(by_alias=True)["parameters"]
+            self.model_dump(by_alias=True)["elements"]
         ).set_index([C.PARAMETER_ID])
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ParameterTable:
-        """Create a ParameterTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ParameterTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Parameter) -> ParameterTable:
-        """Add a parameter to the table."""
-        if not isinstance(other, Parameter):
-            raise TypeError("Can only add Parameter to ParameterTable")
-        return ParameterTable(parameters=self.parameters + [other])
-
-    def __iadd__(self, other: Parameter) -> ParameterTable:
-        """Add a parameter to the table in place."""
-        if not isinstance(other, Parameter):
-            raise TypeError("Can only add Parameter to ParameterTable")
-        self.parameters.append(other)
-        return self
-
-    def __getitem__(self, item) -> Parameter:
-        """Get a parameter by ID."""
-        for parameter in self.parameters:
-            if parameter.id == item:
-                return parameter
-        raise KeyError(f"Parameter ID {item} not found")
 
     @property
     def n_estimated(self) -> int:
         """Number of estimated parameters."""
         return sum(p.estimate for p in self.parameters)
-
-
-"""PEtab v2 problems."""
 
 
 class Problem:
@@ -1177,22 +1108,12 @@ class Problem:
             default_validation_tasks.copy()
         )
 
-        self.observable_tables = observable_tables or [
-            ObservableTable(observables=[])
-        ]
-        self.condition_tables = condition_tables or [
-            ConditionTable(conditions=[])
-        ]
-        self.experiment_tables = experiment_tables or [
-            ExperimentTable(experiments=[])
-        ]
-        self.measurement_tables = measurement_tables or [
-            MeasurementTable(measurements=[])
-        ]
-        self.mapping_tables = mapping_tables or [MappingTable(mappings=[])]
-        self.parameter_tables = parameter_tables or [
-            ParameterTable(parameters=[])
-        ]
+        self.observable_tables = observable_tables or [ObservableTable()]
+        self.condition_tables = condition_tables or [ConditionTable()]
+        self.experiment_tables = experiment_tables or [ExperimentTable()]
+        self.measurement_tables = measurement_tables or [MeasurementTable()]
+        self.mapping_tables = mapping_tables or [MappingTable()]
+        self.parameter_tables = parameter_tables or [ParameterTable()]
 
     def __str__(self):
         model = f"with model ({self.model})" if self.model else "without model"
@@ -1236,7 +1157,7 @@ class Problem:
             for table in table_list:
                 try:
                     return table[key]
-                except KeyError:
+                except (KeyError, NotImplementedError):
                     pass
 
         raise KeyError(
@@ -1267,11 +1188,6 @@ class Problem:
 
         validate_yaml_syntax(yaml_config)
 
-        def get_path(filename):
-            if base_path is None:
-                return filename
-            return f"{base_path}/{filename}"
-
         if (format_version := parse_version(yaml_config[C.FORMAT_VERSION]))[
             0
         ] != 2:
@@ -1300,23 +1216,16 @@ class Problem:
                 f"{yaml_config[C.FORMAT_VERSION]}."
             )
 
-        if len(yaml_config[C.MODEL_FILES]) > 1:
-            raise ValueError(
-                "petab.v2.Problem.from_yaml() can only be used for "
-                "yaml files comprising a single model. "
-                "Consider using "
-                "petab.v2.CompositeProblem.from_yaml() instead."
-            )
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=yaml_file
         )
+
         parameter_tables = [
-            ParameterTable.from_tsv(get_path(f))
+            ParameterTable.from_tsv(f, base_path=base_path)
             for f in config.parameter_files
         ]
-
         if len(config.model_files or []) > 1:
-            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/392
             raise NotImplementedError(
                 "Support for multiple models is not yet implemented."
             )
@@ -1324,14 +1233,15 @@ class Problem:
         if config.model_files:
             model_id, model_info = next(iter(config.model_files.items()))
             model = model_factory(
-                get_path(model_info.location),
-                model_info.language,
+                model_info.location,
+                base_path=base_path,
+                model_language=model_info.language,
                 model_id=model_id,
             )
 
         measurement_tables = (
             [
-                MeasurementTable.from_tsv(get_path(f))
+                MeasurementTable.from_tsv(f, base_path)
                 for f in config.measurement_files
             ]
             if config.measurement_files
@@ -1340,7 +1250,7 @@ class Problem:
 
         condition_tables = (
             [
-                ConditionTable.from_tsv(get_path(f))
+                ConditionTable.from_tsv(f, base_path)
                 for f in config.condition_files
             ]
             if config.condition_files
@@ -1349,7 +1259,7 @@ class Problem:
 
         experiment_tables = (
             [
-                ExperimentTable.from_tsv(get_path(f))
+                ExperimentTable.from_tsv(f, base_path)
                 for f in config.experiment_files
             ]
             if config.experiment_files
@@ -1358,7 +1268,7 @@ class Problem:
 
         observable_tables = (
             [
-                ObservableTable.from_tsv(get_path(f))
+                ObservableTable.from_tsv(f, base_path)
                 for f in config.observable_files
             ]
             if config.observable_files
@@ -1366,7 +1276,7 @@ class Problem:
         )
 
         mapping_tables = (
-            [MappingTable.from_tsv(get_path(f)) for f in config.mapping_files]
+            [MappingTable.from_tsv(f, base_path) for f in config.mapping_files]
             if config.mapping_files
             else None
         )
@@ -1481,13 +1391,80 @@ class Problem:
             "or a PEtab problem object."
         )
 
+    def to_files(self, base_path: str | Path | None) -> None:
+        """Write the PEtab problem to files.
+
+        Writes the model, condition, experiment, measurement, parameter,
+        observable, and mapping tables to their respective files as specified
+        in the respective objects.
+
+        This expects that all objects have their `rel_path` and `base_path`
+        set correctly, which is usually done by Problem.from_yaml().
+        """
+        config = copy.deepcopy(self.config) or ProblemConfig(
+            format_version="2.0.0"
+        )
+
+        if self.model:
+            self.model.to_file()
+            config.model_files = {
+                self.model.model_id: ModelFile(
+                    location=self.model.rel_path, language=self.model.type_id
+                )
+            }
+
+        config.condition_files = [
+            table.rel_path for table in self.condition_tables if table.rel_path
+        ]
+        config.experiment_files = [
+            table.rel_path
+            for table in self.experiment_tables
+            if table.rel_path
+        ]
+        config.observable_files = [
+            table.rel_path
+            for table in self.observable_tables
+            if table.rel_path
+        ]
+        config.measurement_files = [
+            table.rel_path
+            for table in self.measurement_tables
+            if table.rel_path
+        ]
+        config.parameter_files = [
+            table.rel_path for table in self.parameter_tables if table.rel_path
+        ]
+        config.mapping_files = [
+            table.rel_path for table in self.mapping_tables if table.rel_path
+        ]
+
+        for table in chain(
+            self.condition_tables,
+            self.experiment_tables,
+            self.observable_tables,
+            self.measurement_tables,
+            self.parameter_tables,
+            self.mapping_tables,
+        ):
+            if table.rel_path:
+                table.to_tsv(
+                    _generate_path(
+                        table.rel_path, base_path or table.base_path
+                    )
+                )
+
+        config.to_yaml(
+            _generate_path(
+                Path(str(config.filepath)).name, base_path or config.base_path
+            )
+        )
+
     @property
     def condition_df(self) -> pd.DataFrame | None:
         """Combined condition tables as DataFrame."""
-        conditions = self.conditions
         return (
-            ConditionTable(conditions=conditions).to_df()
-            if conditions
+            ConditionTable(conditions).to_df()
+            if (conditions := self.conditions)
             else None
         )
 
@@ -1499,7 +1476,7 @@ class Problem:
     def experiment_df(self) -> pd.DataFrame | None:
         """Experiment table as DataFrame."""
         return (
-            ExperimentTable(experiments=experiments).to_df()
+            ExperimentTable(experiments).to_df()
             if (experiments := self.experiments)
             else None
         )
@@ -1511,10 +1488,9 @@ class Problem:
     @property
     def measurement_df(self) -> pd.DataFrame | None:
         """Combined measurement tables as DataFrame."""
-        measurements = self.measurements
         return (
-            MeasurementTable(measurements=measurements).to_df()
-            if measurements
+            MeasurementTable(measurements).to_df()
+            if (measurements := self.measurements)
             else None
         )
 
@@ -1525,10 +1501,9 @@ class Problem:
     @property
     def parameter_df(self) -> pd.DataFrame | None:
         """Combined parameter tables as DataFrame."""
-        parameters = self.parameters
         return (
-            ParameterTable(parameters=parameters).to_df()
-            if parameters
+            ParameterTable(parameters).to_df()
+            if (parameters := self.parameters)
             else None
         )
 
@@ -1539,10 +1514,9 @@ class Problem:
     @property
     def observable_df(self) -> pd.DataFrame | None:
         """Combined observable tables as DataFrame."""
-        observables = self.observables
         return (
-            ObservableTable(observables=observables).to_df()
-            if observables
+            ObservableTable(observables).to_df()
+            if (observables := self.observables)
             else None
         )
 
@@ -1553,8 +1527,11 @@ class Problem:
     @property
     def mapping_df(self) -> pd.DataFrame | None:
         """Combined mapping tables as DataFrame."""
-        mappings = self.mappings
-        return MappingTable(mappings=mappings).to_df() if mappings else None
+        return (
+            MappingTable(mappings).to_df()
+            if (mappings := self.mappings)
+            else None
+        )
 
     @mapping_df.setter
     def mapping_df(self, value: pd.DataFrame):
@@ -1907,7 +1884,7 @@ class Problem:
             for target_id, target_value in kwargs.items()
         ]
         if not self.condition_tables:
-            self.condition_tables.append(ConditionTable(conditions=[]))
+            self.condition_tables.append(ConditionTable())
         self.condition_tables[-1].conditions.append(
             Condition(id=id_, changes=changes)
         )
@@ -1958,7 +1935,7 @@ class Problem:
         record.update(kwargs)
 
         if not self.observable_tables:
-            self.observable_tables.append(ObservableTable(observables=[]))
+            self.observable_tables.append(ObservableTable())
 
         self.observable_tables[-1] += Observable(**record)
 
@@ -2010,7 +1987,7 @@ class Problem:
         record.update(kwargs)
 
         if not self.parameter_tables:
-            self.parameter_tables.append(ParameterTable(parameters=[]))
+            self.parameter_tables.append(ParameterTable())
 
         self.parameter_tables[-1] += Parameter(**record)
 
@@ -2046,7 +2023,7 @@ class Problem:
             noise_parameters = [noise_parameters]
 
         if not self.measurement_tables:
-            self.measurement_tables.append(MeasurementTable(measurements=[]))
+            self.measurement_tables.append(MeasurementTable())
 
         self.measurement_tables[-1].measurements.append(
             Measurement(
@@ -2073,7 +2050,7 @@ class Problem:
             name: A name (any string) for the entity referenced by `petab_id`.
         """
         if not self.mapping_tables:
-            self.mapping_tables.append(MappingTable(mappings=[]))
+            self.mapping_tables.append(MappingTable())
         self.mapping_tables[-1].mappings.append(
             Mapping(petab_id=petab_id, model_id=model_id, name=name)
         )
@@ -2104,7 +2081,7 @@ class Problem:
         ]
 
         if not self.experiment_tables:
-            self.experiment_tables.append(ExperimentTable(experiments=[]))
+            self.experiment_tables.append(ExperimentTable())
         self.experiment_tables[-1].experiments.append(
             Experiment(id=id_, periods=periods)
         )
@@ -2121,25 +2098,23 @@ class Problem:
 
         if isinstance(other, Observable):
             if not self.observable_tables:
-                self.observable_tables.append(ObservableTable(observables=[]))
+                self.observable_tables.append(ObservableTable())
             self.observable_tables[-1] += other
         elif isinstance(other, Parameter):
             if not self.parameter_tables:
-                self.parameter_tables.append(ParameterTable(parameters=[]))
+                self.parameter_tables.append(ParameterTable())
             self.parameter_tables[-1] += other
         elif isinstance(other, Measurement):
             if not self.measurement_tables:
-                self.measurement_tables.append(
-                    MeasurementTable(measurements=[])
-                )
+                self.measurement_tables.append(MeasurementTable())
             self.measurement_tables[-1] += other
         elif isinstance(other, Condition):
             if not self.condition_tables:
-                self.condition_tables.append(ConditionTable(conditions=[]))
+                self.condition_tables.append(ConditionTable())
             self.condition_tables[-1] += other
         elif isinstance(other, Experiment):
             if not self.experiment_tables:
-                self.experiment_tables.append(ExperimentTable(experiments=[]))
+                self.experiment_tables.append(ExperimentTable())
             self.experiment_tables[-1] += other
         else:
             raise ValueError(
@@ -2174,7 +2149,7 @@ class Problem:
                     'measurement_files': [],
                     'model_files': {},
                     'observable_files': [],
-                    'parameter_file': []},
+                    'parameter_files': []},
          'experiments': [],
          'mappings': [],
          'measurements': [],
@@ -2201,7 +2176,12 @@ class Problem:
             ("mappings", self.mapping_tables),
         ):
             res[field] = (
-                [table.model_dump(**kwargs) for table in table_list]
+                list(
+                    chain.from_iterable(
+                        table.model_dump(**kwargs)["elements"]
+                        for table in table_list
+                    )
+                )
                 if table_list
                 else []
             )

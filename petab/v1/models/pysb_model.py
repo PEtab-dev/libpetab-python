@@ -1,5 +1,7 @@
 """Functions for handling PySB models"""
 
+from __future__ import annotations
+
 import itertools
 import re
 import sys
@@ -9,6 +11,7 @@ from typing import Any
 
 import pysb
 
+from ..._utils import _generate_path
 from .. import is_valid_identifier
 from . import MODEL_TYPE_PYSB
 from .model import Model
@@ -54,8 +57,17 @@ class PySBModel(Model):
 
     type_id = MODEL_TYPE_PYSB
 
-    def __init__(self, model: pysb.Model, model_id: str = None):
+    def __init__(
+        self,
+        model: pysb.Model,
+        model_id: str = None,
+        rel_path: Path | str | None = None,
+        base_path: str | Path | None = None,
+    ):
         super().__init__()
+
+        self.rel_path = rel_path
+        self.base_path = base_path
 
         self.model = model
         self._model_id = model_id or self.model.name
@@ -68,16 +80,25 @@ class PySBModel(Model):
             )
 
     @staticmethod
-    def from_file(filepath_or_buffer, model_id: str = None):
+    def from_file(
+        filepath_or_buffer, model_id: str = None, base_path: str | Path = None
+    ) -> PySBModel:
         return PySBModel(
-            model=_pysb_model_from_path(filepath_or_buffer), model_id=model_id
+            model=_pysb_model_from_path(
+                _generate_path(filepath_or_buffer, base_path)
+            ),
+            model_id=model_id,
+            rel_path=filepath_or_buffer,
+            base_path=base_path,
         )
 
-    def to_file(self, filename: [str, Path]):
+    def to_file(self, filename: str | Path | None = None) -> None:
         from pysb.export import export
 
         model_source = export(self.model, "pysb_flat")
-        with open(filename, "w") as f:
+        with open(
+            filename or _generate_path(self.rel_path, self.base_path), "w"
+        ) as f:
             f.write(model_source)
 
     @property
