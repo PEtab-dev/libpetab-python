@@ -21,17 +21,22 @@ class Model(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def from_file(filepath_or_buffer: Any, model_id: str) -> Model:
+    def from_file(
+        filepath_or_buffer: Any, model_id: str, base_path: str | Path = None
+    ) -> Model:
         """Load the model from the given path/URL
 
-        :param filepath_or_buffer: URL or path of the model
+        :param filepath_or_buffer:
+            Absolute or relative path/URL to the model file.
+            If relative, it is interpreted relative to `base_path` if given.
+        :param base_path: Base path for relative paths in the model file.
         :param model_id: Model ID
         :returns: A ``Model`` instance holding the given model
         """
         ...
 
     @abc.abstractmethod
-    def to_file(self, filename: [str, Path]):
+    def to_file(self, filename: str | Path | None = None):
         """Save the model to the given file
 
         :param filename: Destination filename
@@ -131,11 +136,16 @@ class Model(abc.ABC):
 
 
 def model_factory(
-    filepath_or_buffer: Any, model_language: str, model_id: str = None
+    filepath_or_buffer: Any,
+    model_language: str,
+    model_id: str = None,
+    base_path: str | Path = None,
 ) -> Model:
     """Create a PEtab model instance from the given model
 
-    :param filepath_or_buffer: Path/URL of the model
+    :param filepath_or_buffer: Path/URL of the model.
+        Absolute or relative to `base_path` if given.
+    :param base_path: Base path for relative paths in the model file.
     :param model_language: PEtab model language ID for the given model
     :param model_id: PEtab model ID for the given model
     :returns: A :py:class:`Model` instance representing the given model
@@ -145,12 +155,16 @@ def model_factory(
     if model_language == MODEL_TYPE_SBML:
         from .sbml_model import SbmlModel
 
-        return SbmlModel.from_file(filepath_or_buffer, model_id=model_id)
+        return SbmlModel.from_file(
+            filepath_or_buffer, model_id=model_id, base_path=base_path
+        )
 
     if model_language == MODEL_TYPE_PYSB:
         from .pysb_model import PySBModel
 
-        return PySBModel.from_file(filepath_or_buffer, model_id=model_id)
+        return PySBModel.from_file(
+            filepath_or_buffer, model_id=model_id, base_path=base_path
+        )
 
     if model_language in known_model_types:
         raise NotImplementedError(
