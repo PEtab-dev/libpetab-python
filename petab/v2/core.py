@@ -631,6 +631,11 @@ class Experiment(BaseModel):
         """Check if the experiment has preequilibration enabled."""
         return any(period.is_preequilibration for period in self.periods)
 
+    @property
+    def sorted_periods(self) -> list[ExperimentPeriod]:
+        """Get the periods of the experiment sorted by time."""
+        return sorted(self.periods, key=lambda period: period.time)
+
     def sort_periods(self) -> None:
         """Sort the periods of the experiment by time."""
         self.periods.sort(key=lambda period: period.time)
