@@ -71,6 +71,11 @@ class ExperimentsToEventsConverter:
             To ensure that the PEtab condition-start-events are executed before
             any other events, all events should have a priority set.
         """
+        if len(problem.models) > 1:
+            #  https://github.com/PEtab-dev/libpetab-python/issues/392
+            raise NotImplementedError(
+                "Only single-model PEtab problems are supported."
+            )
         if not isinstance(problem.model, SbmlModel):
             raise ValueError("Only SBML models are supported.")
 
@@ -401,7 +406,7 @@ class ExperimentsToEventsConverter:
         #  removed. Only keep the conditions setting our indicators.
         problem.condition_tables = [
             ConditionTable(
-                conditions=[
+                [
                     condition
                     for condition in problem.conditions
                     if condition.id.startswith("_petab")
