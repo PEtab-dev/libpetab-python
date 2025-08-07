@@ -134,7 +134,7 @@ def plot_goodness_of_fit(
     petab_problem: Problem,
     simulations_df: str | Path | pd.DataFrame,
     size: tuple = (10, 7),
-    color = None,
+    color=None,
     ax: plt.Axes | None = None,
 ) -> matplotlib.axes.Axes:
     """
