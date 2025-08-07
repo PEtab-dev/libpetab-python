@@ -38,6 +38,9 @@ DATASET_ID = "datasetId"
 #: Replicate ID column in the measurement table
 REPLICATE_ID = "replicateId"
 
+#: The model ID column in the measurement table
+MODEL_ID = "modelId"
+
 #: Mandatory columns of measurement table
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
@@ -52,6 +55,7 @@ MEASUREMENT_DF_OPTIONAL_COLS = [
     NOISE_PARAMETERS,
     DATASET_ID,
     REPLICATE_ID,
+    MODEL_ID,
 ]
 
 #: Measurement table columns
@@ -69,8 +73,6 @@ MEASUREMENT_DF_COLS = [
 PARAMETER_ID = "parameterId"
 #: Parameter name column in the parameter table
 PARAMETER_NAME = "parameterName"
-#: Parameter scale column in the parameter table
-PARAMETER_SCALE = "parameterScale"
 #: Lower bound column in the parameter table
 LOWER_BOUND = "lowerBound"
 #: Upper bound column in the parameter table
@@ -87,7 +89,6 @@ PRIOR_PARAMETERS = "priorParameters"
 #: Mandatory columns of parameter table
 PARAMETER_DF_REQUIRED_COLS = [
     PARAMETER_ID,
-    PARAMETER_SCALE,
     LOWER_BOUND,
     UPPER_BOUND,
     ESTIMATE,
@@ -233,119 +234,11 @@ PRIOR_DISTRIBUTIONS = [
 #: Supported noise distributions
 NOISE_DISTRIBUTIONS = [NORMAL, LAPLACE, LOG_NORMAL, LOG_LAPLACE]
 
-
-# VISUALIZATION
-
-#: Plot ID column in the visualization table
-PLOT_ID = "plotId"
-#: Plot name column in the visualization table
-PLOT_NAME = "plotName"
-#: Value for plot type 'simulation' in the visualization table
-PLOT_TYPE_SIMULATION = "plotTypeSimulation"
-#: Value for plot type 'data' in the visualization table
-PLOT_TYPE_DATA = "plotTypeData"
-#: X values column in the visualization table
-X_VALUES = "xValues"
-#: X offset column in the visualization table
-X_OFFSET = "xOffset"
-#: X label column in the visualization table
-X_LABEL = "xLabel"
-#: X scale column in the visualization table
-X_SCALE = "xScale"
-#: Y values column in the visualization table
-Y_VALUES = "yValues"
-#: Y offset column in the visualization table
-Y_OFFSET = "yOffset"
-#: Y label column in the visualization table
-Y_LABEL = "yLabel"
-#: Y scale column in the visualization table
-Y_SCALE = "yScale"
-#: Legend entry column in the visualization table
-LEGEND_ENTRY = "legendEntry"
-
-#: Mandatory columns of visualization table
-VISUALIZATION_DF_REQUIRED_COLS = [PLOT_ID]
-
-#: Optional columns of visualization table
-VISUALIZATION_DF_OPTIONAL_COLS = [
-    PLOT_NAME,
-    PLOT_TYPE_SIMULATION,
-    PLOT_TYPE_DATA,
-    X_VALUES,
-    X_OFFSET,
-    X_LABEL,
-    X_SCALE,
-    Y_VALUES,
-    Y_OFFSET,
-    Y_LABEL,
-    Y_SCALE,
-    LEGEND_ENTRY,
-    DATASET_ID,
-]
-
-#: Visualization table columns
-VISUALIZATION_DF_COLS = [
-    *VISUALIZATION_DF_REQUIRED_COLS,
-    *VISUALIZATION_DF_OPTIONAL_COLS,
-]
-
-#: Visualization table columns that contain subplot specifications
-VISUALIZATION_DF_SUBPLOT_LEVEL_COLS = [
-    PLOT_ID,
-    PLOT_NAME,
-    PLOT_TYPE_SIMULATION,
-    PLOT_TYPE_DATA,
-    X_LABEL,
-    X_SCALE,
-    Y_LABEL,
-    Y_SCALE,
-]
-
-#: Visualization table columns that contain single plot specifications
-VISUALIZATION_DF_SINGLE_PLOT_LEVEL_COLS = [
-    X_VALUES,
-    X_OFFSET,
-    Y_VALUES,
-    Y_OFFSET,
-    LEGEND_ENTRY,
-    DATASET_ID,
-]
-
-#: Plot type value in the visualization table for line plot
-LINE_PLOT = "LinePlot"
-#: Plot type value in the visualization table for bar plot
-BAR_PLOT = "BarPlot"
-#: Plot type value in the visualization table for scatter plot
-SCATTER_PLOT = "ScatterPlot"
-#: Supported plot types
-PLOT_TYPES_SIMULATION = [LINE_PLOT, BAR_PLOT, SCATTER_PLOT]
-
-#: Supported xScales
-X_SCALES = [LIN, LOG, LOG10]
-
-#: Supported yScales
-Y_SCALES = [LIN, LOG, LOG10]
-
-
-#: Plot type "data" value in the visualization table for mean and standard
-#  deviation
-MEAN_AND_SD = "MeanAndSD"
-#: Plot type "data" value in the visualization table for mean and standard
-#  error
-MEAN_AND_SEM = "MeanAndSEM"
-#: Plot type "data" value in the visualization table for replicates
-REPLICATE = "replicate"
-#: Plot type "data" value in the visualization table for provided noise values
-PROVIDED = "provided"
-#: Supported settings for handling replicates
-PLOT_TYPES_DATA = [MEAN_AND_SD, MEAN_AND_SEM, REPLICATE, PROVIDED]
-
-
 # YAML
 #: PEtab version key in the YAML file
 FORMAT_VERSION = "format_version"
-#: Parameter file key in the YAML file
-PARAMETER_FILE = "parameter_file"
+#: Parameter files key in the YAML file
+PARAMETER_FILES = "parameter_files"
 #: Problems key in the YAML file
 PROBLEMS = "problems"
 #: Model files key in the YAML file
@@ -388,8 +281,6 @@ MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 SIMULATION = "simulation"
 #: Residual value column in the residual table
 RESIDUAL = "residual"
-#: ???
-NOISE_VALUE = "noiseValue"
 
 #: separator for multiple parameter values (bounds, observableParameters, ...)
 PARAMETER_SEPARATOR = ";"

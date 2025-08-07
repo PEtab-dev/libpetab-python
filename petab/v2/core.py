@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import tempfile
+import traceback
+from abc import abstractmethod
 from collections.abc import Sequence
 from enum import Enum
 from itertools import chain
+from math import nan
+from numbers import Number
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, get_args
 
 import numpy as np
 import pandas as pd
 import sympy as sp
 from pydantic import (
     AfterValidator,
+    AnyUrl,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -24,12 +32,25 @@ from pydantic import (
 )
 from typing_extensions import Self
 
+from ..v1 import (
+    validate_yaml_syntax,
+    yaml,
+)
 from ..v1.distributions import *
 from ..v1.lint import is_valid_identifier
 from ..v1.math import petab_math_str, sympify_petab
+from ..v1.models.model import Model, model_factory
+from ..v1.yaml import get_path_prefix
+from ..versions import parse_version
 from . import C, get_observable_df
 
+if TYPE_CHECKING:
+    from ..v2.lint import ValidationResultList, ValidationTask
+
+
 __all__ = [
+    "Problem",
+    "ProblemConfig",
     "Observable",
     "ObservableTable",
     "NoiseDistribution",
@@ -89,10 +110,19 @@ def _valid_petab_id(v: str) -> str:
     return v
 
 
+def _valid_petab_id_or_none(v: str) -> str:
+    """Field validator for optional PEtab IDs."""
+    if not v:
+        return None
+    if not is_valid_identifier(v):
+        raise ValueError(f"Invalid ID: {v}")
+    return v
+
+
 class ParameterScale(str, Enum):
     """Parameter scales.
 
-    Parameter scales as used in the PEtab parameters table.
+    Parameter scales as used in the PEtab parameter table.
     """
 
     LIN = C.LIN
@@ -103,7 +133,7 @@ class ParameterScale(str, Enum):
 class NoiseDistribution(str, Enum):
     """Noise distribution types.
 
-    Noise distributions as used in the PEtab observables table.
+    Noise distributions as used in the PEtab observable table.
     """
 
     #: Normal distribution
@@ -114,12 +144,14 @@ class NoiseDistribution(str, Enum):
     LOG_NORMAL = C.LOG_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
+    #: Log10-Normal
+    LOG10_NORMAL = C.LOG10_NORMAL
 
 
 class PriorDistribution(str, Enum):
     """Prior types.
 
-    Prior types as used in the PEtab parameters table.
+    Prior types as used in the PEtab parameter table.
     """
 
     #: Cauchy distribution.
@@ -174,6 +206,89 @@ assert not (_mismatch := set(PriorDistribution) ^ set(_prior_to_cls)), (
 )
 
 
+T = TypeVar("T", bound=BaseModel)
+
+
+class BaseTable(BaseModel, Generic[T]):
+    """Base class for PEtab tables."""
+
+    elements: list[T]
+
+    def __init__(self, elements: list[T] = None) -> None:
+        """Initialize the BaseTable with a list of elements."""
+        if elements is None:
+            elements = []
+        super().__init__(elements=elements)
+
+    def __getitem__(self, id_: str) -> T:
+        """Get an element by ID.
+
+        :param id_: The ID of the element to retrieve.
+        :return: The element with the given ID.
+        :raises KeyError: If no element with the given ID exists.
+        :raises NotImplementedError:
+            If the element type does not have an ID attribute.
+        """
+        if "id" not in self._element_class().model_fields:
+            raise NotImplementedError(
+                f"__getitem__ is not implemented for {self.__class__.__name__}"
+            )
+
+        for element in self.elements:
+            if element.id == id_:
+                return element
+
+        raise KeyError(f"{T.__name__} ID {id_} not found")
+
+    @classmethod
+    @abstractmethod
+    def from_df(cls, df: pd.DataFrame) -> BaseTable[T]:
+        """Create a table from a DataFrame."""
+        pass
+
+    @abstractmethod
+    def to_df(self) -> pd.DataFrame:
+        """Convert the table to a DataFrame."""
+        pass
+
+    @classmethod
+    def from_tsv(cls, file_path: str | Path) -> BaseTable[T]:
+        """Create table from a TSV file."""
+        df = pd.read_csv(file_path, sep="\t")
+        return cls.from_df(df)
+
+    def to_tsv(self, file_path: str | Path) -> None:
+        """Write the table to a TSV file."""
+        df = self.to_df()
+        df.to_csv(
+            file_path, sep="\t", index=not isinstance(df.index, pd.RangeIndex)
+        )
+
+    @classmethod
+    def _element_class(cls) -> type[T]:
+        """Get the class of the elements in the table."""
+        return get_args(cls.model_fields["elements"].annotation)[0]
+
+    def __add__(self, other: T) -> BaseTable[T]:
+        """Add an item to the table."""
+        if not isinstance(other, self._element_class()):
+            raise TypeError(
+                f"Can only add {self._element_class().__name__} "
+                f"to {self.__class__.__name__}"
+            )
+        return self.__class__(elements=self.elements + [other])
+
+    def __iadd__(self, other: T) -> BaseTable[T]:
+        """Add an item to the table in place."""
+        if not isinstance(other, self._element_class()):
+            raise TypeError(
+                f"Can only add {self._element_class().__name__} "
+                f"to {self.__class__.__name__}"
+            )
+        self.elements.append(other)
+        return self
+
+
 class Observable(BaseModel):
     """Observable definition."""
 
@@ -202,7 +317,10 @@ class Observable(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator(
@@ -248,24 +366,19 @@ class Observable(BaseModel):
         return [sympify_petab(_valid_petab_id(pid)) for pid in v if pid]
 
 
-class ObservableTable(BaseModel):
+class ObservableTable(BaseTable[Observable]):
     """PEtab observable table."""
 
-    #: List of observables.
-    observables: list[Observable]
-
-    def __getitem__(self, observable_id: str) -> Observable:
-        """Get an observable by ID."""
-        for observable in self.observables:
-            if observable.id == observable_id:
-                return observable
-        raise KeyError(f"Observable ID {observable_id} not found")
+    @property
+    def observables(self) -> list[Observable]:
+        """List of observables."""
+        return self.elements
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ObservableTable:
         """Create an ObservableTable from a DataFrame."""
         if df is None:
-            return cls(observables=[])
+            return cls()
 
         df = get_observable_df(df)
         observables = [
@@ -273,11 +386,11 @@ class ObservableTable(BaseModel):
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(observables=observables)
+        return cls(observables)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ObservableTable to a DataFrame."""
-        records = self.model_dump(by_alias=True)["observables"]
+        records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             obs = record[C.OBSERVABLE_FORMULA]
             noise = record[C.NOISE_FORMULA]
@@ -290,30 +403,6 @@ class ObservableTable(BaseModel):
                 map(str, record[C.NOISE_PLACEHOLDERS])
             )
         return pd.DataFrame(records).set_index([C.OBSERVABLE_ID])
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ObservableTable:
-        """Create an ObservableTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ObservableTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=True)
-
-    def __add__(self, other: Observable) -> ObservableTable:
-        """Add an observable to the table."""
-        if not isinstance(other, Observable):
-            raise TypeError("Can only add Observable to ObservableTable")
-        return ObservableTable(observables=self.observables + [other])
-
-    def __iadd__(self, other: Observable) -> ObservableTable:
-        """Add an observable to the table in place."""
-        if not isinstance(other, Observable):
-            raise TypeError("Can only add Observable to ObservableTable")
-        self.observables.append(other)
-        return self
 
 
 class Change(BaseModel):
@@ -342,6 +431,7 @@ class Change(BaseModel):
         populate_by_name=True,
         use_enum_values=True,
         extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator("target_value", mode="before")
@@ -360,7 +450,7 @@ class Condition(BaseModel):
 
     A set of simultaneously occurring changes to the model or model state,
     corresponding to a perturbation of the underlying system. This corresponds
-    to all rows of the PEtab conditions table with the same condition ID.
+    to all rows of the PEtab condition table with the same condition ID.
 
     >>> Condition(
     ...     id="condition1",
@@ -383,7 +473,9 @@ class Condition(BaseModel):
     changes: list[Change]
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True, extra="allow", validate_assignment=True
+    )
 
     def __add__(self, other: Change) -> Condition:
         """Add a change to the set."""
@@ -399,31 +491,26 @@ class Condition(BaseModel):
         return self
 
 
-class ConditionTable(BaseModel):
-    """PEtab conditions table."""
+class ConditionTable(BaseTable[Condition]):
+    """PEtab condition table."""
 
-    #: List of conditions.
-    conditions: list[Condition] = []
-
-    def __getitem__(self, condition_id: str) -> Condition:
-        """Get a condition by ID."""
-        for condition in self.conditions:
-            if condition.id == condition_id:
-                return condition
-        raise KeyError(f"Condition ID {condition_id} not found")
+    @property
+    def conditions(self) -> list[Condition]:
+        """List of conditions."""
+        return self.elements
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ConditionTable:
         """Create a ConditionTable from a DataFrame."""
         if df is None or df.empty:
-            return cls(conditions=[])
+            return cls()
 
         conditions = []
         for condition_id, sub_df in df.groupby(C.CONDITION_ID):
             changes = [Change(**row) for row in sub_df.to_dict("records")]
             conditions.append(Condition(id=condition_id, changes=changes))
 
-        return cls(conditions=conditions)
+        return cls(conditions)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ConditionTable to a DataFrame."""
@@ -443,30 +530,6 @@ class ConditionTable(BaseModel):
             if records
             else pd.DataFrame(columns=C.CONDITION_DF_REQUIRED_COLS)
         )
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ConditionTable:
-        """Create a ConditionTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ConditionTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Condition) -> ConditionTable:
-        """Add a condition to the table."""
-        if not isinstance(other, Condition):
-            raise TypeError("Can only add Condition to ConditionTable")
-        return ConditionTable(conditions=self.conditions + [other])
-
-    def __iadd__(self, other: Condition) -> ConditionTable:
-        """Add a condition to the table in place."""
-        if not isinstance(other, Condition):
-            raise TypeError("Can only add Condition to ConditionTable")
-        self.conditions.append(other)
-        return self
 
     @property
     def free_symbols(self) -> set[sp.Symbol]:
@@ -490,7 +553,7 @@ class ExperimentPeriod(BaseModel):
     """A period of a timecourse or experiment defined by a start time
     and a list of condition IDs.
 
-    This corresponds to a row of the PEtab experiments table.
+    This corresponds to a row of the PEtab experiment table.
     """
 
     #: The start time of the period in time units as defined in the model.
@@ -501,7 +564,9 @@ class ExperimentPeriod(BaseModel):
     condition_ids: list[str] = Field(default_factory=list)
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True, extra="allow", validate_assignment=True
+    )
 
     @field_validator("condition_ids", mode="before")
     @classmethod
@@ -519,12 +584,17 @@ class ExperimentPeriod(BaseModel):
                 raise ValueError(f"Invalid {C.CONDITION_ID}: `{condition_id}'")
         return condition_ids
 
+    @property
+    def is_preequilibration(self) -> bool:
+        """Check if this period is a preequilibration period."""
+        return self.time == C.TIME_PREEQUILIBRATION
+
 
 class Experiment(BaseModel):
     """An experiment or a timecourse defined by an ID and a set of different
     periods.
 
-    Corresponds to a group of rows of the PEtab experiments table with the same
+    Corresponds to a group of rows of the PEtab experiment table with the same
     experiment ID.
     """
 
@@ -537,7 +607,10 @@ class Experiment(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
     )
 
     def __add__(self, other: ExperimentPeriod) -> Experiment:
@@ -553,18 +626,34 @@ class Experiment(BaseModel):
         self.periods.append(other)
         return self
 
+    @property
+    def has_preequilibration(self) -> bool:
+        """Check if the experiment has preequilibration enabled."""
+        return any(period.is_preequilibration for period in self.periods)
 
-class ExperimentTable(BaseModel):
-    """PEtab experiments table."""
+    @property
+    def sorted_periods(self) -> list[ExperimentPeriod]:
+        """Get the periods of the experiment sorted by time."""
+        return sorted(self.periods, key=lambda period: period.time)
 
-    #: List of experiments.
-    experiments: list[Experiment]
+    def sort_periods(self) -> None:
+        """Sort the periods of the experiment by time."""
+        self.periods.sort(key=lambda period: period.time)
+
+
+class ExperimentTable(BaseTable[Experiment]):
+    """PEtab experiment table."""
+
+    @property
+    def experiments(self) -> list[Experiment]:
+        """List of experiments."""
+        return self.elements
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ExperimentTable:
         """Create an ExperimentTable from a DataFrame."""
         if df is None:
-            return cls(experiments=[])
+            return cls()
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
@@ -584,7 +673,7 @@ class ExperimentTable(BaseModel):
                 )
             experiments.append(Experiment(id=experiment_id, periods=periods))
 
-        return cls(experiments=experiments)
+        return cls(experiments)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ExperimentTable to a DataFrame."""
@@ -604,37 +693,6 @@ class ExperimentTable(BaseModel):
             else pd.DataFrame(columns=C.EXPERIMENT_DF_REQUIRED_COLS)
         )
 
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ExperimentTable:
-        """Create an ExperimentTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ExperimentTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Experiment) -> ExperimentTable:
-        """Add an experiment to the table."""
-        if not isinstance(other, Experiment):
-            raise TypeError("Can only add Experiment to ExperimentTable")
-        return ExperimentTable(experiments=self.experiments + [other])
-
-    def __iadd__(self, other: Experiment) -> ExperimentTable:
-        """Add an experiment to the table in place."""
-        if not isinstance(other, Experiment):
-            raise TypeError("Can only add Experiment to ExperimentTable")
-        self.experiments.append(other)
-        return self
-
-    def __getitem__(self, item):
-        """Get an experiment by ID."""
-        for experiment in self.experiments:
-            if experiment.id == item:
-                return experiment
-        raise KeyError(f"Experiment ID {item} not found")
-
 
 class Measurement(BaseModel):
     """A measurement.
@@ -643,10 +701,18 @@ class Measurement(BaseModel):
     experiment.
     """
 
+    #: The model ID.
+    model_id: Annotated[
+        str | None, BeforeValidator(_valid_petab_id_or_none)
+    ] = Field(alias=C.MODEL_ID, default=None)
     #: The observable ID.
-    observable_id: str = Field(alias=C.OBSERVABLE_ID)
+    observable_id: Annotated[str, BeforeValidator(_valid_petab_id)] = Field(
+        alias=C.OBSERVABLE_ID
+    )
     #: The experiment ID.
-    experiment_id: str | None = Field(alias=C.EXPERIMENT_ID, default=None)
+    experiment_id: Annotated[
+        str | None, BeforeValidator(_valid_petab_id_or_none)
+    ] = Field(alias=C.EXPERIMENT_ID, default=None)
     #: The time point of the measurement in time units as defined in the model.
     time: Annotated[float, AfterValidator(_is_finite_or_pos_inf)] = Field(
         alias=C.TIME
@@ -666,7 +732,10 @@ class Measurement(BaseModel):
 
     #: :meta private:
     model_config = ConfigDict(
-        arbitrary_types_allowed=True, populate_by_name=True, extra="allow"
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
     )
 
     @field_validator(
@@ -679,17 +748,6 @@ class Measurement(BaseModel):
     def convert_nan_to_none(cls, v, info: ValidationInfo):
         if isinstance(v, float) and np.isnan(v):
             return cls.model_fields[info.field_name].default
-        return v
-
-    @field_validator("observable_id", "experiment_id")
-    @classmethod
-    def _validate_id(cls, v, info: ValidationInfo):
-        if not v:
-            if info.field_name == "experiment_id":
-                return None
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
         return v
 
     @field_validator(
@@ -711,11 +769,13 @@ class Measurement(BaseModel):
         return [sympify_petab(x) for x in v]
 
 
-class MeasurementTable(BaseModel):
+class MeasurementTable(BaseTable[Measurement]):
     """PEtab measurement table."""
 
-    #: List of measurements.
-    measurements: list[Measurement]
+    @property
+    def measurements(self) -> list[Measurement]:
+        """List of measurements."""
+        return self.elements
 
     @classmethod
     def from_df(
@@ -724,7 +784,10 @@ class MeasurementTable(BaseModel):
     ) -> MeasurementTable:
         """Create a MeasurementTable from a DataFrame."""
         if df is None:
-            return cls(measurements=[])
+            return cls()
+
+        if C.MODEL_ID in df.columns:
+            df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
 
         measurements = [
             Measurement(
@@ -733,11 +796,11 @@ class MeasurementTable(BaseModel):
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(measurements=measurements)
+        return cls(measurements)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MeasurementTable to a DataFrame."""
-        records = self.model_dump(by_alias=True)["measurements"]
+        records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             record[C.OBSERVABLE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
                 map(str, record[C.OBSERVABLE_PARAMETERS])
@@ -747,30 +810,6 @@ class MeasurementTable(BaseModel):
             )
 
         return pd.DataFrame(records)
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> MeasurementTable:
-        """Create a MeasurementTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the MeasurementTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Measurement) -> MeasurementTable:
-        """Add a measurement to the table."""
-        if not isinstance(other, Measurement):
-            raise TypeError("Can only add Measurement to MeasurementTable")
-        return MeasurementTable(measurements=self.measurements + [other])
-
-    def __iadd__(self, other: Measurement) -> MeasurementTable:
-        """Add a measurement to the table in place."""
-        if not isinstance(other, Measurement):
-            raise TypeError("Can only add Measurement to MeasurementTable")
-        self.measurements.append(other)
-        return self
 
 
 class Mapping(BaseModel):
@@ -790,59 +829,39 @@ class Mapping(BaseModel):
     )
 
     #: :meta private:
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True, extra="allow", validate_assignment=True
+    )
 
 
-class MappingTable(BaseModel):
+class MappingTable(BaseTable[Mapping]):
     """PEtab mapping table."""
 
-    #: List of mappings.
-    mappings: list[Mapping]
+    @property
+    def mappings(self) -> list[Mapping]:
+        """List of mappings."""
+        return self.elements
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> MappingTable:
         """Create a MappingTable from a DataFrame."""
         if df is None:
-            return cls(mappings=[])
+            return cls()
 
         mappings = [
             Mapping(**row.to_dict()) for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(mappings=mappings)
+        return cls(mappings)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the MappingTable to a DataFrame."""
         res = (
-            pd.DataFrame(self.model_dump(by_alias=True)["mappings"])
+            pd.DataFrame(self.model_dump(by_alias=True)["elements"])
             if self.mappings
             else pd.DataFrame(columns=C.MAPPING_DF_REQUIRED_COLS)
         )
         return res.set_index([C.PETAB_ENTITY_ID])
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> MappingTable:
-        """Create a MappingTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the MappingTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Mapping) -> MappingTable:
-        """Add a mapping to the table."""
-        if not isinstance(other, Mapping):
-            raise TypeError("Can only add Mapping to MappingTable")
-        return MappingTable(mappings=self.mappings + [other])
-
-    def __iadd__(self, other: Mapping) -> MappingTable:
-        """Add a mapping to the table in place."""
-        if not isinstance(other, Mapping):
-            raise TypeError("Can only add Mapping to MappingTable")
-        self.mappings.append(other)
-        return self
 
     def __getitem__(self, petab_id: str) -> Mapping:
         """Get a mapping by PEtab ID."""
@@ -863,7 +882,9 @@ class Parameter(BaseModel):
     """Parameter definition."""
 
     #: Parameter ID.
-    id: str = Field(alias=C.PARAMETER_ID)
+    id: Annotated[str, BeforeValidator(_valid_petab_id)] = Field(
+        alias=C.PARAMETER_ID
+    )
     #: Lower bound.
     lb: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
         alias=C.LOWER_BOUND, default=None
@@ -893,16 +914,8 @@ class Parameter(BaseModel):
         populate_by_name=True,
         use_enum_values=True,
         extra="allow",
+        validate_assignment=True,
     )
-
-    @field_validator("id")
-    @classmethod
-    def _validate_id(cls, v):
-        if not v:
-            raise ValueError("ID must not be empty.")
-        if not is_valid_identifier(v):
-            raise ValueError(f"Invalid ID: {v}")
-        return v
 
     @field_validator("prior_parameters", mode="before")
     @classmethod
@@ -1022,63 +1035,1243 @@ class Parameter(BaseModel):
         return cls(*self.prior_parameters, log=log, trunc=[self.lb, self.ub])
 
 
-class ParameterTable(BaseModel):
+class ParameterTable(BaseTable[Parameter]):
     """PEtab parameter table."""
 
-    #: List of parameters.
-    parameters: list[Parameter]
+    @property
+    def parameters(self) -> list[Parameter]:
+        """List of parameters."""
+        return self.elements
 
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> ParameterTable:
         """Create a ParameterTable from a DataFrame."""
         if df is None:
-            return cls(parameters=[])
+            return cls()
 
         parameters = [
             Parameter(**row.to_dict())
             for _, row in df.reset_index().iterrows()
         ]
 
-        return cls(parameters=parameters)
+        return cls(parameters)
 
     def to_df(self) -> pd.DataFrame:
         """Convert the ParameterTable to a DataFrame."""
         return pd.DataFrame(
-            self.model_dump(by_alias=True)["parameters"]
+            self.model_dump(by_alias=True)["elements"]
         ).set_index([C.PARAMETER_ID])
-
-    @classmethod
-    def from_tsv(cls, file_path: str | Path) -> ParameterTable:
-        """Create a ParameterTable from a TSV file."""
-        df = pd.read_csv(file_path, sep="\t")
-        return cls.from_df(df)
-
-    def to_tsv(self, file_path: str | Path) -> None:
-        """Write the ParameterTable to a TSV file."""
-        df = self.to_df()
-        df.to_csv(file_path, sep="\t", index=False)
-
-    def __add__(self, other: Parameter) -> ParameterTable:
-        """Add a parameter to the table."""
-        if not isinstance(other, Parameter):
-            raise TypeError("Can only add Parameter to ParameterTable")
-        return ParameterTable(parameters=self.parameters + [other])
-
-    def __iadd__(self, other: Parameter) -> ParameterTable:
-        """Add a parameter to the table in place."""
-        if not isinstance(other, Parameter):
-            raise TypeError("Can only add Parameter to ParameterTable")
-        self.parameters.append(other)
-        return self
-
-    def __getitem__(self, item) -> Parameter:
-        """Get a parameter by ID."""
-        for parameter in self.parameters:
-            if parameter.id == item:
-                return parameter
-        raise KeyError(f"Parameter ID {item} not found")
 
     @property
     def n_estimated(self) -> int:
         """Number of estimated parameters."""
         return sum(p.estimate for p in self.parameters)
+
+
+class Problem:
+    """
+    PEtab parameter estimation problem
+
+    A PEtab parameter estimation problem as defined by
+
+    - models
+    - condition tables
+    - experiment tables
+    - measurement tables
+    - parameter tables
+    - observable tables
+    - mapping tables
+
+    See also :doc:`petab:v2/documentation_data_format`.
+    """
+
+    def __init__(
+        self,
+        models: list[Model] = None,
+        condition_tables: list[ConditionTable] = None,
+        experiment_tables: list[ExperimentTable] = None,
+        observable_tables: list[ObservableTable] = None,
+        measurement_tables: list[MeasurementTable] = None,
+        parameter_tables: list[ParameterTable] = None,
+        mapping_tables: list[MappingTable] = None,
+        config: ProblemConfig = None,
+    ):
+        from ..v2.lint import default_validation_tasks
+
+        self.config = config
+        self.models: list[Model] = models or []
+        self.validation_tasks: list[ValidationTask] = (
+            default_validation_tasks.copy()
+        )
+
+        self.observable_tables = observable_tables or [ObservableTable()]
+        self.condition_tables = condition_tables or [ConditionTable()]
+        self.experiment_tables = experiment_tables or [ExperimentTable()]
+        self.measurement_tables = measurement_tables or [MeasurementTable()]
+        self.mapping_tables = mapping_tables or [MappingTable()]
+        self.parameter_tables = parameter_tables or [ParameterTable()]
+
+    def __str__(self):
+        model = f"with model ({self.model})" if self.model else "without model"
+
+        ne = len(self.experiments)
+        experiments = f"{ne} experiments"
+
+        nc = len(self.conditions)
+        conditions = f"{nc} conditions"
+
+        no = len(self.observables)
+        observables = f"{no} observables"
+
+        nm = len(self.measurements)
+        measurements = f"{nm} measurements"
+
+        nest = sum(pt.n_estimated for pt in self.parameter_tables)
+        parameters = f"{nest} estimated parameters"
+
+        return (
+            f"PEtab Problem {model}, {conditions}, {experiments}, "
+            f"{observables}, {measurements}, {parameters}"
+        )
+
+    def __getitem__(self, key):
+        """Get PEtab entity by ID.
+
+        This allows accessing PEtab entities such as conditions, experiments,
+        observables, and parameters by their ID.
+
+        Accessing model entities is not currently not supported.
+        """
+        for table_list in (
+            self.condition_tables,
+            self.experiment_tables,
+            self.observable_tables,
+            self.measurement_tables,
+            self.parameter_tables,
+            self.mapping_tables,
+        ):
+            for table in table_list:
+                try:
+                    return table[key]
+                except (KeyError, NotImplementedError):
+                    pass
+
+        raise KeyError(
+            f"Entity with ID '{key}' not found in the PEtab problem"
+        )
+
+    @staticmethod
+    def from_yaml(
+        yaml_config: dict | Path | str, base_path: str | Path = None
+    ) -> Problem:
+        """
+        Factory method to load model and tables as specified by YAML file.
+
+        Arguments:
+            yaml_config: PEtab configuration as dictionary or YAML file name
+            base_path: Base directory or URL to resolve relative paths
+        """
+        if isinstance(yaml_config, Path):
+            yaml_config = str(yaml_config)
+
+        if isinstance(yaml_config, str):
+            yaml_file = yaml_config
+            if base_path is None:
+                base_path = get_path_prefix(yaml_file)
+            yaml_config = yaml.load_yaml(yaml_file)
+        else:
+            yaml_file = None
+
+        validate_yaml_syntax(yaml_config)
+
+        def get_path(filename):
+            if base_path is None:
+                return filename
+            return f"{base_path}/{filename}"
+
+        if (format_version := parse_version(yaml_config[C.FORMAT_VERSION]))[
+            0
+        ] != 2:
+            # If we got a path to a v1 yaml file, try to auto-upgrade
+            from tempfile import TemporaryDirectory
+
+            from .petab1to2 import petab1to2
+
+            if format_version[0] == 1 and yaml_file:
+                logging.debug(
+                    "Auto-upgrading problem from PEtab 1.0 to PEtab 2.0"
+                )
+                with TemporaryDirectory() as tmpdirname:
+                    try:
+                        petab1to2(yaml_file, output_dir=tmpdirname)
+                    except Exception as e:
+                        raise ValueError(
+                            "Failed to auto-upgrade PEtab 1.0 problem to "
+                            "PEtab 2.0"
+                        ) from e
+                    return Problem.from_yaml(
+                        Path(tmpdirname) / Path(yaml_file).name
+                    )
+            raise ValueError(
+                "Provided PEtab files are of unsupported version "
+                f"{yaml_config[C.FORMAT_VERSION]}."
+            )
+
+        config = ProblemConfig(
+            **yaml_config, base_path=base_path, filepath=yaml_file
+        )
+        parameter_tables = [
+            ParameterTable.from_tsv(get_path(f))
+            for f in config.parameter_files
+        ]
+
+        models = [
+            model_factory(
+                get_path(model_info.location),
+                model_info.language,
+                model_id=model_id,
+            )
+            for model_id, model_info in (config.model_files or {}).items()
+        ]
+
+        measurement_tables = (
+            [
+                MeasurementTable.from_tsv(get_path(f))
+                for f in config.measurement_files
+            ]
+            if config.measurement_files
+            else None
+        )
+
+        condition_tables = (
+            [
+                ConditionTable.from_tsv(get_path(f))
+                for f in config.condition_files
+            ]
+            if config.condition_files
+            else None
+        )
+
+        experiment_tables = (
+            [
+                ExperimentTable.from_tsv(get_path(f))
+                for f in config.experiment_files
+            ]
+            if config.experiment_files
+            else None
+        )
+
+        observable_tables = (
+            [
+                ObservableTable.from_tsv(get_path(f))
+                for f in config.observable_files
+            ]
+            if config.observable_files
+            else None
+        )
+
+        mapping_tables = (
+            [MappingTable.from_tsv(get_path(f)) for f in config.mapping_files]
+            if config.mapping_files
+            else None
+        )
+
+        return Problem(
+            config=config,
+            models=models,
+            condition_tables=condition_tables,
+            experiment_tables=experiment_tables,
+            observable_tables=observable_tables,
+            measurement_tables=measurement_tables,
+            parameter_tables=parameter_tables,
+            mapping_tables=mapping_tables,
+        )
+
+    @staticmethod
+    def from_dfs(
+        model: Model = None,
+        condition_df: pd.DataFrame = None,
+        experiment_df: pd.DataFrame = None,
+        measurement_df: pd.DataFrame = None,
+        parameter_df: pd.DataFrame = None,
+        observable_df: pd.DataFrame = None,
+        mapping_df: pd.DataFrame = None,
+        config: ProblemConfig = None,
+    ):
+        """
+        Construct a PEtab problem from dataframes.
+
+        Parameters:
+            condition_df: PEtab condition table
+            experiment_df: PEtab experiment table
+            measurement_df: PEtab measurement table
+            parameter_df: PEtab parameter table
+            observable_df: PEtab observable table
+            mapping_df: PEtab mapping table
+            model: The underlying model
+            config: The PEtab problem configuration
+        """
+        # TODO: do we really need this?
+
+        observable_table = ObservableTable.from_df(observable_df)
+        condition_table = ConditionTable.from_df(condition_df)
+        experiment_table = ExperimentTable.from_df(experiment_df)
+        measurement_table = MeasurementTable.from_df(measurement_df)
+        mapping_table = MappingTable.from_df(mapping_df)
+        parameter_table = ParameterTable.from_df(parameter_df)
+
+        return Problem(
+            models=[model],
+            condition_tables=[condition_table],
+            experiment_tables=[experiment_table],
+            observable_tables=[observable_table],
+            measurement_tables=[measurement_table],
+            parameter_tables=[parameter_table],
+            mapping_tables=[mapping_table],
+            config=config,
+        )
+
+    @staticmethod
+    def from_combine(filename: Path | str) -> Problem:
+        """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
+
+        See also :py:func:`petab.v2.create_combine_archive`.
+
+        Arguments:
+            filename: Path to the PEtab-COMBINE archive
+
+        Returns:
+            A :py:class:`petab.v2.Problem` instance.
+        """
+        # function-level import, because module-level import interfered with
+        # other SWIG interfaces
+        try:
+            import libcombine
+        except ImportError as e:
+            raise ImportError(
+                "To use PEtab's COMBINE functionality, libcombine "
+                "(python-libcombine) must be installed."
+            ) from e
+
+        archive = libcombine.CombineArchive()
+        if archive.initializeFromArchive(str(filename)) is None:
+            raise ValueError(f"Invalid Combine Archive: {filename}")
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            archive.extractTo(tmpdirname)
+            problem = Problem.from_yaml(
+                os.path.join(tmpdirname, archive.getMasterFile().getLocation())
+            )
+        archive.cleanUp()
+
+        return problem
+
+    @staticmethod
+    def get_problem(problem: str | Path | Problem) -> Problem:
+        """Get a PEtab problem from a file or a problem object.
+
+        Arguments:
+            problem: Path to a PEtab problem file or a PEtab problem object.
+
+        Returns:
+            A PEtab problem object.
+        """
+        if isinstance(problem, Problem):
+            return problem
+
+        if isinstance(problem, str | Path):
+            return Problem.from_yaml(problem)
+
+        raise TypeError(
+            "The argument `problem` must be a path to a PEtab problem file "
+            "or a PEtab problem object."
+        )
+
+    @property
+    def model(self) -> Model | None:
+        """The model of the problem.
+
+        This is a convenience property for `Problem`s with only one single
+        model.
+
+        :return:
+            The model of the problem, or None if no model is defined.
+        :raises:
+            ValueError: If the problem has more than one model defined.
+        """
+        if len(self.models) == 1:
+            return self.models[0]
+
+        if len(self.models) == 0:
+            return None
+
+        raise ValueError(
+            "Problem contains more than one model. "
+            "Use `Problem.models` to access all models."
+        )
+
+    @model.setter
+    def model(self, value: Model):
+        """Set the model of the problem.
+
+        This is a convenience setter for `Problem`s with only one single
+        model. This will replace any existing models in the problem with the
+        provided model.
+        """
+        self.models = [value]
+
+    @property
+    def condition_df(self) -> pd.DataFrame | None:
+        """Combined condition tables as DataFrame."""
+        return (
+            ConditionTable(conditions).to_df()
+            if (conditions := self.conditions)
+            else None
+        )
+
+    @condition_df.setter
+    def condition_df(self, value: pd.DataFrame):
+        self.condition_tables = [ConditionTable.from_df(value)]
+
+    @property
+    def experiment_df(self) -> pd.DataFrame | None:
+        """Experiment table as DataFrame."""
+        return (
+            ExperimentTable(experiments).to_df()
+            if (experiments := self.experiments)
+            else None
+        )
+
+    @experiment_df.setter
+    def experiment_df(self, value: pd.DataFrame):
+        self.experiment_tables = [ExperimentTable.from_df(value)]
+
+    @property
+    def measurement_df(self) -> pd.DataFrame | None:
+        """Combined measurement tables as DataFrame."""
+        return (
+            MeasurementTable(measurements).to_df()
+            if (measurements := self.measurements)
+            else None
+        )
+
+    @measurement_df.setter
+    def measurement_df(self, value: pd.DataFrame):
+        self.measurement_tables = [MeasurementTable.from_df(value)]
+
+    @property
+    def parameter_df(self) -> pd.DataFrame | None:
+        """Combined parameter tables as DataFrame."""
+        return (
+            ParameterTable(parameters).to_df()
+            if (parameters := self.parameters)
+            else None
+        )
+
+    @parameter_df.setter
+    def parameter_df(self, value: pd.DataFrame):
+        self.parameter_tables = [ParameterTable.from_df(value)]
+
+    @property
+    def observable_df(self) -> pd.DataFrame | None:
+        """Combined observable tables as DataFrame."""
+        return (
+            ObservableTable(observables).to_df()
+            if (observables := self.observables)
+            else None
+        )
+
+    @observable_df.setter
+    def observable_df(self, value: pd.DataFrame):
+        self.observable_tables = [ObservableTable.from_df(value)]
+
+    @property
+    def mapping_df(self) -> pd.DataFrame | None:
+        """Combined mapping tables as DataFrame."""
+        return (
+            MappingTable(mappings).to_df()
+            if (mappings := self.mappings)
+            else None
+        )
+
+    @mapping_df.setter
+    def mapping_df(self, value: pd.DataFrame):
+        self.mapping_tables = [MappingTable.from_df(value)]
+
+    @property
+    def conditions(self) -> list[Condition]:
+        """List of conditions in the condition table(s)."""
+        return list(
+            chain.from_iterable(ct.conditions for ct in self.condition_tables)
+        )
+
+    @property
+    def experiments(self) -> list[Experiment]:
+        """List of experiments in the experiment table(s)."""
+        return list(
+            chain.from_iterable(
+                et.experiments for et in self.experiment_tables
+            )
+        )
+
+    @property
+    def observables(self) -> list[Observable]:
+        """List of observables in the observable table(s)."""
+        return list(
+            chain.from_iterable(
+                ot.observables for ot in self.observable_tables
+            )
+        )
+
+    @property
+    def measurements(self) -> list[Measurement]:
+        """List of measurements in the measurement table(s)."""
+        return list(
+            chain.from_iterable(
+                mt.measurements for mt in self.measurement_tables
+            )
+        )
+
+    @property
+    def parameters(self) -> list[Parameter]:
+        """List of parameters in the parameter table(s)."""
+        return list(
+            chain.from_iterable(pt.parameters for pt in self.parameter_tables)
+        )
+
+    @property
+    def mappings(self) -> list[Mapping]:
+        """List of mappings in the mapping table(s)."""
+        return list(
+            chain.from_iterable(mt.mappings for mt in self.mapping_tables)
+        )
+
+    def get_optimization_parameters(self) -> list[str]:
+        """
+        Get the list of optimization parameter IDs from parameter table.
+
+        Returns:
+            A list of IDs of parameters selected for optimization
+            (i.e., those with estimate = True).
+        """
+        return [p.id for p in self.parameters if p.estimate]
+
+    def get_observable_ids(self) -> list[str]:
+        """
+        Returns dictionary of observable ids.
+        """
+        return [o.id for o in self.observables]
+
+    def _apply_mask(self, v: list, free: bool = True, fixed: bool = True):
+        """Apply mask of only free or only fixed values.
+
+        Parameters
+        ----------
+        v:
+            The full vector the mask is to be applied to.
+        free:
+            Whether to return free parameters, i.e., parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e., parameters not to
+            estimate.
+
+        Returns
+        -------
+        The reduced vector with applied mask.
+        """
+        if not free and not fixed:
+            return []
+        if not free:
+            return [v[ix] for ix in self.x_fixed_indices]
+        if not fixed:
+            return [v[ix] for ix in self.x_free_indices]
+        return v
+
+    def get_x_ids(self, free: bool = True, fixed: bool = True):
+        """Generic function to get parameter ids.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+
+        Returns
+        -------
+        The parameter IDs.
+        """
+        v = [p.id for p in self.parameters]
+        return self._apply_mask(v, free=free, fixed=fixed)
+
+    @property
+    def x_ids(self) -> list[str]:
+        """Parameter table parameter IDs"""
+        return self.get_x_ids()
+
+    @property
+    def x_free_ids(self) -> list[str]:
+        """Parameter table parameter IDs, for free parameters."""
+        return self.get_x_ids(fixed=False)
+
+    @property
+    def x_fixed_ids(self) -> list[str]:
+        """Parameter table parameter IDs, for fixed parameters."""
+        return self.get_x_ids(free=False)
+
+    def get_x_nominal(self, free: bool = True, fixed: bool = True) -> list:
+        """Generic function to get parameter nominal values.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+
+        Returns
+        -------
+        The parameter nominal values.
+        """
+        v = [
+            p.nominal_value if p.nominal_value is not None else nan
+            for p in self.parameters
+        ]
+
+        return self._apply_mask(v, free=free, fixed=fixed)
+
+    @property
+    def x_nominal(self) -> list:
+        """Parameter table nominal values"""
+        return self.get_x_nominal()
+
+    @property
+    def x_nominal_free(self) -> list:
+        """Parameter table nominal values, for free parameters."""
+        return self.get_x_nominal(fixed=False)
+
+    @property
+    def x_nominal_fixed(self) -> list:
+        """Parameter table nominal values, for fixed parameters."""
+        return self.get_x_nominal(free=False)
+
+    def get_lb(self, free: bool = True, fixed: bool = True):
+        """Generic function to get lower parameter bounds.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+
+        Returns
+        -------
+        The lower parameter bounds.
+        """
+        v = [p.lb if p.lb is not None else nan for p in self.parameters]
+        return self._apply_mask(v, free=free, fixed=fixed)
+
+    @property
+    def lb(self) -> list:
+        """Parameter table lower bounds."""
+        return self.get_lb()
+
+    def get_ub(self, free: bool = True, fixed: bool = True):
+        """Generic function to get upper parameter bounds.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+
+        Returns
+        -------
+        The upper parameter bounds.
+        """
+        v = [p.ub if p.ub is not None else nan for p in self.parameters]
+        return self._apply_mask(v, free=free, fixed=fixed)
+
+    @property
+    def ub(self) -> list:
+        """Parameter table upper bounds"""
+        return self.get_ub()
+
+    @property
+    def x_free_indices(self) -> list[int]:
+        """Parameter table estimated parameter indices."""
+        return [i for i, p in enumerate(self.parameters) if p.estimate]
+
+    @property
+    def x_fixed_indices(self) -> list[int]:
+        """Parameter table non-estimated parameter indices."""
+        return [i for i, p in enumerate(self.parameters) if not p.estimate]
+
+    def get_priors(self) -> dict[str, Distribution]:
+        """Get prior distributions.
+
+        :returns: The prior distributions for the estimated parameters.
+        """
+        return {p.id: p.prior_dist for p in self.parameters if p.estimate}
+
+    def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
+        """Create 2D array with starting points for optimization"""
+        priors = self.get_priors()
+        return np.vstack([p.sample(n_starts) for p in priors.values()]).T
+
+    def sample_parameter_startpoints_dict(
+        self, n_starts: int = 100
+    ) -> list[dict[str, float]]:
+        """Create dictionaries with starting points for optimization
+
+        :returns:
+            A list of dictionaries with parameter IDs mapping to sampled
+            parameter values.
+        """
+        return [
+            dict(zip(self.x_free_ids, parameter_values, strict=True))
+            for parameter_values in self.sample_parameter_startpoints(
+                n_starts=n_starts
+            )
+        ]
+
+    @property
+    def n_estimated(self) -> int:
+        """The number of estimated parameters."""
+        return len(self.x_free_indices)
+
+    @property
+    def n_measurements(self) -> int:
+        """Number of measurements."""
+        return sum(len(mt.measurements) for mt in self.measurement_tables)
+
+    @property
+    def n_priors(self) -> int:
+        """Number of priors."""
+        return sum(p.prior_distribution is not None for p in self.parameters)
+
+    def validate(
+        self, validation_tasks: list[ValidationTask] = None
+    ) -> ValidationResultList:
+        """Validate the PEtab problem.
+
+        Arguments:
+            validation_tasks: List of validation tasks to run. If ``None``
+             or empty, :attr:`Problem.validation_tasks` are used.
+        Returns:
+            A list of validation results.
+        """
+        from ..v2.lint import (
+            ValidationIssue,
+            ValidationIssueSeverity,
+            ValidationResultList,
+        )
+
+        validation_results = ValidationResultList()
+
+        if self.config and self.config.extensions:
+            extensions = ",".join(self.config.extensions.keys())
+            validation_results.append(
+                ValidationIssue(
+                    ValidationIssueSeverity.WARNING,
+                    "Validation of PEtab extensions is not yet implemented, "
+                    "but the given problem uses the following extensions: "
+                    f"{extensions}",
+                )
+            )
+
+        if len(self.models) > 1:
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/392
+            #  We might just want to split the problem into multiple
+            #  problems, one for each model, and then validate each
+            #  problem separately.
+            validation_results.append(
+                ValidationIssue(
+                    ValidationIssueSeverity.WARNING,
+                    "Problem contains multiple models. "
+                    "Validation is not yet fully supported.",
+                )
+            )
+
+        for task in validation_tasks or self.validation_tasks:
+            try:
+                cur_result = task.run(self)
+            except Exception as e:
+                cur_result = ValidationIssue(
+                    ValidationIssueSeverity.CRITICAL,
+                    f"Validation task {task} failed with exception: {e}\n"
+                    f"{traceback.format_exc()}",
+                )
+
+            if cur_result:
+                validation_results.append(cur_result)
+
+                if cur_result.level == ValidationIssueSeverity.CRITICAL:
+                    break
+
+        return validation_results
+
+    def add_condition(
+        self, id_: str, name: str = None, **kwargs: Number | str | sp.Expr
+    ):
+        """Add a simulation condition to the problem.
+
+        If there are more than one condition tables, the condition
+        is added to the last one.
+
+        Arguments:
+            id_: The condition id
+            name: The condition name. If given, this will be added to the
+                last mapping table. If no mapping table exists,
+                a new mapping table will be created.
+            kwargs: Entities to be added to the condition table in the form
+                `target_id=target_value`.
+        """
+        if not kwargs:
+            raise ValueError("Cannot add condition without any changes")
+
+        changes = [
+            Change(target_id=target_id, target_value=target_value)
+            for target_id, target_value in kwargs.items()
+        ]
+        if not self.condition_tables:
+            self.condition_tables.append(ConditionTable())
+        self.condition_tables[-1].conditions.append(
+            Condition(id=id_, changes=changes)
+        )
+        if name is not None:
+            self.add_mapping(petab_id=id_, name=name)
+
+    def add_observable(
+        self,
+        id_: str,
+        formula: str,
+        noise_formula: str | float | int = None,
+        noise_distribution: str = None,
+        observable_placeholders: list[str] = None,
+        noise_placeholders: list[str] = None,
+        name: str = None,
+        **kwargs,
+    ):
+        """Add an observable to the problem.
+
+        If there are more than one observable tables, the observable
+        is added to the last one.
+
+        Arguments:
+            id_: The observable id
+            formula: The observable formula
+            noise_formula: The noise formula
+            noise_distribution: The noise distribution
+            observable_placeholders: Placeholders for the observable formula
+            noise_placeholders: Placeholders for the noise formula
+            name: The observable name
+            kwargs: additional columns/values to add to the observable table
+
+        """
+        record = {
+            C.OBSERVABLE_ID: id_,
+            C.OBSERVABLE_FORMULA: formula,
+        }
+        if name is not None:
+            record[C.OBSERVABLE_NAME] = name
+        if noise_formula is not None:
+            record[C.NOISE_FORMULA] = noise_formula
+        if noise_distribution is not None:
+            record[C.NOISE_DISTRIBUTION] = noise_distribution
+        if observable_placeholders is not None:
+            record[C.OBSERVABLE_PLACEHOLDERS] = observable_placeholders
+        if noise_placeholders is not None:
+            record[C.NOISE_PLACEHOLDERS] = noise_placeholders
+        record.update(kwargs)
+
+        if not self.observable_tables:
+            self.observable_tables.append(ObservableTable())
+
+        self.observable_tables[-1] += Observable(**record)
+
+    def add_parameter(
+        self,
+        id_: str,
+        estimate: bool | str = True,
+        nominal_value: Number | None = None,
+        lb: Number = None,
+        ub: Number = None,
+        prior_dist: str = None,
+        prior_pars: str | Sequence = None,
+        **kwargs,
+    ):
+        """Add a parameter to the problem.
+
+        If there are more than one parameter tables, the parameter
+        is added to the last one.
+
+        Arguments:
+            id_: The parameter id
+            estimate: Whether the parameter is estimated
+            nominal_value: The nominal value of the parameter
+            lb: The lower bound of the parameter
+            ub: The upper bound of the parameter
+            prior_dist: The type of the prior distribution
+            prior_pars: The parameters of the prior distribution
+            kwargs: additional columns/values to add to the parameter table
+        """
+        record = {
+            C.PARAMETER_ID: id_,
+        }
+        if estimate is not None:
+            record[C.ESTIMATE] = estimate
+        if nominal_value is not None:
+            record[C.NOMINAL_VALUE] = nominal_value
+        if lb is not None:
+            record[C.LOWER_BOUND] = lb
+        if ub is not None:
+            record[C.UPPER_BOUND] = ub
+        if prior_dist is not None:
+            record[C.PRIOR_DISTRIBUTION] = prior_dist
+        if prior_pars is not None:
+            if isinstance(prior_pars, Sequence) and not isinstance(
+                prior_pars, str
+            ):
+                prior_pars = C.PARAMETER_SEPARATOR.join(map(str, prior_pars))
+            record[C.PRIOR_PARAMETERS] = prior_pars
+        record.update(kwargs)
+
+        if not self.parameter_tables:
+            self.parameter_tables.append(ParameterTable())
+
+        self.parameter_tables[-1] += Parameter(**record)
+
+    def add_measurement(
+        self,
+        obs_id: str,
+        experiment_id: str,
+        time: float,
+        measurement: float,
+        observable_parameters: Sequence[str | float] | str | float = None,
+        noise_parameters: Sequence[str | float] | str | float = None,
+    ):
+        """Add a measurement to the problem.
+
+        If there are more than one measurement tables, the measurement
+        is added to the last one.
+
+        Arguments:
+            obs_id: The observable ID
+            experiment_id: The experiment ID
+            time: The measurement time
+            measurement: The measurement value
+            observable_parameters: The observable parameters
+            noise_parameters: The noise parameters
+        """
+        if observable_parameters is not None and not isinstance(
+            observable_parameters, Sequence
+        ):
+            observable_parameters = [observable_parameters]
+        if noise_parameters is not None and not isinstance(
+            noise_parameters, Sequence
+        ):
+            noise_parameters = [noise_parameters]
+
+        if not self.measurement_tables:
+            self.measurement_tables.append(MeasurementTable())
+
+        self.measurement_tables[-1].measurements.append(
+            Measurement(
+                observable_id=obs_id,
+                experiment_id=experiment_id,
+                time=time,
+                measurement=measurement,
+                observable_parameters=observable_parameters,
+                noise_parameters=noise_parameters,
+            )
+        )
+
+    def add_mapping(
+        self, petab_id: str, model_id: str = None, name: str = None
+    ):
+        """Add a mapping table entry to the problem.
+
+        If there are more than one mapping tables, the mapping
+        is added to the last one.
+
+        Arguments:
+            petab_id: The new PEtab-compatible ID mapping to `model_id`
+            model_id: The ID of some entity in the model
+            name: A name (any string) for the entity referenced by `petab_id`.
+        """
+        if not self.mapping_tables:
+            self.mapping_tables.append(MappingTable())
+        self.mapping_tables[-1].mappings.append(
+            Mapping(petab_id=petab_id, model_id=model_id, name=name)
+        )
+
+    def add_experiment(self, id_: str, *args):
+        """Add an experiment to the problem.
+
+        If there are more than one experiment tables, the experiment
+        is added to the last one.
+
+        :param id_: The experiment ID.
+        :param args: Timepoints and associated conditions:
+            ``time_1, condition_id_1, time_2, condition_id_2, ...``.
+        """
+        if len(args) % 2 != 0:
+            raise ValueError(
+                "Arguments must be pairs of timepoints and condition IDs."
+            )
+
+        periods = [
+            ExperimentPeriod(
+                time=args[i],
+                condition_ids=[cond]
+                if isinstance((cond := args[i + 1]), str)
+                else cond,
+            )
+            for i in range(0, len(args), 2)
+        ]
+
+        if not self.experiment_tables:
+            self.experiment_tables.append(ExperimentTable())
+        self.experiment_tables[-1].experiments.append(
+            Experiment(id=id_, periods=periods)
+        )
+
+    def __iadd__(self, other):
+        """Add Observable, Parameter, Measurement, Condition, or Experiment"""
+        from .core import (
+            Condition,
+            Experiment,
+            Measurement,
+            Observable,
+            Parameter,
+        )
+
+        if isinstance(other, Observable):
+            if not self.observable_tables:
+                self.observable_tables.append(ObservableTable())
+            self.observable_tables[-1] += other
+        elif isinstance(other, Parameter):
+            if not self.parameter_tables:
+                self.parameter_tables.append(ParameterTable())
+            self.parameter_tables[-1] += other
+        elif isinstance(other, Measurement):
+            if not self.measurement_tables:
+                self.measurement_tables.append(MeasurementTable())
+            self.measurement_tables[-1] += other
+        elif isinstance(other, Condition):
+            if not self.condition_tables:
+                self.condition_tables.append(ConditionTable())
+            self.condition_tables[-1] += other
+        elif isinstance(other, Experiment):
+            if not self.experiment_tables:
+                self.experiment_tables.append(ExperimentTable())
+            self.experiment_tables[-1] += other
+        else:
+            raise ValueError(
+                f"Cannot add object of type {type(other)} to Problem."
+            )
+        return self
+
+    def model_dump(self, **kwargs) -> dict[str, Any]:
+        """Convert this Problem to a dictionary.
+
+        This function is intended for debugging purposes and should not be
+        used for serialization. The output of this function may change
+        without notice.
+
+        The output includes all PEtab tables, but not the models.
+
+        See `pydantic.BaseModel.model_dump <https://docs.pydantic.dev/latest/api/base_model/#pydantic.BaseModel.model_dump>`__
+        for details.
+
+        :example:
+
+        >>> from pprint import pprint
+        >>> p = Problem()
+        >>> p += Parameter(id="par", lb=0, ub=1)
+        >>> pprint(p.model_dump())
+        {'conditions': [],
+         'config': {'condition_files': [],
+                    'experiment_files': [],
+                    'extensions': {},
+                    'format_version': '2.0.0',
+                    'mapping_files': [],
+                    'measurement_files': [],
+                    'model_files': {},
+                    'observable_files': [],
+                    'parameter_files': []},
+         'experiments': [],
+         'mappings': [],
+         'measurements': [],
+         'observables': [],
+         'parameters': [{'estimate': 'true',
+                         'id': 'par',
+                         'lb': 0.0,
+                         'nominal_value': None,
+                         'prior_distribution': '',
+                         'prior_parameters': '',
+                         'ub': 1.0}]}
+        """
+        res = {
+            "config": (self.config or ProblemConfig()).model_dump(
+                **kwargs, by_alias=True
+            ),
+        }
+        for field, table_list in (
+            ("conditions", self.condition_tables),
+            ("experiments", self.experiment_tables),
+            ("observables", self.observable_tables),
+            ("measurements", self.measurement_tables),
+            ("parameters", self.parameter_tables),
+            ("mappings", self.mapping_tables),
+        ):
+            res[field] = (
+                list(
+                    chain.from_iterable(
+                        table.model_dump(**kwargs)["elements"]
+                        for table in table_list
+                    )
+                )
+                if table_list
+                else []
+            )
+        return res
+
+    def get_changes_for_period(self, period: ExperimentPeriod) -> list[Change]:
+        """Get the changes for a given experiment period.
+
+        :param period: The experiment period to get the changes for.
+        :return: A list of changes for the given period.
+        """
+        return list(
+            chain.from_iterable(
+                self[condition].changes for condition in period.condition_ids
+            )
+        )
+
+    def get_measurements_for_experiment(
+        self, experiment: Experiment
+    ) -> list[Measurement]:
+        """Get the measurements for a given experiment.
+
+        :param experiment: The experiment to get the measurements for.
+        :return: A list of measurements for the given experiment.
+        """
+        return [
+            measurement
+            for measurement in self.measurements
+            if measurement.experiment_id == experiment.id
+        ]
+
+
+class ModelFile(BaseModel):
+    """A file in the PEtab problem configuration."""
+
+    location: AnyUrl | Path
+    language: str
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
+
+class ExtensionConfig(BaseModel):
+    """The configuration of a PEtab extension."""
+
+    version: str
+    config: dict
+
+
+class ProblemConfig(BaseModel):
+    """The PEtab problem configuration."""
+
+    #: The path to the PEtab problem configuration.
+    filepath: AnyUrl | Path | None = Field(
+        None,
+        description="The path to the PEtab problem configuration.",
+        exclude=True,
+    )
+    #: The base path to resolve relative paths.
+    base_path: AnyUrl | Path | None = Field(
+        None,
+        description="The base path to resolve relative paths.",
+        exclude=True,
+    )
+    #: The PEtab format version.
+    format_version: str = "2.0.0"
+    #: The path to the parameter file, relative to ``base_path``.
+    # TODO https://github.com/PEtab-dev/PEtab/pull/641:
+    #  rename to parameter_files in yaml for consistency with other files?
+    #   always a list?
+    parameter_files: list[AnyUrl | Path] = Field(
+        default=[], alias=C.PARAMETER_FILES
+    )
+
+    model_files: dict[str, ModelFile] | None = {}
+    measurement_files: list[AnyUrl | Path] = []
+    condition_files: list[AnyUrl | Path] = []
+    experiment_files: list[AnyUrl | Path] = []
+    observable_files: list[AnyUrl | Path] = []
+    mapping_files: list[AnyUrl | Path] = []
+
+    #: Extensions used by the problem.
+    extensions: list[ExtensionConfig] | dict = {}
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
+    # convert parameter_file to list
+    @field_validator(
+        "parameter_files",
+        mode="before",
+    )
+    def _convert_parameter_file(cls, v):
+        """Convert parameter_file to a list."""
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list):
+            return v
+        raise ValueError(
+            "parameter_files must be a string or a list of strings."
+        )
+
+    def to_yaml(self, filename: str | Path):
+        """Write the configuration to a YAML file.
+
+        :param filename: Destination file name. The parent directory will be
+            created if necessary.
+        """
+        from ..v1.yaml import write_yaml
+
+        data = self.model_dump(by_alias=True)
+        # convert Paths to strings for YAML serialization
+        for key in (
+            "measurement_files",
+            "condition_files",
+            "experiment_files",
+            "observable_files",
+            "mapping_files",
+            "parameter_files",
+        ):
+            data[key] = list(map(str, data[key]))
+
+        for model_id in data.get("model_files", {}):
+            data["model_files"][model_id][C.MODEL_LOCATION] = str(
+                data["model_files"][model_id]["location"]
+            )
+
+        write_yaml(data, filename)
+
+    @property
+    def format_version_tuple(self) -> tuple[int, int, int, str]:
+        """The format version as a tuple of major/minor/patch `int`s and a
+        suffix."""
+        return parse_version(self.format_version)

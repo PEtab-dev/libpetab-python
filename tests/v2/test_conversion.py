@@ -15,7 +15,7 @@ def test_petab1to2_remote():
 
     problem = petab1to2(yaml_url)
     assert isinstance(problem, Problem)
-    assert len(problem.measurement_table.measurements)
+    assert len(problem.measurements)
 
 
 try:
@@ -30,6 +30,9 @@ except ImportError:
     )
 
 
+@pytest.mark.filterwarnings(
+    "ignore:.*Using `log-normal` instead.*:UserWarning"
+)
 @parametrize_or_skip
 def test_benchmark_collection(problem_id):
     """Test that we can upgrade all benchmark collection models."""
@@ -45,4 +48,4 @@ def test_benchmark_collection(problem_id):
     except NotImplementedError as e:
         pytest.skip(str(e))
     assert isinstance(problem, Problem)
-    assert len(problem.measurement_table.measurements)
+    assert len(problem.measurements)
