@@ -212,6 +212,6 @@ def plot_goodness_of_fit(
     )
 
     ax.set_title("Goodness of fit")
-    ax.set_xlabel("simulated value")
-    ax.set_ylabel("measurement")
+    ax.set_xlabel("Simulated value")
+    ax.set_ylabel("Measurement")
     return ax
