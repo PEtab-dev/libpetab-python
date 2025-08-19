@@ -1399,7 +1399,7 @@ class Problem:
 
         Writes the model, condition, experiment, measurement, parameter,
         observable, and mapping tables to their respective files as specified
-        in the respective objects.
+        by the `rel_path` and `base_path` of their respective objects.
 
         This expects that all objects have their `rel_path` and `base_path`
         set correctly, which is usually done by Problem.from_yaml().

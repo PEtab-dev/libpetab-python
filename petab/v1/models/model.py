@@ -28,7 +28,7 @@ class Model(abc.ABC):
 
         :param filepath_or_buffer:
             Absolute or relative path/URL to the model file.
-            If relative, it is interpreted relative to `base_path` if given.
+            If relative, it is interpreted relative to `base_path`, if given.
         :param base_path: Base path for relative paths in the model file.
         :param model_id: Model ID
         :returns: A ``Model`` instance holding the given model
