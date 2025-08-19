@@ -1402,7 +1402,12 @@ class Problem:
         by the `rel_path` and `base_path` of their respective objects.
 
         This expects that all objects have their `rel_path` and `base_path`
-        set correctly, which is usually done by Problem.from_yaml().
+        set correctly, which is usually done by :meth:`Problem.from_yaml`.
+
+        :param base_path:
+            The base path the yaml file and tables will be written to.
+            If ``None``, the `base_path` of the individual tables and
+            :obj:`Problem.config.base_path` will be used.
         """
         config = copy.deepcopy(self.config) or ProblemConfig(
             format_version="2.0.0"
