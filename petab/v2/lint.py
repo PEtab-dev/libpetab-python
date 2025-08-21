@@ -43,6 +43,7 @@ __all__ = [
     "CheckUnusedConditions",
     "CheckPriorDistribution",
     "CheckUndefinedExperiments",
+    "CheckInitialChangeSymbols",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -736,6 +737,62 @@ class CheckUnusedConditions(ValidationTask):
         return None
 
 
+class CheckInitialChangeSymbols(ValidationTask):
+    """
+    Check that changes of any first period of any experiment only refers to
+    allowed symbols.
+
+    The only allowed symbols are those that are present in the parameter table.
+    """
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        if not problem.experiments:
+            return None
+
+        if not problem.conditions:
+            return None
+
+        allowed_symbols = {p.id for p in problem.parameters}
+        allowed_symbols.add(TIME_SYMBOL)
+        # IDs of conditions that have already been checked
+        valid_conditions = set()
+        id_to_condition = {c.id: c for c in problem.conditions}
+
+        messages = []
+        for experiment in problem.experiments:
+            if not experiment.periods:
+                continue
+
+            first_period = experiment.sorted_periods[0]
+            for condition_id in first_period.condition_ids:
+                if condition_id in valid_conditions:
+                    continue
+
+                # we assume that all referenced condition IDs are valid
+                condition = id_to_condition[condition_id]
+
+                used_symbols = {
+                    str(sym)
+                    for change in condition.changes
+                    for sym in change.target_value.free_symbols
+                }
+                invalid_symbols = used_symbols - allowed_symbols
+                if invalid_symbols:
+                    messages.append(
+                        f"Condition {condition.id} is applied at the start of "
+                        f"experiment {experiment.id}, and thus, its "
+                        f"target value expressions must only contain "
+                        f"symbols from the parameter table, or `time`. "
+                        "However, it contains additional symbols: "
+                        f"{invalid_symbols}. "
+                    )
+
+        if messages:
+            return ValidationError("\n".join(messages))
+
+        return None
+
+
 class CheckPriorDistribution(ValidationTask):
     """A task to validate the prior distribution of a PEtab problem."""
 
@@ -1082,10 +1139,7 @@ default_validation_tasks = [
     CheckValidParameterInConditionOrParameterTable(),
     CheckUnusedExperiments(),
     CheckUnusedConditions(),
-    # TODO: atomize checks, update to long condition table, re-enable
-    # TODO validate mapping table
-    CheckValidParameterInConditionOrParameterTable(),
-    CheckAllParametersPresentInParameterTable(),
-    CheckValidConditionTargets(),
     CheckPriorDistribution(),
+    CheckInitialChangeSymbols(),
+    # TODO validate mapping table
 ]

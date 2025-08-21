@@ -82,3 +82,28 @@ def test_undefined_experiment_id_in_measurements():
     problem.measurements[0].experiment_id = "invalid_experiment_id"
     assert (error := check.run(problem)) is not None
     assert "not defined" in error.message
+
+
+def test_validate_initial_change_symbols():
+    """Test validation of symbols in target value expressions for changes
+    applied at the start of an experiment."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("p1 = 1; p2 = 2")
+    problem.add_experiment("e1", 0, "c1", 1, "c2")
+    problem.add_condition("c1", p1="p2 + time")
+    problem.add_condition("c2", p1="p2", p2="p1")
+    problem.add_parameter("p1", nominal_value=1, estimate=False)
+    problem.add_parameter("p2", nominal_value=2, estimate=False)
+
+    check = CheckInitialChangeSymbols()
+    assert check.run(problem) is None
+
+    # removing `p1` from the parameter table is okay, as `c2` is never
+    #  used at the start of an experiment
+    problem.parameter_tables[0].parameters.remove(problem["p1"])
+    assert check.run(problem) is None
+
+    # removing `p2` is not okay, as it is used at the start of an experiment
+    problem.parameter_tables[0].parameters.remove(problem["p2"])
+    assert (error := check.run(problem)) is not None
+    assert "contains additional symbols: {'p2'}" in error.message
