@@ -27,6 +27,10 @@ __all__ = [
     "ValidationTask",
     "CheckModel",
     "CheckProblemConfig",
+    "CheckMeasuredObservablesDefined",
+    "CheckOverridesMatchPlaceholders",
+    "CheckMeasuredExperimentsDefined",
+    "CheckMeasurementModelId",
     "CheckPosLogMeasurements",
     "CheckValidConditionTargets",
     "CheckUniquePrimaryKeys",
@@ -769,8 +773,39 @@ class CheckPriorDistribution(ValidationTask):
         return None
 
 
-# TODO: check that Measurements model IDs match the available ones
-#  https://github.com/PEtab-dev/libpetab-python/issues/392
+class CheckMeasurementModelId(ValidationTask):
+    """Validate model IDs of measurements."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        messages = []
+        available_models = {m.model_id for m in problem.models}
+
+        for measurement in problem.measurements:
+            if not measurement.model_id:
+                if len(available_models) < 2:
+                    # If there is only one model, it is not required to specify
+                    # the model ID in the measurement table.
+                    continue
+
+                messages.append(
+                    f"Measurement `{measurement}' does not have a model ID, "
+                    "but there are multiple models available. "
+                    "Please specify the model ID in the measurement table."
+                )
+                continue
+
+            if measurement.model_id not in available_models:
+                messages.append(
+                    f"Measurement `{measurement}' has model ID "
+                    f"`{measurement.model_id}' which does not match "
+                    "any of the available models: "
+                    f"{available_models}."
+                )
+
+        if messages:
+            return ValidationError("\n".join(messages))
+
+        return None
 
 
 def get_valid_parameters_for_parameter_table(
@@ -1011,6 +1046,7 @@ default_validation_tasks = [
     CheckProblemConfig(),
     CheckModel(),
     CheckUniquePrimaryKeys(),
+    CheckMeasurementModelId(),
     CheckMeasuredObservablesDefined(),
     CheckPosLogMeasurements(),
     CheckOverridesMatchPlaceholders(),
