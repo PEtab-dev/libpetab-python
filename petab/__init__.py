@@ -36,7 +36,7 @@ def __getattr__(name):
     return getattr(importlib.import_module("petab.v1"), name)
 
 
-def v1getattr(name, module):
+def _v1getattr(name, module):
     if name not in ("__path__", "__all__"):
         warn(
             f"Accessing `petab.{name}` is deprecated and will be removed in "
@@ -67,7 +67,7 @@ for v1_object in v1_objects:
         real_module = importlib.import_module(
             f"petab.v1.{'.'.join(v1_object_parts)}"
         )
-        real_module.__getattr__ = partial(v1getattr, module=real_module)
+        real_module.__getattr__ = partial(_v1getattr, module=real_module)
         sys.modules[module_name] = real_module
     except ModuleNotFoundError:
         pass
