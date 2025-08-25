@@ -1,3 +1,4 @@
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -666,3 +667,43 @@ def test_generate_path():
     else:
         assert gp(Path("foo"), "/bar") == "/bar/foo"
         assert gp("/foo", "bar") == "/foo"
+
+
+def test_petablint_v2(tmpdir):
+    """Test that petablint runs on a valid v2 problem without errors."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("""
+    model conversion
+      species A, B;
+      A = 10;
+      B = 0;
+      k1 = 1;
+      k2 = 0.5;
+      R1: A -> B; k1 * A;
+      R2: B -> A; k2 * B;
+    end
+    """)
+    problem.add_observable("obs_A", "A", noise_formula="sd_A")
+    problem.add_parameter(
+        "k1", estimate=True, lb=1e-5, ub=1e5, nominal_value=1
+    )
+    problem.add_parameter(
+        "k2", estimate=True, lb=1e-5, ub=1e5, nominal_value=0.5
+    )
+    problem.add_parameter(
+        "sd_A", estimate=True, lb=0.01, ub=10, nominal_value=1
+    )
+    problem.add_measurement(
+        "obs_A", time=10, measurement=2.5, experiment_id=""
+    )
+    assert problem.validate() == []
+
+    problem.config = ProblemConfig(filepath="problem.yaml")
+    problem.models[0].rel_path = "model.xml"
+    problem.parameter_tables[0].rel_path = "parameters.tsv"
+    problem.observable_tables[0].rel_path = "observables.tsv"
+    problem.measurement_tables[0].rel_path = "measurements.tsv"
+    problem.to_files(Path(tmpdir))
+
+    result = subprocess.run(["petablint", str(Path(tmpdir, "problem.yaml"))])  # noqa: S603,S607
+    assert result.returncode == 0
