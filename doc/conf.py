@@ -52,6 +52,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/devdocs/", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
     "python": ("https://docs.python.org/3", None),
+    "pydantic": ("https://docs.pydantic.dev/latest/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.

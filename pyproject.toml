@@ -65,7 +65,8 @@ doc = [
     # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
     "ipython>=7.21.0, !=8.7.0",
     "pysb",
-    "antimony>=2.14.0"
+    "antimony>=2.14.0",
+    "sbmlmath>=0.4.0",
 ]
 vis = [
     "matplotlib>=3.6.0",
