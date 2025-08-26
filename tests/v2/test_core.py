@@ -399,7 +399,12 @@ def test_problem_from_yaml_multiple_files():
                 problem.experiment_df, Path(tmpdir, f"experiments{i}.tsv")
             )
 
-            problem.add_measurement(f"observable{i}", f"experiment{i}", 1, 1)
+            problem.add_measurement(
+                f"observable{i}",
+                experiment_id=f"experiment{i}",
+                time=1,
+                measurement=1,
+            )
             petab.write_measurement_df(
                 problem.measurement_df, Path(tmpdir, f"measurements{i}.tsv")
             )

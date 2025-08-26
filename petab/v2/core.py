@@ -2056,9 +2056,10 @@ class Problem:
     def add_measurement(
         self,
         obs_id: str,
-        experiment_id: str,
+        *,
         time: float,
         measurement: float,
+        experiment_id: str | None = None,
         observable_parameters: Sequence[str | float] | str | float = None,
         noise_parameters: Sequence[str | float] | str | float = None,
     ):
