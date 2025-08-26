@@ -169,6 +169,7 @@ def write_sbml(sbml_doc: libsbml.SBMLDocument, filename: Path | str) -> None:
         sbml_doc: SBML document containing the SBML model
         filename: Destination file name
     """
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
     sbml_writer = libsbml.SBMLWriter()
     ret = sbml_writer.writeSBMLToFile(sbml_doc, str(filename))
     if not ret:
