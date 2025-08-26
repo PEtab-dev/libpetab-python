@@ -44,7 +44,7 @@ def test_invalid_model_id_in_measurements():
     problem = Problem()
     problem.models.append(SbmlModel.from_antimony("p1 = 1", model_id="model1"))
     problem.add_observable("obs1", "A")
-    problem.add_measurement("obs1", "e1", 0, 1)
+    problem.add_measurement("obs1", experiment_id="e1", time=0, measurement=1)
 
     check = CheckMeasurementModelId()
 
