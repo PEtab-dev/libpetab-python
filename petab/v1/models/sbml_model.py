@@ -130,16 +130,18 @@ class SbmlModel(Model):
         )
 
     @staticmethod
-    def from_antimony(ant_model: str | Path) -> SbmlModel:
+    def from_antimony(ant_model: str | Path, **kwargs) -> SbmlModel:
         """Create SBML model from an Antimony model.
 
         Requires the `antimony` package (https://github.com/sys-bio/antimony).
 
         :param ant_model: Antimony model as string or path to file.
             Strings are interpreted as Antimony model strings.
+        :param kwargs: Additional keyword arguments passed to
+            :meth:`SbmlModel.from_string`.
         """
         sbml_str = antimony2sbml(ant_model)
-        return SbmlModel.from_string(sbml_str)
+        return SbmlModel.from_string(sbml_str, **kwargs)
 
     def to_antimony(self) -> str:
         """Convert the SBML model to an Antimony string."""
