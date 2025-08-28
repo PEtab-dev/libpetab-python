@@ -64,3 +64,21 @@ def test_invalid_model_id_in_measurements():
     # Use a valid model ID
     problem.measurements[0].model_id = "model1"
     assert (error := check.run(problem)) is None, error
+
+
+def test_undefined_experiment_id_in_measurements():
+    """Test that measurements with an undefined experiment ID are caught."""
+    problem = Problem()
+    problem.add_experiment("e1", 0, "c1")
+    problem.add_observable("obs1", "A")
+    problem.add_measurement("obs1", experiment_id="e1", time=0, measurement=1)
+
+    check = CheckUndefinedExperiments()
+
+    # Valid experiment ID
+    assert (error := check.run(problem)) is None, error
+
+    # Invalid experiment ID
+    problem.measurements[0].experiment_id = "invalid_experiment_id"
+    assert (error := check.run(problem)) is not None
+    assert "not defined" in error.message
