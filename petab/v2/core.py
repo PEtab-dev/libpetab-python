@@ -1901,6 +1901,27 @@ class Problem:
 
         return validation_results
 
+    def assert_valid(self, **kwargs) -> None:
+        """Assert that the PEtab problem is valid.
+
+        :param kwargs: Additional arguments passed to :meth:`Problem.validate`.
+
+        :raises AssertionError: If the PEtab problem is not valid.
+        """
+        from ..v2.lint import ValidationIssueSeverity
+
+        validation_results = self.validate(**kwargs)
+        errors = [
+            r
+            for r in validation_results
+            if r.level >= ValidationIssueSeverity.ERROR
+        ]
+        if errors:
+            raise AssertionError(
+                "PEtab problem is not valid:\n"
+                + "\n".join(e.message for e in errors)
+            )
+
     def add_condition(
         self, id_: str, name: str = None, **kwargs: Number | str | sp.Expr
     ):
