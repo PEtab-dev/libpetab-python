@@ -696,7 +696,7 @@ def test_petablint_v2(tmpdir):
     problem.add_measurement(
         "obs_A", time=10, measurement=2.5, experiment_id=""
     )
-    assert problem.validate() == []
+    problem.assert_valid()
 
     problem.config = ProblemConfig(filepath="problem.yaml")
     problem.models[0].rel_path = "model.xml"
