@@ -58,6 +58,16 @@ def test_condition_table_round_trip():
         assert conditions == conditions2
 
 
+def test_assert_valid():
+    problem = petab1to2(example_dir_fujita / "Fujita.yaml")
+    problem.assert_valid()
+    problem.observable_tables[0] = ObservableTable()
+    with pytest.raises(
+        AssertionError, match="not defined in the observable table"
+    ):
+        problem.assert_valid()
+
+
 def test_experiment_add_periods():
     """Test operators for Experiment"""
     exp = Experiment(id="exp1")
