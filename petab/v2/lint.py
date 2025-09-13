@@ -42,6 +42,7 @@ __all__ = [
     "CheckObservablesDoNotShadowModelEntities",
     "CheckUnusedConditions",
     "CheckPriorDistribution",
+    "CheckUndefinedExperiments",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -691,6 +692,28 @@ class CheckUnusedExperiments(ValidationTask):
         return None
 
 
+class CheckUndefinedExperiments(ValidationTask):
+    """A task to check for experiments that are used in the measurement
+    table but not defined in the experiment table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        used_experiments = {
+            m.experiment_id
+            for m in problem.measurements
+            if m.experiment_id is not None
+        }
+        available_experiments = {e.id for e in problem.experiments}
+
+        if undefined_experiments := used_experiments - available_experiments:
+            return ValidationWarning(
+                f"Experiments {undefined_experiments} are used in the "
+                "measurements table but are not defined in the experiments "
+                "table."
+            )
+
+        return None
+
+
 class CheckUnusedConditions(ValidationTask):
     """A task to check for conditions that are not used in the experiment
     table."""
@@ -1053,6 +1076,7 @@ default_validation_tasks = [
     CheckValidConditionTargets(),
     CheckExperimentTable(),
     CheckExperimentConditionsExist(),
+    CheckUndefinedExperiments(),
     CheckObservablesDoNotShadowModelEntities(),
     CheckAllParametersPresentInParameterTable(),
     CheckValidParameterInConditionOrParameterTable(),
