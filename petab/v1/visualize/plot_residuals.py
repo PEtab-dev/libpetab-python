@@ -206,7 +206,7 @@ def plot_goodness_of_fit(
         f"$R^2$: {r_value**2:.2f}\n"
         f"slope: {slope:.2f}\n"
         f"intercept: {intercept:.2f}\n"
-        f"pvalue: {std_err:.2e}\n"
+        f"pvalue: {p_value:.2e}\n"
         f"mean squared error: {mse:.2e}\n",
         transform=ax.transAxes,
     )
