@@ -285,6 +285,9 @@ RESIDUAL = "residual"
 #: separator for multiple parameter values (bounds, observableParameters, ...)
 PARAMETER_SEPARATOR = ";"
 
+#: The time symbol for use in any PEtab-specific mathematical expressions
+TIME_SYMBOL = "time"
+
 
 __all__ = [
     x
