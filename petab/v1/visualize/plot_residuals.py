@@ -184,8 +184,8 @@ def plot_goodness_of_fit(
         fig.set_layout_engine("tight")
 
     ax.scatter(
-        petab_problem.measurement_df["measurement"],
         simulations_df["simulation"],
+        petab_problem.measurement_df["measurement"],
         c=color,
     )
 
