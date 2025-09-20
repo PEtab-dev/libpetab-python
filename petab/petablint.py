@@ -12,8 +12,8 @@ from colorama import init as init_colorama
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 import petab.v1 as petab
+from petab.v1 import validate_yaml_semantics, validate_yaml_syntax
 from petab.v1.C import FORMAT_VERSION
-from petab.v1.yaml import validate
 from petab.versions import get_major_version
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ def main():
 
     if args.yaml_file_name:
         try:
-            validate(args.yaml_file_name)
+            validate_yaml_syntax(args.yaml_file_name)
         except SchemaValidationError as e:
             path = ""
             if e.absolute_path:
@@ -181,6 +181,8 @@ def main():
 
         match get_major_version(args.yaml_file_name):
             case 1:
+                validate_yaml_semantics(args.yaml_file_name)
+
                 if petab.is_composite_problem(args.yaml_file_name):
                     # TODO: further checking:
                     #  https://github.com/ICB-DCM/PEtab/issues/191

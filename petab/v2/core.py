@@ -2125,8 +2125,23 @@ class Problem:
         is added to the last one.
 
         :param id_: The experiment ID.
-        :param args: Timepoints and associated conditions:
-            ``time_1, condition_id_1, time_2, condition_id_2, ...``.
+        :param args: Timepoints and associated conditions
+            (single condition ID as string or multiple condition IDs as lists
+            of strings).
+
+        :example:
+        >>> p = Problem()
+        >>> p.add_experiment(
+        ...     "experiment1",
+        ...     1,
+        ...     "condition1",
+        ...     2,
+        ...     ["condition2a", "condition2b"],
+        ... )
+        >>> p.experiments[0]  # doctest: +NORMALIZE_WHITESPACE
+        Experiment(id='experiment1', periods=[\
+ExperimentPeriod(time=1.0, condition_ids=['condition1']), \
+ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         """
         if len(args) % 2 != 0:
             raise ValueError(
