@@ -1630,6 +1630,18 @@ class Problem:
             chain.from_iterable(mt.mappings for mt in self.mapping_tables)
         )
 
+    @property
+    def id(self) -> str:
+        """The ID of the PEtab problem if set, ``None`` otherwise."""
+        return self.config.id if self.config else None
+
+    @id.setter
+    def id(self, value: str):
+        """Set the ID of the PEtab problem."""
+        if self.config is None:
+            self.config = ProblemConfig(format_version="2.0.0")
+        self.config.id = value
+
     def get_optimization_parameters(self) -> list[str]:
         """
         Get the list of optimization parameter IDs from parameter table.
@@ -2327,6 +2339,10 @@ class ProblemConfig(BaseModel):
     )
     #: The PEtab format version.
     format_version: str = "2.0.0"
+
+    #: The problem ID.
+    id: str = ""
+
     #: The path to the parameter file, relative to ``base_path``.
     # TODO https://github.com/PEtab-dev/PEtab/pull/641:
     #  rename to parameter_files in yaml for consistency with other files?
