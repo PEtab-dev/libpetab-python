@@ -26,7 +26,8 @@ def test_experiments_to_events_converter():
     assert isinstance(converted.model, SbmlModel)
     sbml_model = converted.model.sbml_model
 
-    assert sbml_model.getNumEvents() == 2
+    # one event -- the initial period is handled via initial assignments
+    assert sbml_model.getNumEvents() == 1
     assert converted.conditions == [
         Condition(
             id="_petab_preequilibration_on",
@@ -211,7 +212,6 @@ def test_simulate_experiment_to_events():
         "_petab_experiment_indicator_e1"
     ).setValue(1)
     sbml_actual = converted.model.to_sbml_str()
-    print(converted.model.to_antimony())
     basico.load_model(sbml_actual)
     df_actual = basico.run_time_course(values=timepoints)
 

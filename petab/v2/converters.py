@@ -221,7 +221,7 @@ class ExperimentsToSbmlConverter:
         # Collect values for initial assignments for the different experiments.
         #  All expressions must be combined into a single initial assignment
         #  per target.
-        # target_id -> (experiment_indicator, target_value)
+        # target_id -> [(experiment_indicator, target_value), ...]
         period0_assignments: dict[str, list[tuple[str, sp.Basic]]] = {}
 
         for i_period, period in enumerate(experiment.sorted_periods):
@@ -330,7 +330,14 @@ class ExperimentsToSbmlConverter:
 
     @staticmethod
     def _initial_value_from_element(target: libsbml.SBase) -> sp.Basic:
-        # use the initial value of the target as default
+        """Get the initial value of an SBML element.
+
+        The value to the size attribute of compartments,
+        the initial concentration or amount of species (amount for
+        `hasOnlySubstanceUnits=true`, concentration otherwise), and
+        the value of parameters, not considering any initial assignment
+        constructs.
+        """
         if target is None:
             raise ValueError("`target` is None.")
 
