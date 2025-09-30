@@ -6,6 +6,7 @@ import warnings
 from copy import deepcopy
 
 import libsbml
+import sympy as sp
 from sbmlmath import sbml_math_to_sympy, set_math
 
 from .core import (
@@ -31,6 +32,8 @@ class ExperimentsToEventsConverter:
     If the model already contains events, PEtab events are added with a higher
     priority than the existing events to guarantee that PEtab condition changes
     are applied before any pre-existing assignments.
+    This requires that all event priorities in the original model are numeric
+    constants.
 
     The PEtab problem must not contain any identifiers starting with
     ``_petab``.
@@ -92,9 +95,8 @@ class ExperimentsToEventsConverter:
         self._default_priority = default_priority
         self._preprocess()
 
-    def _get_experiment_indicator_condition_id(
-        self, experiment_id: str
-    ) -> str:
+    @staticmethod
+    def _get_experiment_indicator_condition_id(experiment_id: str) -> str:
         """Get the condition ID for the experiment indicator parameter."""
         return f"_petab_experiment_condition_{experiment_id}"
 
@@ -214,7 +216,7 @@ class ExperimentsToEventsConverter:
             )
         add_sbml_parameter(model, id_=exp_ind_id, constant=False, value=0)
         kept_periods = []
-        for i_period, period in enumerate(experiment.periods):
+        for i_period, period in enumerate(experiment.sorted_periods):
             if period.is_preequilibration:
                 # pre-equilibration cannot be represented in SBML,
                 #  so we need to keep this period in the Problem.
@@ -229,6 +231,12 @@ class ExperimentsToEventsConverter:
                 #  or the only non-equilibration period (handled above)
                 continue
 
+            # TODO: If this is the first period, we may want to implement
+            #  the changes as initialAssignments instead of events.
+            #  That way, we don't need to worry about any event priorities
+            #  and tools that don't support event priorities can still handle
+            #  single-period experiments.
+
             ev = self._create_period_start_event(
                 experiment=experiment,
                 i_period=i_period,
@@ -236,10 +244,7 @@ class ExperimentsToEventsConverter:
             )
             self._create_event_assignments_for_period(
                 ev,
-                [
-                    self._new_problem[condition_id]
-                    for condition_id in period.condition_ids
-                ],
+                self._new_problem.get_changes_for_period(period),
             )
 
         if len(kept_periods) > 2:
@@ -326,33 +331,120 @@ class ExperimentsToEventsConverter:
 
     @staticmethod
     def _create_event_assignments_for_period(
-        event: libsbml.Event, conditions: list[Condition]
+        event: libsbml.Event, changes: list[Change]
     ) -> None:
-        """Create an event assignments for a given period."""
-        for condition in conditions:
-            for change in condition.changes:
-                ExperimentsToEventsConverter._change_to_event_assignment(
-                    change, event
+        """Create event assignments for a given period.
+
+        Converts PEtab ``Change``s to equivalent SBML event assignments.
+
+        Note that the SBML event assignment formula is not necessarily the same
+        as the `targetValue` in PEtab.
+        In SBML, concentrations are treated as derived quantities.
+        Therefore, changing the size of a compartment will update the
+        concentrations of all contained concentration-based species.
+        In PEtab, such a change would not automatically update the species
+        concentrations, but only the compartment size.
+
+        Therefore, to correctly implement a PEtab change of a compartment size
+        in SBML, we need to compensate for the automatic update of species
+        concentrations by adding event assignments for all contained
+        concentration-based species.
+
+        :param event: The SBML event to which the assignments should be added.
+        :param changes: The PEtab condition changes that are to be applied
+            at the start of the period.
+        """
+        _add_assignment = ExperimentsToEventsConverter._add_assignment
+        sbml_model = event.getModel()
+        # collect IDs of compartments that are changed in this period
+        changed_compartments = {
+            change.target_id
+            for change in changes
+            if sbml_model.getElementBySId(change.target_id) is not None
+            and sbml_model.getElementBySId(change.target_id).getTypeCode()
+            == libsbml.SBML_COMPARTMENT
+        }
+
+        for change in changes:
+            sbml_target = sbml_model.getElementBySId(change.target_id)
+
+            if sbml_target is None:
+                raise ValueError(
+                    f"Cannot create event assignment for change of "
+                    f"`{change.target_id}`: No such entity in the SBML model."
                 )
 
-    @staticmethod
-    def _change_to_event_assignment(
-        change: Change, event: libsbml.Event
-    ) -> None:
-        """Convert a PEtab ``Change``  to an SBML event assignment."""
-        sbml_model = event.getModel()
+            target_type = sbml_target.getTypeCode()
+            if target_type == libsbml.SBML_COMPARTMENT:
+                # handle the actual compartment size change
+                _add_assignment(event, change.target_id, change.target_value)
 
+                # Changing a compartment size affects all contained
+                #  concentration-based species - we need to add event
+                #  assignments for those to compensate for the automatic
+                #  update of their concentrations.
+                # The event assignment will set the concentration to
+                #   new_conc = assigned_amount / new_volume
+                #            = assigned_conc * old_volume / new_volume
+                #   <=> assigned_conc = new_conc * new_volume / old_volume
+                # Therefore, the event assignment is not just `new_conc`,
+                #  but `new_conc * new_volume / old_volume`.
+
+                # concentration-based species in the changed compartment
+                conc_species = [
+                    species.getId()
+                    for species in sbml_model.getListOfSpecies()
+                    if species.getCompartment() == change.target_id
+                    and not species.getHasOnlySubstanceUnits()
+                ]
+                for species_id in conc_species:
+                    if species_change := next(
+                        (c for c in changes if c.target_id == species_id), None
+                    ):
+                        # there is an explicit change for this species
+                        #  in this period
+                        new_conc = species_change.target_value
+                    else:
+                        # no explicit change, use the pre-event concentration
+                        new_conc = sp.Symbol(species_id)
+
+                    _add_assignment(
+                        event,
+                        species_id,
+                        # new_conc * new_volume / old_volume
+                        new_conc
+                        * change.target_value
+                        / sp.Symbol(change.target_id),
+                    )
+            elif (
+                target_type != libsbml.SBML_SPECIES
+                or sbml_target.getCompartment() not in changed_compartments
+                or sbml_target.getHasOnlySubstanceUnits() is True
+            ):
+                # Handle any changes other than compartments and
+                #  concentration-based species inside resized compartments
+                #  that we were already handled above.
+                # Those translate directly to event assignments.
+                _add_assignment(event, change.target_id, change.target_value)
+
+    @staticmethod
+    def _add_assignment(
+        event: libsbml.Event, target_id: str, target_value: sp.Basic
+    ) -> None:
+        """Add a single event assignment to the given event
+        and apply any necessary changes to the model."""
+        sbml_model = event.getModel()
         ea = event.createEventAssignment()
-        ea.setVariable(change.target_id)
-        set_math(ea, change.target_value)
+        ea.setVariable(target_id)
+        set_math(ea, target_value)
 
         # target needs const=False, and target may not exist yet
         #  (e.g., in case of output parameters added in the observable
         #  table)
-        target = sbml_model.getElementBySId(change.target_id)
+        target = sbml_model.getElementBySId(target_id)
         if target is None:
             add_sbml_parameter(
-                sbml_model, id_=change.target_id, constant=False, value=0
+                sbml_model, id_=target_id, constant=False, value=0
             )
         else:
             # We can safely change the `constant` attribute of the target.
@@ -362,7 +454,7 @@ class ExperimentsToEventsConverter:
         # the target value may depend on parameters that are only
         #  introduced in the PEtab parameter table - those need
         #  to be added to the model
-        for sym in change.target_value.free_symbols:
+        for sym in target_value.free_symbols:
             if sbml_model.getElementBySId(sym.name) is None:
                 add_sbml_parameter(
                     sbml_model, id_=sym.name, constant=True, value=0
