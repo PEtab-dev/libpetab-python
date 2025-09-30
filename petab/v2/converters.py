@@ -200,7 +200,9 @@ class ExperimentsToEventsConverter:
         return self._new_problem
 
     def _convert_experiment(self, experiment: Experiment) -> None:
-        """Convert a single experiment to SBML events."""
+        """
+        Convert a single experiment to SBML events or initial assignments.
+        """
         model = self._model
         experiment.sort_periods()
         has_preequilibration = experiment.has_preequilibration
@@ -215,7 +217,13 @@ class ExperimentsToEventsConverter:
                 "model."
             )
         add_sbml_parameter(model, id_=exp_ind_id, constant=False, value=0)
-        kept_periods = []
+        kept_periods: list[ExperimentPeriod] = []
+        # Collect values for initial assignments for the different experiments.
+        #  All expressions must be combined into a single initial assignment
+        #  per target.
+        # target_id -> (experiment_indicator, target_value)
+        period0_assignments: dict[str, list[tuple[str, sp.Basic]]] = {}
+
         for i_period, period in enumerate(experiment.sorted_periods):
             if period.is_preequilibration:
                 # pre-equilibration cannot be represented in SBML,
@@ -231,21 +239,80 @@ class ExperimentsToEventsConverter:
                 #  or the only non-equilibration period (handled above)
                 continue
 
-            # TODO: If this is the first period, we may want to implement
-            #  the changes as initialAssignments instead of events.
-            #  That way, we don't need to worry about any event priorities
-            #  and tools that don't support event priorities can still handle
+            # Encode the period changes in the SBML model as events
+            #  that trigger at the start of the period or,
+            #  for the first period, as initial assignments.
+            #  Initial assignments are required for the first period,
+            #  because other initial assignments may depend on
+            #  the changed values.
+            #  Additionally, tools that don't support events can still handle
             #  single-period experiments.
+            if i_period == 0:
+                exp_ind = self.get_experiment_indicator(experiment.id)
+                for change in self._new_problem.get_changes_for_period(period):
+                    period0_assignments.setdefault(
+                        change.target_id, []
+                    ).append((exp_ind, change.target_value))
+            else:
+                ev = self._create_period_start_event(
+                    experiment=experiment,
+                    i_period=i_period,
+                    period=period,
+                )
+                self._create_event_assignments_for_period(
+                    ev,
+                    self._new_problem.get_changes_for_period(period),
+                )
 
-            ev = self._create_period_start_event(
-                experiment=experiment,
-                i_period=i_period,
-                period=period,
-            )
-            self._create_event_assignments_for_period(
-                ev,
-                self._new_problem.get_changes_for_period(period),
-            )
+        # Create initial assignments for the first period
+        if period0_assignments:
+            free_symbols_in_assignments = set()
+            for target_id, changes in period0_assignments.items():
+                # The initial value might only be changed for a subset of
+                #  experiments. We need to keep the original initial value
+                #  for all other experiments.
+
+                # Is there an initial assignment for this target already?
+                # If not, fall back to the initial value of the target.
+                if (
+                    ia := model.getInitialAssignmentBySymbol(target_id)
+                ) is not None:
+                    default = sbml_math_to_sympy(ia.getMath())
+                else:
+                    # use the initial value of the target as default
+                    target = model.getElementBySId(target_id)
+                    default = self._initial_value_from_element(target)
+
+                # combine all changes into a single piecewise expression
+                if expr_cond_pairs := [
+                    (target_value, sp.Symbol(exp_ind) > 0.5)
+                    for exp_ind, target_value in changes
+                    if target_value != default
+                ]:
+                    # only create the initial assignment if there is
+                    #  actually something to change
+                    expr = sp.Piecewise(
+                        *expr_cond_pairs,
+                        (default, True),
+                    )
+
+                    # Create a new initial assignment if necessary, otherwise
+                    #  overwrite the existing one.
+                    if ia is None:
+                        ia = model.createInitialAssignment()
+                        ia.setSymbol(target_id)
+
+                    set_math(ia, expr)
+                    free_symbols_in_assignments |= expr.free_symbols
+
+            # the target value may depend on parameters that are only
+            #  introduced in the PEtab parameter table - those need
+            #  to be added to the model
+            for sym in free_symbols_in_assignments:
+                if model.getElementBySId(sym.name) is None:
+                    add_sbml_parameter(
+                        model, id_=sym.name, constant=True, value=0
+                    )
 
         if len(kept_periods) > 2:
             raise AssertionError("Expected at most two periods to be kept.")
@@ -260,6 +327,39 @@ class ExperimentsToEventsConverter:
             ]
 
         experiment.periods = kept_periods
+
+    @staticmethod
+    def _initial_value_from_element(target: libsbml.SBase) -> sp.Basic:
+        # use the initial value of the target as default
+        if target is None:
+            raise ValueError("`target` is None.")
+
+        if target.getTypeCode() == libsbml.SBML_COMPARTMENT:
+            return sp.Float(target.getSize())
+
+        if target.getTypeCode() == libsbml.SBML_SPECIES:
+            if target.getHasOnlySubstanceUnits():
+                # amount-based -> return amount
+                if target.isSetInitialAmount():
+                    return sp.Float(target.getInitialAmount())
+                return sp.Float(target.getInitialConcentration()) * sp.Symbol(
+                    target.getCompartment()
+                )
+            # concentration-based -> return concentration
+            if target.isSetInitialConcentration():
+                return sp.Float(target.getInitialConcentration())
+
+            return sp.Float(target.getInitialAmount()) / sp.Symbol(
+                target.getCompartment()
+            )
+
+        if target.getTypeCode() == libsbml.SBML_PARAMETER:
+            return sp.Float(target.getValue())
+
+        raise NotImplementedError(
+            "Cannot create initial assignment for unsupported SBML "
+            f"entity type {target.getTypeCode()}."
+        )
 
     def _create_period_start_event(
         self, experiment: Experiment, i_period: int, period: ExperimentPeriod

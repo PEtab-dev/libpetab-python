@@ -197,9 +197,10 @@ def test_simulate_experiment_to_events():
     # construct PEtab test problem
     problem = Problem()
     problem.model = SbmlModel.from_antimony(ant_model1)
+    problem.add_condition("c0", comp1=10)
     problem.add_condition("c1", comp1=20)
     problem.add_condition("c2", comp2=4, s1c_comp2=5, s3a_comp2=16)
-    problem.add_experiment("e1", 1, "c1", 5, "c2")
+    problem.add_experiment("e1", 0, "c0", 1, "c1", 5, "c2")
     problem.assert_valid()
 
     # convert PEtab experiments to SBML events and simulate in BasiCO
@@ -210,6 +211,7 @@ def test_simulate_experiment_to_events():
         "_petab_experiment_indicator_e1"
     ).setValue(1)
     sbml_actual = converted.model.to_sbml_str()
+    print(converted.model.to_antimony())
     basico.load_model(sbml_actual)
     df_actual = basico.run_time_course(values=timepoints)
 
