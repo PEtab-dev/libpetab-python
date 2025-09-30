@@ -3,12 +3,12 @@ from math import inf
 import pandas as pd
 
 from petab.v2 import Change, Condition, Experiment, ExperimentPeriod, Problem
-from petab.v2.converters import ExperimentsToEventsConverter
+from petab.v2.converters import ExperimentsToSbmlConverter
 from petab.v2.models.sbml_model import SbmlModel
 
 
 def test_experiments_to_events_converter():
-    """Test the ExperimentsToEventsConverter."""
+    """Test the ExperimentsToSbmlConverter."""
     ant_model = """
     species X = 0
     X' = 1
@@ -19,7 +19,7 @@ def test_experiments_to_events_converter():
     problem.add_condition("c2", X=2)
     problem.add_experiment("e1", -inf, "c1", 10, "c2")
 
-    converter = ExperimentsToEventsConverter(problem)
+    converter = ExperimentsToSbmlConverter(problem)
     converted = converter.convert()
     assert converted.validate().has_errors() is False
 
@@ -204,7 +204,7 @@ def test_simulate_experiment_to_events():
     problem.assert_valid()
 
     # convert PEtab experiments to SBML events and simulate in BasiCO
-    converter = ExperimentsToEventsConverter(problem)
+    converter = ExperimentsToSbmlConverter(problem)
     converted = converter.convert()
     # set experiment indicator to simulate experiment "e1"
     converted.model.sbml_model.getParameter(

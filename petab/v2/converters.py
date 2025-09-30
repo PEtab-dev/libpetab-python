@@ -20,14 +20,14 @@ from .core import (
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
 
-__all__ = ["ExperimentsToEventsConverter"]
+__all__ = ["ExperimentsToSbmlConverter"]
 
 
-class ExperimentsToEventsConverter:
-    """Convert PEtab experiments to SBML events.
+class ExperimentsToSbmlConverter:
+    """Convert PEtab experiments to SBML.
 
     For an SBML-model-based PEtab problem, this class converts the PEtab
-    experiments to events as far as possible.
+    experiments to initial assignments and events as far as possible.
 
     If the model already contains events, PEtab events are added with a higher
     priority than the existing events to guarantee that PEtab condition changes
@@ -38,8 +38,8 @@ class ExperimentsToEventsConverter:
     The PEtab problem must not contain any identifiers starting with
     ``_petab``.
 
-    All periods and condition changes that are represented by events
-    will be removed from the condition table.
+    All periods and condition changes that are represented by initial
+    assignments or events will be removed from the condition table.
     Each experiment will have at most one period with a start time of ``-inf``
     and one period with a finite start time. The associated changes with
     these periods are only the pre-equilibration indicator
@@ -454,7 +454,7 @@ class ExperimentsToEventsConverter:
         :param changes: The PEtab condition changes that are to be applied
             at the start of the period.
         """
-        _add_assignment = ExperimentsToEventsConverter._add_assignment
+        _add_assignment = ExperimentsToSbmlConverter._add_assignment
         sbml_model = event.getModel()
         # collect IDs of compartments that are changed in this period
         changed_compartments = {
