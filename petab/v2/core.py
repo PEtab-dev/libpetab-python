@@ -1631,9 +1631,9 @@ class Problem:
         )
 
     @property
-    def id(self) -> str:
+    def id(self) -> str | None:
         """The ID of the PEtab problem if set, ``None`` otherwise."""
-        return self.config.id if self.config else None
+        return self.config.id
 
     @id.setter
     def id(self, value: str):
@@ -2341,7 +2341,7 @@ class ProblemConfig(BaseModel):
     format_version: str = "2.0.0"
 
     #: The problem ID.
-    id: str = ""
+    id: str | None = None
 
     #: The path to the parameter file, relative to ``base_path``.
     # TODO https://github.com/PEtab-dev/PEtab/pull/641:
@@ -2404,6 +2404,9 @@ class ProblemConfig(BaseModel):
             data["model_files"][model_id][C.MODEL_LOCATION] = str(
                 data["model_files"][model_id]["location"]
             )
+        if data["id"] is None:
+            # The schema requires a valid id or no id field at all.
+            del data["id"]
 
         write_yaml(data, filename)
 

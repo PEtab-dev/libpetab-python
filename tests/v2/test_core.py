@@ -707,3 +707,35 @@ def test_petablint_v2(tmpdir):
 
     result = subprocess.run(["petablint", str(Path(tmpdir, "problem.yaml"))])  # noqa: S603,S607
     assert result.returncode == 0
+
+
+def test_problem_id(tmpdir):
+    """Test that the problem ID works as expected."""
+    from jsonschema import ValidationError
+
+    def make_yaml(id_line: str) -> str:
+        return f"""
+        format_version: 2.0.0
+        {id_line}
+        model_files: {{}}
+        parameter_files: []
+        observable_files: []
+        condition_files: []
+        measurement_files: []
+        """
+
+    filepath = Path(tmpdir, "problem.yaml")
+    with open(filepath, "w") as f:
+        f.write(make_yaml("id: my_problem_id"))
+    problem = Problem.from_yaml(filepath)
+    assert problem.id == "my_problem_id"
+
+    with open(filepath, "w") as f:
+        f.write(make_yaml("id: "))
+    with pytest.raises(ValidationError):
+        Problem.from_yaml(filepath)
+
+    with open(filepath, "w") as f:
+        f.write(make_yaml(""))
+    problem = Problem.from_yaml(filepath)
+    assert problem.id is None
