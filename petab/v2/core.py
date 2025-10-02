@@ -992,16 +992,13 @@ class Parameter(BaseModel):
                 "Estimated parameter must have lower and upper bounds set"
             )
 
-        # TODO: also if not estimated?
-        if (
-            self.estimate
-            and self.lb is not None
-            and self.ub is not None
-            and self.lb >= self.ub
-        ):
-            raise ValueError("Lower bound must be less than upper bound.")
+        if self.lb is not None and self.ub is not None and self.lb > self.ub:
+            raise ValueError(
+                "Lower bound must be less than or equal to upper bound."
+            )
 
-        # TODO priorType, priorParameters
+        # NOTE: priorType and priorParameters are currently checked in
+        #   `CheckPriorDistribution`
 
         return self
 
@@ -1292,50 +1289,6 @@ class Problem:
             measurement_tables=measurement_tables,
             parameter_tables=parameter_tables,
             mapping_tables=mapping_tables,
-        )
-
-    @staticmethod
-    def from_dfs(
-        model: Model = None,
-        condition_df: pd.DataFrame = None,
-        experiment_df: pd.DataFrame = None,
-        measurement_df: pd.DataFrame = None,
-        parameter_df: pd.DataFrame = None,
-        observable_df: pd.DataFrame = None,
-        mapping_df: pd.DataFrame = None,
-        config: ProblemConfig = None,
-    ):
-        """
-        Construct a PEtab problem from dataframes.
-
-        Parameters:
-            condition_df: PEtab condition table
-            experiment_df: PEtab experiment table
-            measurement_df: PEtab measurement table
-            parameter_df: PEtab parameter table
-            observable_df: PEtab observable table
-            mapping_df: PEtab mapping table
-            model: The underlying model
-            config: The PEtab problem configuration
-        """
-        # TODO: do we really need this?
-
-        observable_table = ObservableTable.from_df(observable_df)
-        condition_table = ConditionTable.from_df(condition_df)
-        experiment_table = ExperimentTable.from_df(experiment_df)
-        measurement_table = MeasurementTable.from_df(measurement_df)
-        mapping_table = MappingTable.from_df(mapping_df)
-        parameter_table = ParameterTable.from_df(parameter_df)
-
-        return Problem(
-            models=[model],
-            condition_tables=[condition_table],
-            experiment_tables=[experiment_table],
-            observable_tables=[observable_table],
-            measurement_tables=[measurement_table],
-            parameter_tables=[parameter_table],
-            mapping_tables=[mapping_table],
-            config=config,
         )
 
     @staticmethod
@@ -2235,6 +2188,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                     'experiment_files': [],
                     'extensions': {},
                     'format_version': '2.0.0',
+                    'id': None,
                     'mapping_files': [],
                     'measurement_files': [],
                     'model_files': {},
@@ -2343,19 +2297,25 @@ class ProblemConfig(BaseModel):
     #: The problem ID.
     id: str | None = None
 
-    #: The path to the parameter file, relative to ``base_path``.
-    # TODO https://github.com/PEtab-dev/PEtab/pull/641:
-    #  rename to parameter_files in yaml for consistency with other files?
-    #   always a list?
-    parameter_files: list[AnyUrl | Path] = Field(
-        default=[], alias=C.PARAMETER_FILES
-    )
-
+    #: The paths to the parameter tables.
+    # Absolute or relative to `base_path`.
+    parameter_files: list[AnyUrl | Path] = []
+    #: The model IDs and files used by the problem (`id->ModelFile`).
     model_files: dict[str, ModelFile] | None = {}
+    #: The paths to the measurement tables.
+    # Absolute or relative to `base_path`.
     measurement_files: list[AnyUrl | Path] = []
+    #: The paths to the condition tables.
+    # Absolute or relative to `base_path`.
     condition_files: list[AnyUrl | Path] = []
+    #: The paths to the experiment tables.
+    # Absolute or relative to `base_path`.
     experiment_files: list[AnyUrl | Path] = []
+    #: The paths to the observable tables.
+    # Absolute or relative to `base_path`.
     observable_files: list[AnyUrl | Path] = []
+    #: The paths to the mapping tables.
+    # Absolute or relative to `base_path`.
     mapping_files: list[AnyUrl | Path] = []
 
     #: Extensions used by the problem.
