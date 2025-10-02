@@ -992,11 +992,6 @@ def get_required_parameters_for_parameter_table(
         append_overrides(m.observable_parameters)
         append_overrides(m.noise_parameters)
 
-    # TODO remove `observable_ids` when
-    #  `get_output_parameters` is updated for PEtab v2/v1.1, where
-    #  observable IDs are allowed in observable formulae
-    observable_ids = {o.id for o in problem.observables}
-
     # Add output parameters except for placeholders
     for formula_type, placeholder_sources in (
         (
@@ -1021,9 +1016,7 @@ def get_required_parameters_for_parameter_table(
             **placeholder_sources,
         )
         parameter_ids.update(
-            p
-            for p in output_parameters
-            if p not in placeholders and p not in observable_ids
+            p for p in output_parameters if p not in placeholders
         )
 
     # Add condition table parametric overrides unless already defined in the
@@ -1048,8 +1041,8 @@ def get_output_parameters(
 ) -> list[str]:
     """Get output parameters
 
-    Returns IDs of parameters used in observable and noise formulas that are
-    not defined in the model.
+    Returns IDs of symbols used in observable and noise formulas that are
+    not observables and that are not defined in the model.
 
     Arguments:
         problem: The PEtab problem
@@ -1057,35 +1050,46 @@ def get_output_parameters(
         noise: Include parameters from noiseFormulas
 
     Returns:
-        List of output parameter IDs
+        List of output parameter IDs, including any placeholder parameters.
     """
-    formulas = []
+    # collect free symbols from observable and noise formulas,
+    # skipping observable IDs
+    candidates = set()
     if observables:
-        formulas.extend(o.formula for o in problem.observables)
+        candidates |= {
+            str_sym
+            for o in problem.observables
+            if o.formula is not None
+            for sym in o.formula.free_symbols
+            if (str_sym := str(sym)) != o.id
+        }
     if noise:
-        formulas.extend(o.noise_formula for o in problem.observables)
+        candidates |= {
+            str_sym
+            for o in problem.observables
+            if o.noise_formula is not None
+            for sym in o.noise_formula.free_symbols
+            if (str_sym := str(sym)) != o.id
+        }
+
     output_parameters = OrderedDict()
 
-    for formula in formulas:
-        free_syms = sorted(
-            formula.free_symbols,
-            key=lambda symbol: symbol.name,
-        )
-        for free_sym in free_syms:
-            sym = str(free_sym)
-            if problem.model.symbol_allowed_in_observable_formula(sym):
-                continue
+    # filter out symbols that are defined in the model or mapped to
+    #  such symbols
+    for candidate in sorted(candidates):
+        if problem.model.symbol_allowed_in_observable_formula(candidate):
+            continue
 
-            # does it map to a model entity?
-            for mapping in problem.mappings:
-                if mapping.petab_id == sym and mapping.model_id is not None:
-                    if problem.model.symbol_allowed_in_observable_formula(
-                        mapping.model_id
-                    ):
-                        break
-            else:
-                # no mapping to a model entity, so it is an output parameter
-                output_parameters[sym] = None
+        # does it map to a model entity?
+        for mapping in problem.mappings:
+            if mapping.petab_id == candidate and mapping.model_id is not None:
+                if problem.model.symbol_allowed_in_observable_formula(
+                    mapping.model_id
+                ):
+                    break
+        else:
+            # no mapping to a model entity, so it is an output parameter
+            output_parameters[candidate] = None
 
     return list(output_parameters.keys())
 
