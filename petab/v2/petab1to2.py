@@ -30,6 +30,17 @@ def petab1to2(
 
     Convert a PEtab problem from PEtab 1.0 to PEtab 2.0 format.
 
+    .. note::
+
+       Some aspects of PEtab v1 were not well-defined. For example, model
+       initialization order (e.g., applying initial assignments before or
+       after condition table overrides) and the impact of compartment size
+       changes were not specified. In such cases, we made assumptions that are
+       consistent with the clarified PEtab v2 specifications,
+       the PEtab test suite, or common practice.
+       Therefore, it is recommended to carefully review the generated PEtab v2
+       problem to ensure it aligns with the expected behavior.
+
     :param yaml_config:
         The PEtab problem as dictionary or YAML file name.
     :param output_dir:
