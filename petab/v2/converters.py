@@ -283,14 +283,18 @@ class ExperimentsToSbmlConverter:
                     target = model.getElementBySId(target_id)
                     default = self._initial_value_from_element(target)
 
-                # combine all changes into a single piecewise expression
+                # Only create the initial assignment if there is
+                #  actually something to change.
                 if expr_cond_pairs := [
                     (target_value, sp.Symbol(exp_ind) > 0.5)
                     for exp_ind, target_value in changes
                     if target_value != default
                 ]:
-                    # only create the initial assignment if there is
-                    #  actually something to change
+                    # Unlike events, we can't have different initial
+                    #  assignments for different experiments, so we need to
+                    #  combine all changes into a single piecewise
+                    #  expression.
+
                     expr = sp.Piecewise(
                         *expr_cond_pairs,
                         (default, True),
