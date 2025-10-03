@@ -248,11 +248,11 @@ class ExperimentsToSbmlConverter:
             #  Additionally, tools that don't support events can still handle
             #  single-period experiments.
             if i_period == 0:
-                exp_ind = self.get_experiment_indicator(experiment.id)
+                exp_ind_id = self.get_experiment_indicator(experiment.id)
                 for change in self._new_problem.get_changes_for_period(period):
                     period0_assignments.setdefault(
                         change.target_id, []
-                    ).append((exp_ind, change.target_value))
+                    ).append((exp_ind_id, change.target_value))
             else:
                 ev = self._create_period_start_event(
                     experiment=experiment,
@@ -332,7 +332,7 @@ class ExperimentsToSbmlConverter:
     def _initial_value_from_element(target: libsbml.SBase) -> sp.Basic:
         """Get the initial value of an SBML element.
 
-        The value to the size attribute of compartments,
+        The value of the size attribute of compartments,
         the initial concentration or amount of species (amount for
         `hasOnlySubstanceUnits=true`, concentration otherwise), and
         the value of parameters, not considering any initial assignment
@@ -530,7 +530,7 @@ class ExperimentsToSbmlConverter:
             ):
                 # Handle any changes other than compartments and
                 #  concentration-based species inside resized compartments
-                #  that we were already handled above.
+                #  that we already handled above.
                 # Those translate directly to event assignments.
                 _add_assignment(event, change.target_id, change.target_value)
 
