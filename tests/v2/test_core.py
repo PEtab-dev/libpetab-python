@@ -739,3 +739,77 @@ def test_problem_id(tmpdir):
         f.write(make_yaml(""))
     problem = Problem.from_yaml(filepath)
     assert problem.id is None
+
+
+def test_parameter_accessors():  # pylint: disable=W0621
+    """
+    Test the petab.Problem functions to get parameter values.
+    """
+    petab_problem = Problem()
+    petab_problem += Parameter(
+        id="par1", lb=0, ub=100, nominal_value=7, estimate=True
+    )
+    petab_problem += Parameter(
+        id="par2", lb=0.1, ub=100, nominal_value=8, estimate=True
+    )
+    petab_problem += Parameter(
+        id="par3", lb=0.1, ub=200, nominal_value=9, estimate=False
+    )
+
+    assert petab_problem.x_ids == ["par1", "par2", "par3"]
+    assert petab_problem.x_free_ids == ["par1", "par2"]
+    assert petab_problem.x_fixed_ids == ["par3"]
+    assert petab_problem.lb == [0, 0.1, 0.1]
+    assert petab_problem.ub == [100, 100, 200]
+    assert petab_problem.x_nominal == [7, 8, 9]
+    assert petab_problem.x_nominal_free == [7, 8]
+    assert petab_problem.x_nominal_fixed == [9]
+
+    assert (
+        petab_problem.get_x_nominal_dict()
+        == petab_problem.get_x_nominal_dict(free=True, fixed=True)
+        == {
+            "par1": 7,
+            "par2": 8,
+            "par3": 9,
+        }
+    )
+    assert petab_problem.get_x_nominal_dict(free=True, fixed=False) == {
+        "par1": 7,
+        "par2": 8,
+    }
+    assert petab_problem.get_x_nominal_dict(free=False, fixed=True) == {
+        "par3": 9,
+    }
+
+
+def test_get_output_parameters():
+    """Test Problem.get_output_parameters"""
+    petab_problem = Problem()
+    assert petab_problem.get_output_parameters() == []
+
+    petab_problem += Parameter(id="p1", lb=0, ub=100, estimate=True)
+    petab_problem.models.append(SbmlModel.from_antimony("p2 = 1"))
+    assert petab_problem.get_output_parameters() == []
+
+    petab_problem += Observable(
+        id="obs1", formula="p1 + p2", noise_formula="p1 * p2"
+    )
+    assert petab_problem.get_output_parameters() == ["p1"]
+
+    petab_problem += Observable(
+        id="obs1",
+        formula="p3 + p4",
+        noise_formula="p3 * p5",
+    )
+    assert (
+        petab_problem.get_output_parameters()
+        == petab_problem.get_output_parameters(observables=True, noise=True)
+        == ["p1", "p3", "p4", "p5"]
+    )
+    assert petab_problem.get_output_parameters(
+        observables=True, noise=False
+    ) == ["p1", "p3", "p4"]
+    assert petab_problem.get_output_parameters(
+        observables=False, noise=True
+    ) == ["p1", "p3", "p5"]

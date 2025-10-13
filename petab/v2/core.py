@@ -8,6 +8,7 @@ import os
 import tempfile
 import traceback
 from abc import abstractmethod
+from collections import OrderedDict
 from collections.abc import Sequence
 from enum import Enum
 from itertools import chain
@@ -1691,6 +1692,27 @@ class Problem:
 
         return self._apply_mask(v, free=free, fixed=fixed)
 
+    def get_x_nominal_dict(
+        self, free: bool = True, fixed: bool = True
+    ) -> dict[str, float]:
+        """Get parameter nominal values as dict.
+
+        :param free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        :param fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+        :returns:
+            A dictionary mapping parameter IDs to their nominal values.
+        """
+        return dict(
+            zip(
+                self.get_x_ids(free=free, fixed=fixed),
+                self.get_x_nominal(free=free, fixed=fixed),
+                strict=True,
+            )
+        )
+
     @property
     def x_nominal(self) -> list:
         """Parameter table nominal values"""
@@ -2256,6 +2278,65 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
             for measurement in self.measurements
             if measurement.experiment_id == experiment.id
         ]
+
+    def get_output_parameters(
+        self, observables: bool = True, noise: bool = True
+    ) -> list[str]:
+        """Get output parameters.
+
+        Returns IDs of symbols used in observable and noise formulas that are
+        not observables and that are not defined in the model.
+
+        :param observables:
+            Include parameters from observableFormulas
+        :param noise:
+            Include parameters from noiseFormulas
+        :returns:
+            List of output parameter IDs, including any placeholder parameters.
+        """
+        # collect free symbols from observable and noise formulas,
+        # skipping observable IDs
+        candidates = set()
+        if observables:
+            candidates |= {
+                str_sym
+                for o in self.observables
+                if o.formula is not None
+                for sym in o.formula.free_symbols
+                if (str_sym := str(sym)) != o.id
+            }
+        if noise:
+            candidates |= {
+                str_sym
+                for o in self.observables
+                if o.noise_formula is not None
+                for sym in o.noise_formula.free_symbols
+                if (str_sym := str(sym)) != o.id
+            }
+
+        output_parameters = OrderedDict()
+
+        # filter out symbols that are defined in the model or mapped to
+        #  such symbols
+        for candidate in sorted(candidates):
+            if self.model.symbol_allowed_in_observable_formula(candidate):
+                continue
+
+            # does it map to a model entity?
+            for mapping in self.mappings:
+                if (
+                    mapping.petab_id == candidate
+                    and mapping.model_id is not None
+                ):
+                    if self.model.symbol_allowed_in_observable_formula(
+                        mapping.model_id
+                    ):
+                        break
+            else:
+                # no mapping to a model entity, so it is an output parameter
+                output_parameters[candidate] = None
+
+        return list(output_parameters.keys())
 
 
 class ModelFile(BaseModel):

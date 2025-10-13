@@ -396,7 +396,7 @@ class CheckValidConditionTargets(ValidationTask):
             if problem.model
             else set()
         )
-        allowed_targets |= set(get_output_parameters(problem))
+        allowed_targets |= set(problem.get_output_parameters())
         allowed_targets |= {
             m.petab_id for m in problem.mappings if m.model_id is not None
         }
@@ -932,7 +932,7 @@ def get_valid_parameters_for_parameter_table(
             parameter_ids[mapping.petab_id] = None
 
     # add output parameters from observable table
-    output_parameters = get_output_parameters(problem)
+    output_parameters = problem.get_output_parameters()
     for p in output_parameters:
         if p not in invalid:
             parameter_ids[p] = None
@@ -1007,8 +1007,7 @@ def get_required_parameters_for_parameter_table(
             {"noise": True, "observables": True},
         ),
     ):
-        output_parameters = get_output_parameters(
-            problem,
+        output_parameters = problem.get_output_parameters(
             **formula_type,
         )
         placeholders = get_placeholders(
@@ -1032,66 +1031,6 @@ def get_required_parameters_for_parameter_table(
     parameter_ids -= condition_targets
 
     return parameter_ids
-
-
-def get_output_parameters(
-    problem: Problem,
-    observables: bool = True,
-    noise: bool = True,
-) -> list[str]:
-    """Get output parameters
-
-    Returns IDs of symbols used in observable and noise formulas that are
-    not observables and that are not defined in the model.
-
-    Arguments:
-        problem: The PEtab problem
-        observables: Include parameters from observableFormulas
-        noise: Include parameters from noiseFormulas
-
-    Returns:
-        List of output parameter IDs, including any placeholder parameters.
-    """
-    # collect free symbols from observable and noise formulas,
-    # skipping observable IDs
-    candidates = set()
-    if observables:
-        candidates |= {
-            str_sym
-            for o in problem.observables
-            if o.formula is not None
-            for sym in o.formula.free_symbols
-            if (str_sym := str(sym)) != o.id
-        }
-    if noise:
-        candidates |= {
-            str_sym
-            for o in problem.observables
-            if o.noise_formula is not None
-            for sym in o.noise_formula.free_symbols
-            if (str_sym := str(sym)) != o.id
-        }
-
-    output_parameters = OrderedDict()
-
-    # filter out symbols that are defined in the model or mapped to
-    #  such symbols
-    for candidate in sorted(candidates):
-        if problem.model.symbol_allowed_in_observable_formula(candidate):
-            continue
-
-        # does it map to a model entity?
-        for mapping in problem.mappings:
-            if mapping.petab_id == candidate and mapping.model_id is not None:
-                if problem.model.symbol_allowed_in_observable_formula(
-                    mapping.model_id
-                ):
-                    break
-        else:
-            # no mapping to a model entity, so it is an output parameter
-            output_parameters[candidate] = None
-
-    return list(output_parameters.keys())
 
 
 def get_placeholders(
