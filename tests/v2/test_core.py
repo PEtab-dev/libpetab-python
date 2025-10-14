@@ -266,6 +266,29 @@ def test_parameter():
     with pytest.raises(ValidationError, match="less than"):
         Parameter(id="k1", lb=2, ub=1)
 
+    assert Parameter(
+        id="k1", estimate=True, lb=1, ub=2, prior_parameters=[1, 2]
+    ).model_dump() == {
+        "id": "k1",
+        "lb": 1.0,
+        "ub": 2.0,
+        "nominal_value": None,
+        "estimate": "true",
+        "prior_distribution": "",
+        "prior_parameters": "1.0;2.0",
+    }
+    assert Parameter(
+        id="k1", estimate=False, nominal_value="8"
+    ).model_dump() == {
+        "id": "k1",
+        "lb": None,
+        "ub": None,
+        "nominal_value": 8.0,
+        "estimate": "false",
+        "prior_distribution": "",
+        "prior_parameters": "",
+    }
+
 
 def test_experiment():
     Experiment(id="experiment1")

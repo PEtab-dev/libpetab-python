@@ -977,8 +977,10 @@ class Parameter(BaseModel):
         return str(prior_distribution)
 
     @field_serializer("prior_parameters")
-    def _serialize_prior_parameters(self, prior_parameters: list[str], _info):
-        return C.PARAMETER_SEPARATOR.join(prior_parameters)
+    def _serialize_prior_parameters(
+        self, prior_parameters: list[float], _info
+    ) -> str:
+        return C.PARAMETER_SEPARATOR.join(map(str, prior_parameters))
 
     @model_validator(mode="after")
     def _validate(self) -> Self:
