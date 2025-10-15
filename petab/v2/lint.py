@@ -996,15 +996,15 @@ def get_required_parameters_for_parameter_table(
     for formula_type, placeholder_sources in (
         (
             # Observable formulae
-            {"observables": True, "noise": False},
+            {"observable": True, "noise": False},
             # can only contain observable placeholders
-            {"noise": False, "observables": True},
+            {"noise": False, "observable": True},
         ),
         (
             # Noise formulae
-            {"observables": False, "noise": True},
+            {"observable": False, "noise": True},
             # can contain noise and observable placeholders
-            {"noise": True, "observables": True},
+            {"noise": True, "observable": True},
         ),
     ):
         output_parameters = problem.get_output_parameters(
@@ -1035,7 +1035,7 @@ def get_required_parameters_for_parameter_table(
 
 def get_placeholders(
     problem: Problem,
-    observables: bool = True,
+    observable: bool = True,
     noise: bool = True,
 ) -> list[str]:
     """Get all placeholder parameters from observable table observableFormulas
@@ -1043,7 +1043,7 @@ def get_placeholders(
 
     Arguments:
         problem: The PEtab problem
-        observables: Include parameters from observableFormulas
+        observable: Include parameters from observableFormulas
         noise: Include parameters from noiseFormulas
 
     Returns:
@@ -1054,7 +1054,7 @@ def get_placeholders(
     # {observable,noise}Parameters
     placeholders = []
     for o in problem.observables:
-        if observables:
+        if observable:
             placeholders.extend(map(str, o.observable_placeholders))
         if noise:
             placeholders.extend(map(str, o.noise_placeholders))

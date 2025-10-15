@@ -8,7 +8,6 @@ import os
 import tempfile
 import traceback
 from abc import abstractmethod
-from collections import OrderedDict
 from collections.abc import Sequence
 from enum import Enum
 from itertools import chain
@@ -2280,14 +2279,14 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         ]
 
     def get_output_parameters(
-        self, observables: bool = True, noise: bool = True
+        self, observable: bool = True, noise: bool = True
     ) -> list[str]:
         """Get output parameters.
 
         Returns IDs of symbols used in observable and noise formulas that are
         not observables and that are not defined in the model.
 
-        :param observables:
+        :param observable:
             Include parameters from observableFormulas
         :param noise:
             Include parameters from noiseFormulas
@@ -2297,7 +2296,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         # collect free symbols from observable and noise formulas,
         # skipping observable IDs
         candidates = set()
-        if observables:
+        if observable:
             candidates |= {
                 str_sym
                 for o in self.observables

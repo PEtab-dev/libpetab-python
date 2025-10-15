@@ -804,12 +804,12 @@ def test_get_output_parameters():
     )
     assert (
         petab_problem.get_output_parameters()
-        == petab_problem.get_output_parameters(observables=True, noise=True)
+        == petab_problem.get_output_parameters(observable=True, noise=True)
         == ["p1", "p3", "p4", "p5"]
     )
     assert petab_problem.get_output_parameters(
-        observables=True, noise=False
+        observable=True, noise=False
     ) == ["p1", "p3", "p4"]
     assert petab_problem.get_output_parameters(
-        observables=False, noise=True
+        observable=False, noise=True
     ) == ["p1", "p3", "p5"]
