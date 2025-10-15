@@ -1,3 +1,4 @@
+import copy
 import subprocess
 import tempfile
 from pathlib import Path
@@ -836,3 +837,314 @@ def test_get_output_parameters():
     assert petab_problem.get_output_parameters(
         observable=False, noise=True
     ) == ["p1", "p3", "p5"]
+
+
+def test_problem_has_timepoint_specific_overrides():
+    """Test Problem.measurement_table_has_timepoint_specific_mappings"""
+    problem = Problem()
+    problem.add_measurement(
+        obs_id="obs1",
+        time=1.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride"],
+    )
+    problem.add_measurement(obs_id="obs1", time=1.0, measurement=0.2)
+    assert problem.has_timepoint_specific_overrides() is True
+
+    # both measurements different anyways
+    problem.measurement_tables[0].measurements[1].observable_id = "obs2"
+    assert problem.has_timepoint_specific_overrides() is False
+
+    # mixed numeric string
+    problem.measurement_tables[0].measurements[1].observable_id = "obs1"
+    problem.measurement_tables[0].measurements[1].observable_parameters = [
+        "obsParOverride"
+    ]
+    assert problem.has_timepoint_specific_overrides() is False
+
+    # different numeric values
+    problem.measurement_tables[0].measurements[1].noise_parameters = [2.0]
+    assert problem.has_timepoint_specific_overrides() is True
+    assert (
+        problem.has_timepoint_specific_overrides(
+            ignore_scalar_numeric_noise_parameters=True
+        )
+        is False
+    )
+
+
+def test_flatten_timepoint_specific_output_overrides():
+    """Test flatten_timepoint_specific_output_overrides"""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("""x = 1""")
+    problem.add_observable(
+        "obs1",
+        formula="observableParameter1_obs1 + observableParameter2_obs1",
+        noise_formula=(
+            "(observableParameter1_obs1 + "
+            "observableParameter2_obs1) * noiseParameter1_obs1"
+        ),
+        observable_placeholders=[
+            "observableParameter1_obs1",
+            "observableParameter2_obs1",
+        ],
+        noise_placeholders=["noiseParameter1_obs1"],
+    )
+    problem.add_observable("obs2", formula="x", noise_formula="1")
+
+    # new observable IDs
+    #  (obs${i_obs}_${i_obsParOverride}_${i_noiseParOverride})
+    obs1_1_1_1 = "obs1__obsParOverride1_1_00000000000000__noiseParOverride1"
+    obs1_2_1_1 = "obs1__obsParOverride2_1_00000000000000__noiseParOverride1"
+    obs1_2_2_1 = "obs1__obsParOverride2_1_00000000000000__noiseParOverride2"
+    problem_expected = Problem()
+    problem_expected.model = SbmlModel.from_antimony("""x = 1""")
+
+    problem_expected.add_observable(
+        obs1_1_1_1,
+        formula=(
+            f"observableParameter1_{obs1_1_1_1} "
+            f"+ observableParameter2_{obs1_1_1_1}"
+        ),
+        noise_formula=(
+            f"(observableParameter1_{obs1_1_1_1} + "
+            f"observableParameter2_{obs1_1_1_1}) "
+            f"* noiseParameter1_{obs1_1_1_1}"
+        ),
+        observable_placeholders=[
+            f"observableParameter1_{obs1_1_1_1}",
+            f"observableParameter2_{obs1_1_1_1}",
+        ],
+        noise_placeholders=[f"noiseParameter1_{obs1_1_1_1}"],
+    )
+    problem_expected.add_observable(
+        obs1_2_1_1,
+        formula=(
+            f"observableParameter1_{obs1_2_1_1} "
+            f"+ observableParameter2_{obs1_2_1_1}"
+        ),
+        noise_formula=(
+            f"(observableParameter1_{obs1_2_1_1} "
+            f"+ observableParameter2_{obs1_2_1_1}) * "
+            f"noiseParameter1_{obs1_2_1_1}"
+        ),
+        observable_placeholders=[
+            f"observableParameter1_{obs1_2_1_1}",
+            f"observableParameter2_{obs1_2_1_1}",
+        ],
+        noise_placeholders=[f"noiseParameter1_{obs1_2_1_1}"],
+    )
+    problem_expected.add_observable(
+        obs1_2_2_1,
+        formula=(
+            f"observableParameter1_{obs1_2_2_1} "
+            f"+ observableParameter2_{obs1_2_2_1}"
+        ),
+        noise_formula=(
+            f"(observableParameter1_{obs1_2_2_1} "
+            f"+ observableParameter2_{obs1_2_2_1}) "
+            f"* noiseParameter1_{obs1_2_2_1}"
+        ),
+        observable_placeholders=[
+            f"observableParameter1_{obs1_2_2_1}",
+            f"observableParameter2_{obs1_2_2_1}",
+        ],
+        noise_placeholders=[f"noiseParameter1_{obs1_2_2_1}"],
+    )
+    problem_expected.add_observable(
+        "obs2",
+        formula="x",
+        noise_formula="1",
+    )
+
+    # Measurement table with timepoint-specific overrides
+    problem.add_measurement(
+        obs_id="obs1",
+        time=1.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride1", "1.0"],
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem.add_measurement(
+        obs_id="obs1",
+        time=1.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride2", "1.0"],
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem.add_measurement(
+        obs_id="obs1",
+        time=2.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride2", "1.0"],
+        noise_parameters=["noiseParOverride2"],
+    )
+    problem.add_measurement(
+        obs_id="obs1",
+        time=2.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride2", "1.0"],
+        noise_parameters=["noiseParOverride2"],
+    )
+    problem.add_measurement(obs_id="obs2", time=3.0, measurement=0.1)
+
+    problem_expected.add_measurement(
+        obs_id=obs1_1_1_1,
+        time=1.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride1", "1.0"],
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem_expected.add_measurement(
+        obs_id=obs1_2_1_1,
+        time=1.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride2", "1.0"],
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem_expected.add_measurement(
+        obs_id=obs1_2_2_1,
+        time=2.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride2", "1.0"],
+        noise_parameters=["noiseParOverride2"],
+    )
+    problem_expected.add_measurement(
+        obs_id=obs1_2_2_1,
+        time=2.0,
+        measurement=0.1,
+        observable_parameters=["obsParOverride2", "1.0"],
+        noise_parameters=["noiseParOverride2"],
+    )
+    problem_expected.add_measurement(obs_id="obs2", time=3.0, measurement=0.1)
+
+    for p in (problem, problem_expected):
+        p.add_parameter("noiseParOverride1", estimate=False, nominal_value=1)
+        p.add_parameter("noiseParOverride2", estimate=False, nominal_value=1)
+        p.add_parameter("obsParOverride1", estimate=False, nominal_value=1)
+        p.add_parameter("obsParOverride2", estimate=False, nominal_value=1)
+
+    problem.assert_valid()
+    unflattened_problem = copy.deepcopy(problem)
+    problem_expected.assert_valid()
+
+    # Ensure having timepoint-specific overrides
+    assert problem.has_timepoint_specific_overrides() is True
+    assert problem_expected.has_timepoint_specific_overrides() is False
+
+    flatten_timepoint_specific_output_overrides(problem)
+
+    # Timepoint-specific overrides should be gone now
+    assert problem.has_timepoint_specific_overrides() is False
+
+    assert problem_expected.observables == problem.observables
+    assert problem_expected.measurements == problem.measurements
+    problem.assert_valid()
+
+    simulation_df = copy.deepcopy(problem.measurement_df)
+    simulation_df.rename(columns={C.MEASUREMENT: C.SIMULATION})
+    unflattened_simulation_df = unflatten_simulation_df(
+        simulation_df=simulation_df,
+        petab_problem=unflattened_problem,
+    )
+    # The unflattened simulation dataframe has the original observable IDs.
+    assert (
+        unflattened_simulation_df[OBSERVABLE_ID] == ["obs1"] * 4 + ["obs2"]
+    ).all()
+
+
+def test_flatten_timepoint_specific_output_overrides_special_cases():
+    """Test flatten_timepoint_specific_output_overrides
+    for special cases:
+    * no observable parameters
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("""species1 = 1""")
+    for p in ("noiseParOverride2", "noiseParOverride1"):
+        problem.add_parameter(p, estimate=False, nominal_value=1)
+    problem_expected = copy.deepcopy(problem)
+    problem.add_observable(
+        "obs1",
+        formula="species1",
+        noise_formula="noiseParameter1_obs1",
+        noise_placeholders=["noiseParameter1_obs1"],
+    )
+
+    problem_expected.add_observable(
+        "obs1__noiseParOverride1",
+        formula="species1",
+        noise_formula="noiseParameter1_obs1__noiseParOverride1",
+        noise_placeholders=["noiseParameter1_obs1__noiseParOverride1"],
+    )
+    problem_expected.add_observable(
+        "obs1__noiseParOverride2",
+        formula="species1",
+        noise_formula="noiseParameter1_obs1__noiseParOverride2",
+        noise_placeholders=["noiseParameter1_obs1__noiseParOverride2"],
+    )
+
+    # Measurement table with timepoint-specific overrides
+    problem.add_measurement(
+        "obs1",
+        time=1.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem.add_measurement(
+        "obs1",
+        time=1.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem.add_measurement(
+        "obs1",
+        time=2.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride2"],
+    )
+    problem.add_measurement(
+        "obs1",
+        time=2.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride2"],
+    )
+
+    problem_expected.add_measurement(
+        "obs1__noiseParOverride1",
+        time=1.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem_expected.add_measurement(
+        "obs1__noiseParOverride1",
+        time=1.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride1"],
+    )
+    problem_expected.add_measurement(
+        "obs1__noiseParOverride2",
+        time=2.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride2"],
+    )
+    problem_expected.add_measurement(
+        "obs1__noiseParOverride2",
+        time=2.0,
+        measurement=0.1,
+        noise_parameters=["noiseParOverride2"],
+    )
+
+    problem.assert_valid()
+    problem_expected.assert_valid()
+
+    # Ensure having timepoint-specific overrides
+    assert problem.has_timepoint_specific_overrides() is True
+
+    flatten_timepoint_specific_output_overrides(problem)
+
+    # Timepoint-specific overrides should be gone now
+    assert problem.has_timepoint_specific_overrides() is False
+
+    assert problem_expected.observables == problem.observables
+    assert problem_expected.measurements == problem.measurements
+    problem.assert_valid()

@@ -133,7 +133,9 @@ def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
     ]
 
 
-def get_observable_replacement_id(groupvars, groupvar) -> str:
+def get_observable_replacement_id(
+    groupvars: list[str], groupvar: Sequence
+) -> str:
     """Get the replacement ID for an observable.
 
     Arguments:
@@ -141,7 +143,8 @@ def get_observable_replacement_id(groupvars, groupvar) -> str:
             The columns of a PEtab measurement table that should be unique
             between observables in a flattened PEtab problem.
         groupvar:
-            A specific grouping of `groupvars`.
+            A specific grouping of `groupvars`. Same length and order as
+            `groupvars`.
 
     Returns:
         The observable replacement ID.
