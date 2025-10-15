@@ -2314,7 +2314,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                 if (str_sym := str(sym)) != o.id
             }
 
-        output_parameters = OrderedDict()
+        output_parameters = []
 
         # filter out symbols that are defined in the model or mapped to
         #  such symbols
@@ -2334,9 +2334,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                         break
             else:
                 # no mapping to a model entity, so it is an output parameter
-                output_parameters[candidate] = None
+                output_parameters.append(candidate)
 
-        return list(output_parameters.keys())
+        return output_parameters
 
 
 class ModelFile(BaseModel):
