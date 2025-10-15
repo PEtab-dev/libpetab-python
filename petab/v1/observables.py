@@ -84,7 +84,7 @@ def get_output_parameters(
 ) -> list[str]:
     """Get output parameters
 
-    Returns IDs of parameters used in observable and noise formulas that are
+    Returns IDs of parameters used in observable or noise formulas that are
     not defined in the model.
 
     Arguments:
