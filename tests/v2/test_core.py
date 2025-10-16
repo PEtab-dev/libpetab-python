@@ -877,6 +877,16 @@ def test_flatten_timepoint_specific_output_overrides():
     """Test flatten_timepoint_specific_output_overrides"""
     problem = Problem()
     problem.model = SbmlModel.from_antimony("""x = 1""")
+    for par_id in (
+        "noiseParOverride1",
+        "noiseParOverride2",
+        "obsParOverride1",
+        "obsParOverride2",
+    ):
+        problem.add_parameter(par_id, estimate=False, nominal_value=1)
+
+    problem_expected = copy.deepcopy(problem)
+
     problem.add_observable(
         "obs1",
         formula="observableParameter1_obs1 + observableParameter2_obs1",
@@ -894,63 +904,29 @@ def test_flatten_timepoint_specific_output_overrides():
 
     # new observable IDs
     #  (obs${i_obs}_${i_obsParOverride}_${i_noiseParOverride})
-    obs1_1_1_1 = "obs1__obsParOverride1_1_00000000000000__noiseParOverride1"
-    obs1_2_1_1 = "obs1__obsParOverride2_1_00000000000000__noiseParOverride1"
-    obs1_2_2_1 = "obs1__obsParOverride2_1_00000000000000__noiseParOverride2"
-    problem_expected = Problem()
-    problem_expected.model = SbmlModel.from_antimony("""x = 1""")
+    obs1_1_1 = "obs1__obsParOverride1_1_00000000000000__noiseParOverride1"
+    obs1_2_1 = "obs1__obsParOverride2_1_00000000000000__noiseParOverride1"
+    obs1_2_2 = "obs1__obsParOverride2_1_00000000000000__noiseParOverride2"
 
-    problem_expected.add_observable(
-        obs1_1_1_1,
-        formula=(
-            f"observableParameter1_{obs1_1_1_1} "
-            f"+ observableParameter2_{obs1_1_1_1}"
-        ),
-        noise_formula=(
-            f"(observableParameter1_{obs1_1_1_1} + "
-            f"observableParameter2_{obs1_1_1_1}) "
-            f"* noiseParameter1_{obs1_1_1_1}"
-        ),
-        observable_placeholders=[
-            f"observableParameter1_{obs1_1_1_1}",
-            f"observableParameter2_{obs1_1_1_1}",
-        ],
-        noise_placeholders=[f"noiseParameter1_{obs1_1_1_1}"],
-    )
-    problem_expected.add_observable(
-        obs1_2_1_1,
-        formula=(
-            f"observableParameter1_{obs1_2_1_1} "
-            f"+ observableParameter2_{obs1_2_1_1}"
-        ),
-        noise_formula=(
-            f"(observableParameter1_{obs1_2_1_1} "
-            f"+ observableParameter2_{obs1_2_1_1}) * "
-            f"noiseParameter1_{obs1_2_1_1}"
-        ),
-        observable_placeholders=[
-            f"observableParameter1_{obs1_2_1_1}",
-            f"observableParameter2_{obs1_2_1_1}",
-        ],
-        noise_placeholders=[f"noiseParameter1_{obs1_2_1_1}"],
-    )
-    problem_expected.add_observable(
-        obs1_2_2_1,
-        formula=(
-            f"observableParameter1_{obs1_2_2_1} "
-            f"+ observableParameter2_{obs1_2_2_1}"
-        ),
-        noise_formula=(
-            f"(observableParameter1_{obs1_2_2_1} "
-            f"+ observableParameter2_{obs1_2_2_1}) "
-            f"* noiseParameter1_{obs1_2_2_1}"
-        ),
-        observable_placeholders=[
-            f"observableParameter1_{obs1_2_2_1}",
-            f"observableParameter2_{obs1_2_2_1}",
-        ],
-        noise_placeholders=[f"noiseParameter1_{obs1_2_2_1}"],
-    )
+    for obs_id in (obs1_1_1, obs1_2_1, obs1_2_2):
+        problem_expected.add_observable(
+            obs_id,
+            formula=(
+                f"observableParameter1_{obs_id} "
+                f"+ observableParameter2_{obs_id}"
+            ),
+            noise_formula=(
+                f"(observableParameter1_{obs_id} + "
+                f"observableParameter2_{obs_id}) "
+                f"* noiseParameter1_{obs_id}"
+            ),
+            observable_placeholders=[
+                f"observableParameter1_{obs_id}",
+                f"observableParameter2_{obs_id}",
+            ],
+            noise_placeholders=[f"noiseParameter1_{obs_id}"],
+        )
+
     problem_expected.add_observable(
         "obs2",
         formula="x",
@@ -989,40 +965,34 @@ def test_flatten_timepoint_specific_output_overrides():
     problem.add_measurement(obs_id="obs2", time=3.0, measurement=0.1)
 
     problem_expected.add_measurement(
-        obs_id=obs1_1_1_1,
+        obs_id=obs1_1_1,
         time=1.0,
         measurement=0.1,
         observable_parameters=["obsParOverride1", "1.0"],
         noise_parameters=["noiseParOverride1"],
     )
     problem_expected.add_measurement(
-        obs_id=obs1_2_1_1,
+        obs_id=obs1_2_1,
         time=1.0,
         measurement=0.1,
         observable_parameters=["obsParOverride2", "1.0"],
         noise_parameters=["noiseParOverride1"],
     )
     problem_expected.add_measurement(
-        obs_id=obs1_2_2_1,
+        obs_id=obs1_2_2,
         time=2.0,
         measurement=0.1,
         observable_parameters=["obsParOverride2", "1.0"],
         noise_parameters=["noiseParOverride2"],
     )
     problem_expected.add_measurement(
-        obs_id=obs1_2_2_1,
+        obs_id=obs1_2_2,
         time=2.0,
         measurement=0.1,
         observable_parameters=["obsParOverride2", "1.0"],
         noise_parameters=["noiseParOverride2"],
     )
     problem_expected.add_measurement(obs_id="obs2", time=3.0, measurement=0.1)
-
-    for p in (problem, problem_expected):
-        p.add_parameter("noiseParOverride1", estimate=False, nominal_value=1)
-        p.add_parameter("noiseParOverride2", estimate=False, nominal_value=1)
-        p.add_parameter("obsParOverride1", estimate=False, nominal_value=1)
-        p.add_parameter("obsParOverride2", estimate=False, nominal_value=1)
 
     problem.assert_valid()
     unflattened_problem = copy.deepcopy(problem)
