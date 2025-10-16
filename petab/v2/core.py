@@ -2639,7 +2639,7 @@ def flatten_timepoint_specific_output_overrides(
             zip(
                 old_obs_placeholders,
                 observable.observable_placeholders,
-                strict=False,
+                strict=True,
             )
         )
         observable.formula = observable.formula.subs(subs)
@@ -2647,7 +2647,7 @@ def flatten_timepoint_specific_output_overrides(
             zip(
                 old_noise_placeholders,
                 observable.noise_placeholders,
-                strict=False,
+                strict=True,
             )
         )
         observable.noise_formula = observable.noise_formula.subs(subs)
