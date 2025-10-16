@@ -307,7 +307,6 @@ def assert_overrides_match_parameter_count(
                 row.get(OBSERVABLE_PARAMETERS, None)
             )
         )
-        # No overrides are also allowed
         if actual != expected:
             formula = observable_df.loc[row[OBSERVABLE_ID], OBSERVABLE_FORMULA]
             raise AssertionError(
@@ -324,7 +323,6 @@ def assert_overrides_match_parameter_count(
         try:
             expected = noise_parameters_count[row[OBSERVABLE_ID]]
 
-            # No overrides are also allowed
             if len(replacements) != expected:
                 raise AssertionError(
                     f"Mismatch of noise parameter overrides in:\n{row}\n"

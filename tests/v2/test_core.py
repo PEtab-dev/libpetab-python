@@ -848,7 +848,12 @@ def test_problem_has_timepoint_specific_overrides():
         measurement=0.1,
         observable_parameters=["obsParOverride"],
     )
-    problem.add_measurement(obs_id="obs1", time=1.0, measurement=0.2)
+    problem.add_measurement(
+        obs_id="obs1",
+        time=1.0,
+        measurement=0.2,
+        observable_parameters=["obsParOverride2"],
+    )
     assert problem.has_timepoint_specific_overrides() is True
 
     # both measurements different anyways
