@@ -38,8 +38,12 @@ from ..v1 import (
     validate_yaml_syntax,
     yaml,
 )
+from ..v1.core import (
+    get_notnull_columns,
+    get_observable_replacement_id,
+)
 from ..v1.distributions import *
-from ..v1.lint import is_valid_identifier
+from ..v1.lint import is_scalar_float, is_valid_identifier
 from ..v1.math import petab_math_str, sympify_petab
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
@@ -124,7 +128,7 @@ def _valid_petab_id(v: str) -> str:
     return v
 
 
-def _valid_petab_id_or_none(v: str) -> str:
+def _valid_petab_id_or_none(v: str) -> str | None:
     """Field validator for optional PEtab IDs."""
     if not v:
         return None
@@ -264,7 +268,7 @@ class BaseTable(BaseModel, Generic[T]):
 
     @classmethod
     @abstractmethod
-    def from_df(cls, df: pd.DataFrame) -> BaseTable[T]:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
         """Create a table from a DataFrame."""
         pass
 
@@ -2381,9 +2385,6 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         if not self.measurements:
             return False
 
-        from ..v1.core import get_notnull_columns
-        from ..v1.lint import is_scalar_float
-
         measurement_df = self.measurement_df
 
         # mask numeric values
@@ -2556,11 +2557,6 @@ def _get_flattened_id_mappings(
     :returns:
         A mapping from flattened ID to original observable ID.
     """
-    from ..v1.core import (
-        get_notnull_columns,
-        get_observable_replacement_id,
-    )
-
     groupvars = get_notnull_columns(
         petab_problem.measurement_df, _POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
     )
@@ -2607,10 +2603,6 @@ def flatten_timepoint_specific_output_overrides(
     :param petab_problem:
         PEtab problem to work on. Modified in place.
     """
-    from ..v1.core import (
-        get_notnull_columns,
-        get_observable_replacement_id,
-    )
 
     # Update observables
     def create_new_observable(old_id, new_id) -> Observable:
@@ -2624,8 +2616,8 @@ def flatten_timepoint_specific_output_overrides(
         observable.id = new_id
 
         # update placeholders
-        old_obs_placeholders = observable.observable_placeholders or []
-        old_noise_placeholders = observable.noise_placeholders or []
+        old_obs_placeholders = observable.observable_placeholders
+        old_noise_placeholders = observable.noise_placeholders
         suffix = new_id.removeprefix(old_id)
         observable.observable_placeholders = [
             f"{sym.name}{suffix}" for sym in observable.observable_placeholders
@@ -2684,7 +2676,7 @@ def flatten_timepoint_specific_output_overrides(
 
 def unflatten_simulation_df(
     simulation_df: pd.DataFrame,
-    petab_problem: petab.problem.Problem,
+    petab_problem: Problem,
 ) -> pd.DataFrame:
     """Unflatten simulations from a flattened PEtab problem.
 
