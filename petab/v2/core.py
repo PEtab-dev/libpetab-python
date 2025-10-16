@@ -38,12 +38,8 @@ from ..v1 import (
     validate_yaml_syntax,
     yaml,
 )
-from ..v1.core import (
-    get_notnull_columns,
-    get_observable_replacement_id,
-)
 from ..v1.distributions import *
-from ..v1.lint import is_scalar_float, is_valid_identifier
+from ..v1.lint import is_valid_identifier
 from ..v1.math import petab_math_str, sympify_petab
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
@@ -73,16 +69,6 @@ __all__ = [
     "Parameter",
     "ParameterScale",
     "ParameterTable",
-    "flatten_timepoint_specific_output_overrides",
-    "unflatten_simulation_df",
-]
-
-_POSSIBLE_GROUPVARS_FLATTENED_PROBLEM = [
-    C.MODEL_ID,
-    C.EXPERIMENT_ID,
-    C.OBSERVABLE_ID,
-    C.OBSERVABLE_PARAMETERS,
-    C.NOISE_PARAMETERS,
 ]
 
 logger = logging.getLogger(__name__)
@@ -1222,7 +1208,7 @@ class Problem:
             from .petab1to2 import petab1to2
 
             if format_version[0] == 1 and yaml_file:
-                logging.debug(
+                logger.debug(
                     "Auto-upgrading problem from PEtab 1.0 to PEtab 2.0"
                 )
                 with TemporaryDirectory() as tmpdirname:
@@ -2364,68 +2350,6 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
 
         return output_parameters
 
-    def has_timepoint_specific_overrides(
-        self,
-        ignore_scalar_numeric_noise_parameters: bool = False,
-        ignore_scalar_numeric_observable_parameters: bool = False,
-    ) -> bool:
-        """Check if the measurements have timepoint-specific observable or
-        noise parameter overrides.
-
-        :param ignore_scalar_numeric_noise_parameters:
-            ignore scalar numeric assignments to noiseParameter placeholders
-
-        :param ignore_scalar_numeric_observable_parameters:
-            ignore scalar numeric assignments to observableParameter
-            placeholders
-
-        :return: True if the problem has timepoint-specific overrides, False
-            otherwise.
-        """
-        if not self.measurements:
-            return False
-
-        measurement_df = self.measurement_df
-
-        # mask numeric values
-        for col, allow_scalar_numeric in [
-            (
-                C.OBSERVABLE_PARAMETERS,
-                ignore_scalar_numeric_observable_parameters,
-            ),
-            (C.NOISE_PARAMETERS, ignore_scalar_numeric_noise_parameters),
-        ]:
-            if col not in measurement_df:
-                continue
-
-            measurement_df[col] = measurement_df[col].apply(str)
-
-            if allow_scalar_numeric:
-                measurement_df.loc[
-                    measurement_df[col].apply(is_scalar_float), col
-                ] = ""
-
-        grouping_cols = get_notnull_columns(
-            measurement_df,
-            _POSSIBLE_GROUPVARS_FLATTENED_PROBLEM,
-        )
-        grouped_df = measurement_df.groupby(grouping_cols, dropna=False)
-
-        grouping_cols = get_notnull_columns(
-            measurement_df,
-            [
-                C.MODEL_ID,
-                C.OBSERVABLE_ID,
-                C.EXPERIMENT_ID,
-            ],
-        )
-        grouped_df2 = measurement_df.groupby(grouping_cols)
-
-        # data frame has timepoint specific overrides if grouping by noise
-        # parameters and observable parameters in addition to observable and
-        # experiment id yields more groups
-        return len(grouped_df) != len(grouped_df2)
-
 
 class ModelFile(BaseModel):
     """A file in the PEtab problem configuration."""
@@ -2544,160 +2468,3 @@ class ProblemConfig(BaseModel):
         """The format version as a tuple of major/minor/patch `int`s and a
         suffix."""
         return parse_version(self.format_version)
-
-
-def _get_flattened_id_mappings(
-    petab_problem: Problem,
-) -> dict[str, str]:
-    """Get mapping from flattened to unflattened observable IDs.
-
-    :param petab_problem:
-        The unflattened PEtab problem.
-
-    :returns:
-        A mapping from flattened ID to original observable ID.
-    """
-    groupvars = get_notnull_columns(
-        petab_problem.measurement_df, _POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
-    )
-    mappings: dict[str, str] = {}
-
-    old_observable_ids = {obs.id for obs in petab_problem.observables}
-    for groupvar, _ in petab_problem.measurement_df.groupby(
-        groupvars, dropna=False
-    ):
-        observable_id = groupvar[groupvars.index(C.OBSERVABLE_ID)]
-        observable_replacement_id = get_observable_replacement_id(
-            groupvars, groupvar
-        )
-
-        logger.debug(f"Creating synthetic observable {observable_id}")
-        if (
-            observable_id != observable_replacement_id
-            and observable_replacement_id in old_observable_ids
-        ):
-            raise RuntimeError(
-                "could not create synthetic observables "
-                f"since {observable_replacement_id} was "
-                "already present in observable table"
-            )
-
-        mappings[observable_replacement_id] = observable_id
-
-    return mappings
-
-
-def flatten_timepoint_specific_output_overrides(
-    petab_problem: Problem,
-) -> None:
-    """Flatten timepoint-specific output parameter overrides.
-
-    If the PEtab problem definition has timepoint-specific
-    `observableParameters` or `noiseParameters` for the same observable,
-    replace those by replicating the respective observable.
-
-    This is a helper function for some tools which may not support such
-    timepoint-specific mappings. The observable table and measurement table
-    are modified in place.
-
-    :param petab_problem:
-        PEtab problem to work on. Modified in place.
-    """
-
-    # Update observables
-    def create_new_observable(old_id, new_id) -> Observable:
-        if old_id not in petab_problem.observable_df.index:
-            raise ValueError(
-                f"Observable {old_id} not found in observable table."
-            )
-
-        # copy original observable and update ID
-        observable: Observable = copy.deepcopy(petab_problem[old_id])
-        observable.id = new_id
-
-        # update placeholders
-        old_obs_placeholders = observable.observable_placeholders
-        old_noise_placeholders = observable.noise_placeholders
-        suffix = new_id.removeprefix(old_id)
-        observable.observable_placeholders = [
-            f"{sym.name}{suffix}" for sym in observable.observable_placeholders
-        ]
-        observable.noise_placeholders = [
-            f"{sym.name}{suffix}" for sym in observable.noise_placeholders
-        ]
-
-        # placeholders in formulas
-        subs = dict(
-            zip(
-                old_obs_placeholders,
-                observable.observable_placeholders,
-                strict=True,
-            )
-        )
-        observable.formula = observable.formula.subs(subs)
-        subs |= dict(
-            zip(
-                old_noise_placeholders,
-                observable.noise_placeholders,
-                strict=True,
-            )
-        )
-        observable.noise_formula = observable.noise_formula.subs(subs)
-
-        return observable
-
-    mappings = _get_flattened_id_mappings(petab_problem)
-
-    petab_problem.observable_tables = [
-        ObservableTable(
-            [
-                create_new_observable(old_id, new_id)
-                for new_id, old_id in mappings.items()
-            ]
-        )
-    ]
-
-    # Update measurements
-    groupvars = get_notnull_columns(
-        petab_problem.measurement_df, _POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
-    )
-    for measurement_table in petab_problem.measurement_tables:
-        for measurement in measurement_table.measurements:
-            # TODO: inefficient, but ok for a start
-            group_vals = (
-                MeasurementTable([measurement])
-                .to_df()
-                .iloc[0][groupvars]
-                .tolist()
-            )
-            new_obs_id = get_observable_replacement_id(groupvars, group_vals)
-            measurement.observable_id = new_obs_id
-
-
-def unflatten_simulation_df(
-    simulation_df: pd.DataFrame,
-    petab_problem: Problem,
-) -> pd.DataFrame:
-    """Unflatten simulations from a flattened PEtab problem.
-
-    A flattened PEtab problem is the output of applying
-    :func:`flatten_timepoint_specific_output_overrides` to a PEtab problem.
-
-    :param simulation_df:
-        The simulation dataframe. A dataframe in the same format as a PEtab
-        measurements table, but with the ``measurement`` column switched
-        with a ``simulation`` column.
-    :param petab_problem:
-        The unflattened PEtab problem.
-
-    :returns:
-        The simulation dataframe for the unflattened PEtab problem.
-    """
-    mappings = _get_flattened_id_mappings(petab_problem)
-    original_observable_ids = simulation_df[C.OBSERVABLE_ID].replace(mappings)
-    unflattened_simulation_df = simulation_df.assign(
-        **{
-            C.OBSERVABLE_ID: original_observable_ids,
-        }
-    )
-    return unflattened_simulation_df
