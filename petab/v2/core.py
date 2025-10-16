@@ -71,6 +71,8 @@ __all__ = [
     "ParameterTable",
 ]
 
+logger = logging.getLogger(__name__)
+
 
 def _is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
     if not np.isfinite(v) and v != -np.inf:
@@ -112,7 +114,7 @@ def _valid_petab_id(v: str) -> str:
     return v
 
 
-def _valid_petab_id_or_none(v: str) -> str:
+def _valid_petab_id_or_none(v: str) -> str | None:
     """Field validator for optional PEtab IDs."""
     if not v:
         return None
@@ -252,7 +254,7 @@ class BaseTable(BaseModel, Generic[T]):
 
     @classmethod
     @abstractmethod
-    def from_df(cls, df: pd.DataFrame) -> BaseTable[T]:
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
         """Create a table from a DataFrame."""
         pass
 
@@ -1143,7 +1145,11 @@ class Problem:
             f"{observables}, {measurements}, {parameters}"
         )
 
-    def __getitem__(self, key):
+    def __getitem__(
+        self, key
+    ) -> (
+        Condition | Experiment | Observable | Measurement | Parameter | Mapping
+    ):
         """Get PEtab entity by ID.
 
         This allows accessing PEtab entities such as conditions, experiments,
@@ -1202,7 +1208,7 @@ class Problem:
             from .petab1to2 import petab1to2
 
             if format_version[0] == 1 and yaml_file:
-                logging.debug(
+                logger.debug(
                     "Auto-upgrading problem from PEtab 1.0 to PEtab 2.0"
                 )
                 with TemporaryDirectory() as tmpdirname:
@@ -2320,7 +2326,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         # filter out symbols that are defined in the model or mapped to
         #  such symbols
         for candidate in sorted(candidates):
-            if self.model.symbol_allowed_in_observable_formula(candidate):
+            if self.model and self.model.symbol_allowed_in_observable_formula(
+                candidate
+            ):
                 continue
 
             # does it map to a model entity?
@@ -2329,8 +2337,11 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                     mapping.petab_id == candidate
                     and mapping.model_id is not None
                 ):
-                    if self.model.symbol_allowed_in_observable_formula(
-                        mapping.model_id
+                    if (
+                        self.model
+                        and self.model.symbol_allowed_in_observable_formula(
+                            mapping.model_id
+                        )
                     ):
                         break
             else:
