@@ -2548,13 +2548,13 @@ class ProblemConfig(BaseModel):
 def _get_flattened_id_mappings(
     petab_problem: Problem,
 ) -> dict[str, str]:
-    """Get mapping from flattened to unflattenedobservable IDs.
+    """Get mapping from flattened to unflattened observable IDs.
 
     :param petab_problem:
         The unflattened PEtab problem.
 
     :returns:
-        A mapping from original observable ID to flattened ID.
+        A mapping from flattened ID to original observable ID.
     """
     from ..v1.core import (
         get_notnull_columns,
