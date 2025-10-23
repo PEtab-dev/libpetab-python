@@ -93,13 +93,18 @@ class PySBModel(Model):
         )
 
     def to_file(self, filename: str | Path | None = None) -> None:
-        from pysb.export import export
+        model_source = self.to_str()
 
-        model_source = export(self.model, "pysb_flat")
         with open(
             filename or _generate_path(self.rel_path, self.base_path), "w"
         ) as f:
             f.write(model_source)
+
+    def to_str(self) -> str:
+        """Get the PySB model Python code as a string."""
+        from pysb.export import export
+
+        return export(self.model, "pysb_flat")
 
     @property
     def model_id(self):
