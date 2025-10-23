@@ -36,7 +36,7 @@ maintainers = [
 
 [project.optional-dependencies]
 tests = [
-    "antimony>=2.14.0",
+    "antimony>=3.1.0",
     "copasi-basico>=0.85",
     "pysb",
     "pytest",

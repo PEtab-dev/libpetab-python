@@ -96,11 +96,12 @@ def test_simulate_experiment_to_events():
     species s2c_comp1 in comp1 = 3
     species s2c_comp2 in comp2 = 4
     # amount-based species
-    # (note: the initial values are concentrations nonetheless)
-    substanceOnly species s3a_comp1 in comp1 = 5
-    substanceOnly species s3a_comp2 in comp2 = 6
-    substanceOnly species s4a_comp1 in comp1 = 7
-    substanceOnly species s4a_comp2 in comp2 = 8
+    # (note that in antimony<3.1.0 the initial values are concentrations
+    #  nonetheless)
+    substanceOnly species s3a_comp1 in comp1 = 5 * comp1
+    substanceOnly species s3a_comp2 in comp2 = 6 * comp2
+    substanceOnly species s4a_comp1 in comp1 = 7 * comp1
+    substanceOnly species s4a_comp2 in comp2 = 8 * comp2
 
     # something dynamic
     some_species in comp1 = 0
