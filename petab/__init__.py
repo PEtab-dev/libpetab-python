@@ -26,7 +26,7 @@ def __getattr__(name):
         return importlib.import_module("petab.v1")
     if name == "v2":
         return importlib.import_module("petab.v2")
-    if name not in ("__path__", "__all__"):
+    if name not in ("__path__", "__all__", "__wrapped__"):
         warn(
             f"Accessing `petab.{name}` is deprecated and will be removed in "
             f"the next major release. Please use `petab.v1.{name}` instead.",
@@ -37,7 +37,7 @@ def __getattr__(name):
 
 
 def _v1getattr(name, module):
-    if name not in ("__path__", "__all__"):
+    if name not in ("__path__", "__all__", "__wrapped__"):
         warn(
             f"Accessing `petab.{name}` is deprecated and will be removed in "
             f"the next major release. Please use `petab.v1.{name}` instead.",
