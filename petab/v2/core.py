@@ -846,6 +846,22 @@ class Mapping(BaseModel):
         populate_by_name=True, extra="allow", validate_assignment=True
     )
 
+    @model_validator(mode="after")
+    def _validate(self) -> Self:
+        if (
+            self.model_id
+            and self.model_id != self.petab_id
+            and is_valid_identifier(self.model_id)
+        ):
+            raise ValueError(
+                "Aliasing of entities that already have a valid identifier "
+                "is not allowed. Simplify your PEtab problem by removing the "
+                f"mapping entry for `{self.petab_id} -> {self.model_id}`, "
+                f"and replacing all occurrences of `{self.petab_id}` with "
+                f"`{self.model_id}`."
+            )
+        return self
+
 
 class MappingTable(BaseTable[Mapping]):
     """PEtab mapping table."""
