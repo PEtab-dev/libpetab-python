@@ -1,5 +1,32 @@
 # PEtab changelog
 
+## 0.7 series
+
+## 0.7.0 series
+
+**Fixes**
+
+* Misc minor `petab.v2`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/445
+  and https://github.com/PEtab-dev/libpetab-python/pull/450)
+* Fixed serialization of `priorParameters`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/449)
+
+**Features**
+
+* Added `PySBModel.to_str`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/451)
+* Added `id` field to `v2.ProblemConfig`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/442)
+* Updated `ExperimentsToEventsConverter` to changed initialization semantics
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/443)
+* Added `v2.Problem.{get_output_parameters,get_x_nominal_dict}`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/447)
+* Extended PEtab v2 mapping table validation
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/452)
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.6.0...v0.7.0
+
 ## 0.6 series
 
 ### 0.6.0
