@@ -524,12 +524,12 @@ def test_modify_problem():
         check_dtype=False,
     )
 
-    problem.add_mapping("new_petab_id", "some_model_entity_id")
+    problem.add_mapping("new_petab_id", "1some_model_entity_id")
 
     exp_mapping_df = pd.DataFrame(
         data={
             PETAB_ENTITY_ID: ["new_petab_id"],
-            MODEL_ENTITY_ID: ["some_model_entity_id"],
+            MODEL_ENTITY_ID: ["1some_model_entity_id"],
             NAME: [None],
         }
     ).set_index([PETAB_ENTITY_ID])
@@ -836,3 +836,33 @@ def test_get_output_parameters():
     assert petab_problem.get_output_parameters(
         observable=False, noise=True
     ) == ["p1", "p3", "p5"]
+
+
+def test_mapping_validation():
+    """Test that invalid mapping entries raise errors."""
+
+    # alias invalid model entity ID
+    Mapping(
+        petab_id="valid_id",
+        model_id=" 1_invalid",
+    )
+
+    with pytest.raises(ValidationError, match="Invalid ID"):
+        # invalid petab entity ID
+        Mapping(
+            petab_id="1_invalid",
+            model_id="valid_id",
+        )
+
+    with pytest.raises(ValidationError, match="Aliasing.*not allowed"):
+        # unnecessary aliasing is forbidden
+        Mapping(
+            petab_id="forbidden_alias_of_valid_id",
+            model_id="valid_id",
+        )
+
+    # missing model_id is valid (annotation-only entry)
+    Mapping(petab_id="valid_id", name="some name")
+
+    # identity mapping is valid
+    Mapping(petab_id="valid_id", model_id="valid_id", name="some name")
