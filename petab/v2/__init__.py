@@ -3,14 +3,6 @@
 Contains all functionality related to handling PEtab 2.0 problems.
 """
 
-from warnings import warn
-
-warn(
-    "Support for PEtab2.0 and all of petab.v2 is experimental "
-    "and subject to changes!",
-    stacklevel=1,
-)
-
 # TODO: move this module to v2
 from petab.v1.mapping import (  # noqa: F403, F401, E402
     get_mapping_df,
