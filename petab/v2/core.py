@@ -148,8 +148,6 @@ class NoiseDistribution(str, Enum):
     LOG_NORMAL = C.LOG_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
-    #: Log10-Normal
-    LOG10_NORMAL = C.LOG10_NORMAL
 
 
 class PriorDistribution(str, Enum):
@@ -168,8 +166,6 @@ class PriorDistribution(str, Enum):
     GAMMA = C.GAMMA
     #: Laplace distribution.
     LAPLACE = C.LAPLACE
-    #: Log10-normal distribution.
-    LOG10_NORMAL = C.LOG10_NORMAL
     #: Log-Laplace distribution
     LOG_LAPLACE = C.LOG_LAPLACE
     #: Log-normal distribution.
@@ -195,7 +191,6 @@ _prior_to_cls = {
     PriorDistribution.EXPONENTIAL: Exponential,
     PriorDistribution.GAMMA: Gamma,
     PriorDistribution.LAPLACE: Laplace,
-    PriorDistribution.LOG10_NORMAL: Normal,
     PriorDistribution.LOG_LAPLACE: Laplace,
     PriorDistribution.LOG_NORMAL: Normal,
     PriorDistribution.LOG_UNIFORM: Uniform,
