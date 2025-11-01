@@ -1610,7 +1610,7 @@ class Problem:
     @property
     def id(self) -> str | None:
         """The ID of the PEtab problem if set, ``None`` otherwise."""
-        return self.config.id
+        return self.config.id if self.config else None
 
     @id.setter
     def id(self, value: str):
