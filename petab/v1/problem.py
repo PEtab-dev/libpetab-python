@@ -302,7 +302,6 @@ class Problem:
                 f"{yaml_config[FORMAT_VERSION]}."
             )
         if major_version == 2:
-            warn("Support for PEtab2.0 is experimental!", stacklevel=2)
             warn(
                 "Using petab.v1.Problem with PEtab2.0 is deprecated. "
                 "Use petab.v2.Problem instead.",
