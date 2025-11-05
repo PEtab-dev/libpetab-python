@@ -199,8 +199,6 @@ EXPONENTIAL = "exponential"
 GAMMA = "gamma"
 #: Laplace distribution
 LAPLACE = "laplace"
-#: Log10-normal distribution.
-LOG10_NORMAL = "log10-normal"
 #: Log-Laplace distribution
 LOG_LAPLACE = "log-laplace"
 #: Log-normal distribution
@@ -221,7 +219,6 @@ PRIOR_DISTRIBUTIONS = [
     EXPONENTIAL,
     GAMMA,
     LAPLACE,
-    LOG10_NORMAL,
     LOG_LAPLACE,
     LOG_NORMAL,
     LOG_UNIFORM,

@@ -802,7 +802,6 @@ class CheckPriorDistribution(ValidationTask):
         PriorDistribution.EXPONENTIAL: 1,
         PriorDistribution.GAMMA: 2,
         PriorDistribution.LAPLACE: 2,
-        PriorDistribution.LOG10_NORMAL: 2,
         PriorDistribution.LOG_LAPLACE: 2,
         PriorDistribution.LOG_NORMAL: 2,
         PriorDistribution.LOG_UNIFORM: 2,

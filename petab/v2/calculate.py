@@ -447,10 +447,7 @@ def calculate_single_llh(
         The computed likelihood for the given values.
     """
     # PEtab v2:
-    if noise_distribution == LOG10_NORMAL and scale == LIN:
-        noise_distribution = NORMAL
-        scale = LOG10
-    elif noise_distribution == LOG_NORMAL and scale == LIN:
+    if noise_distribution == LOG_NORMAL and scale == LIN:
         noise_distribution = NORMAL
         scale = LOG
 

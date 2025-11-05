@@ -59,7 +59,7 @@ def petab1to2(
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
-def petab_files_1to2(yaml_config: Path | str, output_dir: Path | str):
+def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
 
 
@@ -404,7 +404,8 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
                     f"observable `{row[v1.C.OBSERVABLE_ID]}'"
                     f" is not supported in PEtab v2. "
                     "Using `log-normal` instead.",
-                    stacklevel=2,
+                    # call to `petab1to2`
+                    stacklevel=9,
                 )
                 new_dist = v2.C.LOG_NORMAL
 
@@ -490,10 +491,20 @@ def v1v2_parameter_df(
         if pscale != v1.C.LIN:
             new_prior_type = f"{pscale}-{new_prior_type}"
 
+        if new_prior_type == "log10-normal":
+            warnings.warn(
+                f"Prior distribution `{new_prior_type}' for parameter "
+                f"`{row.name}' is not supported in PEtab v2. "
+                "Using `log-normal` instead.",
+                # call to `petab1to2`
+                stacklevel=9,
+            )
+            new_prior_type = v2.C.LOG_NORMAL
+
         if new_prior_type not in v2.C.PRIOR_DISTRIBUTIONS:
             raise NotImplementedError(
                 f"PEtab v2 does not support prior type `{new_prior_type}' "
-                f"required for parameter `{row.index}'."
+                f"required for parameter `{row.name}'."
             )
 
         return new_prior_type
