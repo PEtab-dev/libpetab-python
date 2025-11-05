@@ -1133,8 +1133,13 @@ class Problem:
         self.mapping_tables = mapping_tables or [MappingTable()]
         self.parameter_tables = parameter_tables or [ParameterTable()]
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} id={self.id!r}>"
+
     def __str__(self):
-        model = f"with model ({self.model})" if self.model else "without model"
+        pid = repr(self.id) if self.id else "without ID"
+
+        model = f"with models {self.models}" if self.model else "without model"
 
         ne = len(self.experiments)
         experiments = f"{ne} experiments"
@@ -1152,7 +1157,7 @@ class Problem:
         parameters = f"{nest} estimated parameters"
 
         return (
-            f"PEtab Problem {model}, {conditions}, {experiments}, "
+            f"PEtab Problem {pid} {model}, {conditions}, {experiments}, "
             f"{observables}, {measurements}, {parameters}"
         )
 
