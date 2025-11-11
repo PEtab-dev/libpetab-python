@@ -768,8 +768,15 @@ class CheckInitialChangeSymbols(ValidationTask):
                 if condition_id in valid_conditions:
                     continue
 
-                # we assume that all referenced condition IDs are valid
-                condition = id_to_condition[condition_id]
+                try:
+                    condition = id_to_condition[condition_id]
+                except KeyError:
+                    messages.append(
+                        f"Unable to validate changes for condition "
+                        f"{condition_id} applied at the start of "
+                        f"experiment {experiment.id}, as the condition "
+                        "does not exist."
+                    )
 
                 used_symbols = {
                     str(sym)
