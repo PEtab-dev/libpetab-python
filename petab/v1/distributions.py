@@ -508,6 +508,9 @@ class Cauchy(Distribution):
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return cauchy.ppf(q, loc=self._loc, scale=self._scale)
 
+    def _sample(self, shape=None) -> np.ndarray | float:
+        return cauchy.rvs(loc=self._loc, scale=self._scale, size=shape)
+
     @property
     def loc(self) -> float:
         """The location parameter of the underlying distribution."""
@@ -541,14 +544,16 @@ class ChiSquare(Distribution):
 
     def __init__(
         self,
-        dof: int,
+        dof: int | float,
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
-        if not dof.is_integer() or dof < 1:
-            raise ValueError(
-                f"`dof' must be a positive integer, but was `{dof}'."
-            )
+        if isinstance(dof, float):
+            if not dof.is_integer() or dof < 1:
+                raise ValueError(
+                    f"`dof' must be a positive integer, but was `{dof}'."
+                )
+            dof = int(dof)
 
         self._dof = dof
         super().__init__(log=log, trunc=trunc)
@@ -564,6 +569,9 @@ class ChiSquare(Distribution):
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return chi2.ppf(q, df=self._dof)
+
+    def _sample(self, shape=None) -> np.ndarray | float:
+        return chi2.rvs(df=self._dof, size=shape)
 
     @property
     def dof(self) -> int:
@@ -601,6 +609,9 @@ class Exponential(Distribution):
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return expon.ppf(q, scale=self._scale)
+
+    def _sample(self, shape=None) -> np.ndarray | float:
+        return expon.rvs(scale=self._scale, size=shape)
 
     @property
     def scale(self) -> float:
@@ -649,6 +660,9 @@ class Gamma(Distribution):
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return gamma.ppf(q, a=self._shape, scale=self._scale)
+
+    def _sample(self, shape=None) -> np.ndarray | float:
+        return gamma.rvs(a=self._shape, scale=self._scale, size=shape)
 
     @property
     def shape(self) -> float:
@@ -699,6 +713,9 @@ class Rayleigh(Distribution):
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
         return rayleigh.ppf(q, scale=self._scale)
+
+    def _sample(self, shape=None) -> np.ndarray | float:
+        return rayleigh.rvs(scale=self._scale, size=shape)
 
     @property
     def scale(self) -> float:
