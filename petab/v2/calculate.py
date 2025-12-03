@@ -308,14 +308,14 @@ def calculate_chi2(
     chi2s = [
         calculate_chi2_for_table_from_residuals(df) for df in residual_dfs
     ]
-    return sum(chi2s)
+    return float(sum(chi2s))
 
 
 def calculate_chi2_for_table_from_residuals(
     residual_df: pd.DataFrame,
 ) -> float:
     """Compute chi2 value for a single residual table."""
-    return (np.array(residual_df[RESIDUAL]) ** 2).sum()
+    return float((np.array(residual_df[RESIDUAL]) ** 2).sum())
 
 
 def calculate_llh(
@@ -362,7 +362,7 @@ def calculate_llh(
             measurement_df, simulation_df, observable_df, parameter_df
         )
         llhs.append(_llh)
-    return sum(llhs)
+    return float(sum(llhs))
 
 
 def calculate_llh_for_table(
@@ -423,7 +423,7 @@ def calculate_llh_for_table(
             measurement, simulation, obs_scale, noise_distr, noise_value
         )
         llhs.append(llh)
-    return sum(llhs)
+    return float(sum(llhs))
 
 
 def calculate_single_llh(
