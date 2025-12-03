@@ -4,6 +4,7 @@ Contains all functionality related to handling PEtab 2.0 problems.
 """
 
 # TODO: move this module to v2
+from petab.v1.distributions import *  # noqa: F401, E402
 from petab.v1.mapping import (  # noqa: F403, F401, E402
     get_mapping_df,
     write_mapping_df,

@@ -69,6 +69,7 @@ __all__ = [
     "Parameter",
     "ParameterScale",
     "ParameterTable",
+    "PriorDistribution",
 ]
 
 logger = logging.getLogger(__name__)
