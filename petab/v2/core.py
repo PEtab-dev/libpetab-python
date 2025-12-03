@@ -14,7 +14,15 @@ from itertools import chain
 from math import nan
 from numbers import Number
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, get_args
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Generic,
+    Self,
+    TypeVar,
+    get_args,
+)
 
 import numpy as np
 import pandas as pd
@@ -31,7 +39,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Self
 
 from .._utils import _generate_path
 from ..v1 import (
