@@ -866,3 +866,22 @@ def test_mapping_validation():
 
     # identity mapping is valid
     Mapping(petab_id="valid_id", model_id="valid_id", name="some name")
+
+
+def test_objective_type():
+    """Test that MAP and ML problems are recognized correctly."""
+    problem = Problem()
+    problem += Parameter(id="par1", lb=0, ub=100, estimate=True)
+    assert problem.has_ml_objective is True
+    assert problem.has_map_objective is False
+
+    problem += Parameter(
+        id="par2",
+        lb=0,
+        ub=100,
+        estimate=True,
+        prior_distribution="normal",
+        prior_parameters=[50, 10],
+    )
+    assert problem.has_map_objective is True
+    assert problem.has_ml_objective is False
