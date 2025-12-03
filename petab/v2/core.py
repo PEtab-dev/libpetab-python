@@ -1820,8 +1820,43 @@ class Problem:
         """Parameter table non-estimated parameter indices."""
         return [i for i, p in enumerate(self.parameters) if not p.estimate]
 
+    @property
+    def has_map_objective(self) -> bool:
+        """Whether this problem encodes a maximum a posteriori (MAP) objective.
+
+        A PEtab problem is considered to have a MAP objective if there is a
+        prior distribution specified for at least one estimated parameter.
+
+        :returns: ``True`` if MAP objective, ``False`` otherwise.
+        """
+        return any(
+            p.prior_distribution is not None
+            for p in self.parameters
+            if p.estimate
+        )
+
+    @property
+    def has_ml_objective(self) -> bool:
+        """Whether this problem encodes a maximum likelihood (ML) objective.
+
+        A PEtab problem is considered to have an ML objective if there are no
+        prior distributions specified for any estimated parameters.
+
+        :returns: ``True`` if ML objective, ``False`` otherwise.
+        """
+        return all(
+            p.prior_distribution is None for p in self.parameters if p.estimate
+        )
+
     def get_priors(self) -> dict[str, Distribution]:
         """Get prior distributions.
+
+        Note that this will default to uniform distributions over the
+        parameter bounds for parameters without an explicit prior.
+
+        For checking whether this :class:`Problem` encodes a MAP or ML
+        objective, use :attr:`Problem.has_map_objective` or
+        :attr:`Problem.has_ml_objective`.
 
         :returns: The prior distributions for the estimated parameters.
         """
