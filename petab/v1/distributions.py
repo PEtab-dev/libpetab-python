@@ -36,6 +36,7 @@ __all__ = [
     "Normal",
     "Rayleigh",
     "Uniform",
+    "LogUniform",
 ]
 
 
@@ -382,6 +383,10 @@ class Uniform(Distribution):
         If ``False``, no transformation is applied.
         If a transformation is applied, the lower and upper bounds are the
         lower and upper bounds of the underlying uniform distribution.
+        Note that this differs from the usual definition of a log-uniform
+        distribution, where the logarithm of the variable is uniformly
+        distributed between the logarithms of the bounds (see also
+        :class:`LogUniform`).
     """
 
     def __init__(
@@ -394,6 +399,43 @@ class Uniform(Distribution):
         self._low = low
         self._high = high
         super().__init__(log=log)
+
+    def __repr__(self):
+        return self._repr({"low": self._low, "high": self._high})
+
+    def _sample(self, shape=None) -> np.ndarray | float:
+        return np.random.uniform(low=self._low, high=self._high, size=shape)
+
+    def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
+
+    def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
+        return uniform.cdf(x, loc=self._low, scale=self._high - self._low)
+
+    def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
+        return uniform.ppf(q, loc=self._low, scale=self._high - self._low)
+
+
+class LogUniform(Distribution):
+    """A log-uniform or reciprocal distribution.
+
+    A random variable is log-uniformly distributed between ``low`` and ``high``
+    if its logarithm is uniformly distributed between ``log(low)`` and
+    ``log(high)``.
+
+    :param low: The lower bound of the distribution.
+    :param high: The upper bound of the distribution.
+    """
+
+    def __init__(
+        self,
+        low: float,
+        high: float,
+    ):
+        self._logbase = np.exp(1)
+        self._low = self._log(low)
+        self._high = self._log(high)
+        super().__init__(log=self._logbase)
 
     def __repr__(self):
         return self._repr({"low": self._low, "high": self._high})
