@@ -34,6 +34,11 @@ from petab.v2.C import *
         Normal(2, 1, log=10),
         Laplace(1, 2, trunc=(1, 2)),
         Laplace(1, 0.5, log=True, trunc=(0.5, 8)),
+        Cauchy(2, 1),
+        ChiSquare(4),
+        Exponential(1),
+        Gamma(3, 5),
+        Rayleigh(3),
     ],
 )
 def test_sample_matches_pdf(distribution):
