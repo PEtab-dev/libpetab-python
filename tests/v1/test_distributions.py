@@ -1,4 +1,5 @@
 import sys
+from math import exp
 
 import numpy as np
 import pytest
@@ -115,3 +116,20 @@ def test_sample_matches_pdf(distribution):
         assert_allclose(
             distribution.pdf(sample), reference_pdf, rtol=1e-10, atol=1e-14
         )
+
+
+def test_log_uniform():
+    """Test Uniform(a, b, log=True) vs LogUniform(a, b)."""
+    # support between exp(1) and exp(2)
+    dist = Uniform(1, 2, log=True)
+    assert dist.pdf(exp(0)) == 0
+    assert dist.pdf(exp(1)) > 0
+    assert dist.pdf(exp(2)) > 0
+    assert dist.pdf(exp(3)) == 0
+
+    # support between 1 and 2
+    dist = LogUniform(1, 2)
+    assert dist.pdf(0) == 0
+    assert dist.pdf(1) > 0
+    assert dist.pdf(2) > 0
+    assert dist.pdf(3) == 0
