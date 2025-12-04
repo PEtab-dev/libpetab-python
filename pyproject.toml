@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 name = "petab"
 dynamic = ["version", "readme"]
 description = "Parameter estimation tabular data"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.15.1",
     "pandas>=1.2.0",
