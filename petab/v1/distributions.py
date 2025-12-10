@@ -425,17 +425,19 @@ class LogUniform(Distribution):
 
     :param low: The lower bound of the distribution.
     :param high: The upper bound of the distribution.
+    :param trunc: The truncation limits of the distribution.
     """
 
     def __init__(
         self,
         low: float,
         high: float,
+        trunc: tuple[float, float] | None = None,
     ):
         self._logbase = np.exp(1)
         self._low = self._log(low)
         self._high = self._log(high)
-        super().__init__(log=self._logbase)
+        super().__init__(log=self._logbase, trunc=trunc)
 
     def __repr__(self):
         return self._repr({"low": self._low, "high": self._high})

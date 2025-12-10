@@ -1065,10 +1065,7 @@ class Parameter(BaseModel):
         if cls == LogUniform:
             # Mind the different interpretation of distribution parameters for
             #  Uniform(..., log=True) and LogUniform!!
-            # `LogUniform.__init__` does not accept the `trunc` parameter
-            low = max(self.prior_parameters[0], self.lb)
-            high = min(self.prior_parameters[1], self.ub)
-            return cls(low, high)
+            return cls(*self.prior_parameters, trunc=[self.lb, self.ub])
 
         return cls(*self.prior_parameters, log=log, trunc=[self.lb, self.ub])
 
