@@ -201,7 +201,7 @@ _prior_to_cls = {
     PriorDistribution.LAPLACE: Laplace,
     PriorDistribution.LOG_LAPLACE: Laplace,
     PriorDistribution.LOG_NORMAL: Normal,
-    PriorDistribution.LOG_UNIFORM: Uniform,
+    PriorDistribution.LOG_UNIFORM: LogUniform,
     PriorDistribution.NORMAL: Normal,
     PriorDistribution.RAYLEIGH: Rayleigh,
     PriorDistribution.UNIFORM: Uniform,
@@ -1060,7 +1060,12 @@ class Parameter(BaseModel):
             # `Uniform.__init__` does not accept the `trunc` parameter
             low = max(self.prior_parameters[0], self.lb)
             high = min(self.prior_parameters[1], self.ub)
-            return cls(low, high, log=log)
+            return cls(low, high)
+
+        if cls == LogUniform:
+            # Mind the different interpretation of distribution parameters for
+            #  Uniform(..., log=True) and LogUniform!!
+            return cls(*self.prior_parameters, trunc=[self.lb, self.ub])
 
         return cls(*self.prior_parameters, log=log, trunc=[self.lb, self.ub])
 
