@@ -843,7 +843,7 @@ class CheckPriorDistribution(ValidationTask):
 
             # TODO: check distribution parameter domains more specifically
             try:
-                if parameter.estimate:
+                if parameter.estimate and parameter.prior_dist is not None:
                     # .prior_dist fails for non-estimated parameters
                     _ = parameter.prior_dist.sample(1)
             except Exception as e:

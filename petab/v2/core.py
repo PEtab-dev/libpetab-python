@@ -1026,13 +1026,17 @@ class Parameter(BaseModel):
         return self
 
     @property
-    def prior_dist(self) -> Distribution:
-        """Get the prior distribution of the parameter."""
-        if self.estimate is False:
+    def prior_dist(self) -> Distribution | None:
+        """Get the prior distribution of the parameter.
+
+        :return: The prior distribution of the parameter, or None if no prior
+            distribution is set.
+        """
+        if not self.estimate:
             raise ValueError(f"Parameter `{self.id}' is not estimated.")
 
         if self.prior_distribution is None:
-            return Uniform(self.lb, self.ub)
+            return None
 
         if not (cls := _prior_to_cls.get(self.prior_distribution)):
             raise ValueError(
@@ -1858,7 +1862,11 @@ class Problem:
 
         :returns: The prior distributions for the estimated parameters.
         """
-        return {p.id: p.prior_dist for p in self.parameters if p.estimate}
+        return {
+            p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
+            for p in self.parameters
+            if p.estimate
+        }
 
     def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
         """Create 2D array with starting points for optimization"""
