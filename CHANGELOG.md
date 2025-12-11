@@ -1,8 +1,41 @@
 # PEtab changelog
 
+
+## 0.8 series
+
+### 0.8.0
+
+**Fixes**
+* Handle `KeyError` in CheckInitialChangeSymbols
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/459)
+* Fix return type in `petab.v2.calculate`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/464)
+* Implement sampling for v2 prior distributions
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/461)
+
+**Features**
+* Add `v2.Problem.__repr__`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/458)
+* Add `LogUniform` distribution
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/465)
+* Add `v2.Problem.has_{map,ml}_objective`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/463)
+
+**Other**
+* Require Python>=3.11 per nep-0029
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/462)
+* v2: Remove `log10-normal` distribution per updated spec
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/456)
+* Remove `petab.v2`-is-experimental warnings
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/457)
+  It still is, but we no longer spam users with warnings.
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.7.0...v0.8.0
+
+
 ## 0.7 series
 
-## 0.7.0 series
+### 0.7.0
 
 **Fixes**
 
