@@ -1026,13 +1026,17 @@ class Parameter(BaseModel):
         return self
 
     @property
-    def prior_dist(self) -> Distribution:
-        """Get the prior distribution of the parameter."""
-        if self.estimate is False:
+    def prior_dist(self) -> Distribution | None:
+        """Get the prior distribution of the parameter.
+
+        :return: The prior distribution of the parameter, or None if no prior
+            distribution is set.
+        """
+        if not self.estimate:
             raise ValueError(f"Parameter `{self.id}' is not estimated.")
 
         if self.prior_distribution is None:
-            return Uniform(self.lb, self.ub)
+            return None
 
         if not (cls := _prior_to_cls.get(self.prior_distribution)):
             raise ValueError(
@@ -1820,12 +1824,66 @@ class Problem:
         """Parameter table non-estimated parameter indices."""
         return [i for i, p in enumerate(self.parameters) if not p.estimate]
 
+    @property
+    def has_map_objective(self) -> bool:
+        """Whether this problem encodes a maximum a posteriori (MAP) objective.
+
+        A PEtab problem is considered to have a MAP objective if there is a
+        prior distribution specified for at least one estimated parameter.
+
+        :returns: ``True`` if MAP objective, ``False`` otherwise.
+        """
+        return any(
+            p.prior_distribution is not None
+            for p in self.parameters
+            if p.estimate
+        )
+
+    @property
+    def has_ml_objective(self) -> bool:
+        """Whether this problem encodes a maximum likelihood (ML) objective.
+
+        A PEtab problem is considered to have an ML objective if there are no
+        prior distributions specified for any estimated parameters.
+
+        :returns: ``True`` if ML objective, ``False`` otherwise.
+        """
+        return not self.has_map_objective
+
     def get_priors(self) -> dict[str, Distribution]:
         """Get prior distributions.
 
-        :returns: The prior distributions for the estimated parameters.
+        Note that this will default to uniform distributions over the
+        parameter bounds for parameters without an explicit prior.
+
+        :returns: The prior distributions for the estimated parameters in case
+            the problem has a MAP objective, an empty dictionary otherwise.
         """
-        return {p.id: p.prior_dist for p in self.parameters if p.estimate}
+        if not self.has_map_objective:
+            return {}
+
+        return {
+            p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
+            for p in self.parameters
+            if p.estimate
+        }
+
+    def get_startpoint_distributions(self) -> dict[str, Distribution]:
+        """Get distributions for sampling startpoints.
+
+        The distributions are the prior distributions for estimated parameters
+        that have a prior distribution defined, and uniform distributions
+        over the parameter bounds for estimated parameters without an explicit
+        prior.
+
+        :returns: Mapping of parameter IDs to distributions for sampling
+            startpoints.
+        """
+        return {
+            p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
+            for p in self.parameters
+            if p.estimate
+        }
 
     def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
         """Create 2D array with starting points for optimization"""
