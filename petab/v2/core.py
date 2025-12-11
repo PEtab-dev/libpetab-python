@@ -1844,9 +1844,7 @@ class Problem:
 
         :returns: ``True`` if ML objective, ``False`` otherwise.
         """
-        return all(
-            p.prior_distribution is None for p in self.parameters if p.estimate
-        )
+        return not self.has_map_objective
 
     def get_priors(self) -> dict[str, Distribution]:
         """Get prior distributions.
