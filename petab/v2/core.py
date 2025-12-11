@@ -1856,11 +1856,28 @@ class Problem:
         Note that this will default to uniform distributions over the
         parameter bounds for parameters without an explicit prior.
 
-        For checking whether this :class:`Problem` encodes a MAP or ML
-        objective, use :attr:`Problem.has_map_objective` or
-        :attr:`Problem.has_ml_objective`.
+        :returns: The prior distributions for the estimated parameters in case
+            the problem has a MAP objective, an empty dictionary otherwise.
+        """
+        if not self.has_map_objective:
+            return {}
 
-        :returns: The prior distributions for the estimated parameters.
+        return {
+            p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
+            for p in self.parameters
+            if p.estimate
+        }
+
+    def get_startpoint_distributions(self) -> dict[str, Distribution]:
+        """Get distributions for sampling startpoints.
+
+        The distributions are the prior distributions for estimated parameters
+        that have a prior distribution defined, and uniform distributions
+        over the parameter bounds for estimated parameters without an explicit
+        prior.
+
+        :returns: Mapping of parameter IDs to distributions for sampling
+            startpoints.
         """
         return {
             p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
