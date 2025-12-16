@@ -31,7 +31,7 @@ jobs:
       shell: bash
 
     - name: Cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ steps.pip_cache_dir.outputs.dir }}
         key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
