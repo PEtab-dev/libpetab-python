@@ -3,6 +3,11 @@
 
 ## 0.8 series
 
+### 0.8.1
+
+The only change in this release is requiring pandas<3 until we support
+the new pandas 3 API.
+
 ### 0.8.0
 
 **Fixes**
