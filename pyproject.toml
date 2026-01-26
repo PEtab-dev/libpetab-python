@@ -12,7 +12,7 @@ description = "Parameter estimation tabular data"
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.15.1",
-    "pandas>=1.2.0,<3",
+    "pandas>=1.2.0",
     "python-libsbml>=5.17.0",
     "sympy",
     "colorama",
