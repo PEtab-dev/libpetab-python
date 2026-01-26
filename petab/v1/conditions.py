@@ -111,7 +111,7 @@ def get_parametric_overrides(condition_df: pd.DataFrame) -> list[str]:
     result = []
 
     for column in constant_parameters:
-        if np.issubdtype(condition_df[column].dtype, np.number):
+        if not pd.api.types.is_string_dtype(condition_df[column].dtype):
             continue
 
         floatified = condition_df.loc[:, column].apply(core.to_float_if_float)

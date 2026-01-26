@@ -129,7 +129,7 @@ def check_condition_df(
         )
 
     for column_name in req_cols:
-        if not np.issubdtype(df[column_name].dtype, np.number):
+        if pd.api.types.is_string_dtype(df[column_name].dtype):
             assert_no_leading_trailing_whitespace(
                 df[column_name].values, column_name
             )
@@ -173,14 +173,14 @@ def check_measurement_df(
     _check_df(df, MEASUREMENT_DF_REQUIRED_COLS, "measurement")
 
     for column_name in MEASUREMENT_DF_REQUIRED_COLS:
-        if not np.issubdtype(df[column_name].dtype, np.number):
+        if pd.api.types.is_string_dtype(df[column_name].dtype):
             assert_no_leading_trailing_whitespace(
                 df[column_name].values, column_name
             )
 
     for column_name in MEASUREMENT_DF_OPTIONAL_COLS:
-        if column_name in df and not np.issubdtype(
-            df[column_name].dtype, np.number
+        if column_name in df and pd.api.types.is_string_dtype(
+            df[column_name].dtype
         ):
             assert_no_leading_trailing_whitespace(
                 df[column_name].values, column_name
@@ -243,7 +243,7 @@ def check_parameter_df(
     check_ids(df.index.values, kind="parameter")
 
     for column_name in PARAMETER_DF_REQUIRED_COLS[1:]:  # 0 is PARAMETER_ID
-        if not np.issubdtype(df[column_name].dtype, np.number):
+        if pd.api.types.is_string_dtype(df[column_name].dtype):
             assert_no_leading_trailing_whitespace(
                 df[column_name].values, column_name
             )
@@ -304,14 +304,14 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
     check_ids(observable_df.index.values, kind="observable")
 
     for column_name in OBSERVABLE_DF_REQUIRED_COLS[1:]:
-        if not np.issubdtype(observable_df[column_name].dtype, np.number):
+        if pd.api.types.is_string_dtype(observable_df[column_name].dtype):
             assert_no_leading_trailing_whitespace(
                 observable_df[column_name].values, column_name
             )
 
     for column_name in OBSERVABLE_DF_OPTIONAL_COLS:
-        if column_name in observable_df and not np.issubdtype(
-            observable_df[column_name].dtype, np.number
+        if column_name in observable_df and pd.api.types.is_string_dtype(
+            observable_df[column_name].dtype
         ):
             assert_no_leading_trailing_whitespace(
                 observable_df[column_name].values, column_name
