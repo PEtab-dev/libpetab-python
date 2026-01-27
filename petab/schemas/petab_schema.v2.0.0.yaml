@@ -1,7 +1,6 @@
 # For syntax see: https://json-schema.org/understanding-json-schema
-#$schema: "https://json-schema.org/draft/2019-09/meta/core"
-$schema: "http://json-schema.org/draft-06/schema"
-description: PEtab parameter estimation problem config file schema
+$schema: "https://json-schema.org/draft/2020-12/schema"
+description: PEtab 2.0 parameter estimation problem configuration schema.
 
 definitions:
   list_of_files:
@@ -9,19 +8,21 @@ definitions:
     description: List of files.
     items:
       type: string
-      description: File name or URL.
+      description: |
+        File name or URL, absolute or relative to the location of the PEtab
+        problem configuration file.
   version_number:
     type: string
     pattern: ^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$
-    description: Version number (corresponding to PEP 440).
+    description: Version number.
 
 properties:
 
   format_version:
-    anyof:
+    anyOf:
       - $ref: "#/definitions/version_number"
       - type: integer
-    description: Version of the PEtab format
+    description: Version of the PEtab format.
 
   id:
     type: string
@@ -32,17 +33,12 @@ properties:
     pattern: "^[a-zA-Z_]\\w*$"
 
   parameter_files:
-    type: array
-    description: |
-      List of PEtab parameter files.
-    items:
-      type: string
-      description: |
-        File name (absolute or relative) or URL to a PEtab parameter table.
+    description: List of PEtab parameter files.
+    $ref: "#/definitions/list_of_files"
 
   model_files:
     type: object
-    description: One or multiple models
+    description: One or multiple models.
 
     # the model ID
     patternProperties:
@@ -51,7 +47,9 @@ properties:
         properties:
           location:
             type: string
-            description: Model file name or URL
+            description: |
+              Model file name or URL, absolute or relative to the location of
+              the PEtab problem configuration file.
           language:
             type: string
             description: |
@@ -94,9 +92,14 @@ properties:
         properties:
           version:
             $ref: "#/definitions/version_number"
-
+          required:
+            type: boolean
+            description: |
+              Indicates whether the extension is required for the
+              mathematical interpretation of the problem.
         required:
           - version
+          - required
       additionalProperties: true
 
     additionalProperties: false
@@ -107,3 +110,5 @@ required:
   - model_files
   - observable_files
   - measurement_files
+
+additionalProperties: false
