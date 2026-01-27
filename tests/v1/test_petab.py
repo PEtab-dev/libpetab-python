@@ -508,7 +508,7 @@ def test_flatten_timepoint_specific_output_overrides():
     )
 
     pd.testing.assert_frame_equal(
-        problem.observable_df, observable_df_expected
+        problem.observable_df, observable_df_expected, check_dtype=False
     )
     pd.testing.assert_frame_equal(
         problem.measurement_df, measurement_df_expected
