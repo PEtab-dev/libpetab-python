@@ -199,7 +199,8 @@ def plot_goodness_of_fit(
     ax.plot(x, x, linestyle="--", color="gray")
     ax.plot(x, intercept + slope * x, "r", label="fitted line")
 
-    mse = np.mean(np.abs(residual_df["residual"]))
+    # assumes that residuals are normalized by default
+    msnr = np.mean(np.power(residual_df["residual"], 2))
     ax.text(
         0.1,
         0.70,
@@ -207,7 +208,7 @@ def plot_goodness_of_fit(
         f"slope: {slope:.2f}\n"
         f"intercept: {intercept:.2f}\n"
         f"p-value: {p_value:.2e}\n"
-        f"mean squared error: {mse:.2e}\n",
+        f"mean of squared normalized residuals: {msnr:.2e}\n",
         transform=ax.transAxes,
     )
 
