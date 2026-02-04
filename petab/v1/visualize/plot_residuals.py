@@ -208,7 +208,7 @@ def plot_goodness_of_fit(
         f"slope: {slope:.2f}\n"
         f"intercept: {intercept:.2f}\n"
         f"p-value: {p_value:.2e}\n"
-        f"mean of squared normalized residuals: {msnr:.2e}\n",
+        f"mean of squared\nnormalized residuals: {msnr:.2e}\n",
         transform=ax.transAxes,
     )
 
