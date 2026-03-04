@@ -494,7 +494,7 @@ def v1v2_parameter_df(
         if new_prior_type == "log10-normal":
             warnings.warn(
                 f"Prior distribution `{new_prior_type}' for parameter "
-                f"`{row.name}' is not supported in PEtab v2. "
+                f"`{row[v1.C.PARAMETER_ID]}' is not supported in PEtab v2. "
                 "Using `log-normal` instead.",
                 # call to `petab1to2`
                 stacklevel=9,
@@ -504,7 +504,7 @@ def v1v2_parameter_df(
         if new_prior_type not in v2.C.PRIOR_DISTRIBUTIONS:
             raise NotImplementedError(
                 f"PEtab v2 does not support prior type `{new_prior_type}' "
-                f"required for parameter `{row.name}'."
+                f"required for parameter `{row[v1.C.PARAMETER_ID]}'."
             )
 
         return new_prior_type

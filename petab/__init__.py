@@ -26,7 +26,15 @@ def __getattr__(name):
         return importlib.import_module("petab.v1")
     if name == "v2":
         return importlib.import_module("petab.v2")
-    if name not in ("__path__", "__all__", "__wrapped__"):
+    if name not in (
+        "__path__",
+        "__all__",
+        "__wrapped__",
+        # accessed under pytest
+        "_pytestfixturefunction",
+        "__test__",
+        "__bases__",
+    ):
         warn(
             f"Accessing `petab.{name}` is deprecated and will be removed in "
             f"the next major release. Please use `petab.v1.{name}` instead.",
