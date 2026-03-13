@@ -675,7 +675,7 @@ def assert_parameter_estimate_is_boolean(parameter_df: pd.DataFrame) -> None:
         AssertionError: in case of problems
     """
     for estimate in parameter_df[ESTIMATE]:
-        if int(estimate) not in [True, False]:
+        if str(estimate) not in ["0", "1"]:
             raise AssertionError(
                 f"Expected 0 or 1 but got {estimate} in {ESTIMATE} column."
             )
