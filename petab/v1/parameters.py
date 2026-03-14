@@ -58,7 +58,10 @@ def get_parameter_df(
         parameter_df = parameter_file
     elif isinstance(parameter_file, str | Path):
         parameter_df = pd.read_csv(
-            parameter_file, sep="\t", float_precision="round_trip"
+            parameter_file,
+            sep="\t",
+            float_precision="round_trip",
+            dtype={ESTIMATE: 'Int64'},
         )
     elif isinstance(parameter_file, Iterable):
         dfs = [get_parameter_df(x) for x in parameter_file if x]
