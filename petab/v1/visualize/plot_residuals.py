@@ -156,7 +156,8 @@ def plot_goodness_of_fit(
     ax:
         Axis object.
     normalized_error:
-        Type of error to display. If True, mean of squared normalized residuals is shown,
+        Type of error to display.
+        If True, mean of squared normalized residuals is shown,
         otherwise mean of squared residuals.
 
     Returns
