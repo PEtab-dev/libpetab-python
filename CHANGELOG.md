@@ -3,6 +3,18 @@
 
 ## 0.8 series
 
+### 0.8.2
+
+**Fixes**
+* We now support pandas>=3.0
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/471)
+* Updated to the latest PEtab v2 schema
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/470)
+* Fixed some warnings
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/475)
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.8.1...v0.8.2
+
 ### 0.8.1
 
 The only change in this release is requiring pandas<3 until we support
