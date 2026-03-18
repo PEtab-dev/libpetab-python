@@ -173,7 +173,11 @@ def plot_goodness_of_fit(
         simulation_dfs=simulations_df,
         observable_dfs=petab_problem.observable_df,
         parameter_dfs=petab_problem.parameter_df,
+        normalize=True
     )[0]
+    # compute mean of squared normalized residuals
+    msnr = np.mean(np.power(residual_df["residual"], 2))
+
     slope, intercept, r_value, p_value, std_err = stats.linregress(
         simulations_df["simulation"],
         petab_problem.measurement_df["measurement"],
@@ -199,8 +203,6 @@ def plot_goodness_of_fit(
     ax.plot(x, x, linestyle="--", color="gray")
     ax.plot(x, intercept + slope * x, "r", label="fitted line")
 
-    # assumes that residuals are normalized by default
-    msnr = np.mean(np.power(residual_df["residual"], 2))
     ax.text(
         0.1,
         0.70,
