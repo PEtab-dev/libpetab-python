@@ -178,15 +178,15 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
             experiments.append(
                 {
                     v2.C.EXPERIMENT_ID: exp_id,
-                    v2.C.CONDITION_ID: preeq_cond_id,
                     v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
+                    v2.C.CONDITION_ID: preeq_cond_id,
                 }
             )
         experiments.append(
             {
                 v2.C.EXPERIMENT_ID: exp_id,
-                v2.C.CONDITION_ID: sim_cond_id,
                 v2.C.TIME: 0,
+                v2.C.CONDITION_ID: sim_cond_id,
             }
         )
     if experiments:
