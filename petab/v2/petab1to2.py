@@ -524,7 +524,7 @@ def v1v2_parameter_df(
     )
     # some columns were dropped in PEtab v2
     if v1.C.INITIALIZATION_PRIOR_TYPE in df and (
-        df[v1.C.INITIALIZATION_PRIOR_TYPE].notna()
+        df[v1.C.INITIALIZATION_PRIOR_TYPE].notna().any()
     ):
         warnings.warn(
             "Initialisation priors in parameter table are not supported "
