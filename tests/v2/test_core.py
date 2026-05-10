@@ -47,6 +47,9 @@ def test_observable_table_round_trip():
         assert observables == observables2
 
 
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
 def test_condition_table_round_trip():
     with tempfile.TemporaryDirectory() as tmp_dir:
         petab1to2(example_dir_fujita / "Fujita.yaml", tmp_dir)
@@ -59,6 +62,9 @@ def test_condition_table_round_trip():
         assert conditions == conditions2
 
 
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
 def test_assert_valid():
     problem = petab1to2(example_dir_fujita / "Fujita.yaml")
     problem.assert_valid()

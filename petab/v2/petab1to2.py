@@ -178,15 +178,15 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
             experiments.append(
                 {
                     v2.C.EXPERIMENT_ID: exp_id,
-                    v2.C.CONDITION_ID: preeq_cond_id,
                     v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
+                    v2.C.CONDITION_ID: preeq_cond_id,
                 }
             )
         experiments.append(
             {
                 v2.C.EXPERIMENT_ID: exp_id,
-                v2.C.CONDITION_ID: sim_cond_id,
                 v2.C.TIME: 0,
+                v2.C.CONDITION_ID: sim_cond_id,
             }
         )
     if experiments:
@@ -523,6 +523,19 @@ def v1v2_parameter_df(
         errors="ignore",
     )
     # some columns were dropped in PEtab v2
+    if v1.C.INITIALIZATION_PRIOR_TYPE in df and (
+        df[v1.C.INITIALIZATION_PRIOR_TYPE].notna().any()
+    ):
+        warnings.warn(
+            "Initialisation priors in parameter table are not supported "
+            "in PEtab v2.",
+            stacklevel=9,
+        )
+    if not (df[v1.C.PARAMETER_SCALE] == v1.C.LIN).all():
+        warnings.warn(
+            "Parameter scales are not supported in PEtab v2.",
+            stacklevel=9,
+        )
     df.drop(
         columns=[
             v1.C.INITIALIZATION_PRIOR_TYPE,

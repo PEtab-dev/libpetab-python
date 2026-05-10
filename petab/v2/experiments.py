@@ -11,16 +11,14 @@ def get_experiment_df(
     experiments_file: str | pd.DataFrame | Path | None,
 ) -> pd.DataFrame | None:
     """
-    Read the provided observable file into a ``pandas.Dataframe``.
+    Read the provided experiments file into a ``pandas.Dataframe``.
 
     Arguments:
         experiments_file: Name of the file to read from or pandas.Dataframe.
 
     Returns:
-        Observable DataFrame
+        Experiments DataFrame
     """
-    if experiments_file is None:
-        return experiments_file
 
     if isinstance(experiments_file, str | Path):
         experiments_file = pd.read_csv(
