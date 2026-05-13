@@ -2,11 +2,8 @@
 
 from copy import deepcopy
 
-from petabtests import DEFAULT_PYSB_FILE
-
 from petab.v2 import Problem
 from petab.v2.lint import *
-from petab.v2.models.pysb_model import PySBModel
 from petab.v2.models.sbml_model import SbmlModel
 
 
@@ -116,14 +113,14 @@ def test_check_mapping_table():
     """Test checks related to the mapping table."""
     problem = Problem()
     # PySB model from PEtab test suite
-    problem.model = PySBModel.from_file(DEFAULT_PYSB_FILE)
+    problem.model = SbmlModel.from_antimony("a.mean = 1")
     problem.add_mapping(
-        petab_id="A_comp",
-        model_id="A_() ** compartment",
+        petab_id="a_m",
+        model_id="a.mean",
         name=None,
     )
     problem.add_parameter(
-        "A_comp",
+        "a_m",
         estimate=True,
         nominal_value=2,
         lb=0,
@@ -144,14 +141,9 @@ def test_check_mapping_table():
     assert check.run(problem) is None
 
     # Invalid: petabEntityId is referenced in the model
-    problem.mapping_tables = []
-    problem.add_mapping(
-        petab_id="a0",
-        model_id="A_() ** compartment",
-        name=None,
-    )
+    problem.model = SbmlModel.from_antimony("a.mean = 1; a_m = 2")
     assert (error := check.run(problem)) is not None
     assert (
-        "`a0` is used in the mapping table and referenced directly"
+        "`a_m` is used in the mapping table and referenced directly"
         in error.message
     )
