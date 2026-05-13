@@ -7,7 +7,6 @@ import pytest
 
 from petab.v2 import Problem
 from petab.v2.lint import *
-from petab.v2.models.pysb_model import PySBModel
 from petab.v2.models.sbml_model import SbmlModel
 
 
