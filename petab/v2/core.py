@@ -19,6 +19,7 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     Self,
     TypeVar,
     get_args,
@@ -318,9 +319,9 @@ class Observable(BaseModel):
     #: Observable name.
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
     #: Observable formula.
-    formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
+    formula: sp.Basic = Field(alias=C.OBSERVABLE_FORMULA)
     #: Noise formula.
-    noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
+    noise_formula: sp.Basic = Field(alias=C.NOISE_FORMULA)
     #: Noise distribution.
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
@@ -926,7 +927,7 @@ class Parameter(BaseModel):
     )
     #: Nominal value.
     nominal_value: Annotated[
-        float | None, BeforeValidator(_convert_nan_to_none)
+        float | Literal["array"] | None, BeforeValidator(_convert_nan_to_none)
     ] = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
