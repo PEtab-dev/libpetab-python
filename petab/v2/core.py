@@ -2012,14 +2012,21 @@ class Problem:
 
         validation_results = ValidationResultList()
 
-        if self.config and self.config.extensions:
-            extensions = ",".join(self.config.extensions.keys())
+        supported_extensions = {C.SCIML}
+        if (
+            self.config
+            and self.config.extensions
+            and (self.config.extensions.keys() - supported_extensions)
+        ):
+            extensions_without_support = ",".join(
+                self.config.extensions.keys() - supported_extensions
+            )
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
-                    "Validation of PEtab extensions is not yet implemented, "
-                    "but the given problem uses the following extensions: "
-                    f"{extensions}",
+                    "The given problem uses the following extensions for "
+                    "which validation is not yet implemented: "
+                    f"{extensions_without_support}",
                 )
             )
 
@@ -2521,11 +2528,42 @@ class ModelFile(BaseModel):
     )
 
 
+class NeuralNetConfig(BaseModel):
+    """A neural net in the PEtab SciML problem configuration."""
+
+    location: AnyUrl | Path
+    pre_initialization: bool
+    format: str
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
+
 class ExtensionConfig(BaseModel):
     """The configuration of a PEtab extension."""
 
     version: str
     config: dict
+
+
+class SciMLConfig(BaseModel):
+    """The extended configuration of a PEtab SciML problem."""
+
+    #: The PEtab SciML format version.
+    version: str = "0.1.0"
+    #: The paths to the array data files.
+    # Absolute or relative to `base_path`.
+    array_files: list[AnyUrl | Path] = []
+    #: The paths to the hybridization tables.
+    # Absolute or relative to `base_path`.
+    hybridization_files: list[AnyUrl | Path] = []
+    #: The neural network IDs and info.
+    neural_nets: dict[str, NeuralNetConfig] | None = {}
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
 
 class ProblemConfig(BaseModel):
@@ -2577,6 +2615,23 @@ class ProblemConfig(BaseModel):
         validate_assignment=True,
     )
 
+    @field_validator("extensions", mode="before")
+    @classmethod
+    def _parse_extensions(cls, v):
+        """Parse extensions dict and convert known extensions to their specific
+        config classes."""
+        if isinstance(v, dict):
+            parsed_extensions = {}
+            for ext_name, ext_config in v.items():
+                if ext_name == C.SCIML:
+                    # Convert sciml extension to SciMLConfig
+                    parsed_extensions[ext_name] = SciMLConfig(**ext_config)
+                else:
+                    # Keep other extensions as ExtensionConfig
+                    parsed_extensions[ext_name] = ExtensionConfig(**ext_config)
+            return parsed_extensions
+        return v
+
     # convert parameter_file to list
     @field_validator(
         "parameter_files",
@@ -2614,11 +2669,21 @@ class ProblemConfig(BaseModel):
 
         for model_id in data.get("model_files", {}):
             data["model_files"][model_id][C.MODEL_LOCATION] = str(
-                data["model_files"][model_id]["location"]
+                data["model_files"][model_id][C.MODEL_LOCATION]
             )
         if data["id"] is None:
             # The schema requires a valid id or no id field at all.
             del data["id"]
+
+        for ext_id, d_ext in data[C.EXTENSIONS].items():
+            if ext_id == C.SCIML:
+                # convert Paths to strings
+                for key in ("array_files", "hybridization_files"):
+                    d_ext[key] = list(map(str, data[key]))
+                for nn in d_ext["neural_nets"]:
+                    d_ext["neural_nets"][nn][C.MODEL_LOCATION] = str(
+                        d_ext["neural_nets"][nn][C.MODEL_LOCATION]
+                    )
 
         write_yaml(data, filename)
 
