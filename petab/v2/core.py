@@ -1108,6 +1108,77 @@ class ParameterTable(BaseTable[Parameter]):
         return sum(p.estimate for p in self.parameters)
 
 
+class Hybridization(BaseModel):
+    """Assigns NN inputs and outputs."""
+
+    #: The target ID.
+    target_id: str = Field(alias=C.TARGET_ID)
+    #: The target value.
+    target_val: sp.Basic = Field(alias=C.TARGET_VALUE)
+
+    #: :meta private:
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
+    )
+
+    @field_validator("target_val", mode="before")
+    @classmethod
+    def _sympify(cls, v):
+        if v is None or isinstance(v, sp.Basic):
+            return v
+        if isinstance(v, float) and np.isnan(v):
+            return None
+
+        return sympify_petab(v)
+
+
+class HybridizationTable(BaseTable[Hybridization]):
+    """PEtab hybridization table."""
+
+    @property
+    def hybridizations(self) -> list[Hybridization]:
+        """List of hybridizations."""
+        return self.elements
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> HybridizationTable:
+        """Create a HybridizationTable from a DataFrame."""
+        if df is None:
+            return cls(**kwargs)
+
+        hybridizations = [
+            Hybridization(
+                **row.to_dict(),
+            )
+            for _, row in df.reset_index().iterrows()
+        ]
+
+        return cls(hybridizations, **kwargs)
+
+    def to_df(self) -> pd.DataFrame:
+        """Convert the HybridizationTable to a DataFrame."""
+        records = self.model_dump(by_alias=True)["elements"]
+
+        return pd.DataFrame(records)
+
+    def __getitem__(self, target_id: str) -> Hybridization:
+        """Get a hybridization by target ID."""
+        for hybridization in self.hybridizations:
+            if hybridization.target_id == target_id:
+                return hybridization
+        raise KeyError(f"Target ID {target_id} not found")
+
+    def get(self, target_id, default=None):
+        """Get a hybridization by target ID or return a default value."""
+        try:
+            return self[target_id]
+        except KeyError:
+            return default
+
+
 class Problem:
     """
     PEtab parameter estimation problem
