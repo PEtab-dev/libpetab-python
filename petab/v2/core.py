@@ -1109,7 +1109,7 @@ class ParameterTable(BaseTable[Parameter]):
 
 
 class Hybridization(BaseModel):
-    """Assigns NN inputs and outputs."""
+    """Assigns PEtab SciML NN inputs and outputs."""
 
     #: The target ID.
     target_id: str = Field(alias=C.TARGET_ID)
@@ -1136,7 +1136,7 @@ class Hybridization(BaseModel):
 
 
 class HybridizationTable(BaseTable[Hybridization]):
-    """PEtab hybridization table."""
+    """PEtab SciML hybridization table."""
 
     @property
     def hybridizations(self) -> list[Hybridization]:
@@ -1153,7 +1153,7 @@ class HybridizationTable(BaseTable[Hybridization]):
             Hybridization(
                 **row.to_dict(),
             )
-            for _, row in df.reset_index().iterrows()
+            for _, row in df.iterrows()
         ]
 
         return cls(hybridizations, **kwargs)
@@ -1205,6 +1205,9 @@ class Problem:
         measurement_tables: list[MeasurementTable] = None,
         parameter_tables: list[ParameterTable] = None,
         mapping_tables: list[MappingTable] = None,
+        neural_networks: list[NNModel] | None = None,
+        hybridization_tables: list[HybridizationTable] | None = None,
+        array_data_files: list[ArrayData] | None = None,
         config: ProblemConfig = None,
     ):
         from ..v2.lint import default_validation_tasks
@@ -1221,6 +1224,11 @@ class Problem:
         self.measurement_tables = measurement_tables or [MeasurementTable()]
         self.mapping_tables = mapping_tables or [MappingTable()]
         self.parameter_tables = parameter_tables or [ParameterTable()]
+        self.neural_networks = neural_networks or []
+        self.hybridization_tables = hybridization_tables or [
+            HybridizationTable()
+        ]
+        self.array_data_files = array_data_files or []
 
     def __repr__(self):
         return f"<{self.__class__.__name__} id={self.id!r}>"
@@ -1393,6 +1401,59 @@ class Problem:
             else None
         )
 
+        # sciml extension
+        if config.extensions and config.extensions[C.SCIML]:
+            try:
+                from petab_sciml import (
+                    ArrayDataStandard,
+                    NNModel,
+                    NNModelStandard,
+                )
+            except ImportError as e:
+                raise ImportError(
+                    "To generate a PEtab SciML problem, (petab_sciml) must be"
+                    "installed."
+                ) from e
+
+        # Neural network classes are constructed via pytorch for now to get the
+        # proper inputs
+        neural_networks = (
+            [
+                NNModel.from_pytorch_module(
+                    NNModelStandard.load_data(
+                        _generate_path(
+                            file_path=nn_config.location,
+                            base_path=base_path,
+                        )
+                    ).to_pytorch_module(),
+                    nn_model_id=nn_id,
+                )
+                for nn_id, nn_config in (
+                    config.extensions[C.SCIML].neural_nets or {}
+                ).items()
+            ]
+            if config.extensions and config.extensions[C.SCIML]
+            else None
+        )
+
+        hybridization_tables = (
+            [
+                HybridizationTable.from_tsv(f, base_path)
+                for f in config.extensions[C.SCIML].hybridization_files
+            ]
+            if config.extensions and config.extensions[C.SCIML]
+            else None
+        )
+
+        array_data_files = (
+            [
+                ArrayDataStandard.load_data(_generate_path(f, base_path))
+                for f in config.extensions[C.SCIML].array_files
+            ]
+            if config.extensions and config.extensions[C.SCIML]
+            else None
+        )
+
         return Problem(
             config=config,
             models=models,
@@ -1402,6 +1463,9 @@ class Problem:
             measurement_tables=measurement_tables,
             parameter_tables=parameter_tables,
             mapping_tables=mapping_tables,
+            neural_networks=neural_networks,
+            hybridization_tables=hybridization_tables,
+            array_data_files=array_data_files,
         )
 
     @staticmethod
@@ -1707,6 +1771,15 @@ class Problem:
         if self.config is None:
             self.config = ProblemConfig(format_version="2.0.0")
         self.config.id = value
+
+    @property
+    def hybridizations(self) -> list[Hybridization]:
+        """List of hybridizations in the hybridization table(s)."""
+        return list(
+            chain.from_iterable(
+                ht.hybridizations for ht in self.hybridization_tables
+            )
+        )
 
     def get_optimization_parameters(self) -> list[str]:
         """
