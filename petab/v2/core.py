@@ -61,6 +61,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Problem",
     "ProblemConfig",
+    "SciMLConfig",
     "Observable",
     "ObservableTable",
     "NoiseDistribution",
@@ -1114,7 +1115,7 @@ class Hybridization(BaseModel):
     #: The target ID.
     target_id: str = Field(alias=C.TARGET_ID)
     #: The target value.
-    target_val: sp.Basic = Field(alias=C.TARGET_VALUE)
+    target_value: sp.Basic = Field(alias=C.TARGET_VALUE)
 
     #: :meta private:
     model_config = ConfigDict(
@@ -1124,7 +1125,7 @@ class Hybridization(BaseModel):
         validate_assignment=True,
     )
 
-    @field_validator("target_val", mode="before")
+    @field_validator("target_value", mode="before")
     @classmethod
     def _sympify(cls, v):
         if v is None or isinstance(v, sp.Basic):
@@ -1214,7 +1215,7 @@ class Problem:
 
         self.config = config
         self.models: list[Model] = models or []
-        if config.extensions and config.extensions[C.SCIML]:
+        if config and config.extensions and config.extensions[C.SCIML]:
             self.validation_tasks: list[ValidationTask] = (
                 sciml_validation_tasks.copy()
             )
@@ -2787,7 +2788,7 @@ class ProblemConfig(BaseModel):
             if ext_id == C.SCIML:
                 # convert Paths to strings
                 for key in ("array_files", "hybridization_files"):
-                    d_ext[key] = list(map(str, data[key]))
+                    d_ext[key] = list(map(str, d_ext[key]))
                 for nn in d_ext["neural_nets"]:
                     d_ext["neural_nets"][nn][C.MODEL_LOCATION] = str(
                         d_ext["neural_nets"][nn][C.MODEL_LOCATION]
