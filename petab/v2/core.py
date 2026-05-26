@@ -1786,6 +1786,19 @@ class Problem:
             )
         )
 
+    @property
+    def hybridization_df(self) -> pd.DataFrame | None:
+        """Combined SciML hybridization tables as DataFrame."""
+        return (
+            HybridizationTable(hybridizations).to_df()
+            if (hybridizations := self.hybridizations)
+            else None
+        )
+
+    @hybridization_df.setter
+    def hybridization_df(self, value: pd.DataFrame):
+        self.hybridization_tables = [HybridizationTable.from_df(value)]
+
     def get_optimization_parameters(self) -> list[str]:
         """
         Get the list of optimization parameter IDs from parameter table.
