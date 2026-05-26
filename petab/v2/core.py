@@ -1210,13 +1210,18 @@ class Problem:
         array_data_files: list[ArrayData] | None = None,
         config: ProblemConfig = None,
     ):
-        from ..v2.lint import default_validation_tasks
+        from ..v2.lint import default_validation_tasks, sciml_validation_tasks
 
         self.config = config
         self.models: list[Model] = models or []
-        self.validation_tasks: list[ValidationTask] = (
-            default_validation_tasks.copy()
-        )
+        if config.extensions and config.extensions[C.SCIML]:
+            self.validation_tasks: list[ValidationTask] = (
+                sciml_validation_tasks.copy()
+            )
+        else:
+            self.validation_tasks: list[ValidationTask] = (
+                default_validation_tasks.copy()
+            )
 
         self.observable_tables = observable_tables or [ObservableTable()]
         self.condition_tables = condition_tables or [ConditionTable()]
