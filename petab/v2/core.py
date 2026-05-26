@@ -2402,6 +2402,23 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
             Experiment(id=id_, periods=periods)
         )
 
+    def add_hybridization(self, target_id: str, target_value: str):
+        """Add a SciML hybridization table entry to the problem.
+
+        If there are more than one hybridization tables, the hybridization
+        is added to the last one.
+
+        Arguments:
+            target_id: The ID of the target entity in the PEtab problem
+                or neural network model
+            target_value: The value that is assigned to the target id.
+        """
+        if not self.hybridization_tables:
+            self.hybridization_tables.append(HybridizationTable())
+        self.hybridization_tables[-1].hybridizations.append(
+            Hybridization(target_id=target_id, target_value=target_value)
+        )
+
     def __iadd__(self, other):
         """Add Observable, Parameter, Measurement, Condition, or Experiment"""
         from .core import (
