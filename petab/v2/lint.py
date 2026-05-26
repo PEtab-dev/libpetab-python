@@ -932,16 +932,6 @@ class CheckMappingTable(ValidationTask):
                     "defined in the mapping table but also defined through "
                     "other PEtab tables."
                 )
-            # Grab all symbols from condition table for later
-            condition_target_ids_values = {
-                sym
-                for cond in problem.conditions
-                for change in cond.changes
-                for sym in (
-                    change.target_value.free_symbols
-                    | change.target_id.free_symbols
-                )
-            }
 
             for mapping in problem.mappings:
                 # petabEntityId is not referenced in any model
@@ -952,39 +942,6 @@ class CheckMappingTable(ValidationTask):
                             "table and referenced directly in the model "
                             f"`{model.model_id}`."
                         )
-
-                # modelEntityId can be empty
-                if mapping.model_id:
-                    # model_id is not in petab problem
-                    if mapping.model_id in defined_petab_ids:
-                        messages.append(
-                            f"PEtab ID `{mapping.model_id}` mirrors the "
-                            "model entity ID referenced in the mapping table."
-                        )
-                    if mapping.model_id in condition_target_ids_values:
-                        messages.append(
-                            f"Identifier `{mapping.model_id}` is mapped to a "
-                            "PEtab ID in the mapping table, but also directly "
-                            "used in the conditions table."
-                        )
-                    for observable_formula in [
-                        o.formula for o in problem.observables
-                    ]:
-                        if mapping.model_id in observable_formula.free_symbols:
-                            messages.append(
-                                f"Identifier `{mapping.model_id}` is mapped "
-                                "to a PEtab ID in the mapping table, but also "
-                                "directly used in an observable formula."
-                            )
-                    for obs_noise_formula in [
-                        o.noise_formula for o in problem.observables
-                    ]:
-                        if mapping.model_id in obs_noise_formula.free_symbols:
-                            messages.append(
-                                f"Identifier `{mapping.model_id}` is mapped "
-                                "to a PEtab ID in the mapping table, but also "
-                                "directly used in a noise formula."
-                            )
 
         if messages:
             return ValidationError("\n".join(messages))
