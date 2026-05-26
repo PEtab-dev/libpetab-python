@@ -45,6 +45,7 @@ __all__ = [
     "CheckUndefinedExperiments",
     "CheckInitialChangeSymbols",
     "CheckMappingTable",
+    "CheckHybridizationTable",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -1186,10 +1187,24 @@ default_validation_tasks = [
 
 #: Validation tasks that should be run PEtab SciML problems
 sciml_validation_tasks = [
+    CheckProblemConfig(),
+    CheckModel(),
+    CheckUniquePrimaryKeys(),
+    CheckMeasurementModelId(),
+    CheckMeasuredObservablesDefined(),
+    CheckPosLogMeasurements(),
+    CheckOverridesMatchPlaceholders(),
+    CheckValidConditionTargets(),
+    CheckExperimentTable(),
+    CheckExperimentConditionsExist(),
+    CheckUndefinedExperiments(),
+    CheckObservablesDoNotShadowModelEntities(),
+    # CheckAllParametersPresentInParameterTable(),
+    CheckValidParameterInConditionOrParameterTable(),
+    CheckUnusedExperiments(),
+    CheckUnusedConditions(),
+    CheckPriorDistribution(),
+    CheckInitialChangeSymbols(),
+    CheckMappingTable(),
     CheckHybridizationTable(),
-] + list(
-    set(default_validation_tasks)
-    - {
-        CheckAllParametersPresentInParameterTable(),
-    }
-)
+]
