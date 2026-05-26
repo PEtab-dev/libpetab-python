@@ -2433,6 +2433,51 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
             Hybridization(target_id=target_id, target_value=target_value)
         )
 
+    def add_neural_network_from_dict(self, model_id: str, nn_dict: dict):
+        """Add a SciML neural net from a dictionary."""
+        from petab_sciml import NNModel
+
+        nn_model = NNModel.model_validate(nn_dict)
+        nn_model.nn_model_id = model_id
+        self.neural_networks.append(nn_model)
+
+    def add_neural_network_from_yaml(
+        self,
+        model_id: str,
+        file_path: str | Path,
+        base_path: str | Path | None = None,
+    ):
+        """Add a SciML neural net from a yaml file."""
+        from petab_sciml import NNModelStandard
+
+        self.neural_networks.append(
+            NNModelStandard.load_data(
+                _generate_path(
+                    file_path=file_path,
+                    base_path=base_path,
+                ),
+                nn_model_id=model_id,
+            )
+        )
+
+    def add_array_data_from_dict(self, array_data: dict):
+        """Add SciML array data from a dictionary."""
+        from petab_sciml import ArrayData
+
+        self.array_data_files.append(ArrayData.model_validate(array_data))
+
+    def add_array_data_from_hdf5(
+        self,
+        file_path: str | Path,
+        base_path: str | Path | None = None,
+    ):
+        """Add SciML array data from an hdf5 file."""
+        from petab_sciml import ArrayDataStandard
+
+        self.array_data_files.append(
+            ArrayDataStandard.load_data(_generate_path(file_path, base_path))
+        )
+
     def __iadd__(self, other):
         """Add Observable, Parameter, Measurement, Condition, or Experiment"""
         from .core import (
