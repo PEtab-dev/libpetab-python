@@ -19,6 +19,7 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     Self,
     TypeVar,
     get_args,
@@ -53,6 +54,16 @@ from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
 
+try:
+    from petab_sciml import (
+        ArrayData,
+        ArrayDataStandard,
+        NNModel,
+        NNModelStandard,
+    )
+except ModuleNotFoundError:
+    pass
+
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
 
@@ -60,6 +71,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Problem",
     "ProblemConfig",
+    "SciMLConfig",
     "Observable",
     "ObservableTable",
     "NoiseDistribution",
@@ -318,9 +330,9 @@ class Observable(BaseModel):
     #: Observable name.
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
     #: Observable formula.
-    formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
+    formula: sp.Basic = Field(alias=C.OBSERVABLE_FORMULA)
     #: Noise formula.
-    noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
+    noise_formula: sp.Basic = Field(alias=C.NOISE_FORMULA)
     #: Noise distribution.
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
@@ -926,7 +938,7 @@ class Parameter(BaseModel):
     )
     #: Nominal value.
     nominal_value: Annotated[
-        float | None, BeforeValidator(_convert_nan_to_none)
+        float | Literal["array"] | None, BeforeValidator(_convert_nan_to_none)
     ] = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
@@ -1107,6 +1119,77 @@ class ParameterTable(BaseTable[Parameter]):
         return sum(p.estimate for p in self.parameters)
 
 
+class Hybridization(BaseModel):
+    """Assigns PEtab SciML NN inputs and outputs."""
+
+    #: The target ID.
+    target_id: str = Field(alias=C.TARGET_ID)
+    #: The target value.
+    target_value: sp.Basic = Field(alias=C.TARGET_VALUE)
+
+    #: :meta private:
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
+        extra="allow",
+        validate_assignment=True,
+    )
+
+    @field_validator("target_value", mode="before")
+    @classmethod
+    def _sympify(cls, v):
+        if v is None or isinstance(v, sp.Basic):
+            return v
+        if isinstance(v, float) and np.isnan(v):
+            return None
+
+        return sympify_petab(v)
+
+
+class HybridizationTable(BaseTable[Hybridization]):
+    """PEtab SciML hybridization table."""
+
+    @property
+    def hybridizations(self) -> list[Hybridization]:
+        """List of hybridizations."""
+        return self.elements
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame, **kwargs) -> HybridizationTable:
+        """Create a HybridizationTable from a DataFrame."""
+        if df is None:
+            return cls(**kwargs)
+
+        hybridizations = [
+            Hybridization(
+                **row.to_dict(),
+            )
+            for _, row in df.iterrows()
+        ]
+
+        return cls(hybridizations, **kwargs)
+
+    def to_df(self) -> pd.DataFrame:
+        """Convert the HybridizationTable to a DataFrame."""
+        records = self.model_dump(by_alias=True)["elements"]
+
+        return pd.DataFrame(records)
+
+    def __getitem__(self, target_id: str) -> Hybridization:
+        """Get a hybridization by target ID."""
+        for hybridization in self.hybridizations:
+            if hybridization.target_id == target_id:
+                return hybridization
+        raise KeyError(f"Target ID {target_id} not found")
+
+    def get(self, target_id, default=None):
+        """Get a hybridization by target ID or return a default value."""
+        try:
+            return self[target_id]
+        except KeyError:
+            return default
+
+
 class Problem:
     """
     PEtab parameter estimation problem
@@ -1133,15 +1216,23 @@ class Problem:
         measurement_tables: list[MeasurementTable] = None,
         parameter_tables: list[ParameterTable] = None,
         mapping_tables: list[MappingTable] = None,
+        neural_networks: list[NNModel] | None = None,
+        hybridization_tables: list[HybridizationTable] | None = None,
+        array_data_files: list[ArrayData] | None = None,
         config: ProblemConfig = None,
     ):
-        from ..v2.lint import default_validation_tasks
+        from ..v2.lint import default_validation_tasks, sciml_validation_tasks
 
         self.config = config
         self.models: list[Model] = models or []
-        self.validation_tasks: list[ValidationTask] = (
-            default_validation_tasks.copy()
-        )
+        if config and config.extensions and config.extensions[C.SCIML]:
+            self.validation_tasks: list[ValidationTask] = (
+                sciml_validation_tasks.copy()
+            )
+        else:
+            self.validation_tasks: list[ValidationTask] = (
+                default_validation_tasks.copy()
+            )
 
         self.observable_tables = observable_tables or [ObservableTable()]
         self.condition_tables = condition_tables or [ConditionTable()]
@@ -1149,6 +1240,11 @@ class Problem:
         self.measurement_tables = measurement_tables or [MeasurementTable()]
         self.mapping_tables = mapping_tables or [MappingTable()]
         self.parameter_tables = parameter_tables or [ParameterTable()]
+        self.neural_networks = neural_networks or []
+        self.hybridization_tables = hybridization_tables or [
+            HybridizationTable()
+        ]
+        self.array_data_files = array_data_files or []
 
     def __repr__(self):
         return f"<{self.__class__.__name__} id={self.id!r}>"
@@ -1321,6 +1417,59 @@ class Problem:
             else None
         )
 
+        # sciml extension
+        # if config.extensions and config.extensions[C.SCIML]:
+        # try:
+        #     from petab_sciml import (
+        #         ArrayDataStandard,
+        #         NNModel,
+        #         NNModelStandard,
+        #     )
+        # except ImportError as e:
+        #     raise ImportError(
+        #         "To generate a PEtab SciML problem, (petab_sciml) must"
+        #         "be installed."
+        #     ) from e
+
+        # Neural network classes are constructed via pytorch for now to get the
+        # proper inputs
+        neural_networks = (
+            [
+                NNModel.from_pytorch_module(
+                    NNModelStandard.load_data(
+                        _generate_path(
+                            file_path=nn_config.location,
+                            base_path=base_path,
+                        )
+                    ).to_pytorch_module(),
+                    nn_model_id=nn_id,
+                )
+                for nn_id, nn_config in (
+                    config.extensions[C.SCIML].neural_nets or {}
+                ).items()
+            ]
+            if config.extensions and config.extensions[C.SCIML]
+            else None
+        )
+
+        hybridization_tables = (
+            [
+                HybridizationTable.from_tsv(f, base_path)
+                for f in config.extensions[C.SCIML].hybridization_files
+            ]
+            if config.extensions and config.extensions[C.SCIML]
+            else None
+        )
+
+        array_data_files = (
+            [
+                ArrayDataStandard.load_data(_generate_path(f, base_path))
+                for f in config.extensions[C.SCIML].array_files
+            ]
+            if config.extensions and config.extensions[C.SCIML]
+            else None
+        )
+
         return Problem(
             config=config,
             models=models,
@@ -1330,6 +1479,9 @@ class Problem:
             measurement_tables=measurement_tables,
             parameter_tables=parameter_tables,
             mapping_tables=mapping_tables,
+            neural_networks=neural_networks,
+            hybridization_tables=hybridization_tables,
+            array_data_files=array_data_files,
         )
 
     @staticmethod
@@ -1636,6 +1788,28 @@ class Problem:
             self.config = ProblemConfig(format_version="2.0.0")
         self.config.id = value
 
+    @property
+    def hybridizations(self) -> list[Hybridization]:
+        """List of hybridizations in the hybridization table(s)."""
+        return list(
+            chain.from_iterable(
+                ht.hybridizations for ht in self.hybridization_tables
+            )
+        )
+
+    @property
+    def hybridization_df(self) -> pd.DataFrame | None:
+        """Combined SciML hybridization tables as DataFrame."""
+        return (
+            HybridizationTable(hybridizations).to_df()
+            if (hybridizations := self.hybridizations)
+            else None
+        )
+
+    @hybridization_df.setter
+    def hybridization_df(self, value: pd.DataFrame):
+        self.hybridization_tables = [HybridizationTable.from_df(value)]
+
     def get_optimization_parameters(self) -> list[str]:
         """
         Get the list of optimization parameter IDs from parameter table.
@@ -1940,14 +2114,21 @@ class Problem:
 
         validation_results = ValidationResultList()
 
-        if self.config and self.config.extensions:
-            extensions = ",".join(self.config.extensions.keys())
+        supported_extensions = {C.SCIML}
+        if (
+            self.config
+            and self.config.extensions
+            and (self.config.extensions.keys() - supported_extensions)
+        ):
+            extensions_without_support = ",".join(
+                self.config.extensions.keys() - supported_extensions
+            )
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
-                    "Validation of PEtab extensions is not yet implemented, "
-                    "but the given problem uses the following extensions: "
-                    f"{extensions}",
+                    "The given problem uses the following extensions for "
+                    "which validation is not yet implemented: "
+                    f"{extensions_without_support}",
                 )
             )
 
@@ -2245,6 +2426,64 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
             Experiment(id=id_, periods=periods)
         )
 
+    def add_hybridization(self, target_id: str, target_value: str):
+        """Add a SciML hybridization table entry to the problem.
+
+        If there are more than one hybridization tables, the hybridization
+        is added to the last one.
+
+        Arguments:
+            target_id: The ID of the target entity in the PEtab problem
+                or neural network model
+            target_value: The value that is assigned to the target id.
+        """
+        if not self.hybridization_tables:
+            self.hybridization_tables.append(HybridizationTable())
+        self.hybridization_tables[-1].hybridizations.append(
+            Hybridization(target_id=target_id, target_value=target_value)
+        )
+
+    def add_neural_network_from_dict(self, model_id: str, nn_dict: dict):
+        """Add a SciML neural net from a dictionary."""
+        # from petab_sciml import NNModel
+        nn_model = NNModel.model_validate(nn_dict)
+        nn_model.nn_model_id = model_id
+        self.neural_networks.append(nn_model)
+
+    def add_neural_network_from_yaml(
+        self,
+        model_id: str,
+        file_path: str | Path,
+        base_path: str | Path | None = None,
+    ):
+        """Add a SciML neural net from a yaml file."""
+        # from petab_sciml import NNModelStandard
+        self.neural_networks.append(
+            NNModelStandard.load_data(
+                _generate_path(
+                    file_path=file_path,
+                    base_path=base_path,
+                ),
+                nn_model_id=model_id,
+            )
+        )
+
+    def add_array_data_from_dict(self, array_data: dict):
+        """Add SciML array data from a dictionary."""
+        # from petab_sciml import ArrayData
+        self.array_data_files.append(ArrayData.model_validate(array_data))
+
+    def add_array_data_from_hdf5(
+        self,
+        file_path: str | Path,
+        base_path: str | Path | None = None,
+    ):
+        """Add SciML array data from an hdf5 file."""
+        # from petab_sciml import ArrayDataStandard
+        self.array_data_files.append(
+            ArrayDataStandard.load_data(_generate_path(file_path, base_path))
+        )
+
     def __iadd__(self, other):
         """Add Observable, Parameter, Measurement, Condition, or Experiment"""
         from .core import (
@@ -2449,11 +2688,42 @@ class ModelFile(BaseModel):
     )
 
 
+class NeuralNetConfig(BaseModel):
+    """A neural net in the PEtab SciML problem configuration."""
+
+    location: AnyUrl | Path
+    pre_initialization: bool
+    format: str
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
+
 class ExtensionConfig(BaseModel):
     """The configuration of a PEtab extension."""
 
     version: str
     config: dict
+
+
+class SciMLConfig(BaseModel):
+    """The extended configuration of a PEtab SciML problem."""
+
+    #: The PEtab SciML format version.
+    version: str = "0.1.0"
+    #: The paths to the array data files.
+    # Absolute or relative to `base_path`.
+    array_files: list[AnyUrl | Path] = []
+    #: The paths to the hybridization tables.
+    # Absolute or relative to `base_path`.
+    hybridization_files: list[AnyUrl | Path] = []
+    #: The neural network IDs and info.
+    neural_nets: dict[str, NeuralNetConfig] | None = {}
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
 
 class ProblemConfig(BaseModel):
@@ -2505,6 +2775,23 @@ class ProblemConfig(BaseModel):
         validate_assignment=True,
     )
 
+    @field_validator("extensions", mode="before")
+    @classmethod
+    def _parse_extensions(cls, v):
+        """Parse extensions dict and convert known extensions to their specific
+        config classes."""
+        if isinstance(v, dict):
+            parsed_extensions = {}
+            for ext_name, ext_config in v.items():
+                if ext_name == C.SCIML:
+                    # Convert sciml extension to SciMLConfig
+                    parsed_extensions[ext_name] = SciMLConfig(**ext_config)
+                else:
+                    # Keep other extensions as ExtensionConfig
+                    parsed_extensions[ext_name] = ExtensionConfig(**ext_config)
+            return parsed_extensions
+        return v
+
     # convert parameter_file to list
     @field_validator(
         "parameter_files",
@@ -2542,11 +2829,21 @@ class ProblemConfig(BaseModel):
 
         for model_id in data.get("model_files", {}):
             data["model_files"][model_id][C.MODEL_LOCATION] = str(
-                data["model_files"][model_id]["location"]
+                data["model_files"][model_id][C.MODEL_LOCATION]
             )
         if data["id"] is None:
             # The schema requires a valid id or no id field at all.
             del data["id"]
+
+        for ext_id, d_ext in data[C.EXTENSIONS].items():
+            if ext_id == C.SCIML:
+                # convert Paths to strings
+                for key in ("array_files", "hybridization_files"):
+                    d_ext[key] = list(map(str, d_ext[key]))
+                for nn in d_ext["neural_nets"]:
+                    d_ext["neural_nets"][nn][C.MODEL_LOCATION] = str(
+                        d_ext["neural_nets"][nn][C.MODEL_LOCATION]
+                    )
 
         write_yaml(data, filename)
 

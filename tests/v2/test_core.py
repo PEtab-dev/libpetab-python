@@ -181,7 +181,7 @@ def test_measurments():
 
 
 def test_observable():
-    Observable(id="obs1", formula=x + y)
+    Observable(id="obs1", formula=x + y, noiseFormula=1)
     Observable(id="obs1", formula="x + y", noise_formula="x + y")
     Observable(id="obs1", formula=1, noise_formula=2)
     Observable(
@@ -198,9 +198,17 @@ def test_observable():
         observable_parameters=[sp.Symbol("p1")],
         noise_parameters=[sp.Symbol("n1")],
     )
-    assert Observable(id="obs1", formula="x + y", non_petab=1).non_petab == 1
+    assert (
+        Observable(
+            id="obs1",
+            formula="x + y",
+            noise_formula="x + y",
+            non_petab=1,
+        ).non_petab
+        == 1
+    )
 
-    o = Observable(id="obs1", formula=x + y)
+    o = Observable(id="obs1", formula=x + y, noise_formula=1)
     assert o.observable_placeholders == []
     assert o.noise_placeholders == []
 
@@ -492,14 +500,14 @@ def test_modify_problem():
         problem.condition_df, exp_condition_df, check_dtype=False
     )
 
-    problem.add_observable("observable1", "1")
+    problem.add_observable("observable1", "1", noise_formula=1)
     problem.add_observable("observable2", "2", noise_formula=2.2)
 
     exp_observable_df = pd.DataFrame(
         data={
             OBSERVABLE_ID: ["observable1", "observable2"],
             OBSERVABLE_FORMULA: [1, 2],
-            NOISE_FORMULA: [np.nan, 2.2],
+            NOISE_FORMULA: [1, 2.2],
         }
     ).set_index([OBSERVABLE_ID])
     assert_frame_equal(
