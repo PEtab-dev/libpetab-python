@@ -54,6 +54,16 @@ from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
 
+try:
+    from petab_sciml import (
+        ArrayData,
+        ArrayDataStandard,
+        NNModel,
+        NNModelStandard,
+    )
+except ModuleNotFoundError:
+    pass
+
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
 
@@ -1408,18 +1418,18 @@ class Problem:
         )
 
         # sciml extension
-        if config.extensions and config.extensions[C.SCIML]:
-            try:
-                from petab_sciml import (
-                    ArrayDataStandard,
-                    NNModel,
-                    NNModelStandard,
-                )
-            except ImportError as e:
-                raise ImportError(
-                    "To generate a PEtab SciML problem, (petab_sciml) must be"
-                    "installed."
-                ) from e
+        # if config.extensions and config.extensions[C.SCIML]:
+        # try:
+        #     from petab_sciml import (
+        #         ArrayDataStandard,
+        #         NNModel,
+        #         NNModelStandard,
+        #     )
+        # except ImportError as e:
+        #     raise ImportError(
+        #         "To generate a PEtab SciML problem, (petab_sciml) must"
+        #         "be installed."
+        #     ) from e
 
         # Neural network classes are constructed via pytorch for now to get the
         # proper inputs
@@ -2435,8 +2445,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
 
     def add_neural_network_from_dict(self, model_id: str, nn_dict: dict):
         """Add a SciML neural net from a dictionary."""
-        from petab_sciml import NNModel
-
+        # from petab_sciml import NNModel
         nn_model = NNModel.model_validate(nn_dict)
         nn_model.nn_model_id = model_id
         self.neural_networks.append(nn_model)
@@ -2448,8 +2457,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         base_path: str | Path | None = None,
     ):
         """Add a SciML neural net from a yaml file."""
-        from petab_sciml import NNModelStandard
-
+        # from petab_sciml import NNModelStandard
         self.neural_networks.append(
             NNModelStandard.load_data(
                 _generate_path(
@@ -2462,8 +2470,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
 
     def add_array_data_from_dict(self, array_data: dict):
         """Add SciML array data from a dictionary."""
-        from petab_sciml import ArrayData
-
+        # from petab_sciml import ArrayData
         self.array_data_files.append(ArrayData.model_validate(array_data))
 
     def add_array_data_from_hdf5(
@@ -2472,8 +2479,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         base_path: str | Path | None = None,
     ):
         """Add SciML array data from an hdf5 file."""
-        from petab_sciml import ArrayDataStandard
-
+        # from petab_sciml import ArrayDataStandard
         self.array_data_files.append(
             ArrayDataStandard.load_data(_generate_path(file_path, base_path))
         )
