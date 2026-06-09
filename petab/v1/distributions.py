@@ -15,15 +15,10 @@ import abc
 from typing import Any
 
 import numpy as np
-from scipy.stats import (
-    cauchy,
-    chi2,
-    expon,
-    gamma,
-    laplace,
-    norm,
-    rayleigh,
-    uniform,
+
+_SCIPY_IMPORT_ERROR = (
+    "scipy is required for this functionality. "
+    "Install it with: pip install scipy"
 )
 
 __all__ = [
@@ -342,6 +337,11 @@ class Normal(Distribution):
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import norm
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = norm
         self._loc = loc
         self._scale = scale
         super().__init__(log=log, trunc=trunc)
@@ -353,13 +353,13 @@ class Normal(Distribution):
         return np.random.normal(loc=self._loc, scale=self._scale, size=shape)
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return norm.pdf(x, loc=self._loc, scale=self._scale)
+        return self._dist.pdf(x, loc=self._loc, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return norm.cdf(x, loc=self._loc, scale=self._scale)
+        return self._dist.cdf(x, loc=self._loc, scale=self._scale)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return norm.ppf(q, loc=self._loc, scale=self._scale)
+        return self._dist.ppf(q, loc=self._loc, scale=self._scale)
 
     @property
     def loc(self) -> float:
@@ -396,6 +396,11 @@ class Uniform(Distribution):
         *,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import uniform
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = uniform
         self._low = low
         self._high = high
         super().__init__(log=log)
@@ -407,13 +412,13 @@ class Uniform(Distribution):
         return np.random.uniform(low=self._low, high=self._high, size=shape)
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
+        return self._dist.pdf(x, loc=self._low, scale=self._high - self._low)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return uniform.cdf(x, loc=self._low, scale=self._high - self._low)
+        return self._dist.cdf(x, loc=self._low, scale=self._high - self._low)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return uniform.ppf(q, loc=self._low, scale=self._high - self._low)
+        return self._dist.ppf(q, loc=self._low, scale=self._high - self._low)
 
 
 class LogUniform(Distribution):
@@ -434,6 +439,11 @@ class LogUniform(Distribution):
         high: float,
         trunc: tuple[float, float] | None = None,
     ):
+        try:
+            from scipy.stats import uniform
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = uniform
         self._logbase = np.exp(1)
         self._low = self._log(low)
         self._high = self._log(high)
@@ -446,13 +456,13 @@ class LogUniform(Distribution):
         return np.random.uniform(low=self._low, high=self._high, size=shape)
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return uniform.pdf(x, loc=self._low, scale=self._high - self._low)
+        return self._dist.pdf(x, loc=self._low, scale=self._high - self._low)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return uniform.cdf(x, loc=self._low, scale=self._high - self._low)
+        return self._dist.cdf(x, loc=self._low, scale=self._high - self._low)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return uniform.ppf(q, loc=self._low, scale=self._high - self._low)
+        return self._dist.ppf(q, loc=self._low, scale=self._high - self._low)
 
 
 class Laplace(Distribution):
@@ -479,6 +489,11 @@ class Laplace(Distribution):
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import laplace
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = laplace
         self._loc = loc
         self._scale = scale
         super().__init__(log=log, trunc=trunc)
@@ -490,13 +505,13 @@ class Laplace(Distribution):
         return np.random.laplace(loc=self._loc, scale=self._scale, size=shape)
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return laplace.pdf(x, loc=self._loc, scale=self._scale)
+        return self._dist.pdf(x, loc=self._loc, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return laplace.cdf(x, loc=self._loc, scale=self._scale)
+        return self._dist.cdf(x, loc=self._loc, scale=self._scale)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return laplace.ppf(q, loc=self._loc, scale=self._scale)
+        return self._dist.ppf(q, loc=self._loc, scale=self._scale)
 
     @property
     def loc(self) -> float:
@@ -536,6 +551,11 @@ class Cauchy(Distribution):
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import cauchy
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = cauchy
         self._loc = loc
         self._scale = scale
         super().__init__(log=log, trunc=trunc)
@@ -544,16 +564,16 @@ class Cauchy(Distribution):
         return self._repr({"loc": self._loc, "scale": self._scale})
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return cauchy.pdf(x, loc=self._loc, scale=self._scale)
+        return self._dist.pdf(x, loc=self._loc, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return cauchy.cdf(x, loc=self._loc, scale=self._scale)
+        return self._dist.cdf(x, loc=self._loc, scale=self._scale)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return cauchy.ppf(q, loc=self._loc, scale=self._scale)
+        return self._dist.ppf(q, loc=self._loc, scale=self._scale)
 
     def _sample(self, shape=None) -> np.ndarray | float:
-        return cauchy.rvs(loc=self._loc, scale=self._scale, size=shape)
+        return self._dist.rvs(loc=self._loc, scale=self._scale, size=shape)
 
     @property
     def loc(self) -> float:
@@ -592,6 +612,12 @@ class ChiSquare(Distribution):
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import chi2
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = chi2
+
         if isinstance(dof, float):
             if not dof.is_integer() or dof < 1:
                 raise ValueError(
@@ -606,16 +632,16 @@ class ChiSquare(Distribution):
         return self._repr({"dof": self._dof})
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return chi2.pdf(x, df=self._dof)
+        return self._dist.pdf(x, df=self._dof)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return chi2.cdf(x, df=self._dof)
+        return self._dist.cdf(x, df=self._dof)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return chi2.ppf(q, df=self._dof)
+        return self._dist.ppf(q, df=self._dof)
 
     def _sample(self, shape=None) -> np.ndarray | float:
-        return chi2.rvs(df=self._dof, size=shape)
+        return self._dist.rvs(df=self._dof, size=shape)
 
     @property
     def dof(self) -> int:
@@ -639,6 +665,11 @@ class Exponential(Distribution):
         scale: float,
         trunc: tuple[float, float] | None = None,
     ):
+        try:
+            from scipy.stats import expon
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = expon
         self._scale = scale
         super().__init__(log=False, trunc=trunc)
 
@@ -646,16 +677,16 @@ class Exponential(Distribution):
         return self._repr({"scale": self._scale})
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return expon.pdf(x, scale=self._scale)
+        return self._dist.pdf(x, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return expon.cdf(x, scale=self._scale)
+        return self._dist.cdf(x, scale=self._scale)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return expon.ppf(q, scale=self._scale)
+        return self._dist.ppf(q, scale=self._scale)
 
     def _sample(self, shape=None) -> np.ndarray | float:
-        return expon.rvs(scale=self._scale, size=shape)
+        return self._dist.rvs(scale=self._scale, size=shape)
 
     @property
     def scale(self) -> float:
@@ -689,6 +720,11 @@ class Gamma(Distribution):
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import gamma
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = gamma
         self._shape = shape
         self._scale = scale
         super().__init__(log=log, trunc=trunc)
@@ -697,16 +733,16 @@ class Gamma(Distribution):
         return self._repr({"shape": self._shape, "scale": self._scale})
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return gamma.pdf(x, a=self._shape, scale=self._scale)
+        return self._dist.pdf(x, a=self._shape, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return gamma.cdf(x, a=self._shape, scale=self._scale)
+        return self._dist.cdf(x, a=self._shape, scale=self._scale)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return gamma.ppf(q, a=self._shape, scale=self._scale)
+        return self._dist.ppf(q, a=self._shape, scale=self._scale)
 
     def _sample(self, shape=None) -> np.ndarray | float:
-        return gamma.rvs(a=self._shape, scale=self._scale, size=shape)
+        return self._dist.rvs(a=self._shape, scale=self._scale, size=shape)
 
     @property
     def shape(self) -> float:
@@ -743,6 +779,11 @@ class Rayleigh(Distribution):
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):
+        try:
+            from scipy.stats import rayleigh
+        except ImportError as e:
+            raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        self._dist = rayleigh
         self._scale = scale
         super().__init__(log=log, trunc=trunc)
 
@@ -750,16 +791,16 @@ class Rayleigh(Distribution):
         return self._repr({"scale": self._scale})
 
     def _pdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return rayleigh.pdf(x, scale=self._scale)
+        return self._dist.pdf(x, scale=self._scale)
 
     def _cdf_untransformed_untruncated(self, x) -> np.ndarray | float:
-        return rayleigh.cdf(x, scale=self._scale)
+        return self._dist.cdf(x, scale=self._scale)
 
     def _ppf_untransformed_untruncated(self, q) -> np.ndarray | float:
-        return rayleigh.ppf(q, scale=self._scale)
+        return self._dist.ppf(q, scale=self._scale)
 
     def _sample(self, shape=None) -> np.ndarray | float:
-        return rayleigh.rvs(scale=self._scale, size=shape)
+        return self._dist.rvs(scale=self._scale, size=shape)
 
     @property
     def scale(self) -> float:
