@@ -20,6 +20,7 @@ dependencies = [
     "jsonschema",
     "antlr4-python3-runtime==4.13.1",
     "pydantic>=2.10",
+    "scipy",
 ]
 license = "MIT"
 authors = [
@@ -38,7 +39,6 @@ tests = [
     "pysb",
     "pytest",
     "pytest-cov",
-    "scipy",
 ]
 quality = [
     "pre-commit",
