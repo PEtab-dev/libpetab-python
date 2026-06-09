@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest, macos-latest, ubuntu-latest]
-        python-version: ["3.11", "3.14"]
+        python-version: ["3.12", "3.x"]
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -55,4 +55,4 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-      if: matrix.platform == 'ubuntu-latest'
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.x'
