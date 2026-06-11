@@ -43,7 +43,7 @@ def test_invalid_model_id_in_measurements():
     """Test that measurements with an invalid model ID are caught."""
     problem = Problem()
     problem.models.append(SbmlModel.from_antimony("p1 = 1", model_id="model1"))
-    problem.add_observable("obs1", "A")
+    problem.add_observable("obs1", "A", 1)
     problem.add_measurement("obs1", experiment_id="e1", time=0, measurement=1)
 
     check = CheckMeasurementModelId()
@@ -70,7 +70,7 @@ def test_undefined_experiment_id_in_measurements():
     """Test that measurements with an undefined experiment ID are caught."""
     problem = Problem()
     problem.add_experiment("e1", 0, "c1")
-    problem.add_observable("obs1", "A")
+    problem.add_observable("obs1", "A", 1)
     problem.add_measurement("obs1", experiment_id="e1", time=0, measurement=1)
 
     check = CheckUndefinedExperiments()
@@ -107,3 +107,43 @@ def test_validate_initial_change_symbols():
     problem.parameter_tables[0].parameters.remove(problem["p2"])
     assert (error := check.run(problem)) is not None
     assert "contains additional symbols: {'p2'}" in error.message
+
+
+def test_check_mapping_table():
+    """Test checks related to the mapping table."""
+    problem = Problem()
+    # PySB model from PEtab test suite
+    problem.model = SbmlModel.from_antimony("a.mean = 1")
+    problem.add_mapping(
+        petab_id="a_m",
+        model_id="a.mean",
+        name=None,
+    )
+    problem.add_parameter(
+        "a_m",
+        estimate=True,
+        nominal_value=2,
+        lb=0,
+        ub=10,
+    )
+
+    check = CheckMappingTable()
+    assert check.run(problem) is None
+
+    check = CheckAllParametersPresentInParameterTable()
+    assert check.run(problem) is None
+
+    # add a petab id without model id but with name for annotation
+    problem.add_mapping(petab_id="p2", model_id=None, name="Parameter 2")
+    problem.add_parameter("p2", estimate=True, nominal_value=1, lb=0, ub=10)
+
+    check = CheckMappingTable()
+    assert check.run(problem) is None
+
+    # Invalid: petabEntityId is referenced in the model
+    problem.model = SbmlModel.from_antimony("a.mean = 1; a_m = 2")
+    assert (error := check.run(problem)) is not None
+    assert (
+        "`a_m` is used in the mapping table and referenced directly"
+        in error.message
+    )

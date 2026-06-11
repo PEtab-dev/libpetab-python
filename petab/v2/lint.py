@@ -44,6 +44,7 @@ __all__ = [
     "CheckPriorDistribution",
     "CheckUndefinedExperiments",
     "CheckInitialChangeSymbols",
+    "CheckMappingTable",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -551,7 +552,8 @@ class CheckExperimentConditionsExist(ValidationTask):
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
     """Ensure all required parameters are contained in the parameter table
-    with no additional ones."""
+    with no additional ones. This also ensures that the mapping table petab ids
+    are used in the PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.model is None:
@@ -825,8 +827,8 @@ class CheckPriorDistribution(ValidationTask):
 
             if parameter.prior_distribution not in PRIOR_DISTRIBUTIONS:
                 messages.append(
-                    f"Prior distribution `{parameter.prior_distribution}' "
-                    f"for parameter `{parameter.id}' is not valid."
+                    f"Prior distribution `{parameter.prior_distribution}` "
+                    f"for parameter `{parameter.id}` is not valid."
                 )
                 continue
 
@@ -834,8 +836,8 @@ class CheckPriorDistribution(ValidationTask):
                 exp_num_par := self._num_pars[parameter.prior_distribution]
             ) != len(parameter.prior_parameters):
                 messages.append(
-                    f"Prior distribution `{parameter.prior_distribution}' "
-                    f"for parameter `{parameter.id}' requires "
+                    f"Prior distribution `{parameter.prior_distribution}` "
+                    f"for parameter `{parameter.id}` requires "
                     f"{exp_num_par} parameters, but got "
                     f"{len(parameter.prior_parameters)} "
                     f"({parameter.prior_parameters})."
@@ -848,8 +850,8 @@ class CheckPriorDistribution(ValidationTask):
                     _ = parameter.prior_dist.sample(1)
             except Exception as e:
                 messages.append(
-                    f"Prior parameters `{parameter.prior_parameters}' "
-                    f"for parameter `{parameter.id}' are invalid "
+                    f"Prior parameters `{parameter.prior_parameters}` "
+                    f"for parameter `{parameter.id}` are invalid "
                     f"(hint: {e})."
                 )
 
@@ -874,7 +876,7 @@ class CheckMeasurementModelId(ValidationTask):
                     continue
 
                 messages.append(
-                    f"Measurement `{measurement}' does not have a model ID, "
+                    f"Measurement `{measurement}` does not have a model ID, "
                     "but there are multiple models available. "
                     "Please specify the model ID in the measurement table."
                 )
@@ -882,11 +884,64 @@ class CheckMeasurementModelId(ValidationTask):
 
             if measurement.model_id not in available_models:
                 messages.append(
-                    f"Measurement `{measurement}' has model ID "
-                    f"`{measurement.model_id}' which does not match "
+                    f"Measurement `{measurement}` has model ID "
+                    f"`{measurement.model_id}` which does not match "
                     "any of the available models: "
                     f"{available_models}."
                 )
+
+        if messages:
+            return ValidationError("\n".join(messages))
+
+        return None
+
+
+class CheckMappingTable(ValidationTask):
+    """Validate the mapping table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        messages = []
+
+        # Mapping table is optional
+        if problem.mappings:
+            # Check that each id only occurs once
+            counter = Counter(
+                [
+                    getattr(mapping, attr)
+                    for mapping in problem.mappings
+                    for attr in ["petab_id", "model_id"]
+                    if getattr(mapping, attr)
+                ]
+            )
+            non_unique = {id_ for id_, count in counter.items() if count > 1}
+            if non_unique:
+                return ValidationError(
+                    f"Mapping table contains non-unique IDs: {non_unique}."
+                )
+
+            # petabEntityId is not defined elsewhere in the PEtab problem
+            petab_ids_mapping = {m.petab_id for m in problem.mappings}
+            defined_petab_ids = (
+                {c.id for c in problem.conditions}
+                | {e.id for e in problem.experiments}
+                | {o.id for o in problem.observables}
+            )
+            if petab_ids_mapping & defined_petab_ids:
+                messages.append(
+                    f"PEtab IDs `{petab_ids_mapping & defined_petab_ids}` are "
+                    "defined in the mapping table but also defined through "
+                    "other PEtab tables."
+                )
+
+            for mapping in problem.mappings:
+                # petabEntityId is not referenced in any model
+                for model in problem.models:
+                    if model.has_entity_with_id(mapping.petab_id):
+                        messages.append(
+                            f"`{mapping.petab_id}` is used in the mapping "
+                            "table and referenced directly in the model "
+                            f"`{model.model_id}`."
+                        )
 
         if messages:
             return ValidationError("\n".join(messages))
@@ -933,9 +988,13 @@ def get_valid_parameters_for_parameter_table(
         if p not in invalid
     )
 
+    # Add petab ids from mapping table if they are used for aliasing
     for mapping in problem.mappings:
         if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
+            # An aliased model id is not a valid parameter id
+            if mapping.model_id in parameter_ids:
+                del parameter_ids[mapping.model_id]
 
     # add output parameters from observable table
     output_parameters = problem.get_output_parameters()
@@ -977,20 +1036,13 @@ def get_required_parameters_for_parameter_table(
         measurement table as well as all parametric condition table overrides
         that are not defined in the model.
     """
-    parameter_ids = set()
-    condition_targets = {
-        change.target_id
-        for cond in problem.conditions
-        for change in cond.changes
-    }
+    # Start with mapping table petab ids
+    parameter_ids = {m.petab_id for m in problem.mappings}
 
     # Add parameters from measurement table, unless they are fixed parameters
     def append_overrides(overrides):
         parameter_ids.update(
-            str_p
-            for p in overrides
-            if isinstance(p, sp.Symbol)
-            and (str_p := str(p)) not in condition_targets
+            str(p) for p in overrides if isinstance(p, sp.Symbol)
         )
 
     for m in problem.measurements:
@@ -1033,7 +1085,12 @@ def get_required_parameters_for_parameter_table(
         if not problem.model.has_entity_with_id(str(p))
     )
 
-    # parameters that are overridden via the condition table are not allowed
+    # Parameters that are overridden via the condition table are not allowed
+    condition_targets = {
+        change.target_id
+        for cond in problem.conditions
+        for change in cond.changes
+    }
     parameter_ids -= condition_targets
 
     return parameter_ids
@@ -1090,5 +1147,5 @@ default_validation_tasks = [
     CheckUnusedConditions(),
     CheckPriorDistribution(),
     CheckInitialChangeSymbols(),
-    # TODO validate mapping table
+    CheckMappingTable(),
 ]
