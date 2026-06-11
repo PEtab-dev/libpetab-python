@@ -1025,11 +1025,11 @@ def get_valid_parameters_for_parameter_table(
 
     # Add petab ids from mapping table if they are used for aliasing
     for mapping in problem.mappings:
-        if mapping.model_id and mapping.model_id in parameter_ids.keys():
+        if mapping.petab_id not in invalid:
             parameter_ids[mapping.petab_id] = None
-            # An aliased model id is not a valid parameter id
-            if mapping.model_id in parameter_ids:
-                del parameter_ids[mapping.model_id]
+        # An aliased model id is not a valid parameter id
+        if mapping.model_id and mapping.model_id in parameter_ids:
+            del parameter_ids[mapping.model_id]
 
     # add output parameters from observable table
     output_parameters = problem.get_output_parameters()
