@@ -25,7 +25,7 @@ def _get_test_problem():
                 "version": "0.1.0",
                 "array_files": ["net1_ps.hdf5"],
                 "hybridization_files": ["hybridizations.tsv"],
-                "neural_nets": {
+                "neural_networks": {
                     "net1": NeuralNetConfig(
                         location="net1.yaml",
                         pre_initialization=False,
