@@ -1445,7 +1445,7 @@ class Problem:
                     nn_model_id=nn_id,
                 )
                 for nn_id, nn_config in (
-                    config.extensions[C.SCIML].neural_nets or {}
+                    config.extensions[C.SCIML].neural_networks or {}
                 ).items()
             ]
             if config.extensions and config.extensions[C.SCIML]
@@ -2719,7 +2719,7 @@ class SciMLConfig(BaseModel):
     # Absolute or relative to `base_path`.
     hybridization_files: list[AnyUrl | Path] = []
     #: The neural network IDs and info.
-    neural_nets: dict[str, NeuralNetConfig] | None = {}
+    neural_networks: dict[str, NeuralNetConfig] | None = {}
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -2840,9 +2840,9 @@ class ProblemConfig(BaseModel):
                 # convert Paths to strings
                 for key in ("array_files", "hybridization_files"):
                     d_ext[key] = list(map(str, d_ext[key]))
-                for nn in d_ext["neural_nets"]:
-                    d_ext["neural_nets"][nn][C.MODEL_LOCATION] = str(
-                        d_ext["neural_nets"][nn][C.MODEL_LOCATION]
+                for nn in d_ext["neural_networks"]:
+                    d_ext["neural_networks"][nn][C.MODEL_LOCATION] = str(
+                        d_ext["neural_networks"][nn][C.MODEL_LOCATION]
                     )
 
         write_yaml(data, filename)
