@@ -63,7 +63,7 @@ def _get_test_problem():
     )
     problem.add_hybridization("net1_input1", "A")
     problem.add_hybridization("net1_input2", "B")
-    problem.add_hybridization("gamma_", "net1_output_1")
+    problem.add_hybridization("gamma_", "net1_output1")
     problem.add_neural_network_from_dict(
         "net1",
         nn_dict={
