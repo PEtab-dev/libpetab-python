@@ -1417,20 +1417,6 @@ class Problem:
             else None
         )
 
-        # sciml extension
-        # if config.extensions and config.extensions[C.SCIML]:
-        # try:
-        #     from petab_sciml import (
-        #         ArrayDataStandard,
-        #         NNModel,
-        #         NNModelStandard,
-        #     )
-        # except ImportError as e:
-        #     raise ImportError(
-        #         "To generate a PEtab SciML problem, (petab_sciml) must"
-        #         "be installed."
-        #     ) from e
-
         # Neural network classes are constructed via pytorch for now to get the
         # proper inputs
         neural_networks = (
