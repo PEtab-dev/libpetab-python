@@ -1130,7 +1130,9 @@ def get_required_parameters_for_parameter_table(
 
     hybridization_targets = {hyb.target_id for hyb in problem.hybridizations}
     parameter_ids -= hybridization_targets
-    hybridization_target_values = {str(hyb.target_value) for hyb in problem.hybridizations}
+    hybridization_target_values = {
+        str(hyb.target_value) for hyb in problem.hybridizations
+    }
     parameter_ids -= hybridization_target_values
 
     return parameter_ids
