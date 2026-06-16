@@ -45,7 +45,7 @@ quality = [
 ]
 reports = [
     # https://github.com/spatialaudio/nbsphinx/issues/641
-    "Jinja2==3.0.3",
+    "Jinja2==3.1.6",
 ]
 antimony = [
     "antimony>=2.14.0",
