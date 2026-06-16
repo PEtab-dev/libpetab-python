@@ -532,6 +532,13 @@ class CheckExperimentConditionsExist(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
         available_conditions = {c.id for c in problem.conditions}
+        if problem.array_data_files:
+            available_conditions |= {
+                key
+                for array_data in problem.array_data_files
+                for input_array in array_data.inputs.values()
+                for key in input_array.keys()
+            }
         for experiment in problem.experiments:
             missing_conditions = (
                 set(
@@ -972,6 +979,14 @@ class CheckMappingTable(ValidationTask):
         return None
 
 
+class CheckExperimentalConditionsDefined(ValidationTask):
+    """A task to check that all conditions referenced by the experiments
+    are defined."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        return None
+
+
 def get_valid_parameters_for_parameter_table(
     problem: Problem,
 ) -> set[str]:
@@ -1189,4 +1204,5 @@ from ..v2.extensions.sciml_lint import CheckHybridizationTable  # noqa: E402
 #: Validation tasks that should be run PEtab SciML problems
 sciml_validation_tasks = default_validation_tasks + [
     CheckHybridizationTable(),
+    CheckExperimentalConditionsDefined(),
 ]
