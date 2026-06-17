@@ -7,7 +7,6 @@ import logging
 import os
 import tempfile
 import traceback
-from abc import abstractmethod
 from collections.abc import Sequence
 from enum import Enum
 from itertools import chain
@@ -18,11 +17,8 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    Generic,
     Literal,
     Self,
-    TypeVar,
-    get_args,
 )
 
 import numpy as np
@@ -41,7 +37,18 @@ from pydantic import (
     model_validator,
 )
 
+try:
+    from petab_sciml import (
+        ArrayData,
+        ArrayDataStandard,
+        NNModel,
+        NNModelStandard,
+    )
+except ModuleNotFoundError:
+    pass
+
 from .._utils import _generate_path
+from .base import BaseTable
 from ..v1 import (
     validate_yaml_syntax,
     yaml,
@@ -53,16 +60,11 @@ from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
-
-try:
-    from petab_sciml import (
-        ArrayData,
-        ArrayDataStandard,
-        NNModel,
-        NNModelStandard,
-    )
-except ModuleNotFoundError:
-    pass
+from .sciml.core import (
+    Hybridization,
+    HybridizationTable,
+    SciMLConfig,
+)
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
@@ -223,101 +225,6 @@ assert not (_mismatch := set(PriorDistribution) ^ set(_prior_to_cls)), (
     "PriorDistribution enum does not match _prior_to_cls. "
     f"Mismatches: {_mismatch}"
 )
-
-
-T = TypeVar("T", bound=BaseModel)
-
-
-class BaseTable(BaseModel, Generic[T]):
-    """Base class for PEtab tables."""
-
-    #: The table elements
-    elements: list[T]
-    #: The path to the table file, if applicable.
-    #: Relative to the base path, if the base path is set and rel_path is not
-    #: an absolute path.
-    rel_path: AnyUrl | Path | None = Field(exclude=True, default=None)
-    #: The base path for the table file, if applicable.
-    #: This is usually the directory of the PEtab YAML file.
-    base_path: AnyUrl | Path | None = Field(exclude=True, default=None)
-
-    def __init__(self, elements: list[T] = None, **kwargs) -> None:
-        """Initialize the BaseTable with a list of elements."""
-        if elements is None:
-            elements = []
-        super().__init__(elements=elements, **kwargs)
-
-    def __getitem__(self, id_: str) -> T:
-        """Get an element by ID.
-
-        :param id_: The ID of the element to retrieve.
-        :return: The element with the given ID.
-        :raises KeyError: If no element with the given ID exists.
-        :raises NotImplementedError:
-            If the element type does not have an ID attribute.
-        """
-        if "id" not in self._element_class().model_fields:
-            raise NotImplementedError(
-                f"__getitem__ is not implemented for {self.__class__.__name__}"
-            )
-
-        for element in self.elements:
-            if element.id == id_:
-                return element
-
-        raise KeyError(f"{T.__name__} ID {id_} not found")
-
-    @classmethod
-    @abstractmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
-        """Create a table from a DataFrame."""
-        pass
-
-    @abstractmethod
-    def to_df(self) -> pd.DataFrame:
-        """Convert the table to a DataFrame."""
-        pass
-
-    @classmethod
-    def from_tsv(
-        cls, file_path: str | Path, base_path: str | Path | None = None
-    ) -> BaseTable[T]:
-        """Create table from a TSV file."""
-        df = pd.read_csv(_generate_path(file_path, base_path), sep="\t")
-        return cls.from_df(df, rel_path=file_path, base_path=base_path)
-
-    def to_tsv(self, file_path: str | Path = None) -> None:
-        """Write the table to a TSV file."""
-        df = self.to_df()
-        df.to_csv(
-            file_path or _generate_path(self.rel_path, self.base_path),
-            sep="\t",
-            index=not isinstance(df.index, pd.RangeIndex),
-        )
-
-    @classmethod
-    def _element_class(cls) -> type[T]:
-        """Get the class of the elements in the table."""
-        return get_args(cls.model_fields["elements"].annotation)[0]
-
-    def __add__(self, other: T) -> BaseTable[T]:
-        """Add an item to the table."""
-        if not isinstance(other, self._element_class()):
-            raise TypeError(
-                f"Can only add {self._element_class().__name__} "
-                f"to {self.__class__.__name__}"
-            )
-        return self.__class__(elements=self.elements + [other])
-
-    def __iadd__(self, other: T) -> BaseTable[T]:
-        """Add an item to the table in place."""
-        if not isinstance(other, self._element_class()):
-            raise TypeError(
-                f"Can only add {self._element_class().__name__} "
-                f"to {self.__class__.__name__}"
-            )
-        self.elements.append(other)
-        return self
 
 
 class Observable(BaseModel):
@@ -1118,77 +1025,6 @@ class ParameterTable(BaseTable[Parameter]):
     def n_estimated(self) -> int:
         """Number of estimated parameters."""
         return sum(p.estimate for p in self.parameters)
-
-
-class Hybridization(BaseModel):
-    """Assigns PEtab SciML NN inputs and outputs."""
-
-    #: The target ID.
-    target_id: str = Field(alias=C.TARGET_ID)
-    #: The target value.
-    target_value: sp.Basic = Field(alias=C.TARGET_VALUE)
-
-    #: :meta private:
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        populate_by_name=True,
-        extra="allow",
-        validate_assignment=True,
-    )
-
-    @field_validator("target_value", mode="before")
-    @classmethod
-    def _sympify(cls, v):
-        if v is None or isinstance(v, sp.Basic):
-            return v
-        if isinstance(v, float) and np.isnan(v):
-            return None
-
-        return sympify_petab(v)
-
-
-class HybridizationTable(BaseTable[Hybridization]):
-    """PEtab SciML hybridization table."""
-
-    @property
-    def hybridizations(self) -> list[Hybridization]:
-        """List of hybridizations."""
-        return self.elements
-
-    @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> HybridizationTable:
-        """Create a HybridizationTable from a DataFrame."""
-        if df is None:
-            return cls(**kwargs)
-
-        hybridizations = [
-            Hybridization(
-                **row.to_dict(),
-            )
-            for _, row in df.iterrows()
-        ]
-
-        return cls(hybridizations, **kwargs)
-
-    def to_df(self) -> pd.DataFrame:
-        """Convert the HybridizationTable to a DataFrame."""
-        records = self.model_dump(by_alias=True)["elements"]
-
-        return pd.DataFrame(records)
-
-    def __getitem__(self, target_id: str) -> Hybridization:
-        """Get a hybridization by target ID."""
-        for hybridization in self.hybridizations:
-            if hybridization.target_id == target_id:
-                return hybridization
-        raise KeyError(f"Target ID {target_id} not found")
-
-    def get(self, target_id, default=None):
-        """Get a hybridization by target ID or return a default value."""
-        try:
-            return self[target_id]
-        except KeyError:
-            return default
 
 
 class Problem:
@@ -2675,42 +2511,11 @@ class ModelFile(BaseModel):
     )
 
 
-class NeuralNetConfig(BaseModel):
-    """A neural net in the PEtab SciML problem configuration."""
-
-    location: AnyUrl | Path
-    pre_initialization: bool
-    format: str
-
-    model_config = ConfigDict(
-        validate_assignment=True,
-    )
-
-
 class ExtensionConfig(BaseModel):
     """The configuration of a PEtab extension."""
 
     version: str
     config: dict
-
-
-class SciMLConfig(BaseModel):
-    """The extended configuration of a PEtab SciML problem."""
-
-    #: The PEtab SciML format version.
-    version: str = "0.1.0"
-    #: The paths to the array data files.
-    # Absolute or relative to `base_path`.
-    array_files: list[AnyUrl | Path] = []
-    #: The paths to the hybridization tables.
-    # Absolute or relative to `base_path`.
-    hybridization_files: list[AnyUrl | Path] = []
-    #: The neural network IDs and info.
-    neural_networks: dict[str, NeuralNetConfig] | None = {}
-
-    model_config = ConfigDict(
-        validate_assignment=True,
-    )
 
 
 class ProblemConfig(BaseModel):
