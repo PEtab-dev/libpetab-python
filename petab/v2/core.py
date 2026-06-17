@@ -1258,8 +1258,8 @@ class Problem:
         hybridization_tables = None
         array_data_files = None
         if config.extensions and config.extensions[C.SCIML]:
-            # Neural network classes are constructed via pytorch for now to get the
-            # proper inputs
+            # Neural network classes are constructed via pytorch for now to get
+            # the proper inputs
             neural_networks = [
                 NNModel.from_pytorch_module(
                     NNModelStandard.load_data(
@@ -1274,12 +1274,12 @@ class Problem:
                     config.extensions[C.SCIML].neural_networks or {}
                 ).items()
             ]
-    
+
             hybridization_tables = [
                 HybridizationTable.from_tsv(f, base_path)
                 for f in config.extensions[C.SCIML].hybridization_files
             ]
-    
+
             array_data_files = [
                 ArrayDataStandard.load_data(_generate_path(f, base_path))
                 for f in config.extensions[C.SCIML].array_files
@@ -1605,7 +1605,10 @@ class Problem:
 
     @property
     def hybridizations(self) -> list[Hybridization]:
-        """List of hybridizations in the hybridization table(s)."""
+        """
+        List of hybridizations in the hybridization table(s).
+        Note that hybridizations are specific to PEtab SciML problems.
+        """
         return list(
             chain.from_iterable(
                 ht.hybridizations for ht in self.hybridization_tables
@@ -1614,7 +1617,10 @@ class Problem:
 
     @property
     def hybridization_df(self) -> pd.DataFrame | None:
-        """Combined SciML hybridization tables as DataFrame."""
+        """
+        Combined SciML hybridization tables as DataFrame.
+        Note that hybridizations are specific to PEtab SciML problems.
+        """
         return (
             HybridizationTable(hybridizations).to_df()
             if (hybridizations := self.hybridizations)
@@ -2245,7 +2251,8 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         """Add a SciML hybridization table entry to the problem.
 
         If there is more than one hybridization table, the hybridization
-        is added to the last table.
+        is added to the last table. Note that hybridizations are specific
+        to PEtab SciML problems.
 
         Arguments:
             target_id: The ID of the target entity in the PEtab problem
@@ -2259,7 +2266,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         )
 
     def add_neural_network_from_dict(self, model_id: str, nn_dict: dict):
-        """Add a SciML neural net from a dictionary."""
+        """
+        Add a SciML neural net from a dictionary (or PEtab SciML problems).
+        """
         # from petab_sciml import NNModel
         nn_model = NNModel.model_validate(nn_dict)
         nn_model.nn_model_id = model_id
@@ -2271,7 +2280,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         file_path: str | Path,
         base_path: str | Path | None = None,
     ):
-        """Add a SciML neural net from a yaml file."""
+        """
+        Add a SciML neural net from a yaml file (for PEtab SciML problems).
+        """
         # from petab_sciml import NNModelStandard
         self.neural_networks.append(
             NNModelStandard.load_data(
@@ -2284,7 +2295,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         )
 
     def add_array_data_from_dict(self, array_data: dict):
-        """Add SciML array data from a dictionary."""
+        """
+        Add SciML array data from a dictionary (for PEtab SciML problems).
+        """
         # from petab_sciml import ArrayData
         self.array_data_files.append(ArrayData.model_validate(array_data))
 
@@ -2293,7 +2306,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         file_path: str | Path,
         base_path: str | Path | None = None,
     ):
-        """Add SciML array data from an hdf5 file."""
+        """
+        Add SciML array data from an hdf5 file (for PEtab SciML problems).
+        """
         # from petab_sciml import ArrayDataStandard
         self.array_data_files.append(
             ArrayDataStandard.load_data(_generate_path(file_path, base_path))
