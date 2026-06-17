@@ -938,6 +938,7 @@ class Parameter(BaseModel):
     )
     #: Nominal value.
     nominal_value: Annotated[
+        # PEtab SciML supports arrays via "array" nominal values
         float | Literal["array"] | None, BeforeValidator(_convert_nan_to_none)
     ] = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Is the parameter to be estimated?
@@ -2415,8 +2416,8 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
     def add_hybridization(self, target_id: str, target_value: str):
         """Add a SciML hybridization table entry to the problem.
 
-        If there are more than one hybridization tables, the hybridization
-        is added to the last one.
+        If there is more than one hybridization table, the hybridization
+        is added to the last table.
 
         Arguments:
             target_id: The ID of the target entity in the PEtab problem

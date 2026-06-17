@@ -997,7 +997,7 @@ class CheckHybridizationTable(ValidationTask):
         if culprits := (hyb_target_vals & nn_input_ids):
             messages.append(
                 "The following neural net inputs were used as target values "
-                f"in the Hybridization tbale: `{culprits}`. Please simplify."
+                f"in the Hybridization table: `{culprits}`."
             )
 
         if messages:
