@@ -11,6 +11,9 @@ from pathlib import Path
 import pandas as pd
 import sympy as sp
 
+from petab.v2.sciml.lint import CheckHybridizationTable
+
+from ..v2.C import *
 from .base import (
     ValidationError,
     ValidationIssue,
@@ -19,9 +22,6 @@ from .base import (
     ValidationTask,
     ValidationWarning,
 )
-from petab.v2.sciml.lint import CheckHybridizationTable
-
-from ..v2.C import *
 from .core import PriorDistribution, Problem
 
 logger = logging.getLogger(__name__)

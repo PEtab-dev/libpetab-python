@@ -48,7 +48,6 @@ except ModuleNotFoundError:
     pass
 
 from .._utils import _generate_path
-from .base import BaseTable
 from ..v1 import (
     validate_yaml_syntax,
     yaml,
@@ -60,6 +59,7 @@ from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
+from .base import BaseTable
 from .sciml.core import (
     Hybridization,
     HybridizationTable,
