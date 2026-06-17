@@ -1254,10 +1254,13 @@ class Problem:
             else None
         )
 
-        # Neural network classes are constructed via pytorch for now to get the
-        # proper inputs
-        neural_networks = (
-            [
+        neural_networks = None
+        hybridization_tables = None
+        array_data_files = None
+        if config.extensions and config.extensions[C.SCIML]:
+            # Neural network classes are constructed via pytorch for now to get the
+            # proper inputs
+            neural_networks = [
                 NNModel.from_pytorch_module(
                     NNModelStandard.load_data(
                         _generate_path(
@@ -1271,27 +1274,16 @@ class Problem:
                     config.extensions[C.SCIML].neural_networks or {}
                 ).items()
             ]
-            if config.extensions and config.extensions[C.SCIML]
-            else None
-        )
-
-        hybridization_tables = (
-            [
+    
+            hybridization_tables = [
                 HybridizationTable.from_tsv(f, base_path)
                 for f in config.extensions[C.SCIML].hybridization_files
             ]
-            if config.extensions and config.extensions[C.SCIML]
-            else None
-        )
-
-        array_data_files = (
-            [
+    
+            array_data_files = [
                 ArrayDataStandard.load_data(_generate_path(f, base_path))
                 for f in config.extensions[C.SCIML].array_files
             ]
-            if config.extensions and config.extensions[C.SCIML]
-            else None
-        )
 
         return Problem(
             config=config,
