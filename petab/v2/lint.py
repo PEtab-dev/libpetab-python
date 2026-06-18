@@ -3,25 +3,18 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
 from collections.abc import Set
+from dataclasses import dataclass, field
+from enum import IntEnum
 from itertools import chain
 from pathlib import Path
 
 import pandas as pd
 import sympy as sp
 
-from petab.v2.sciml.lint import CheckHybridizationTable
-
 from ..v2.C import *
-from .base import (
-    ValidationError,
-    ValidationIssue,
-    ValidationIssueSeverity,
-    ValidationResultList,
-    ValidationTask,
-    ValidationWarning,
-)
 from .core import PriorDistribution, Problem
 
 logger = logging.getLogger(__name__)
@@ -58,6 +51,126 @@ __all__ = [
 ]
 
 
+class ValidationIssueSeverity(IntEnum):
+    """The severity of a validation issue."""
+
+    # INFO: Informational message, no action required
+    INFO = 10
+    # WARNING: Warning message, potential issues
+    WARNING = 20
+    # ERROR: Error message, action required
+    ERROR = 30
+    # CRITICAL: Critical error message, stops further validation
+    CRITICAL = 40
+
+
+@dataclass
+class ValidationIssue:
+    """The result of a validation task.
+
+    Attributes:
+        level: The level of the validation event.
+        message: The message of the validation event.
+    """
+
+    level: ValidationIssueSeverity
+    message: str
+    task: str | None = None
+
+    def __post_init__(self):
+        if not isinstance(self.level, ValidationIssueSeverity):
+            raise TypeError(
+                "`level` must be an instance of ValidationIssueSeverity."
+            )
+
+    def __str__(self):
+        return f"{self.level.name}: {self.message}"
+
+    @staticmethod
+    def _get_task_name() -> str | None:
+        """Get the name of the ValidationTask that raised this error.
+
+        Expected to be called from below a `ValidationTask.run`.
+        """
+        import inspect
+
+        # walk up the stack until we find the ValidationTask.run method
+        for frame_info in inspect.stack():
+            frame = frame_info.frame
+            if "self" in frame.f_locals:
+                task = frame.f_locals["self"]
+                if isinstance(task, ValidationTask):
+                    return task.__class__.__name__
+        return None
+
+
+@dataclass
+class ValidationError(ValidationIssue):
+    """A validation result with level ERROR."""
+
+    level: ValidationIssueSeverity = field(
+        default=ValidationIssueSeverity.ERROR, init=False
+    )
+
+    def __post_init__(self):
+        if self.task is None:
+            self.task = self._get_task_name()
+
+
+@dataclass
+class ValidationWarning(ValidationIssue):
+    """A validation result with level WARNING."""
+
+    level: ValidationIssueSeverity = field(
+        default=ValidationIssueSeverity.WARNING, init=False
+    )
+
+    def __post_init__(self):
+        if self.task is None:
+            self.task = self._get_task_name()
+
+
+class ValidationResultList(list[ValidationIssue]):
+    """A list of validation results.
+
+    Contains all issues found during the validation of a PEtab problem.
+    """
+
+    def log(
+        self,
+        *,
+        logger: logging.Logger = logger,
+        min_level: ValidationIssueSeverity = ValidationIssueSeverity.INFO,
+        max_level: ValidationIssueSeverity = ValidationIssueSeverity.CRITICAL,
+    ):
+        """Log the validation results.
+
+        :param logger: The logger to use for logging.
+            Defaults to the module logger.
+        :param min_level: The minimum severity level to log.
+        :param max_level: The maximum severity level to log.
+        """
+        for result in self:
+            if result.level < min_level or result.level > max_level:
+                continue
+            msg = f"{result.level.name}: {result.message} [{result.task}]"
+            if result.level == ValidationIssueSeverity.INFO:
+                logger.info(msg)
+            elif result.level == ValidationIssueSeverity.WARNING:
+                logger.warning(msg)
+            elif result.level >= ValidationIssueSeverity.ERROR:
+                logger.error(msg)
+
+        if not self:
+            logger.info("PEtab format check completed successfully.")
+
+    def has_errors(self) -> bool:
+        """Check if there are any errors in the validation results."""
+        return any(
+            result.level >= ValidationIssueSeverity.ERROR for result in self
+        )
+
+
 def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
     """Validate a PEtab problem.
 
@@ -72,6 +185,24 @@ def lint_problem(problem: Problem | str | Path) -> ValidationResultList:
     problem = Problem.get_problem(problem)
 
     return problem.validate()
+
+
+class ValidationTask(ABC):
+    """A task to validate a PEtab problem."""
+
+    @abstractmethod
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        """Run the validation task.
+
+        Arguments:
+            problem: PEtab problem to check.
+        Returns:
+            Validation results or ``None``
+        """
+        ...
+
+    def __call__(self, *args, **kwargs):
+        return self.run(*args, **kwargs)
 
 
 class CheckProblemConfig(ValidationTask):
@@ -841,6 +972,40 @@ class CheckMappingTable(ValidationTask):
         return None
 
 
+class CheckHybridizationTable(ValidationTask):
+    """Validate the SciML hybridization table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        messages = []
+
+        condition_targets = {
+            c.target_id for ct in problem.conditions for c in ct.changes
+        }
+        nn_input_ids = {
+            inp.input_id for nn in problem.neural_networks for inp in nn.inputs
+        }
+        hyb_target_ids = {hyb.target_id for hyb in problem.hybridizations}
+        hyb_target_vals = {hyb.target_value for hyb in problem.hybridizations}
+
+        # Hybridization targets are not also targets in the condition table
+        if culprits := (hyb_target_ids & condition_targets):
+            messages.append(
+                f"Hybridization target ids `{culprits}` are also "
+                "target ids in the condition table."
+            )
+        # NN inputs are not used as target values
+        if culprits := (hyb_target_vals & nn_input_ids):
+            messages.append(
+                "The following neural net inputs were used as target values "
+                f"in the Hybridization table: `{culprits}`."
+            )
+
+        if messages:
+            return ValidationError("\n".join(messages))
+
+        return None
+
+
 def get_valid_parameters_for_parameter_table(
     problem: Problem,
 ) -> set[str]:
@@ -1055,6 +1220,25 @@ default_validation_tasks = [
 ]
 
 #: Validation tasks that should be run PEtab SciML problems
-sciml_validation_tasks = default_validation_tasks + [
+sciml_validation_tasks = [
+    CheckProblemConfig(),
+    CheckModel(),
+    CheckUniquePrimaryKeys(),
+    CheckMeasurementModelId(),
+    CheckMeasuredObservablesDefined(),
+    CheckPosLogMeasurements(),
+    CheckOverridesMatchPlaceholders(),
+    CheckValidConditionTargets(),
+    CheckExperimentTable(),
+    CheckExperimentConditionsExist(),
+    CheckUndefinedExperiments(),
+    CheckObservablesDoNotShadowModelEntities(),
+    CheckAllParametersPresentInParameterTable(),
+    CheckValidParameterInConditionOrParameterTable(),
+    CheckUnusedExperiments(),
+    CheckUnusedConditions(),
+    CheckPriorDistribution(),
+    CheckInitialChangeSymbols(),
+    CheckMappingTable(),
     CheckHybridizationTable(),
 ]

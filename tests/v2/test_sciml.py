@@ -2,10 +2,9 @@ import numpy as np
 from pydantic import ConfigDict
 
 from petab.v2.core import *
-from petab.v2.core import ModelFile
+from petab.v2.core import ModelFile, NeuralNetConfig
 from petab.v2.lint import sciml_validation_tasks
 from petab.v2.models.sbml_model import SbmlModel
-from petab.v2.sciml.core import NeuralNetConfig
 
 
 def _get_test_problem():
