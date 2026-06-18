@@ -982,10 +982,16 @@ class CheckHybridizationTable(ValidationTask):
             c.target_id for ct in problem.conditions for c in ct.changes
         }
         nn_input_ids = {
-            inp.input_id for nn in problem.neural_networks for inp in nn.inputs
+            inp.input_id
+            for nn in problem.extensions.sciml.neural_networks
+            for inp in nn.inputs
         }
-        hyb_target_ids = {hyb.target_id for hyb in problem.hybridizations}
-        hyb_target_vals = {hyb.target_value for hyb in problem.hybridizations}
+        hyb_target_ids = {
+            hyb.target_id for hyb in problem.extensions.sciml.hybridizations
+        }
+        hyb_target_vals = {
+            hyb.target_value for hyb in problem.extensions.sciml.hybridizations
+        }
 
         # Hybridization targets are not also targets in the condition table
         if culprits := (hyb_target_ids & condition_targets):
@@ -1155,10 +1161,13 @@ def get_required_parameters_for_parameter_table(
     # Parameters that are overridden via the condition table are not allowed
     parameter_ids -= condition_targets
 
-    hybridization_targets = {hyb.target_id for hyb in problem.hybridizations}
+    hybridization_targets = {
+        hyb.target_id for hyb in problem.extensions.sciml.hybridizations
+    }
     parameter_ids -= hybridization_targets
     hybridization_target_values = {
-        str(hyb.target_value) for hyb in problem.hybridizations
+        str(hyb.target_value)
+        for hyb in problem.extensions.sciml.hybridizations
     }
     parameter_ids -= hybridization_target_values
 
@@ -1220,25 +1229,6 @@ default_validation_tasks = [
 ]
 
 #: Validation tasks that should be run PEtab SciML problems
-sciml_validation_tasks = [
-    CheckProblemConfig(),
-    CheckModel(),
-    CheckUniquePrimaryKeys(),
-    CheckMeasurementModelId(),
-    CheckMeasuredObservablesDefined(),
-    CheckPosLogMeasurements(),
-    CheckOverridesMatchPlaceholders(),
-    CheckValidConditionTargets(),
-    CheckExperimentTable(),
-    CheckExperimentConditionsExist(),
-    CheckUndefinedExperiments(),
-    CheckObservablesDoNotShadowModelEntities(),
-    CheckAllParametersPresentInParameterTable(),
-    CheckValidParameterInConditionOrParameterTable(),
-    CheckUnusedExperiments(),
-    CheckUnusedConditions(),
-    CheckPriorDistribution(),
-    CheckInitialChangeSymbols(),
-    CheckMappingTable(),
+sciml_validation_tasks = default_validation_tasks + [
     CheckHybridizationTable(),
 ]

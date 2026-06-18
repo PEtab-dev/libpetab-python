@@ -2,7 +2,8 @@ import numpy as np
 from pydantic import ConfigDict
 
 from petab.v2.core import *
-from petab.v2.core import ModelFile, NeuralNetConfig
+from petab.v2.core import ModelFile
+from petab.v2.extensions.sciml import NeuralNetConfig
 from petab.v2.lint import sciml_validation_tasks
 from petab.v2.models.sbml_model import SbmlModel
 
@@ -61,10 +62,10 @@ def _get_test_problem():
     problem.add_parameter(
         "net1_ps", estimate=True, lb=-np.inf, ub=np.inf, nominal_value="array"
     )
-    problem.add_hybridization("net1_input1", "A")
-    problem.add_hybridization("net1_input2", "B")
-    problem.add_hybridization("gamma_", "net1_output1")
-    problem.add_neural_network_from_dict(
+    problem.extensions.sciml.add_hybridization("net1_input1", "A")
+    problem.extensions.sciml.add_hybridization("net1_input2", "B")
+    problem.extensions.sciml.add_hybridization("gamma_", "net1_output1")
+    problem.extensions.sciml.add_neural_network_from_dict(
         "net1",
         nn_dict={
             "nn_model_id": "net1",
@@ -103,7 +104,7 @@ def _get_test_problem():
     )
 
     # array data
-    problem.add_array_data_from_dict(
+    problem.extensions.sciml.add_array_data_from_dict(
         {
             "metadata": {"pytorch_format": True},
             "inputs": {},
@@ -126,9 +127,11 @@ def _get_test_problem():
     problem.measurement_tables[0].rel_path = "measurements.tsv"
     problem.observable_tables[0].rel_path = "observables.tsv"
     problem.parameter_tables[0].rel_path = "parameters.tsv"
-    problem.hybridization_tables[0].rel_path = "hybridizations.tsv"
-    # problem.neural_networks[0].rel_path = "net1.yaml"
-    # problem.array_data_files[0].rel_path = "net1_ps.hdf5"
+    problem.extensions.sciml.hybridization_tables[
+        0
+    ].rel_path = "hybridizations.tsv"
+    # problem.extensions.sciml.neural_networks[0].rel_path = "net1.yaml"
+    # problem.extensions.sciml.array_data_files[0].rel_path = "net1_ps.hdf5"
 
     return problem
 
