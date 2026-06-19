@@ -954,9 +954,12 @@ class CheckMappingTable(ValidationTask):
                 )
 
             for mapping in problem.mappings:
-                # petabEntityId is not referenced in any model
+                # petabEntityId not referenced in any model, if alias
                 for model in problem.models:
-                    if model.has_entity_with_id(mapping.petab_id):
+                    if (
+                        mapping.petab_id != mapping.model_id
+                        and model.has_entity_with_id(mapping.petab_id)
+                    ):
                         messages.append(
                             f"`{mapping.petab_id}` is used in the mapping "
                             "table and referenced directly in the model "
