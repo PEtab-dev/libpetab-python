@@ -112,7 +112,7 @@ def test_validate_initial_change_symbols():
 def test_check_mapping_table():
     """Test checks related to the mapping table."""
     problem = Problem()
-    # PySB model from PEtab test suite
+    # FIXME see https://github.com/PEtab-dev/libpetab-python/pull/482#discussion_r3431330125
     problem.model = SbmlModel.from_antimony("a.mean = 1")
     problem.add_mapping(
         petab_id="a_m",

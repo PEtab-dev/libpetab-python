@@ -446,7 +446,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
 
         # check for uniqueness of all primary keys
         counter = Counter(c.id for c in problem.conditions)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -454,7 +454,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(o.id for o in problem.observables)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -462,7 +462,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(e.id for e in problem.experiments)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -470,7 +470,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(p.id for p in problem.parameters)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -509,7 +509,11 @@ class CheckExperimentTable(ValidationTask):
         for experiment in problem.experiments:
             # Check that there are no duplicate timepoints
             counter = Counter(period.time for period in experiment.periods)
-            duplicates = {time for time, count in counter.items() if count > 1}
+            duplicates = sorted(
+                time
+                for time, count in counter.items()
+                if count > 1
+            )
             if duplicates:
                 messages.append(
                     f"Experiment {experiment.id} contains duplicate "
@@ -904,31 +908,47 @@ class CheckMappingTable(ValidationTask):
 
         # Mapping table is optional
         if problem.mappings:
-            # Check that each id only occurs once
-            counter = Counter(
-                [
-                    getattr(mapping, attr)
-                    for mapping in problem.mappings
-                    for attr in ["petab_id", "model_id"]
-                    if getattr(mapping, attr)
-                ]
+            # Check that each id, across both the petabEntityId and
+            # modelEntityId columns, occurs only once
+            must_be_unique_ids = []
+            for mapping in problem.mappings:
+                petab_id := getattr(mapping, "petab_id"):
+                model_id := getattr(mapping, "model_id"):
+
+                if petab_id:
+                    must_be_unique_ids.append(petab_id)
+                # Duplicates for annotation-only rows (identity mappings)
+                # are permitted.
+                if petab_id == model_id:
+                    continue
+                if model_id:
+                    must_be_unique_ids.append(model_id)
+
+            non_unique_ids = sorted(
+                id_
+                for id_, count in Counter(must_be_unique_ids).items()
+                if count > 1
             )
-            non_unique = {id_ for id_, count in counter.items() if count > 1}
-            if non_unique:
+            if non_unique_ids:
                 return ValidationError(
-                    f"Mapping table contains non-unique IDs: {non_unique}."
+                    f"Mapping table contains non-unique IDs: {non_unique_ids}."
                 )
 
             # petabEntityId is not defined elsewhere in the PEtab problem
-            petab_ids_mapping = {m.petab_id for m in problem.mappings}
-            defined_petab_ids = (
+            new_petab_ids = {
+                m.petab_id
+                for m in problem.mappings
+                # Ignore identity mappings used for annotation
+                if m.petab_id != m.model_id
+            }
+            old_petab_ids = (
                 {c.id for c in problem.conditions}
                 | {e.id for e in problem.experiments}
                 | {o.id for o in problem.observables}
             )
-            if petab_ids_mapping & defined_petab_ids:
+            if overdefined_ids := sorted(new_petab_ids & old_petab_ids):
                 messages.append(
-                    f"PEtab IDs `{petab_ids_mapping & defined_petab_ids}` are "
+                    f"PEtab IDs `{overdefined_ids}` are "
                     "defined in the mapping table but also defined through "
                     "other PEtab tables."
                 )
@@ -989,6 +1009,9 @@ def get_valid_parameters_for_parameter_table(
     )
 
     # Add petab ids from mapping table if they are used for aliasing
+    # FIXME only add mapping.petab_id to allowed parameter IDs list if it
+    #       aliases an invalid PEtab ID? See
+    #       https://github.com/PEtab-dev/libpetab-python/pull/482#discussion_r3420762034
     for mapping in problem.mappings:
         if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
