@@ -510,9 +510,7 @@ class CheckExperimentTable(ValidationTask):
             # Check that there are no duplicate timepoints
             counter = Counter(period.time for period in experiment.periods)
             duplicates = sorted(
-                time
-                for time, count in counter.items()
-                if count > 1
+                time for time, count in counter.items() if count > 1
             )
             if duplicates:
                 messages.append(
@@ -912,8 +910,8 @@ class CheckMappingTable(ValidationTask):
             # modelEntityId columns, occurs only once
             must_be_unique_ids = []
             for mapping in problem.mappings:
-                petab_id := getattr(mapping, "petab_id"):
-                model_id := getattr(mapping, "model_id"):
+                petab_id = getattr(mapping, "petab_id", None)
+                model_id = getattr(mapping, "model_id", None)
 
                 if petab_id:
                     must_be_unique_ids.append(petab_id)
