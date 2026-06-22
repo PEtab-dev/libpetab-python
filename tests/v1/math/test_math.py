@@ -43,8 +43,8 @@ def test_printer():
     assert petab_math_str(BooleanTrue()) == "true"
     assert petab_math_str(BooleanFalse()) == "false"
     assert petab_math_str((a + b) ** (c + d)) == "(a + b) ^ (c + d)"
-    # A non-integer rational exponent must be parenthesized, else "a ^ 1/2" re-parses as
-    # (a^1)/2 (i.e. sqrt(a) would round-trip to a/2). See #421 for the base/exponent case.
+    # A non-integer rational exponent must be parenthesized, else "a ^ 1/2"
+    # re-parses as (a^1)/2 (i.e. sqrt(a) would round-trip to a/2).
     assert petab_math_str(sp.sqrt(a)) == "a ^ (1/2)"
     assert petab_math_str(a ** sp.Rational(2, 3)) == "a ^ (2/3)"
 

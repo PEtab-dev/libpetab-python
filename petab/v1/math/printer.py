@@ -41,9 +41,9 @@ class PetabStrPrinter(StrPrinter):
         str_exp = self._print(exp)
         if not base.is_Atom:
             str_base = f"({str_base})"
-        # A non-integer Rational exponent (e.g. sqrt -> 1/2) is an Atom but prints as the
-        # multi-token "1/2", so without parentheses "x ^ 1/2" re-parses as (x^1)/2. The
-        # `not exp.is_Atom` check above (#421) misses it; parenthesize it explicitly.
+        # A non-integer Rational exponent (e.g. sqrt -> 1/2) is an Atom but
+        # prints as the multi-token "1/2", so without parentheses "x ^ 1/2"
+        # re-parses as (x^1)/2. Parenthesize it explicitly.
         if not exp.is_Atom or (exp.is_Rational and not exp.is_Integer):
             str_exp = f"({str_exp})"
         return f"{str_base} ^ {str_exp}"
