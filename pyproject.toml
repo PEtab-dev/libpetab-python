@@ -35,7 +35,7 @@ maintainers = [
 tests = [
     "antimony>=3.1.0",
     "copasi-basico>=0.85",
-    "petab_sciml @ git+https://github.com/PEtab-dev/petab_sciml.git",
+    "petab_sciml",
     "pysb",
     "pytest",
     "pytest-cov",
@@ -73,7 +73,7 @@ vis = [
     "scipy"
 ]
 sciml = [
-    "petab_sciml @ git+https://github.com/PEtab-dev/petab_sciml.git",
+    "petab_sciml",
 ]
 
 [project.scripts]
