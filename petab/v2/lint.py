@@ -554,7 +554,9 @@ class CheckExperimentConditionsExist(ValidationTask):
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
     """Ensure all required parameters are contained in the parameter table
-    with no additional ones. This also ensures that the mapping table petab ids
+    with no additional ones. 
+    
+    This also ensures that the mapping table petab ids
     are used in the PEtab problem."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
