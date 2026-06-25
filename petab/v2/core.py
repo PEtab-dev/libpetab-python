@@ -318,9 +318,9 @@ class Observable(BaseModel):
     #: Observable name.
     name: str | None = Field(alias=C.OBSERVABLE_NAME, default=None)
     #: Observable formula.
-    formula: sp.Basic | None = Field(alias=C.OBSERVABLE_FORMULA, default=None)
+    formula: sp.Basic = Field(alias=C.OBSERVABLE_FORMULA)
     #: Noise formula.
-    noise_formula: sp.Basic | None = Field(alias=C.NOISE_FORMULA, default=None)
+    noise_formula: sp.Basic = Field(alias=C.NOISE_FORMULA)
     #: Noise distribution.
     noise_distribution: NoiseDistribution = Field(
         alias=C.NOISE_DISTRIBUTION, default=NoiseDistribution.NORMAL
