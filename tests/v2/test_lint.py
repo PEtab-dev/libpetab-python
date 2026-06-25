@@ -2,9 +2,21 @@
 
 from copy import deepcopy
 
+import pysb
+import pytest
+
 from petab.v2 import Problem
 from petab.v2.lint import *
+from petab.v2.models.pysb_model import PySBModel
 from petab.v2.models.sbml_model import SbmlModel
+
+
+@pytest.fixture
+def uses_pysb():
+    """Cleanup PySB auto-exported symbols before and after test"""
+    pysb.SelfExporter.cleanup()
+    yield ()
+    pysb.SelfExporter.cleanup()
 
 
 def test_check_experiments():
@@ -109,18 +121,21 @@ def test_validate_initial_change_symbols():
     assert "contains additional symbols: {'p2'}" in error.message
 
 
-def test_check_mapping_table():
+def test_check_mapping_table(uses_pysb):
     """Test checks related to the mapping table."""
     problem = Problem()
-    # FIXME see https://github.com/PEtab-dev/libpetab-python/pull/482#discussion_r3431330125
-    problem.model = SbmlModel.from_antimony("a.mean = 1")
+    # PySB model with monomer 'A' having site 'b'; the model entity
+    # 'A.b' is PEtab-incompatible (dots not allowed) and requires mapping.
+    pysb_model = pysb.Model("test_model")
+    pysb.Monomer("A", ["b"])
+    problem.model = PySBModel(model=pysb_model, model_id="test_model")
     problem.add_mapping(
-        petab_id="a_m",
-        model_id="a.mean",
+        petab_id="a_b",
+        model_id="A.b",
         name=None,
     )
     problem.add_parameter(
-        "a_m",
+        "a_b",
         estimate=True,
         nominal_value=2,
         lb=0,
@@ -141,9 +156,15 @@ def test_check_mapping_table():
     assert check.run(problem) is None
 
     # Invalid: petabEntityId is referenced in the model
-    problem.model = SbmlModel.from_antimony("a.mean = 1; a_m = 2")
+    pysb.SelfExporter.cleanup()
+    pysb_model_invalid = pysb.Model("test_model_invalid")
+    pysb.Monomer("A", ["b"])
+    pysb.Parameter("a_b", 2)
+    problem.model = PySBModel(
+        model=pysb_model_invalid, model_id="test_model_invalid"
+    )
     assert (error := check.run(problem)) is not None
     assert (
-        "`a_m` is used in the mapping table and referenced directly"
+        "`a_b` is used in the mapping table and referenced directly"
         in error.message
     )

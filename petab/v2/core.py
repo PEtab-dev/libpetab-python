@@ -19,7 +19,6 @@ from typing import (
     Annotated,
     Any,
     Generic,
-    Literal,
     Self,
     TypeVar,
     get_args,
@@ -927,7 +926,7 @@ class Parameter(BaseModel):
     )
     #: Nominal value.
     nominal_value: Annotated[
-        float | Literal["array"] | None, BeforeValidator(_convert_nan_to_none)
+        float | None, BeforeValidator(_convert_nan_to_none)
     ] = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)

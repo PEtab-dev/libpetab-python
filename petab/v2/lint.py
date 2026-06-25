@@ -554,8 +554,8 @@ class CheckExperimentConditionsExist(ValidationTask):
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
     """Ensure all required parameters are contained in the parameter table
-    with no additional ones. 
-    
+    with no additional ones.
+
     This also ensures that the mapping table petab ids
     are used in the PEtab problem."""
 
@@ -904,67 +904,68 @@ class CheckMappingTable(ValidationTask):
     """Validate the mapping table."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
+        # Mapping table is optional
+        if not problem.mappings:
+            return None
+
         messages = []
 
-        # Mapping table is optional
-        if problem.mappings:
-            # Check that each id, across both the petabEntityId and
-            # modelEntityId columns, occurs only once
-            must_be_unique_ids = []
-            for mapping in problem.mappings:
-                petab_id = getattr(mapping, "petab_id", None)
-                model_id = getattr(mapping, "model_id", None)
+        # Check that each id, across both the petabEntityId and
+        # modelEntityId columns, occurs only once
+        must_be_unique_ids = []
+        for mapping in problem.mappings:
+            petab_id = mapping.petab_id
+            model_id = mapping.model_id
 
-                if petab_id:
-                    must_be_unique_ids.append(petab_id)
-                # Duplicates for annotation-only rows (identity mappings)
-                # are permitted.
-                if petab_id == model_id:
-                    continue
-                if model_id:
-                    must_be_unique_ids.append(model_id)
+            if petab_id:
+                must_be_unique_ids.append(petab_id)
+            # Identity mappings are permitted for annotation
+            if petab_id == model_id:
+                continue
+            if model_id:
+                must_be_unique_ids.append(model_id)
 
-            non_unique_ids = sorted(
-                id_
-                for id_, count in Counter(must_be_unique_ids).items()
-                if count > 1
+        non_unique_ids = sorted(
+            id_
+            for id_, count in Counter(must_be_unique_ids).items()
+            if count > 1
+        )
+        if non_unique_ids:
+            return ValidationError(
+                f"Mapping table contains non-unique IDs: {non_unique_ids}."
             )
-            if non_unique_ids:
-                return ValidationError(
-                    f"Mapping table contains non-unique IDs: {non_unique_ids}."
-                )
 
-            # petabEntityId is not defined elsewhere in the PEtab problem
-            new_petab_ids = {
-                m.petab_id
-                for m in problem.mappings
-                # Ignore identity mappings used for annotation
-                if m.petab_id != m.model_id
-            }
-            old_petab_ids = (
-                {c.id for c in problem.conditions}
-                | {e.id for e in problem.experiments}
-                | {o.id for o in problem.observables}
+        # petabEntityId is not defined elsewhere in the PEtab problem
+        new_petab_ids = {
+            m.petab_id
+            for m in problem.mappings
+            # Ignore identity mappings used for annotation
+            if m.petab_id != m.model_id
+        }
+        old_petab_ids = (
+            {c.id for c in problem.conditions}
+            | {e.id for e in problem.experiments}
+            | {o.id for o in problem.observables}
+        )
+        if overdefined_ids := sorted(new_petab_ids & old_petab_ids):
+            messages.append(
+                f"PEtab IDs `{overdefined_ids}` are "
+                "defined in the mapping table but also defined through "
+                "other PEtab tables."
             )
-            if overdefined_ids := sorted(new_petab_ids & old_petab_ids):
-                messages.append(
-                    f"PEtab IDs `{overdefined_ids}` are "
-                    "defined in the mapping table but also defined through "
-                    "other PEtab tables."
-                )
 
-            for mapping in problem.mappings:
-                # petabEntityId not referenced in any model, if alias
-                for model in problem.models:
-                    if (
-                        mapping.petab_id != mapping.model_id
-                        and model.has_entity_with_id(mapping.petab_id)
-                    ):
-                        messages.append(
-                            f"`{mapping.petab_id}` is used in the mapping "
-                            "table and referenced directly in the model "
-                            f"`{model.model_id}`."
-                        )
+        for mapping in problem.mappings:
+            # petabEntityId not referenced in any model, if alias
+            for model in problem.models:
+                if (
+                    mapping.petab_id != mapping.model_id
+                    and model.has_entity_with_id(mapping.petab_id)
+                ):
+                    messages.append(
+                        f"`{mapping.petab_id}` is used in the mapping "
+                        "table and referenced directly in the model "
+                        f"`{model.model_id}`."
+                    )
 
         if messages:
             return ValidationError("\n".join(messages))
@@ -1069,7 +1070,6 @@ def get_required_parameters_for_parameter_table(
     # Start with mapping table petab ids
     parameter_ids = {m.petab_id for m in problem.mappings}
 
-    # Add parameters from measurement table, unless they are fixed parameters
     def append_overrides(overrides):
         parameter_ids.update(
             str(p) for p in overrides if isinstance(p, sp.Symbol)
