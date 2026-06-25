@@ -35,6 +35,7 @@ API Reference
    petab.v2.converters
    petab.v2.core
    petab.v2.experiments
+   petab.v2.extensions
    petab.v2.lint
    petab.v2.models
    petab.v2.petab1to2

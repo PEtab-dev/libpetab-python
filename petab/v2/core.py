@@ -2590,11 +2590,17 @@ class ProblemConfig(BaseModel):
             parsed_extensions = {}
             for ext_name, ext_config in v.items():
                 if ext_name == C.EXT_ID_SCIML:
-                    # Convert sciml extension to SciMLConfig
-                    parsed_extensions[ext_name] = SciMLConfig(**ext_config)
+                    parsed_extensions[ext_name] = (
+                        ext_config
+                        if isinstance(ext_config, SciMLConfig)
+                        else SciMLConfig(**ext_config)
+                    )
                 else:
-                    # Keep other extensions as ExtensionConfig
-                    parsed_extensions[ext_name] = ExtensionConfig(**ext_config)
+                    parsed_extensions[ext_name] = (
+                        ext_config
+                        if isinstance(ext_config, ExtensionConfig)
+                        else ExtensionConfig(**ext_config)
+                    )
             return parsed_extensions
         return v
 

@@ -1121,15 +1121,16 @@ def get_required_parameters_for_parameter_table(
     # Parameters that are overridden via the condition table are not allowed
     parameter_ids -= condition_targets
 
-    hybridization_targets = {
-        hyb.target_id for hyb in problem.extensions.sciml.hybridizations
-    }
-    parameter_ids -= hybridization_targets
-    hybridization_target_values = {
-        str(hyb.target_value)
-        for hyb in problem.extensions.sciml.hybridizations
-    }
-    parameter_ids -= hybridization_target_values
+    if problem.extensions.sciml is not None:
+        hybridization_targets = {
+            hyb.target_id for hyb in problem.extensions.sciml.hybridizations
+        }
+        parameter_ids -= hybridization_targets
+        hybridization_target_values = {
+            str(hyb.target_value)
+            for hyb in problem.extensions.sciml.hybridizations
+        }
+        parameter_ids -= hybridization_target_values
 
     return parameter_ids
 

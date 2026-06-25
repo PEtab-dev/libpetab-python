@@ -26,6 +26,14 @@ except ModuleNotFoundError:
 
 from .. import C
 
+__all__ = [
+    "Hybridization",
+    "HybridizationTable",
+    "NeuralNetConfig",
+    "SciMLConfig",
+    "SciMLExt",
+]
+
 
 class Hybridization(BaseModel):
     """Assigns PEtab SciML NN inputs and outputs."""
@@ -122,6 +130,7 @@ class NeuralNetConfig(BaseModel):
     pre_initialization: bool
     format: str
 
+    #: :meta private:
     model_config = ConfigDict(
         validate_assignment=True,
     )
@@ -139,6 +148,7 @@ class SciMLConfig(BaseModel):
     #: The neural network IDs and info.
     neural_networks: dict[str, NeuralNetConfig] | None = {}
 
+    #: :meta private:
     model_config = ConfigDict(
         validate_assignment=True,
     )
@@ -152,9 +162,9 @@ class SciMLExt:
 
     def __init__(
         self,
-        neural_networks: list = None,
-        hybridization_tables: list[HybridizationTable] = None,
-        array_data_files: list = None,
+        neural_networks: list | None = None,
+        hybridization_tables: list[HybridizationTable] | None = None,
+        array_data_files: list | None = None,
     ):
         self.neural_networks: list = neural_networks or []
         self.hybridization_tables: list[HybridizationTable] = (

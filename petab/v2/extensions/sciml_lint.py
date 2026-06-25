@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from .. import core, lint
 
+__all__ = [
+    "CheckHybridizationTable",
+]
+
 
 class CheckHybridizationTable(lint.ValidationTask):
     """Validate the SciML hybridization table."""
