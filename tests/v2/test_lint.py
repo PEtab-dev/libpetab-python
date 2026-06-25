@@ -124,23 +124,14 @@ def test_validate_initial_change_symbols():
 def test_check_mapping_table(uses_pysb):
     """Test checks related to the mapping table."""
     problem = Problem()
-    # PySB model with monomer 'A' having site 'b'; the model entity
-    # 'A.b' is PEtab-incompatible (dots not allowed) and requires mapping.
+
+    # PySB model with a compartment and a monomer, and mapping of model entity
+    # to a valid PEtab id
     pysb_model = pysb.Model("test_model")
-    pysb.Monomer("A", ["b"])
+    pysb.Monomer("A_")
+    pysb.Initial(A_() ** pysb.Compartment("C"), pysb.Parameter("a0", 1))
     problem.model = PySBModel(model=pysb_model, model_id="test_model")
-    problem.add_mapping(
-        petab_id="a_b",
-        model_id="A.b",
-        name=None,
-    )
-    problem.add_parameter(
-        "a_b",
-        estimate=True,
-        nominal_value=2,
-        lb=0,
-        ub=10,
-    )
+    problem.add_mapping("A", "A_() ** C")
 
     check = CheckMappingTable()
     assert check.run(problem) is None
@@ -158,13 +149,13 @@ def test_check_mapping_table(uses_pysb):
     # Invalid: petabEntityId is referenced in the model
     pysb.SelfExporter.cleanup()
     pysb_model_invalid = pysb.Model("test_model_invalid")
-    pysb.Monomer("A", ["b"])
-    pysb.Parameter("a_b", 2)
+    pysb.Monomer("A_")
+    pysb.Initial(A_() ** pysb.Compartment("C"), pysb.Parameter("A", 1))
     problem.model = PySBModel(
         model=pysb_model_invalid, model_id="test_model_invalid"
     )
     assert (error := check.run(problem)) is not None
     assert (
-        "`a_b` is used in the mapping table and referenced directly"
+        "`A` is used in the mapping table and referenced directly"
         in error.message
     )
