@@ -1109,11 +1109,6 @@ def get_required_parameters_for_parameter_table(
     )
 
     # Parameters that are overridden via the condition table are not allowed
-    condition_targets = {
-        change.target_id
-        for cond in problem.conditions
-        for change in cond.changes
-    }
     parameter_ids -= condition_targets
 
     return parameter_ids
