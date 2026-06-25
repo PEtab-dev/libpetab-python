@@ -153,6 +153,19 @@ class SciMLConfig(BaseModel):
         validate_assignment=True,
     )
 
+    def to_yaml(self) -> dict:
+        """Return a YAML-serializable dict with Paths converted to strings."""
+        from . import C
+
+        d = self.model_dump(by_alias=True)
+        for key in ("array_files", "hybridization_files"):
+            d[key] = list(map(str, d[key]))
+        for nn in d["neural_networks"] or {}:
+            d["neural_networks"][nn][C.MODEL_LOCATION] = str(
+                d["neural_networks"][nn][C.MODEL_LOCATION]
+            )
+        return d
+
 
 class SciMLExt:
     """SciML extension runtime state.
@@ -240,4 +253,53 @@ class SciMLExt:
         """Add array data from an HDF5 file."""
         self.array_data_files.append(
             ArrayDataStandard.load_data(_generate_path(file_path, base_path))
+        )
+
+    @staticmethod
+    def from_config(
+        config,
+        base_path: str | Path | None = None,
+    ) -> SciMLExt:
+        """Construct a SciMLExt from a ProblemConfig.
+
+        Arguments:
+            config: A ProblemConfig whose ``extensions[EXT_ID_SCIML]`` entry
+                is a :class:`SciMLConfig`.
+            base_path: Base path used to resolve relative file paths.
+        """
+        from petab_sciml import ArrayDataStandard, NNModel, NNModelStandard
+
+        sciml_config: SciMLConfig = config.extensions[C.EXT_ID_SCIML]
+
+        # Neural network classes are constructed via pytorch for now to get
+        # the proper inputs
+        neural_networks = [
+            NNModel.from_pytorch_module(
+                NNModelStandard.load_data(
+                    _generate_path(
+                        file_path=nn_config.location,
+                        base_path=base_path,
+                    )
+                ).to_pytorch_module(),
+                nn_model_id=nn_id,
+            )
+            for nn_id, nn_config in (
+                sciml_config.neural_networks or {}
+            ).items()
+        ]
+
+        hybridization_tables = [
+            HybridizationTable.from_tsv(f, base_path)
+            for f in sciml_config.hybridization_files
+        ]
+
+        array_data_files = [
+            ArrayDataStandard.load_data(_generate_path(f, base_path))
+            for f in sciml_config.array_files
+        ]
+
+        return SciMLExt(
+            neural_networks=neural_networks,
+            hybridization_tables=hybridization_tables,
+            array_data_files=array_data_files,
         )

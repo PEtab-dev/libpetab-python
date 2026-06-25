@@ -4,37 +4,36 @@ from pydantic import ConfigDict
 from petab.v2.core import *
 from petab.v2.core import ModelFile
 from petab.v2.extensions.sciml import NeuralNetConfig, SciMLConfig
-from petab.v2.lint import sciml_validation_tasks
 from petab.v2.models.sbml_model import SbmlModel
 
 
 def _get_test_problem():
-    problem = Problem()
-    problem.validation_tasks = sciml_validation_tasks
-    problem.config = ProblemConfig(
-        format_version="2.0.0",
-        model_files=ConfigDict(
-            {"lv": ModelFile(location="lv.xml", language="sbml")}
-        ),
-        parameter_files=["parameters.tsv"],
-        measurement_files=["measurements.tsv"],
-        observable_files=["observables.tsv"],
-        experiment_files=["experiments.tsv"],
-        mapping_files=["mappings.tsv"],
-        extensions={
-            "sciml": SciMLConfig(
-                version="0.1.0",
-                array_files=["net1_ps.hdf5"],
-                hybridization_files=["hybridizations.tsv"],
-                neural_networks={
-                    "net1": NeuralNetConfig(
-                        location="net1.yaml",
-                        pre_initialization=False,
-                        format="YAML",
-                    )
-                },
-            )
-        },
+    problem = Problem(
+        config=ProblemConfig(
+            format_version="2.0.0",
+            model_files=ConfigDict(
+                {"lv": ModelFile(location="lv.xml", language="sbml")}
+            ),
+            parameter_files=["parameters.tsv"],
+            measurement_files=["measurements.tsv"],
+            observable_files=["observables.tsv"],
+            experiment_files=["experiments.tsv"],
+            mapping_files=["mappings.tsv"],
+            extensions={
+                "sciml": SciMLConfig(
+                    version="0.1.0",
+                    array_files=["net1_ps.hdf5"],
+                    hybridization_files=["hybridizations.tsv"],
+                    neural_networks={
+                        "net1": NeuralNetConfig(
+                            location="net1.yaml",
+                            pre_initialization=False,
+                            format="YAML",
+                        )
+                    },
+                )
+            },
+        )
     )
     problem.model = SbmlModel.from_antimony("""
     model lv

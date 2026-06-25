@@ -312,7 +312,6 @@ class BaseTable(BaseModel, Generic[T]):
 # SciML extension classes — imported after BaseTable is defined to avoid
 # circular imports (sciml.py does not import from core.py).
 from .extensions.sciml import (  # noqa: E402
-    HybridizationTable,
     SciMLConfig,
     SciMLExt,
 )
@@ -1350,44 +1349,12 @@ class Problem:
             else None
         )
 
-        extensions = ProblemExtensions()
-        if config.extensions and config.extensions.get(C.EXT_ID_SCIML):
-            from petab_sciml import ArrayDataStandard, NNModel, NNModelStandard
-
-            # Neural network classes are constructed via pytorch for now to get
-            # the proper inputs
-            neural_networks = [
-                NNModel.from_pytorch_module(
-                    NNModelStandard.load_data(
-                        _generate_path(
-                            file_path=nn_config.location,
-                            base_path=base_path,
-                        )
-                    ).to_pytorch_module(),
-                    nn_model_id=nn_id,
-                )
-                for nn_id, nn_config in (
-                    config.extensions[C.EXT_ID_SCIML].neural_networks or {}
-                ).items()
-            ]
-
-            hybridization_tables = [
-                HybridizationTable.from_tsv(f, base_path)
-                for f in config.extensions[C.EXT_ID_SCIML].hybridization_files
-            ]
-
-            array_data_files = [
-                ArrayDataStandard.load_data(_generate_path(f, base_path))
-                for f in config.extensions[C.EXT_ID_SCIML].array_files
-            ]
-
-            extensions = ProblemExtensions(
-                sciml=SciMLExt(
-                    neural_networks=neural_networks,
-                    hybridization_tables=hybridization_tables,
-                    array_data_files=array_data_files,
-                )
-            )
+        sciml = (
+            SciMLExt.from_config(config, base_path)
+            if config.extensions and config.extensions.get(C.EXT_ID_SCIML)
+            else None
+        )
+        extensions = ProblemExtensions(sciml=sciml)
 
         return Problem(
             config=config,
@@ -2647,15 +2614,9 @@ class ProblemConfig(BaseModel):
             # The schema requires a valid id or no id field at all.
             del data["id"]
 
-        for ext_id, d_ext in data[C.EXTENSIONS].items():
+        for ext_id in list(data[C.EXTENSIONS]):
             if ext_id == C.EXT_ID_SCIML:
-                # convert Paths to strings
-                for key in ("array_files", "hybridization_files"):
-                    d_ext[key] = list(map(str, d_ext[key]))
-                for nn in d_ext["neural_networks"]:
-                    d_ext["neural_networks"][nn][C.MODEL_LOCATION] = str(
-                        d_ext["neural_networks"][nn][C.MODEL_LOCATION]
-                    )
+                data[C.EXTENSIONS][ext_id] = self.extensions[ext_id].to_yaml()
 
         write_yaml(data, filename)
 
