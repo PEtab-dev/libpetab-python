@@ -1011,20 +1011,9 @@ def get_valid_parameters_for_parameter_table(
         if p not in invalid
     )
 
-    # Add petab ids from mapping table if they are used for aliasing
-    # FIXME only add mapping.petab_id to allowed parameter IDs list if it
-    #       aliases an invalid PEtab ID? See
-    #       https://github.com/PEtab-dev/libpetab-python/pull/482#discussion_r3420762034
     for mapping in problem.mappings:
-        if mapping.petab_id not in invalid:
+        if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
-        # An aliased model id is not a valid parameter id
-        if (
-            mapping.model_id
-            and mapping.model_id != mapping.petab_id
-            and mapping.model_id in parameter_ids
-        ):
-            del parameter_ids[mapping.model_id]
 
     # add output parameters from observable table
     output_parameters = problem.get_output_parameters()
