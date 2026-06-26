@@ -45,6 +45,7 @@ __all__ = [
     "CheckUndefinedExperiments",
     "CheckInitialChangeSymbols",
     "CheckMappingTable",
+    "CheckHybridizationTable",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -1014,6 +1015,11 @@ def get_valid_parameters_for_parameter_table(
         if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
 
+    if problem.extensions.sciml is not None:
+        for mapping in problem.mappings:
+            if mapping.petab_id not in invalid:
+                parameter_ids[mapping.petab_id] = None
+
     # add output parameters from observable table
     output_parameters = problem.get_output_parameters()
     for p in output_parameters:
@@ -1109,6 +1115,17 @@ def get_required_parameters_for_parameter_table(
     # Parameters that are overridden via the condition table are not allowed
     parameter_ids -= condition_targets
 
+    if problem.extensions.sciml is not None:
+        hybridization_targets = {
+            hyb.target_id for hyb in problem.extensions.sciml.hybridizations
+        }
+        parameter_ids -= hybridization_targets
+        hybridization_target_values = {
+            str(hyb.target_value)
+            for hyb in problem.extensions.sciml.hybridizations
+        }
+        parameter_ids -= hybridization_target_values
+
     return parameter_ids
 
 
@@ -1164,4 +1181,12 @@ default_validation_tasks = [
     CheckPriorDistribution(),
     CheckInitialChangeSymbols(),
     CheckMappingTable(),
+]
+
+# Import SciML validation from sciml_lint at the end to avoid circular imports
+from ..v2.extensions.sciml_lint import CheckHybridizationTable  # noqa: E402
+
+#: Validation tasks that should be run PEtab SciML problems
+sciml_validation_tasks = default_validation_tasks + [
+    CheckHybridizationTable(),
 ]

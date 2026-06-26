@@ -258,6 +258,8 @@ VISUALIZATION_FILES = "visualization_files"
 MAPPING_FILES = "mapping_files"
 #: Extensions key in the YAML file
 EXTENSIONS = "extensions"
+#: PEtab SciML extension
+EXT_ID_SCIML = "sciml"
 
 
 # MAPPING

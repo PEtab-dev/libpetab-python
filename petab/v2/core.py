@@ -19,6 +19,7 @@ from typing import (
     Annotated,
     Any,
     Generic,
+    Literal,
     Self,
     TypeVar,
     get_args,
@@ -306,6 +307,21 @@ class BaseTable(BaseModel, Generic[T]):
             )
         self.elements.append(other)
         return self
+
+
+# SciML extension classes — imported after BaseTable is defined to avoid
+# circular imports (sciml.py does not import from core.py).
+from .extensions.sciml import (  # noqa: E402
+    SciMLConfig,
+    SciMLExt,
+)
+
+
+class ProblemExtensions:
+    """Runtime extension state attached to a :class:`Problem`."""
+
+    def __init__(self, sciml: SciMLExt = None):
+        self.sciml: SciMLExt = sciml or SciMLExt()
 
 
 class Observable(BaseModel):
@@ -926,7 +942,8 @@ class Parameter(BaseModel):
     )
     #: Nominal value.
     nominal_value: Annotated[
-        float | None, BeforeValidator(_convert_nan_to_none)
+        # PEtab SciML supports arrays via "array" nominal values
+        float | Literal["array"] | None, BeforeValidator(_convert_nan_to_none)
     ] = Field(alias=C.NOMINAL_VALUE, default=None)
     #: Is the parameter to be estimated?
     estimate: bool = Field(alias=C.ESTIMATE, default=True)
@@ -1133,15 +1150,25 @@ class Problem:
         measurement_tables: list[MeasurementTable] = None,
         parameter_tables: list[ParameterTable] = None,
         mapping_tables: list[MappingTable] = None,
+        extensions: ProblemExtensions = None,
         config: ProblemConfig = None,
     ):
-        from ..v2.lint import default_validation_tasks
+        from ..v2.lint import default_validation_tasks, sciml_validation_tasks
 
         self.config = config
         self.models: list[Model] = models or []
-        self.validation_tasks: list[ValidationTask] = (
-            default_validation_tasks.copy()
-        )
+        if (
+            config
+            and config.extensions
+            and config.extensions.get(C.EXT_ID_SCIML)
+        ):
+            self.validation_tasks: list[ValidationTask] = (
+                sciml_validation_tasks.copy()
+            )
+        else:
+            self.validation_tasks: list[ValidationTask] = (
+                default_validation_tasks.copy()
+            )
 
         self.observable_tables = observable_tables or [ObservableTable()]
         self.condition_tables = condition_tables or [ConditionTable()]
@@ -1149,6 +1176,7 @@ class Problem:
         self.measurement_tables = measurement_tables or [MeasurementTable()]
         self.mapping_tables = mapping_tables or [MappingTable()]
         self.parameter_tables = parameter_tables or [ParameterTable()]
+        self.extensions = extensions or ProblemExtensions()
 
     def __repr__(self):
         return f"<{self.__class__.__name__} id={self.id!r}>"
@@ -1321,6 +1349,13 @@ class Problem:
             else None
         )
 
+        sciml = (
+            SciMLExt.from_config(config, base_path)
+            if config.extensions and config.extensions.get(C.EXT_ID_SCIML)
+            else None
+        )
+        extensions = ProblemExtensions(sciml=sciml)
+
         return Problem(
             config=config,
             models=models,
@@ -1330,6 +1365,7 @@ class Problem:
             measurement_tables=measurement_tables,
             parameter_tables=parameter_tables,
             mapping_tables=mapping_tables,
+            extensions=extensions,
         )
 
     @staticmethod
@@ -1940,14 +1976,21 @@ class Problem:
 
         validation_results = ValidationResultList()
 
-        if self.config and self.config.extensions:
-            extensions = ",".join(self.config.extensions.keys())
+        supported_extensions = {C.EXT_ID_SCIML}
+        if (
+            self.config
+            and self.config.extensions
+            and (self.config.extensions.keys() - supported_extensions)
+        ):
+            extensions_without_support = ",".join(
+                self.config.extensions.keys() - supported_extensions
+            )
             validation_results.append(
                 ValidationIssue(
                     ValidationIssueSeverity.WARNING,
-                    "Validation of PEtab extensions is not yet implemented, "
-                    "but the given problem uses the following extensions: "
-                    f"{extensions}",
+                    "The given problem uses the following extensions for "
+                    "which validation is not yet implemented: "
+                    f"{extensions_without_support}",
                 )
             )
 
@@ -2505,6 +2548,29 @@ class ProblemConfig(BaseModel):
         validate_assignment=True,
     )
 
+    @field_validator("extensions", mode="before")
+    @classmethod
+    def _parse_extensions(cls, v):
+        """Parse extensions dict and convert known extensions to their specific
+        config classes."""
+        if isinstance(v, dict):
+            parsed_extensions = {}
+            for ext_name, ext_config in v.items():
+                if ext_name == C.EXT_ID_SCIML:
+                    parsed_extensions[ext_name] = (
+                        ext_config
+                        if isinstance(ext_config, SciMLConfig)
+                        else SciMLConfig(**ext_config)
+                    )
+                else:
+                    parsed_extensions[ext_name] = (
+                        ext_config
+                        if isinstance(ext_config, ExtensionConfig)
+                        else ExtensionConfig(**ext_config)
+                    )
+            return parsed_extensions
+        return v
+
     # convert parameter_file to list
     @field_validator(
         "parameter_files",
@@ -2542,11 +2608,15 @@ class ProblemConfig(BaseModel):
 
         for model_id in data.get("model_files", {}):
             data["model_files"][model_id][C.MODEL_LOCATION] = str(
-                data["model_files"][model_id]["location"]
+                data["model_files"][model_id][C.MODEL_LOCATION]
             )
         if data["id"] is None:
             # The schema requires a valid id or no id field at all.
             del data["id"]
+
+        for ext_id in list(data[C.EXTENSIONS]):
+            if ext_id == C.EXT_ID_SCIML:
+                data[C.EXTENSIONS][ext_id] = self.extensions[ext_id].to_yaml()
 
         write_yaml(data, filename)
 
