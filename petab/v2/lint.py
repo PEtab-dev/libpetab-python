@@ -1015,6 +1015,11 @@ def get_valid_parameters_for_parameter_table(
         if mapping.model_id and mapping.model_id in parameter_ids.keys():
             parameter_ids[mapping.petab_id] = None
 
+    if problem.extensions.sciml is not None:
+        for mapping in problem.mappings:
+            if mapping.petab_id not in invalid:
+                parameter_ids[mapping.petab_id] = None
+
     # add output parameters from observable table
     output_parameters = problem.get_output_parameters()
     for p in output_parameters:
