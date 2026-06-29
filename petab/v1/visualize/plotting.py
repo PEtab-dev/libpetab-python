@@ -211,12 +211,11 @@ class Subplot:
             if col in VISUALIZATION_DF_SUBPLOT_LEVEL_COLS:
                 entry = vis_spec.loc[:, col]
                 entry = np.unique(entry)
-                if entry.size > 1:
+                if entry.size > 1 and not all(pd.isna(x) for x in entry):
                     warnings.warn(
                         f"For {PLOT_ID} {plot_id} in column "
-                        f"{col} contradictory settings ({entry})"
-                        f". Proceeding with first entry "
-                        f"({entry[0]}).",
+                        f"{col} contradictory settings ({entry}). "
+                        f"Proceeding with first entry ({entry[0]}).",
                         stacklevel=2,
                     )
                 entry = entry[0]
