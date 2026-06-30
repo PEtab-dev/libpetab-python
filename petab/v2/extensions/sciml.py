@@ -303,3 +303,12 @@ class SciMLExt:
             hybridization_tables=hybridization_tables,
             array_data_files=array_data_files,
         )
+
+    def _get_array_data_condition_ids(self) -> set[str]:
+        """Get the set of condition IDs that are referenced in the array data
+        files."""
+        condition_ids = set()
+        for array_data in self.array_data_files:
+            for input in array_data.inputs.values():
+                condition_ids.update(input.keys())
+        return condition_ids

@@ -249,11 +249,13 @@ class ExperimentsToSbmlConverter:
             #  single-period experiments.
             if i_period == 0:
                 exp_ind_id = self.get_experiment_indicator(experiment.id)
-                # If condition ids are set by array data, skip as importers handle this
-                if set(period.condition_ids).issubset(
-                    self._new_problem._get_array_data_condition_ids()
-                ):
-                    continue
+                # Skip if condition ids are set by array data
+                # importers handle this
+                if self._new_problem.extensions.sciml:
+                    if set(period.condition_ids).issubset(
+                        self._new_problem.extensions.sciml._get_array_data_condition_ids()
+                    ):
+                        continue
 
                 for change in self._new_problem.get_changes_for_period(period):
                     period0_assignments.setdefault(
