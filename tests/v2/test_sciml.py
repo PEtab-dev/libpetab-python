@@ -142,3 +142,16 @@ def _get_test_problem():
 def test_lint():
     problem = _get_test_problem()
     assert problem.validate() == []
+
+
+def test_lint_equinox_network_format():
+    """Linter accepts non-YAML formats without reading the network file."""
+    problem = _get_test_problem()
+    # Replace the YAML network config with equinox format
+    sciml_cfg = problem.config.extensions["sciml"]
+    sciml_cfg.neural_networks["net1"] = NeuralNetConfig(
+        location="net1.py",
+        pre_initialization=False,
+        format="equinox",
+    )
+    assert problem.validate() == []
