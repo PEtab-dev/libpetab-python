@@ -88,6 +88,11 @@ class ExperimentsToSbmlConverter:
         self._model: libsbml.Model = self._new_problem.model.sbml_model
         self._preeq_indicator = self.PREEQ_INDICATOR
 
+        sciml = self._new_problem.extensions.sciml
+        self._array_data_condition_ids = (
+            sciml._get_array_data_condition_ids() if sciml else set()
+        )
+
         # The maximum event priority that was found in the unprocessed model.
         self._max_event_priority = None
         # The priority that will be used for the PEtab events.
@@ -249,6 +254,13 @@ class ExperimentsToSbmlConverter:
             #  single-period experiments.
             if i_period == 0:
                 exp_ind_id = self.get_experiment_indicator(experiment.id)
+                # Skip if condition ids are set by array data
+                # importers handle this
+                if self._array_data_condition_ids and set(
+                    period.condition_ids
+                ).issubset(self._array_data_condition_ids):
+                    continue
+
                 for change in self._new_problem.get_changes_for_period(period):
                     period0_assignments.setdefault(
                         change.target_id, []

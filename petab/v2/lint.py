@@ -532,6 +532,13 @@ class CheckExperimentConditionsExist(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
         available_conditions = {c.id for c in problem.conditions}
+        if problem.extensions.sciml:
+            available_conditions |= {
+                key
+                for array_data in problem.extensions.sciml.array_data_files
+                for input_array in array_data.inputs.values()
+                for key in input_array.keys()
+            }
         for experiment in problem.experiments:
             missing_conditions = (
                 set(

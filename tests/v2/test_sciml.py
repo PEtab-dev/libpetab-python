@@ -48,9 +48,9 @@ def _get_test_problem():
       -> B; gamma_;
     end
     """)
-    problem.add_experiment("e1", 0, "")
+    problem.add_experiment("e1", 0, "cond1")
     problem.add_mapping("net1_input1", "net1.inputs[0][0]")
-    problem.add_mapping("net1_input2", "net1.inputs[0][1]")
+    problem.add_mapping("net1_input2", "net1.inputs[1]")
     problem.add_mapping("net1_output1", "net1.outputs[0][0]")
     problem.add_mapping("net1_ps", "net1.parameters")
     problem.add_measurement("B_obs", time=1, measurement=1, experiment_id="e1")
@@ -62,7 +62,7 @@ def _get_test_problem():
         "net1_ps", estimate=True, lb=-np.inf, ub=np.inf, nominal_value="array"
     )
     problem.extensions.sciml.add_hybridization("net1_input1", "A")
-    problem.extensions.sciml.add_hybridization("net1_input2", "B")
+    problem.extensions.sciml.add_hybridization("net1_input2", "array")
     problem.extensions.sciml.add_hybridization("gamma_", "net1_output1")
     problem.extensions.sciml.add_neural_network_from_dict(
         "net1",
@@ -106,7 +106,11 @@ def _get_test_problem():
     problem.extensions.sciml.add_array_data_from_dict(
         {
             "metadata": {"pytorch_format": True},
-            "inputs": {},
+            "inputs": {
+                "net1_input2": {
+                    "cond1": np.random.randn(2),
+                }
+            },
             "parameters": {
                 "net1": {
                     "layer1": {
