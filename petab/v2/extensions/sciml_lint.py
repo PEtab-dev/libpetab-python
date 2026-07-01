@@ -16,9 +16,11 @@ class CheckHybridizationTable(lint.ValidationTask):
         condition_targets = {
             c.target_id for ct in problem.conditions for c in ct.changes
         }
+        # Only YAML-format networks are loaded as NNModel objects
         nn_input_ids = {
             inp.input_id
             for nn in problem.extensions.sciml.neural_networks
+            if hasattr(nn, "inputs")
             for inp in nn.inputs
         }
         hyb_target_ids = {
