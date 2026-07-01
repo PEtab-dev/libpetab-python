@@ -146,6 +146,14 @@ def test_check_mapping_table(uses_pysb):
     check = CheckMappingTable()
     assert check.run(problem) is None
 
+    # Valid: mapping table is used purely for annotation
+    # petabEntityId appears elsewhere in the problem
+    problem.add_mapping(petab_id="c1", model_id=None, name="Condition 1")
+    problem.add_condition("c1", p2="1")
+
+    check = CheckMappingTable()
+    assert check.run(problem) is None
+
     # Invalid: petabEntityId is referenced in the model
     pysb.SelfExporter.cleanup()
     pysb_model_invalid = pysb.Model("test_model_invalid")

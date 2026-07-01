@@ -945,8 +945,8 @@ class CheckMappingTable(ValidationTask):
         new_petab_ids = {
             m.petab_id
             for m in problem.mappings
-            # Ignore identity mappings used for annotation
-            if m.petab_id != m.model_id
+            # Ignore identity mappings and annotation-only rows
+            if m.model_id and m.petab_id != m.model_id
         }
         old_petab_ids = (
             {c.id for c in problem.conditions}
