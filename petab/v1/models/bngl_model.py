@@ -25,11 +25,11 @@ inferred from the PySB analogy:
   compartments, and seed species.
 
 The block scanner is hardened against the BNGL grammar (BioNetGen ``Perl2/``;
-see the reference in ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): block
-aliases (``molecules``/``species``/``rules``) and the seed-species ``$`` clamp
-marker are both honored. It is kept in sync with PyBNF's sibling reader
-(``pybnf/petab/_bngl.py``, ADR-0026) -- the grammar-hardening tests are the
-anchor that keeps the two from drifting.
+see the reference in ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): line
+continuations (a trailing ``\\``), block aliases (``molecules``/``species``/
+``rules``), and the seed-species ``$`` clamp marker are all honored. It is kept
+in sync with PyBNF's sibling reader (``pybnf/petab/_bngl.py``, ADR-0026) -- the
+grammar-hardening tests are the anchor that keeps the two from drifting.
 """
 
 from __future__ import annotations
@@ -125,12 +125,41 @@ def _names(text: str, block_name: str, extractor) -> frozenset[str]:
     )
 
 
+def _logical_lines(text: str) -> list[str]:
+    """The comment-stripped *logical* lines of ``text`` -- physical lines with
+    BNGL line continuations joined.
+
+    Mirrors BNG2.pl's ``readFile`` (``Perl2/BNGModel.pm``): strip the ``#``
+    comment first, then while the line ends with ``\\`` (as its last
+    non-whitespace character) drop that ``\\`` and append the next
+    comment-stripped physical line *directly* -- no separating space, so a
+    token split across the break (``1e\\`` + ``3`` -> ``1e3``) rejoins.
+    Without this, a continued parameter / function / observable is truncated at
+    the ``\\`` (e.g. a ``k = \\`` line would read as the value ``"\\"``).
+    """
+    raw_lines = text.splitlines()
+    out = []
+    i, n = 0, len(raw_lines)
+    while i < n:
+        line = raw_lines[i].split("#", 1)[0]
+        i += 1
+        while re.search(r"\\\s*$", line):
+            line = re.sub(r"\\\s*$", "", line)
+            if i >= n:
+                break  # a dangling continuation at EOF
+            line += raw_lines[i].split("#", 1)[0]
+            i += 1
+        out.append(line.strip())
+    return out
+
+
 def _block_lines(text: str, block_name: str) -> list[str]:
     """The comment-stripped, non-blank lines inside ``begin``/``end``.
 
     ``block_name`` is the canonical (long) spelling; any BioNetGen alias for it
     (``molecules`` for ``molecule types``, ``species`` for ``seed species``,
-    ``rules`` for ``reaction rules``) opens and closes the same block.
+    ``rules`` for ``reaction rules``) opens and closes the same block. Lines
+    are logical lines -- continuations joined (see :func:`_logical_lines`).
     """
     names = "|".join(
         re.escape(name)
@@ -140,8 +169,7 @@ def _block_lines(text: str, block_name: str) -> list[str]:
     end = re.compile(rf"^end\s+(?:{names})\b", re.IGNORECASE)
     lines = []
     in_block = False
-    for raw in text.splitlines():
-        line = raw.split("#", 1)[0].strip()
+    for line in _logical_lines(text):
         if begin.match(line):
             in_block = True
         elif end.match(line):

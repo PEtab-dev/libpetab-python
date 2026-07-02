@@ -93,6 +93,32 @@ def test_seed_species_block_alias():
     assert entities.seed_species == frozenset({"A()", "B()"})
 
 
+def test_line_continuation_is_joined():
+    # A trailing "\" continues the logical line (BNG2.pl readFile). Without
+    # joining, a continued parameter reads as the value "\"; the join
+    # concatenates directly -- no space -- so a token split across the break
+    # ("1e\"+"3" -> "1e3") rejoins, matching BNG2.pl.
+    entities = parse_bngl(
+        "begin parameters\n"
+        "  minusb = \\\n(p4-1)/(p4*(1+p2))\n"  # continued expression value
+        "  r 1e\\\n3\n"  # token split -> 1e3, no space
+        "  a = 1+\\\n2+\\\n3\n"  # chained continuation
+        "end parameters\n"
+    )
+    assert entities.parameters["minusb"] == "(p4-1)/(p4*(1+p2))"
+    assert entities.parameters["r"] == "1e3"
+    assert entities.parameters["a"] == "1+2+3"
+
+
+def test_backslash_in_comment_is_not_a_continuation():
+    # BNG2.pl strips the comment before testing for a trailing "\", so a "\"
+    # inside a comment must not swallow the next line.
+    entities = parse_bngl(
+        "begin parameters\n k 1 # note \\\n j 2\nend parameters\n"
+    )
+    assert entities.parameters == {"k": "1", "j": "2"}
+
+
 def test_alias_does_not_shadow_the_canonical_block():
     # The `species` alias must not swallow the block whose name it is a
     # substring of: `seed species` and `molecule types` stay distinct.
