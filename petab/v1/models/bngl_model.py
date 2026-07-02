@@ -23,6 +23,13 @@ inferred from the PySB analogy:
   symbols (they never enter the ``ParamList``);
 * the full model-entity namespace additionally includes molecule types,
   compartments, and seed species.
+
+The block scanner is hardened against the BNGL grammar (BioNetGen ``Perl2/``;
+see the reference in ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): block
+aliases (``molecules``/``species``/``rules``) and the seed-species ``$`` clamp
+marker are both honored. It is kept in sync with PyBNF's sibling reader
+(``pybnf/petab/_bngl.py``, ADR-0026) -- the grammar-hardening tests are the
+anchor that keeps the two from drifting.
 """
 
 from __future__ import annotations
@@ -44,6 +51,15 @@ __all__ = ["BnglModel", "BnglEntities", "parse_bngl"]
 
 #: The three keywords that open an observable declaration line.
 _OBS_KEYWORDS = frozenset({"Molecules", "Species", "Counter"})
+
+#: Short spellings BioNetGen accepts for a block's canonical (long) name --
+#: either spelling opens and closes the same block. Only the blocks this reader
+#: enumerates need an entry.
+_BLOCK_ALIASES = {
+    "molecule types": ("molecules",),
+    "seed species": ("species",),
+    "reaction rules": ("rules",),
+}
 
 
 @dataclass(frozen=True)
@@ -110,9 +126,18 @@ def _names(text: str, block_name: str, extractor) -> frozenset[str]:
 
 
 def _block_lines(text: str, block_name: str) -> list[str]:
-    """The comment-stripped, non-blank lines inside ``begin``/``end``."""
-    begin = re.compile(rf"^begin\s+{block_name}\b", re.IGNORECASE)
-    end = re.compile(rf"^end\s+{block_name}\b", re.IGNORECASE)
+    """The comment-stripped, non-blank lines inside ``begin``/``end``.
+
+    ``block_name`` is the canonical (long) spelling; any BioNetGen alias for it
+    (``molecules`` for ``molecule types``, ``species`` for ``seed species``,
+    ``rules`` for ``reaction rules``) opens and closes the same block.
+    """
+    names = "|".join(
+        re.escape(name)
+        for name in (block_name, *_BLOCK_ALIASES.get(block_name, ()))
+    )
+    begin = re.compile(rf"^begin\s+(?:{names})\b", re.IGNORECASE)
+    end = re.compile(rf"^end\s+(?:{names})\b", re.IGNORECASE)
     lines = []
     in_block = False
     for raw in text.splitlines():
@@ -155,7 +180,15 @@ def _molecule_type_name(line: str) -> str | None:
 
 
 def _seed_species_pattern(line: str) -> str | None:
-    """The species pattern in a ``<pattern> <value>`` seed-species line."""
+    """The species pattern in a ``["$"] <pattern> <value>`` seed-species line.
+
+    A leading ``$`` (the fixed/clamped-concentration marker,
+    ``SeedSpeciesDefn = ["$"], Species, WS, MathExpression``) is a modifier,
+    not part of the species identity, so it is stripped: ``$counter() 10``
+    enumerates the state variable ``counter()``.
+    """
+    if line.startswith("$"):
+        line = line[1:].lstrip()
     tokens = line.split()
     return tokens[0] if tokens else None
 
