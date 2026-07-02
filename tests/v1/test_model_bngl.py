@@ -64,6 +64,57 @@ def test_expression_valued_parameter_is_not_evaluated():
     assert dict(model.get_free_parameter_ids_with_values()) == {"base": 2.0}
 
 
+# -- grammar hardening: block aliases + seed-species "$" clamp ---------------
+# Kept in sync with PyBNF's sibling reader (pybnf/petab/_bngl.py, ADR-0026);
+# these cases are the anchor that keeps the two block scanners from drifting.
+
+
+def test_seed_species_dollar_clamp_is_stripped():
+    # SeedSpeciesDefn = ["$"], Species, WS, MathExpression -- the "$" fixes the
+    # concentration but is not part of the species identity, so the enumerated
+    # state variable is the bare pattern (attached "$A()" and spaced "$ A()").
+    entities = parse_bngl(
+        "begin seed species\n $A() 100\n $ B() 0\n C() 5\nend seed species\n"
+    )
+    assert entities.seed_species == frozenset({"A()", "B()", "C()"})
+    assert "$A()" not in entities.seed_species  # the marker never leaks
+
+
+def test_molecule_types_block_alias():
+    # `begin molecules` is BNG's short alias for `begin molecule types`.
+    entities = parse_bngl("begin molecules\n A()\n B(x)\nend molecules\n")
+    assert entities.molecule_type_names == frozenset({"A", "B"})
+
+
+def test_seed_species_block_alias():
+    # `begin species` is BNG's short alias for `begin seed species` -- and the
+    # "$" clamp is stripped under the alias spelling too.
+    entities = parse_bngl("begin species\n $A() 100\n B() 0\nend species\n")
+    assert entities.seed_species == frozenset({"A()", "B()"})
+
+
+def test_alias_does_not_shadow_the_canonical_block():
+    # The `species` alias must not swallow the block whose name it is a
+    # substring of: `seed species` and `molecule types` stay distinct.
+    entities = parse_bngl(
+        "begin molecule types\n Counter()\nend molecule types\n"
+        "begin seed species\n $Counter() 1\nend seed species\n"
+    )
+    assert entities.molecule_type_names == frozenset({"Counter"})
+    assert entities.seed_species == frozenset({"Counter()"})
+
+
+def test_state_variable_ignores_the_clamp():
+    # A clamped seed species is still a state variable under its bare id
+    # (is_state_variable drives CheckModel's species cross-checks).
+    model = BnglModel(
+        parse_bngl("begin seed species\n $A() 100\nend seed species\n"),
+        model_id="m",
+    )
+    assert model.is_state_variable("A()")
+    assert not model.is_state_variable("$A()")
+
+
 def test_has_entity_spans_full_declared_namespace(model):
     # parameter, observable, global function, molecule type, seed species.
     for entity in ("v1", "x", "y", "counter", "counter()"):
