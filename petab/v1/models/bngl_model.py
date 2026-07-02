@@ -27,8 +27,9 @@ inferred from the PySB analogy:
 The block scanner is hardened against the BNGL grammar (BioNetGen ``Perl2/``;
 see the reference in ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): line
 continuations (a trailing ``\\``), block aliases (``molecules``/``species``/
-``rules``), and the seed-species ``$`` clamp marker are all honored. It is kept
-in sync with PyBNF's sibling reader (``pybnf/petab/_bngl.py``, ADR-0026) -- the
+``rules``), line labels (a numeric index ``1 L0 1`` or a named ``CD14: ...``),
+and the seed-species ``$`` clamp marker are all honored. It is kept in sync
+with PyBNF's sibling reader (``pybnf/petab/_bngl.py``, ADR-0026) -- the
 grammar-hardening tests are the anchor that keeps the two from drifting.
 """
 
@@ -179,8 +180,25 @@ def _block_lines(text: str, block_name: str) -> list[str]:
     return lines
 
 
+def _strip_line_label(line: str) -> str:
+    """Drop a leading BNGL line label so the entity, not the label, is read.
+
+    ``LineLabel = {Digit}, WS | Name, ":", [WS]`` (grammar) -- either a numeric
+    index (the legacy ``.net``-style ``1 L0 1`` form) or a named label
+    (``CD14: CD14(...)``). A valid BNGL identifier starts with a letter, so a
+    leading digit-run is always an index; a compartment prefix is ``@Name:``
+    (with the ``@``), so a bare ``Name:`` at line start is unambiguously a
+    label.
+    """
+    match = re.match(r"^\d+\s+(.*)$", line) or re.match(
+        r"^[A-Za-z]\w*:\s+(.*)$", line
+    )
+    return match.group(1) if match else line
+
+
 def _parameter_name_value(line: str) -> tuple[str, str] | None:
-    """``(name, rhs)`` for a ``Name (WS | "=") MathExpression`` line."""
+    """``(name, rhs)`` for a ``[LineLabel] Name (WS|"=") MathExpr`` line."""
+    line = _strip_line_label(line)
     match = re.match(r"^(\w+)\s*=\s*(.+)$", line) or re.match(
         r"^(\w+)\s+(.+)$", line
     )
@@ -208,13 +226,17 @@ def _molecule_type_name(line: str) -> str | None:
 
 
 def _seed_species_pattern(line: str) -> str | None:
-    """The species pattern in a ``["$"] <pattern> <value>`` seed-species line.
+    """The species pattern in a ``[LineLabel] ["$"] <pattern> <value>`` line.
 
-    A leading ``$`` (the fixed/clamped-concentration marker,
-    ``SeedSpeciesDefn = ["$"], Species, WS, MathExpression``) is a modifier,
-    not part of the species identity, so it is stripped: ``$counter() 10``
+    A leading line label (numeric index ``1 A() 100`` or named
+    ``CD14: CD14(...)``; see :func:`_strip_line_label`) is dropped first so the
+    label is not mistaken for the species. A leading ``$`` (the fixed/clamped-
+    concentration marker, ``SeedSpeciesDefn = ["$"], Species, WS,
+    MathExpression``) is a modifier, not part of the species identity, so it
+    too is stripped: ``$counter() 10``
     enumerates the state variable ``counter()``.
     """
+    line = _strip_line_label(line)
     if line.startswith("$"):
         line = line[1:].lstrip()
     tokens = line.split()
