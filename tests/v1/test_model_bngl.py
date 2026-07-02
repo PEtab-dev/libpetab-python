@@ -119,6 +119,41 @@ def test_backslash_in_comment_is_not_a_continuation():
     assert entities.parameters == {"k": "1", "j": "2"}
 
 
+def test_indexed_declarations():
+    # Legacy .net-style leading index (LineLabel = {Digit}, WS): the index must
+    # not be read as the name.
+    entities = parse_bngl(
+        "begin parameters\n 1 L0 1\n 2 R0 2\nend parameters\n"
+        "begin seed species\n 1 A() 100\n 2 B() 50\nend seed species\n"
+    )
+    assert entities.parameters == {"L0": "1", "R0": "2"}
+    assert entities.seed_species == frozenset({"A()", "B()"})
+
+
+def test_labeled_seed_species():
+    # Named line label (LineLabel = Name, ":"): "CD14: CD14(...)" -- the label,
+    # which here even equals the molecule name, must not be read as the
+    # species. The label is stripped before the "$" clamp.
+    entities = parse_bngl(
+        "begin seed species\n"
+        " CD14: CD14(TLR4,MD2) v1\n"
+        " clamp: $MD2(x~0) v2\n"
+        "end seed species\n"
+    )
+    assert entities.seed_species == frozenset({"CD14(TLR4,MD2)", "MD2(x~0)"})
+
+
+def test_line_label_does_not_over_strip():
+    # A normal `name value` param and an `@compartment:` species must be left
+    # alone -- a compartment prefix carries "@", so it is not a bare label.
+    entities = parse_bngl(
+        "begin parameters\n NA = 6.02e23\n k1 1.0\nend parameters\n"
+        "begin seed species\n @PM:Rec() 100\nend seed species\n"
+    )
+    assert entities.parameters == {"NA": "6.02e23", "k1": "1.0"}
+    assert entities.seed_species == frozenset({"@PM:Rec()"})
+
+
 def test_alias_does_not_shadow_the_canonical_block():
     # The `species` alias must not swallow the block whose name it is a
     # substring of: `seed species` and `molecule types` stay distinct.
