@@ -1,0 +1,1429 @@
+{
+ "An_2009.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "A20",
+   "A20mRNA",
+   "Administer",
+   "CD14",
+   "DNA",
+   "IRAK1",
+   "IRAK4",
+   "IRAKM",
+   "IkB",
+   "IkBmRNA",
+   "Ikk_Complex",
+   "LPS",
+   "MAL",
+   "MD2",
+   "MyD88",
+   "MyD88s",
+   "NFkB",
+   "Proteasome26s",
+   "RP1",
+   "SARM",
+   "TAK1",
+   "TLR4",
+   "TNF",
+   "TNFmRNA",
+   "TRAF4",
+   "TRAF6",
+   "TRAM",
+   "TRIF",
+   "Tollip",
+   "Trash",
+   "iNOSmRNA"
+  ],
+  "observables": [
+   "A20",
+   "A20_NFkB_DNA",
+   "Activated_Ikk_complex",
+   "Activated_TAK1",
+   "IkB_Degraded",
+   "IkB_Prot26s",
+   "IkB_active",
+   "IkBmRNA_Off",
+   "Inactive_Cyto_NFkB",
+   "NFkB_Active_Cyto",
+   "NFkB_Active_Nucleus",
+   "NFkB_DNA_IkB",
+   "NFkB_Inactive",
+   "NonBoundNonPhos_IkB",
+   "Phos_IkB_NFkB",
+   "TNF",
+   "TNF_NFkB_DNA",
+   "TNFmRNA_Off",
+   "Unbound_Cyto_NFkB"
+  ],
+  "parameters": [
+   "A20_Degrade",
+   "A20_IkkAct_Deactivate",
+   "A20_Init",
+   "A20_MyD88IRAK1TRAF6_Degrade",
+   "A20_Preconditioned",
+   "A20_TRAF6TRIFRP1_Degrade",
+   "A20_TRAF6_Bind",
+   "A20_TRAF6_Unbind",
+   "A20_Transcription_Execute",
+   "A20_Translation_Execute",
+   "CD14_Init",
+   "CD14_MD2_Bind",
+   "CD14_MD2_Unbind",
+   "CD14_TLR4_Bind",
+   "CD14_TLR4_Unbind",
+   "DNA",
+   "IRAK1_IRAK4_Bind",
+   "IRAK1_IRAK4_Unbind",
+   "IRAK1_Init",
+   "IRAK4_Init",
+   "IkB_DegradeNFkB",
+   "IkB_Init",
+   "IkB_Proteasome23_Degrade",
+   "IkB_Transcription_Execute",
+   "IkB_Translation_Execute",
+   "Ikk_Complex_Init",
+   "Ikk_Deactivation",
+   "Ikk_Degradation_Rate",
+   "Ikk_complex_IkB_Phos",
+   "LPS_CD14_Bind",
+   "LPS_CD14_Unbind",
+   "LPS_Init",
+   "LPS_MD2_Bind",
+   "LPS_MD2_Unbind",
+   "LPS_TLR4_Bind",
+   "LPS_TLR4_Unbind",
+   "MAL_Init",
+   "MD2_Init",
+   "MD2_TLR4_Bind",
+   "MD2_TLR4_Unbind",
+   "MyD88IRAK1TRAF6_TAK1_Activate",
+   "MyD88IRAK1_TRAF6_B_Unbind",
+   "MyD88IRAK1_TRAF6_Bind",
+   "MyD88_IRAK1_Bind",
+   "MyD88_IRAK1_Unbind",
+   "MyD88_IRAK4_Bind",
+   "MyD88_IRAK4_Unbind",
+   "MyD88_Init",
+   "NFkB_DNA_A20_Bind",
+   "NFkB_DNA_A20_Unbind",
+   "NFkB_DNA_IkB_Bind",
+   "NFkB_DNA_IkB_Unbind",
+   "NFkB_DNA_TNF_Bind",
+   "NFkB_DNA_TNF_Unbind",
+   "NFkB_Degredation",
+   "NFkB_IkB_Bind",
+   "NFkB_IkB_Unbind",
+   "NFkB_Inactive_Cytoplasm",
+   "NFkB_Translocation_Nucleus",
+   "Proteasome23_Init",
+   "RP1_Init",
+   "RP1_TRAF6_Bind",
+   "RP1_TRAF6_Unbind",
+   "RP1_TRIF_Bind",
+   "RP1_TRIF_Unbind",
+   "TAK1_Deactivation",
+   "TAK1_Degradation",
+   "TAK1_Ikk_Complex_Activate",
+   "TAK1_Init",
+   "TLR4MAL_MyD88_Bind",
+   "TLR4MAL_MyD88_Unbind",
+   "TLR4TRAM_TRIF_Bind",
+   "TLR4TRAM_TRIF_Unbind",
+   "TLR4_Complex_Dimer_Bind",
+   "TLR4_Complex_Dimer_Unbind",
+   "TLR4_MAL_Bind",
+   "TLR4_MAL_Unbind",
+   "TLR4_TRAM_Bind",
+   "TLR4_TRAM_Unbind",
+   "TLR_Init",
+   "TNF_Degrade",
+   "TNF_Transcription_Execute",
+   "TNF_Translation_Execute",
+   "TRAF6TRIF_TAK1_Activate",
+   "TRAF6_Init",
+   "TRAF6_MyD88IRAK1_Bind",
+   "TRAF6_MyD88IRAK1_Unbind",
+   "TRAF6_TRIF_Bind",
+   "TRAF6_TRIF_Unbind",
+   "TRAM_Init",
+   "TRIF_Init",
+   "TRIF_TRAF6_Bind",
+   "TRIF_TRAF6_Unbind",
+   "p50_Init",
+   "p65_Init",
+   "p65_p50_Bind",
+   "p65_p50_Unbind"
+  ],
+  "seed_composition": [
+   [
+    "A20"
+   ],
+   [
+    "CD14"
+   ],
+   [
+    "DNA"
+   ],
+   [
+    "IRAK1"
+   ],
+   [
+    "IRAK4"
+   ],
+   [
+    "IkB"
+   ],
+   [
+    "Ikk_Complex"
+   ],
+   [
+    "LPS"
+   ],
+   [
+    "MAL"
+   ],
+   [
+    "MD2"
+   ],
+   [
+    "MyD88"
+   ],
+   [
+    "NFkB"
+   ],
+   [
+    "Proteasome26s"
+   ],
+   [
+    "RP1"
+   ],
+   [
+    "TAK1"
+   ],
+   [
+    "TLR4"
+   ],
+   [
+    "TRAF6"
+   ],
+   [
+    "TRAM"
+   ],
+   [
+    "TRIF"
+   ]
+  ]
+ },
+ "Barua_2009__PATCHED.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "J",
+   "S"
+  ],
+  "observables": [
+   "JS",
+   "JSS",
+   "JSSJ",
+   "J_active",
+   "J_inactive",
+   "J_mono"
+  ],
+  "parameters": [
+   "Jtot",
+   "Stot",
+   "koff_SH2",
+   "koff_dimer",
+   "kon_SH2",
+   "kon_dimer",
+   "kphos_fast",
+   "kphos_slow"
+  ],
+  "seed_composition": [
+   [
+    "J"
+   ],
+   [
+    "S"
+   ]
+  ]
+ },
+ "Chattaraj_2021.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "NWASP",
+   "Nck",
+   "Nephrin"
+  ],
+  "observables": [
+   "cluster_nck_nw",
+   "cluster_neph_nck_nw",
+   "free_NWASP",
+   "free_Nck",
+   "free_Nephrin",
+   "fully_bound_NWASP",
+   "fully_bound_Nck",
+   "fully_bound_Nephrin",
+   "tot_NWASP",
+   "tot_Nck",
+   "tot_Nephrin"
+  ],
+  "parameters": [
+   "kd_12",
+   "kd_23",
+   "koff_12",
+   "koff_23",
+   "kon_12",
+   "kon_23"
+  ],
+  "seed_composition": [
+   [
+    "NWASP"
+   ],
+   [
+    "Nck"
+   ],
+   [
+    "Nephrin"
+   ]
+  ]
+ },
+ "LR.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "L",
+   "R"
+  ],
+  "observables": [
+   "Bound",
+   "FreeR"
+  ],
+  "parameters": [
+   "L0",
+   "NaV",
+   "R0",
+   "Vcell",
+   "Vec",
+   "km1",
+   "kp1",
+   "lig_conc"
+  ],
+  "seed_composition": [
+   [
+    "L"
+   ],
+   [
+    "R"
+   ]
+  ]
+ },
+ "LRR.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "L",
+   "R"
+  ],
+  "observables": [
+   "Bound",
+   "Dimers",
+   "FreeR"
+  ],
+  "parameters": [
+   "Acell",
+   "L0",
+   "NaV",
+   "R0",
+   "Vcell",
+   "Vec",
+   "Vpm",
+   "d_pm",
+   "km1",
+   "kp1",
+   "lig_conc"
+  ],
+  "seed_composition": [
+   [
+    "L"
+   ],
+   [
+    "R"
+   ]
+  ]
+ },
+ "Motivating_example_cBNGL.bngl": {
+  "compartments": [
+   "CP",
+   "EC",
+   "EM",
+   "EN",
+   "NM",
+   "NU",
+   "PM"
+  ],
+  "functions": [],
+  "molecule_types": [
+   "DNA",
+   "Im",
+   "L",
+   "NP",
+   "P1",
+   "P2",
+   "R",
+   "Sink",
+   "TF",
+   "mRNA1",
+   "mRNA2"
+  ],
+  "observables": [
+   "Bound_prom1",
+   "Bound_prom2",
+   "Catalytic_R",
+   "Catalytic_TF",
+   "CountSink",
+   "Im_CP",
+   "Im_Cargo_NP",
+   "Im_NU",
+   "L_Bound_EM",
+   "L_Bound_PM",
+   "L_Dimers_EC",
+   "L_Dimers_EM",
+   "L_Dimers_EN",
+   "L_Dimers_PM",
+   "P1_CP",
+   "P1_NU",
+   "P1_NU_dna",
+   "P1_NU_free",
+   "Phos_TF",
+   "R_Dimers_EM",
+   "R_Dimers_PM",
+   "TF_Dimer_CP",
+   "TF_Dimer_NU",
+   "Tot_DNA",
+   "Tot_Im",
+   "Tot_L",
+   "Tot_NP",
+   "Tot_P1",
+   "Tot_P2",
+   "Tot_R",
+   "Tot_TF",
+   "Tot_mRNA1",
+   "Tot_mRNA2"
+  ],
+  "parameters": [
+   "DNA0",
+   "Im0",
+   "L0",
+   "NP0",
+   "R0",
+   "TF0",
+   "eff_width",
+   "k_Im_bind_CP",
+   "k_Im_bind_NU",
+   "k_Im_cross_NP",
+   "k_Im_enters_NP",
+   "k_Im_exits_NP",
+   "k_Im_unbind_CP",
+   "k_Im_unbind_NU",
+   "k_P_deg",
+   "k_R_dephos",
+   "k_R_endo",
+   "k_R_transphos",
+   "k_TF_dephos",
+   "k_TF_transphos",
+   "k_mRNA_deg",
+   "k_mRNA_to_CP",
+   "k_recycle",
+   "k_transcribe",
+   "k_translate",
+   "km_LL",
+   "km_LR",
+   "km_P1_p2",
+   "km_R_TF",
+   "km_R_TFp",
+   "km_TF_TF",
+   "km_TF_p1",
+   "kp_LL",
+   "kp_LR",
+   "kp_P1_p2",
+   "kp_R_TF",
+   "kp_R_TFp",
+   "kp_TF_TF",
+   "kp_TF_p1",
+   "nEndo",
+   "sa_EM",
+   "sa_NM",
+   "sa_PM",
+   "vol_CP",
+   "vol_EC",
+   "vol_EN",
+   "vol_NU"
+  ],
+  "seed_composition": [
+   [
+    "DNA"
+   ],
+   [
+    "Im"
+   ],
+   [
+    "L"
+   ],
+   [
+    "NP"
+   ],
+   [
+    "R"
+   ],
+   [
+    "Sink"
+   ],
+   [
+    "TF"
+   ]
+  ]
+ },
+ "Ras_bistability_v2.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "CRAF",
+   "GDP",
+   "GTP",
+   "KRAS",
+   "KRASG12D",
+   "RASA1",
+   "RTK",
+   "SOS1"
+  ],
+  "observables": [
+   "ActiveEffector",
+   "CRAFtot",
+   "Gtot",
+   "KRAStot",
+   "RASA1tot",
+   "RTKbndGAP",
+   "RTKbndGEF",
+   "RTKtot",
+   "RasGDP",
+   "RasGTP",
+   "SOS1tot"
+  ],
+  "parameters": [
+   "CRAF_num",
+   "GDP_num",
+   "GTP_num",
+   "K1",
+   "K5",
+   "KRAS_WT_num",
+   "KRAS_mut_num",
+   "KRAS_tot_num",
+   "NA",
+   "RASA1_num",
+   "RTK_num",
+   "SOS1_num",
+   "Vcyto",
+   "Vpm",
+   "f",
+   "fmut",
+   "kaEff",
+   "kaGAP_cyto",
+   "kaGAP_pm",
+   "kaGEF_cyto",
+   "kaGEF_pm",
+   "kcat",
+   "kdEff",
+   "kdGAP",
+   "kdGEF",
+   "kf_cyto",
+   "kf_pm",
+   "khyd",
+   "km1",
+   "km2",
+   "km3",
+   "km4",
+   "km5",
+   "km6",
+   "km7",
+   "kp1",
+   "kp2_cyto",
+   "kp2_pm",
+   "kp3_cyto",
+   "kp3_pm",
+   "kp4",
+   "kp5",
+   "kp6",
+   "kp7_cyto",
+   "kp7_pm",
+   "kr"
+  ],
+  "seed_composition": [
+   [
+    "CRAF"
+   ],
+   [
+    "GDP"
+   ],
+   [
+    "GTP"
+   ],
+   [
+    "KRAS"
+   ],
+   [
+    "KRAS"
+   ],
+   [
+    "KRAS"
+   ],
+   [
+    "KRASG12D"
+   ],
+   [
+    "KRASG12D"
+   ],
+   [
+    "KRASG12D"
+   ],
+   [
+    "RASA1"
+   ],
+   [
+    "RTK"
+   ],
+   [
+    "SOS1"
+   ]
+  ]
+ },
+ "Rule_based_egfr_tutorial.bngl": {
+  "compartments": [
+   "c0"
+  ],
+  "functions": [],
+  "molecule_types": [
+   "EGF",
+   "EGFR",
+   "Grb2",
+   "Shc"
+  ],
+  "observables": [
+   "Dimers",
+   "Dimers_s",
+   "O0_EGFR_tot",
+   "O0_EGF_tot",
+   "O0_Grb2_tot",
+   "O0_Shc_tot",
+   "Y1",
+   "Y2",
+   "Y_total"
+  ],
+  "parameters": [],
+  "seed_composition": [
+   [
+    "EGF"
+   ],
+   [
+    "EGFR"
+   ],
+   [
+    "Grb2"
+   ],
+   [
+    "Shc"
+   ],
+   [
+    "Shc"
+   ]
+  ]
+ },
+ "akt-signaling.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "AKT",
+   "GrowthFactor",
+   "PI3K",
+   "RTK",
+   "S6K",
+   "mTORC1",
+   "mTORC2"
+  ],
+  "observables": [
+   "Active_PI3K",
+   "Active_RTK",
+   "Active_mTORC1",
+   "Double_pAkt",
+   "pAkt_S473",
+   "pAkt_T308"
+  ],
+  "parameters": [
+   "AKT_tot",
+   "GF_tot",
+   "PI3K_tot",
+   "RTK_tot",
+   "S6K_tot",
+   "k_akt_s473",
+   "k_akt_t308",
+   "k_bind",
+   "k_fb",
+   "k_mtorc1",
+   "k_pi3k",
+   "k_reset",
+   "k_rtk_act",
+   "k_s6k_act",
+   "k_unbind",
+   "mTORC1_tot",
+   "mTORC2_tot"
+  ],
+  "seed_composition": [
+   [
+    "AKT"
+   ],
+   [
+    "GrowthFactor"
+   ],
+   [
+    "PI3K"
+   ],
+   [
+    "RTK"
+   ],
+   [
+    "S6K"
+   ],
+   [
+    "mTORC1"
+   ],
+   [
+    "mTORC2"
+   ]
+  ]
+ },
+ "apoptosis-cascade.bngl": {
+  "compartments": [],
+  "functions": [
+   "v_momp"
+  ],
+  "molecule_types": [
+   "Apaf1",
+   "Bid",
+   "Caspase3",
+   "Caspase8",
+   "DeathLigand",
+   "Mito",
+   "SMAC",
+   "XIAP"
+  ],
+  "observables": [
+   "Active_Bid",
+   "CytoC_Released",
+   "Global_Death",
+   "Inhibitor_Sequest",
+   "Mitochondria_Gate",
+   "Mitochondrial_Fail"
+  ],
+  "parameters": [
+   "Apaf1_tot",
+   "Bid_tot",
+   "C3_tot",
+   "C8_tot",
+   "Km_tbid",
+   "MOMP_sites",
+   "SMAC_tot",
+   "XIAP_tot",
+   "k_apaf_act",
+   "k_bid_trunc",
+   "k_c3_act",
+   "k_ligand",
+   "k_momp_max",
+   "k_smac_rec",
+   "k_xiap_bind",
+   "n_hill"
+  ],
+  "seed_composition": [
+   [
+    "Apaf1"
+   ],
+   [
+    "Bid"
+   ],
+   [
+    "Caspase3"
+   ],
+   [
+    "Caspase8"
+   ],
+   [
+    "DeathLigand"
+   ],
+   [
+    "Mito"
+   ],
+   [
+    "SMAC"
+   ],
+   [
+    "XIAP"
+   ]
+  ]
+ },
+ "bcr-signaling.bngl": {
+  "compartments": [],
+  "functions": [
+   "v_ca"
+  ],
+  "molecule_types": [
+   "Antigen",
+   "BCR",
+   "CD22",
+   "Calcium",
+   "PLCg2",
+   "SHP1",
+   "Syk"
+  ],
+  "observables": [
+   "Active_PLCg2",
+   "Active_Relay",
+   "Calcium_Signal",
+   "Effector_Load",
+   "Negative_Brake",
+   "Sync_Antigen"
+  ],
+  "parameters": [
+   "Antigen_tot",
+   "BCR_tot",
+   "CD22_tot",
+   "Ca_cyt",
+   "Km_ca",
+   "PLCg2_tot",
+   "SHP1_tot",
+   "Syk_tot",
+   "k_bind_ag",
+   "k_ca_max",
+   "k_dephos_bcr",
+   "k_endo",
+   "k_lyn_phos",
+   "k_plcg_act",
+   "k_shp_rec",
+   "k_syk_act",
+   "n_hill"
+  ],
+  "seed_composition": [
+   [
+    "Antigen"
+   ],
+   [
+    "BCR"
+   ],
+   [
+    "CD22"
+   ],
+   [
+    "Calcium"
+   ],
+   [
+    "PLCg2"
+   ],
+   [
+    "SHP1"
+   ],
+   [
+    "Syk"
+   ]
+  ]
+ },
+ "blood-coagulation-thrombin.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "AT",
+   "FactorV",
+   "FactorX",
+   "Fibrinogen",
+   "Prothrombin",
+   "TF",
+   "Thrombin"
+  ],
+  "observables": [
+   "Active_Thrombin",
+   "Clot_Mass",
+   "Feedback_Factors",
+   "Inhibitor_Work",
+   "Proth_Complex"
+  ],
+  "parameters": [
+   "ATIII_tot",
+   "FactorV_tot",
+   "FactorX_tot",
+   "Fibrino_tot",
+   "Km_clot",
+   "Prothrom_tot",
+   "TF_sites",
+   "k_at_inh",
+   "k_complex_va_xa",
+   "k_deg_complex",
+   "k_fibrin_synth",
+   "k_pt_burst",
+   "k_tf_vii",
+   "k_tpi_inh",
+   "k_v_act",
+   "k_viii_act",
+   "k_xa_act"
+  ],
+  "seed_composition": [
+   [
+    "AT"
+   ],
+   [
+    "FactorV"
+   ],
+   [
+    "FactorX"
+   ],
+   [
+    "Fibrinogen"
+   ],
+   [
+    "Prothrombin"
+   ],
+   [
+    "TF"
+   ]
+  ]
+ },
+ "bmp-signaling.bngl": {
+  "compartments": [],
+  "functions": [
+   "v_feedback"
+  ],
+  "molecule_types": [
+   "BMP",
+   "Noggin",
+   "Receptor1",
+   "Receptor2",
+   "Smad1",
+   "Smad4",
+   "Smad6"
+  ],
+  "observables": [
+   "Active_Nuclear_Smad1",
+   "Feedback_Brake",
+   "Noggin_Sink",
+   "SMAD_Output",
+   "Signal_Complex",
+   "Surface_Engage"
+  ],
+  "parameters": [
+   "BMP_tot",
+   "Noggin_init",
+   "R1_tot",
+   "R2_tot",
+   "Smad1_tot",
+   "Smad4_tot",
+   "Smad6_init",
+   "k_bmp_bind",
+   "k_complex",
+   "k_export",
+   "k_import",
+   "k_noggin_bind",
+   "k_smad6_inh",
+   "k_smad6_synth",
+   "k_smad_phos"
+  ],
+  "seed_composition": [
+   [
+    "BMP"
+   ],
+   [
+    "Noggin"
+   ],
+   [
+    "Receptor1"
+   ],
+   [
+    "Receptor2"
+   ],
+   [
+    "Smad1"
+   ],
+   [
+    "Smad4"
+   ],
+   [
+    "Smad6"
+   ]
+  ]
+ },
+ "brusselator-oscillator.bngl": {
+  "compartments": [],
+  "functions": [
+   "v_auto",
+   "v_decay",
+   "v_supply"
+  ],
+  "molecule_types": [
+   "A",
+   "B",
+   "X",
+   "Y"
+  ],
+  "observables": [
+   "A_Level",
+   "Activator_X",
+   "Drive_Force",
+   "Feed_Status",
+   "Inhibitor_Y",
+   "Ratio_XY",
+   "X_Level"
+  ],
+  "parameters": [
+   "A_pool",
+   "B_drive",
+   "Km_a",
+   "Km_x",
+   "X_init",
+   "Y_init",
+   "k_auto",
+   "k_cross",
+   "k_decay_max",
+   "k_temp_mod",
+   "v_supply_max",
+   "v_temp_current"
+  ],
+  "seed_composition": [
+   [
+    "A"
+   ],
+   [
+    "B"
+   ],
+   [
+    "X"
+   ],
+   [
+    "Y"
+   ]
+  ]
+ },
+ "catalysis.bngl": {
+  "compartments": [
+   "C"
+  ],
+  "functions": [],
+  "molecule_types": [
+   "ADP",
+   "ATP",
+   "S",
+   "kinase",
+   "pptase"
+  ],
+  "observables": [
+   "S_kinase",
+   "S_pptase",
+   "Sp",
+   "Stot",
+   "kinaseTot",
+   "pptaseTot"
+  ],
+  "parameters": [
+   "Ea0_S_kinase",
+   "Ea0_S_pptase",
+   "Ea0_cat_kinase",
+   "Ea0_cat_pptase",
+   "Gf_ATP",
+   "Gf_S_kinase",
+   "Gf_S_pptase",
+   "Gf_Sp",
+   "NA",
+   "RT",
+   "conc_ADP_0",
+   "conc_ATP_0",
+   "conc_S_0",
+   "conc_kinase_0",
+   "conc_pptase_0",
+   "phi",
+   "volC"
+  ],
+  "seed_composition": [
+   [
+    "ADP"
+   ],
+   [
+    "ATP"
+   ],
+   [
+    "S"
+   ],
+   [
+    "kinase"
+   ],
+   [
+    "pptase"
+   ]
+  ]
+ },
+ "egg.bngl": {
+  "compartments": [],
+  "functions": [
+   "X",
+   "Y"
+  ],
+  "molecule_types": [
+   "t"
+  ],
+  "observables": [
+   "t"
+  ],
+  "parameters": [
+   "a0",
+   "a0__FREE",
+   "a1",
+   "a1__FREE",
+   "a2",
+   "a2__FREE",
+   "b1",
+   "b1__FREE",
+   "b2",
+   "b2__FREE",
+   "c0",
+   "c0__FREE",
+   "c1",
+   "c1__FREE",
+   "c2",
+   "c2__FREE",
+   "d1",
+   "d1__FREE",
+   "d2",
+   "d2__FREE",
+   "m",
+   "period",
+   "pi"
+  ],
+  "seed_composition": [
+   [
+    "t"
+   ]
+  ]
+ },
+ "elephant_EFA.bngl": {
+  "compartments": [],
+  "functions": [
+   "X",
+   "Y"
+  ],
+  "molecule_types": [
+   "t"
+  ],
+  "observables": [
+   "t"
+  ],
+  "parameters": [
+   "a0",
+   "a1",
+   "a10",
+   "a11",
+   "a12",
+   "a13",
+   "a14",
+   "a15",
+   "a16",
+   "a17",
+   "a18",
+   "a19",
+   "a2",
+   "a20",
+   "a3",
+   "a4",
+   "a5",
+   "a6",
+   "a7",
+   "a8",
+   "a9",
+   "b0",
+   "b1",
+   "b10",
+   "b11",
+   "b12",
+   "b13",
+   "b14",
+   "b15",
+   "b16",
+   "b17",
+   "b18",
+   "b19",
+   "b2",
+   "b20",
+   "b3",
+   "b4",
+   "b5",
+   "b6",
+   "b7",
+   "b8",
+   "b9",
+   "c0",
+   "c1",
+   "c10",
+   "c11",
+   "c12",
+   "c13",
+   "c14",
+   "c15",
+   "c16",
+   "c17",
+   "c18",
+   "c19",
+   "c2",
+   "c20",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7",
+   "c8",
+   "c9",
+   "d0",
+   "d1",
+   "d10",
+   "d11",
+   "d12",
+   "d13",
+   "d14",
+   "d15",
+   "d16",
+   "d17",
+   "d18",
+   "d19",
+   "d2",
+   "d20",
+   "d3",
+   "d4",
+   "d5",
+   "d6",
+   "d7",
+   "d8",
+   "d9",
+   "m",
+   "period",
+   "pi"
+  ],
+  "seed_composition": [
+   [
+    "t"
+   ]
+  ]
+ },
+ "energy_transport_pump.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "A",
+   "ADP",
+   "ATP",
+   "Pi",
+   "T"
+  ],
+  "observables": [
+   "A_in",
+   "A_out",
+   "Energy_Source"
+  ],
+  "parameters": [
+   "ADP_conc",
+   "ATP_conc",
+   "Atot",
+   "Ea_transport",
+   "G_ADP",
+   "G_ATP",
+   "G_A_in",
+   "G_A_out",
+   "G_Pi",
+   "Pi_conc",
+   "RT",
+   "phi"
+  ],
+  "seed_composition": [
+   [
+    "A"
+   ],
+   [
+    "ADP"
+   ],
+   [
+    "ATP"
+   ],
+   [
+    "Pi"
+   ],
+   [
+    "T"
+   ]
+  ]
+ },
+ "example1.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [],
+  "observables": [
+   "A_R",
+   "R_dim",
+   "R_phos"
+  ],
+  "parameters": [
+   "A0",
+   "L0",
+   "R0",
+   "d1",
+   "km1",
+   "km2",
+   "kmA",
+   "kp1",
+   "kp2",
+   "kpA",
+   "p1"
+  ],
+  "seed_composition": [
+   [
+    "A"
+   ],
+   [
+    "L"
+   ],
+   [
+    "R"
+   ]
+  ]
+ },
+ "genetic_bistability_energy.bngl": {
+  "compartments": [],
+  "functions": [],
+  "molecule_types": [
+   "GeneA",
+   "GeneB",
+   "ProtA",
+   "ProtB"
+  ],
+  "observables": [
+   "A",
+   "B",
+   "GeneA_Free",
+   "GeneB_Free"
+  ],
+  "parameters": [
+   "Ea_bind",
+   "G_Gene",
+   "G_Protein",
+   "G_bind",
+   "G_coop",
+   "RT",
+   "k_deg",
+   "k_synth",
+   "phi"
+  ],
+  "seed_composition": [
+   [
+    "GeneA"
+   ],
+   [
+    "GeneB"
+   ],
+   [
+    "ProtA"
+   ],
+   [
+    "ProtB"
+   ]
+  ]
+ },
+ "immob_equiv_lig_sites.bngl": {
+  "compartments": [],
+  "functions": [
+   "avg_agg_size_R1",
+   "avg_agg_size_R2",
+   "large_T2",
+   "mobility_factor_T2",
+   "twobigprod_T2a",
+   "twobigprod_T2b"
+  ],
+  "molecule_types": [
+   "L1",
+   "L2",
+   "R1",
+   "R2"
+  ],
+  "observables": [
+   "L1free",
+   "L2free",
+   "R1_naggs",
+   "R1free",
+   "R1tot",
+   "R2_naggs",
+   "R2free",
+   "R2tot",
+   "T2aL1",
+   "T2aL2",
+   "T2aL3",
+   "T2aL4",
+   "T2aL5",
+   "T2aL6",
+   "T2aL7",
+   "T2aL8",
+   "T2aS1",
+   "T2aS2",
+   "T2aS3",
+   "T2aS4",
+   "T2bL1",
+   "T2bL2",
+   "T2bL3",
+   "T2bL4",
+   "T2bL5",
+   "T2bL6",
+   "T2bL7",
+   "T2bL8",
+   "T2bS1",
+   "T2bS2",
+   "T2bS3",
+   "T2bS4",
+   "monomericR1",
+   "monomericR2"
+  ],
+  "parameters": [
+   "Lconc",
+   "Lconc_nM",
+   "LcopyNum",
+   "NA",
+   "RcopyNum",
+   "T2",
+   "T3",
+   "Vecf",
+   "delta",
+   "epsilon",
+   "f",
+   "kf",
+   "kmx",
+   "kpx",
+   "kr",
+   "rho",
+   "sigma",
+   "valL",
+   "valR"
+  ],
+  "seed_composition": [
+   [
+    "L1"
+   ],
+   [
+    "L2"
+   ],
+   [
+    "R1"
+   ],
+   [
+    "R2"
+   ]
+  ]
+ }
+}
