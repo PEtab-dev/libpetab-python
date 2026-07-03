@@ -80,10 +80,13 @@ def test_seed_species_dollar_clamp_is_stripped():
     assert "$A()" not in entities.seed_species  # the marker never leaks
 
 
-def test_molecule_types_block_alias():
-    # `begin molecules` is BNG's short alias for `begin molecule types`.
+def test_rejected_block_aliases_are_not_honored():
+    # The grammar doc lists `molecules`/`rules` as aliases, but BNG2.pl 2.9.3
+    # REJECTS both ("Could not process block type"); only `species` is real. To
+    # match the reference implementation the reader must NOT treat
+    # `begin molecules`/`begin rules` as their canonical blocks.
     entities = parse_bngl("begin molecules\n A()\n B(x)\nend molecules\n")
-    assert entities.molecule_type_names == frozenset({"A", "B"})
+    assert entities.molecule_type_names == frozenset()
 
 
 def test_seed_species_block_alias():

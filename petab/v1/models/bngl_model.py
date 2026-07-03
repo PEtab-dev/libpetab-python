@@ -25,12 +25,12 @@ inferred from the PySB analogy:
   compartments, and seed species.
 
 The block scanner is hardened against the BNGL grammar (BioNetGen ``Perl2/``;
-see the reference in ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): line
-continuations (a trailing ``\\``), block aliases (``molecules``/``species``/
-``rules``), line labels (a numeric index ``1 L0 1`` or a named ``CD14: ...``),
-and the seed-species ``$`` clamp marker are all honored. It is kept in sync
-with PyBNF's sibling reader (``pybnf/petab/_bngl.py``, ADR-0026) -- the
-grammar-hardening tests are the anchor that keeps the two from drifting.
+cross-checked against ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): line
+continuations (a trailing ``\\``), the ``species`` block alias (``begin
+species`` = ``begin seed species``), line labels (a numeric index ``1 L0 1`` or
+a named ``CD14: ...``), and the seed-species ``$`` clamp marker are honored. It
+is kept in sync with PyBNF's sibling reader (``pybnf/petab/_bngl.py``,
+ADR-0026) -- the grammar-hardening tests are the anchor against drift.
 """
 
 from __future__ import annotations
@@ -53,13 +53,15 @@ __all__ = ["BnglModel", "BnglEntities", "parse_bngl"]
 #: The three keywords that open an observable declaration line.
 _OBS_KEYWORDS = frozenset({"Molecules", "Species", "Counter"})
 
-#: Short spellings BioNetGen accepts for a block's canonical (long) name --
-#: either spelling opens and closes the same block. Only the blocks this reader
-#: enumerates need an entry.
+#: Short spellings BNG2.pl accepts for a block's canonical (long) name; either
+#: spelling opens and closes the same block. The grammar doc
+#: (``BNG_vscode_extension/docs/bngl-grammar.md``) also lists ``molecules`` and
+#: ``rules``, but BNG2.pl 2.9.3 -- the reference this reader targets -- rejects
+#: both ("Could not process block type"), so honoring them would accept models
+#: BNG2.pl refuses. Only ``species`` (for ``seed species``, also BNG2.pl's own
+#: canonical output spelling) is real.
 _BLOCK_ALIASES = {
-    "molecule types": ("molecules",),
     "seed species": ("species",),
-    "reaction rules": ("rules",),
 }
 
 
@@ -157,10 +159,10 @@ def _logical_lines(text: str) -> list[str]:
 def _block_lines(text: str, block_name: str) -> list[str]:
     """The comment-stripped, non-blank lines inside ``begin``/``end``.
 
-    ``block_name`` is the canonical (long) spelling; any BioNetGen alias for it
-    (``molecules`` for ``molecule types``, ``species`` for ``seed species``,
-    ``rules`` for ``reaction rules``) opens and closes the same block. Lines
-    are logical lines -- continuations joined (see :func:`_logical_lines`).
+    ``block_name`` is the canonical (long) spelling; a BNG2.pl-accepted alias
+    for it (only ``species`` for ``seed species``; see :data:`_BLOCK_ALIASES`)
+    opens and closes the same block. Lines are logical lines -- continuations
+    joined (see :func:`_logical_lines`).
     """
     names = "|".join(
         re.escape(name)
