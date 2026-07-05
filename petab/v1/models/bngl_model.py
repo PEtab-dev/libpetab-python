@@ -259,7 +259,7 @@ class BnglModel(Model):
     def __init__(
         self,
         model: BnglEntities,
-        model_id: str = None,
+        model_id: str | None = None,
         rel_path: Path | str | None = None,
         base_path: str | Path | None = None,
     ):
@@ -280,7 +280,9 @@ class BnglModel(Model):
 
     @staticmethod
     def from_file(
-        filepath_or_buffer, model_id: str = None, base_path: str | Path = None
+        filepath_or_buffer,
+        model_id: str | None = None,
+        base_path: str | Path | None = None,
     ) -> BnglModel:
         path = Path(_generate_path(filepath_or_buffer, base_path))
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -293,7 +295,7 @@ class BnglModel(Model):
 
     def to_file(self, filename: str | Path | None = None) -> None:
         target = filename or _generate_path(self.rel_path, self.base_path)
-        with open(target, "w") as f:
+        with open(target, "w", encoding="utf-8") as f:
             f.write(self.model.text)
 
     @property
