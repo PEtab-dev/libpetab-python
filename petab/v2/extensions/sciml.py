@@ -272,21 +272,22 @@ class SciMLExt:
         sciml_config: SciMLConfig = config.extensions[C.EXT_ID_SCIML]
 
         # Neural network classes are constructed via pytorch for now to get
-        # the proper inputs
-        neural_networks = [
-            NNModel.from_pytorch_module(
-                NNModelStandard.load_data(
-                    _generate_path(
-                        file_path=nn_config.location,
-                        base_path=base_path,
+        # the proper inputs. Non-YAML formats are opaque — the file is assumed
+        # to contain a valid model and is not read here.
+        neural_networks = []
+        for nn_id, nn_config in (sciml_config.neural_networks or {}).items():
+            if nn_config.format.lower() == "yaml":
+                neural_networks.append(
+                    NNModel.from_pytorch_module(
+                        NNModelStandard.load_data(
+                            _generate_path(
+                                file_path=nn_config.location,
+                                base_path=base_path,
+                            )
+                        ).to_pytorch_module(),
+                        nn_model_id=nn_id,
                     )
-                ).to_pytorch_module(),
-                nn_model_id=nn_id,
-            )
-            for nn_id, nn_config in (
-                sciml_config.neural_networks or {}
-            ).items()
-        ]
+                )
 
         hybridization_tables = [
             HybridizationTable.from_tsv(f, base_path)
