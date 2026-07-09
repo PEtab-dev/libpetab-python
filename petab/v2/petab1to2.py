@@ -416,6 +416,8 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
                     f" is not supported in PEtab v2."
                 )
 
+            return new_dist
+
         df[v2.C.NOISE_DISTRIBUTION] = df.apply(update_noise_dist, axis=1)
         df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
 
