@@ -389,7 +389,7 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
             df[v1.C.NOISE_DISTRIBUTION] = v1.C.NORMAL
 
         # merge observableTransformation into noiseDistribution
-        def update_noise_dist(row):
+        def get_noise_dist(row):
             dist = row.get(v1.C.NOISE_DISTRIBUTION)
             trans = row.get(v1.C.OBSERVABLE_TRANSFORMATION)
 
@@ -416,7 +416,9 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
                     f" is not supported in PEtab v2."
                 )
 
-        df[v2.C.NOISE_DISTRIBUTION] = df.apply(update_noise_dist, axis=1)
+            return new_dist
+
+        df[v2.C.NOISE_DISTRIBUTION] = df.apply(get_noise_dist, axis=1)
         df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
 
     def extract_placeholders(row: pd.Series, type_: str) -> str:
