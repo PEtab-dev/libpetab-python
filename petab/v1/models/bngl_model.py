@@ -1,0 +1,413 @@
+"""Functions for handling BNGL (BioNetGen Language) models.
+
+``petab`` ships ``sbml`` and ``pysb`` model loaders; this module adds
+``bngl`` so that a ``language: bngl`` PEtab problem can be loaded and
+validated at the model level (see PEtab-dev/PEtab#436).
+
+:class:`BnglModel` is a :class:`petab.v1.models.model.Model` backed by a
+small, dependency-free BNGL *block reader* (:func:`parse_bngl`). PEtab
+validation only ever introspects a model -- it enumerates the model's named
+entities -- so the reader does not run BNG2.pl or generate a reaction
+network. The single exception is :meth:`BnglModel.is_valid`, which shells
+out to ``BNG2.pl --check`` (a parse/semantic check, *without* network
+generation) when a BNG2.pl is locatable, and degrades gracefully to
+``True`` when no BNG backend is available -- mirroring how the SBML loader
+always validates because ``libsbml`` is always present.
+
+The BNGL entity sets that back the introspection methods were established
+against BioNetGen's ``Perl2/`` source (the reference implementation), not
+inferred from the PySB analogy:
+
+* expression symbols are exactly the BNG ``ParamList`` -- parameters,
+  observables, and global functions; compartments are *not* expression
+  symbols (they never enter the ``ParamList``);
+* the full model-entity namespace additionally includes molecule types,
+  compartments, and seed species.
+
+The block scanner is hardened against the BNGL grammar (BioNetGen ``Perl2/``;
+cross-checked against ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): line
+continuations (a trailing ``\\``), the ``species`` block alias (``begin
+species`` = ``begin seed species``), line labels (a numeric index ``1 L0 1`` or
+a named ``CD14: ...``), and the seed-species ``$`` clamp marker are honored. It
+is kept in sync with PyBNF's sibling reader (``pybnf/petab/_bngl.py``,
+ADR-0026) -- the grammar-hardening tests are the anchor against drift.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
+
+from ..._utils import _generate_path
+from .. import is_valid_identifier
+from . import MODEL_TYPE_BNGL
+from .model import Model
+
+__all__ = ["BnglModel", "BnglEntities", "parse_bngl"]
+
+#: The three keywords that open an observable declaration line.
+_OBS_KEYWORDS = frozenset({"Molecules", "Species", "Counter"})
+
+#: Short spellings BNG2.pl accepts for a block's canonical (long) name; either
+#: spelling opens and closes the same block. The grammar doc
+#: (``BNG_vscode_extension/docs/bngl-grammar.md``) also lists ``molecules`` and
+#: ``rules``, but BNG2.pl 2.9.3 -- the reference this reader targets -- rejects
+#: both ("Could not process block type"), so honoring them would accept models
+#: BNG2.pl refuses. Only ``species`` (for ``seed species``, also BNG2.pl's own
+#: canonical output spelling) is real.
+_BLOCK_ALIASES = {
+    "seed species": ("species",),
+}
+
+
+@dataclass(frozen=True)
+class BnglEntities:
+    """The named entities of a BNGL model that the PEtab layer reads.
+
+    :ivar text: The verbatim BNGL model text.
+    :ivar parameters: Maps a parameter name to its raw right-hand side -- a
+        number (``"5"``, ``"6.02e23"``) or an expression (``"2*base"``),
+        kept verbatim; numeric coercion is the caller's job.
+    :ivar observable_names: Bare observable names.
+    :ivar function_names: Bare global-function names (without ``()``).
+    :ivar molecule_type_names: Bare molecule-type names.
+    :ivar seed_species: Concrete seed-species pattern strings (verbatim).
+    :ivar compartment_names: Bare compartment names.
+    """
+
+    text: str
+    parameters: dict[str, str]
+    observable_names: frozenset[str]
+    function_names: frozenset[str]
+    molecule_type_names: frozenset[str]
+    seed_species: frozenset[str]
+    compartment_names: frozenset[str]
+
+
+def parse_bngl(text: str) -> BnglEntities:
+    """Parse BNGL ``text`` into a :class:`BnglEntities`.
+
+    A stdlib ``begin``/``end <block>`` scanner -- no BNG2.pl, no network
+    generation. Sufficient for PEtab validation, which only introspects the
+    model's declared entities.
+
+    :param text: The BNGL model text.
+    :returns: The model's named entities.
+    """
+    parameters: dict[str, str] = {}
+    for line in _block_lines(text, "parameters"):
+        name_value = _parameter_name_value(line)
+        if name_value is not None:
+            parameters[name_value[0]] = name_value[1]
+    return BnglEntities(
+        text=text,
+        parameters=parameters,
+        observable_names=_names(text, "observables", _observable_name),
+        function_names=_names(text, "functions", _function_name),
+        molecule_type_names=_names(
+            text, "molecule types", _molecule_type_name
+        ),
+        seed_species=_names(text, "seed species", _seed_species_pattern),
+        compartment_names=_names(text, "compartments", _compartment_name),
+    )
+
+
+def _names(text: str, block_name: str, extractor) -> frozenset[str]:
+    """The non-empty names ``extractor`` yields over a block's lines."""
+    return frozenset(
+        name
+        for name in (
+            extractor(line) for line in _block_lines(text, block_name)
+        )
+        if name
+    )
+
+
+def _logical_lines(text: str) -> list[str]:
+    """The comment-stripped *logical* lines of ``text`` -- physical lines with
+    BNGL line continuations joined.
+
+    Mirrors BNG2.pl's ``readFile`` (``Perl2/BNGModel.pm``): strip the ``#``
+    comment first, then while the line ends with ``\\`` (as its last
+    non-whitespace character) drop that ``\\`` and append the next
+    comment-stripped physical line *directly* -- no separating space, so a
+    token split across the break (``1e\\`` + ``3`` -> ``1e3``) rejoins.
+    Without this, a continued parameter / function / observable is truncated at
+    the ``\\`` (e.g. a ``k = \\`` line would read as the value ``"\\"``).
+    """
+    raw_lines = text.splitlines()
+    out = []
+    i, n = 0, len(raw_lines)
+    while i < n:
+        line = raw_lines[i].split("#", 1)[0]
+        i += 1
+        while re.search(r"\\\s*$", line):
+            line = re.sub(r"\\\s*$", "", line)
+            if i >= n:
+                break  # a dangling continuation at EOF
+            line += raw_lines[i].split("#", 1)[0]
+            i += 1
+        out.append(line.strip())
+    return out
+
+
+def _block_lines(text: str, block_name: str) -> list[str]:
+    """The comment-stripped, non-blank lines inside ``begin``/``end``.
+
+    ``block_name`` is the canonical (long) spelling; a BNG2.pl-accepted alias
+    for it (only ``species`` for ``seed species``; see :data:`_BLOCK_ALIASES`)
+    opens and closes the same block. Lines are logical lines -- continuations
+    joined (see :func:`_logical_lines`).
+    """
+    names = "|".join(
+        re.escape(name)
+        for name in (block_name, *_BLOCK_ALIASES.get(block_name, ()))
+    )
+    begin = re.compile(rf"^begin\s+(?:{names})\b", re.IGNORECASE)
+    end = re.compile(rf"^end\s+(?:{names})\b", re.IGNORECASE)
+    lines = []
+    in_block = False
+    for line in _logical_lines(text):
+        if begin.match(line):
+            in_block = True
+        elif end.match(line):
+            in_block = False
+        elif in_block and line:
+            lines.append(line)
+    return lines
+
+
+def _strip_line_label(line: str) -> str:
+    """Drop a leading BNGL line label so the entity, not the label, is read.
+
+    ``LineLabel = {Digit}, WS | Name, ":", [WS]`` (grammar) -- either a numeric
+    index (the legacy ``.net``-style ``1 L0 1`` form) or a named label
+    (``CD14: CD14(...)``). A valid BNGL identifier starts with a letter, so a
+    leading digit-run is always an index; a compartment prefix is ``@Name:``
+    (with the ``@``), so a bare ``Name:`` at line start is unambiguously a
+    label.
+    """
+    match = re.match(r"^\d+\s+(.*)$", line) or re.match(
+        r"^[A-Za-z]\w*:\s+(.*)$", line
+    )
+    return match.group(1) if match else line
+
+
+def _parameter_name_value(line: str) -> tuple[str, str] | None:
+    """``(name, rhs)`` for a ``[LineLabel] Name (WS|"=") MathExpr`` line."""
+    line = _strip_line_label(line)
+    match = re.match(r"^(\w+)\s*=\s*(.+)$", line) or re.match(
+        r"^(\w+)\s+(.+)$", line
+    )
+    return (match.group(1), match.group(2).strip()) if match else None
+
+
+def _observable_name(line: str) -> str | None:
+    """The name in a ``<keyword> <name> <pattern>`` observable line."""
+    tokens = line.split()
+    if len(tokens) >= 2 and tokens[0] in _OBS_KEYWORDS:
+        return tokens[1]
+    return None
+
+
+def _function_name(line: str) -> str | None:
+    """The name in a ``<name>() = ...`` global-function line."""
+    match = re.match(r"(\w+)\s*\(", line) or re.match(r"(\w+)\s*=", line)
+    return match.group(1) if match else None
+
+
+def _molecule_type_name(line: str) -> str | None:
+    """The name in a ``<name>(...)`` molecule-type line."""
+    match = re.match(r"(\w+)", line)
+    return match.group(1) if match else None
+
+
+def _seed_species_pattern(line: str) -> str | None:
+    """The species pattern in a ``[LineLabel] ["$"] <pattern> <value>`` line.
+
+    A leading line label (numeric index ``1 A() 100`` or named
+    ``CD14: CD14(...)``; see :func:`_strip_line_label`) is dropped first so the
+    label is not mistaken for the species. A leading ``$`` (the fixed/clamped-
+    concentration marker, ``SeedSpeciesDefn = ["$"], Species, WS,
+    MathExpression``) is a modifier, not part of the species identity, so it
+    too is stripped: ``$counter() 10``
+    enumerates the state variable ``counter()``.
+    """
+    line = _strip_line_label(line)
+    if line.startswith("$"):
+        line = line[1:].lstrip()
+    tokens = line.split()
+    return tokens[0] if tokens else None
+
+
+def _compartment_name(line: str) -> str | None:
+    """The name in a ``<name> <dims> <size> [outside]`` line."""
+    tokens = line.split()
+    return tokens[0] if tokens else None
+
+
+class BnglModel(Model):
+    """PEtab wrapper for BNGL models (introspection only; no simulation)."""
+
+    type_id = MODEL_TYPE_BNGL
+
+    def __init__(
+        self,
+        model: BnglEntities,
+        model_id: str | None = None,
+        rel_path: Path | str | None = None,
+        base_path: str | Path | None = None,
+    ):
+        super().__init__()
+
+        self.rel_path = rel_path
+        self.base_path = base_path
+
+        self.model = model
+        self._model_id = model_id
+
+        if not is_valid_identifier(self._model_id):
+            raise ValueError(
+                f"Model ID '{self._model_id}' is not a valid identifier. "
+                "Either provide a valid identifier or rename the model file "
+                "to a valid PEtab model identifier."
+            )
+
+    @staticmethod
+    def from_file(
+        filepath_or_buffer,
+        model_id: str | None = None,
+        base_path: str | Path | None = None,
+    ) -> BnglModel:
+        path = Path(_generate_path(filepath_or_buffer, base_path))
+        text = path.read_text(encoding="utf-8", errors="replace")
+        return BnglModel(
+            model=parse_bngl(text),
+            model_id=model_id or path.stem,
+            rel_path=filepath_or_buffer,
+            base_path=base_path,
+        )
+
+    def to_file(self, filename: str | Path | None = None) -> None:
+        target = filename or _generate_path(self.rel_path, self.base_path)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(self.model.text)
+
+    @property
+    def model_id(self):
+        return self._model_id
+
+    @model_id.setter
+    def model_id(self, model_id):
+        self._model_id = model_id
+
+    # -- parameters ---------------------------------------------------------
+
+    def get_parameter_ids(self) -> Iterable[str]:
+        return list(self.model.parameters)
+
+    def get_parameter_value(self, id_: str) -> float:
+        try:
+            rhs = self.model.parameters[id_]
+        except KeyError as e:
+            raise ValueError(f"Parameter {id_} does not exist.") from e
+        try:
+            return float(rhs)
+        except ValueError as e:
+            raise NotImplementedError(
+                f"Parameter '{id_}' has an expression value '{rhs}'. "
+                "Evaluating a BNGL parameter expression requires BNG2.pl / "
+                "network generation, which is out of scope for the "
+                "introspection-only BnglModel."
+            ) from e
+
+    def get_free_parameter_ids_with_values(
+        self,
+    ) -> Iterable[tuple[str, float]]:
+        out = []
+        for name, rhs in self.model.parameters.items():
+            try:
+                out.append((name, float(rhs)))
+            except ValueError:
+                # An expression-valued parameter has no introspection-grade
+                # value; skip it rather than evaluate the expression.
+                continue
+        return out
+
+    def get_valid_parameters_for_parameter_table(self) -> Iterable[str]:
+        # All parameters are allowed in the parameter table.
+        return list(self.model.parameters)
+
+    # -- model-entity namespaces (verified against BioNetGen) ---------------
+
+    def has_entity_with_id(self, entity_id) -> bool:
+        # The full declared-identifier namespace.
+        return (
+            entity_id in self.model.parameters
+            or entity_id in self.model.observable_names
+            or entity_id in self.model.function_names
+            or entity_id in self.model.molecule_type_names
+            or entity_id in self.model.compartment_names
+            or entity_id in self.model.seed_species
+        )
+
+    def get_valid_ids_for_condition_table(self) -> Iterable[str]:
+        return list(self.model.parameters) + list(self.model.compartment_names)
+
+    def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
+        # The BNG ParamList: parameters, observables, global functions only.
+        return (
+            id_ in self.model.parameters
+            or id_ in self.model.observable_names
+            or id_ in self.model.function_names
+        )
+
+    def is_state_variable(self, id_: str) -> bool:
+        # At introspection grade only the concrete seed species are known;
+        # the full species set is a network-generation product.
+        return id_ in self.model.seed_species
+
+    # -- validity -----------------------------------------------------------
+
+    def is_valid(self) -> bool:
+        # Real BNG2.pl --check (parse/semantic validation, no network
+        # generation) when locatable, else True -- never a false failure
+        # where no BNG backend is available.
+        bng2 = _locate_bng2()
+        if bng2 is None or self.rel_path is None:
+            return True
+        path = Path(_generate_path(self.rel_path, self.base_path))
+        if not path.is_file():
+            # No local model file to check (e.g. a buffer-loaded model).
+            return True
+        # Resolve to an absolute path so BNG2.pl finds the model regardless
+        # of the working directory it runs in (its output stays next to the
+        # model via ``cwd``).
+        path = path.resolve()
+        try:
+            result = subprocess.run(  # noqa: S603
+                [bng2, "--check", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(path.parent),
+            )
+        except (OSError, subprocess.SubprocessError):
+            # A tooling hiccup must not masquerade as an invalid model.
+            return True
+        return result.returncode == 0
+
+
+def _locate_bng2() -> str | None:
+    """A path to ``BNG2.pl`` via ``BNGPATH`` or ``PATH``, else ``None``."""
+    bngpath = os.environ.get("BNGPATH")
+    if bngpath:
+        candidate = Path(bngpath) / "BNG2.pl"
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("BNG2.pl")

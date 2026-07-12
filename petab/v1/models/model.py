@@ -150,7 +150,12 @@ def model_factory(
     :param model_id: PEtab model ID for the given model
     :returns: A :py:class:`Model` instance representing the given model
     """
-    from . import MODEL_TYPE_PYSB, MODEL_TYPE_SBML, known_model_types
+    from . import (
+        MODEL_TYPE_BNGL,
+        MODEL_TYPE_PYSB,
+        MODEL_TYPE_SBML,
+        known_model_types,
+    )
 
     if model_language == MODEL_TYPE_SBML:
         from .sbml_model import SbmlModel
@@ -163,6 +168,13 @@ def model_factory(
         from .pysb_model import PySBModel
 
         return PySBModel.from_file(
+            filepath_or_buffer, model_id=model_id, base_path=base_path
+        )
+
+    if model_language == MODEL_TYPE_BNGL:
+        from .bngl_model import BnglModel
+
+        return BnglModel.from_file(
             filepath_or_buffer, model_id=model_id, base_path=base_path
         )
 
