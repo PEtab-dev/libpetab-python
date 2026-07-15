@@ -367,8 +367,8 @@ def test_load_remote():
     from jsonschema.exceptions import ValidationError
 
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v2.0.0/sbml/0010/_0010.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v2.0.0/sbml/0010/_0010.yaml"
     )
 
     try:
@@ -389,8 +389,8 @@ def test_load_remote():
 
 def test_auto_upgrade():
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
     problem = Problem.from_yaml(yaml_url)
     # TODO check something specifically different in a v2 problem

@@ -33,8 +33,8 @@ def test_v1v2_observable_df_noise_distribution():
 def test_petab1to2_remote():
     """Test that we can upgrade a remote PEtab 1.0.0 problem."""
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
 
     problem = petab1to2(yaml_url)

@@ -783,8 +783,8 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 def test_load_remote():
     """Test loading remote files"""
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
     petab_problem = petab.Problem.from_yaml(yaml_url)
 
