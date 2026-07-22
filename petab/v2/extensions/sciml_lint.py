@@ -88,7 +88,9 @@ def _nn_entity_petab_ids(
         # Only consider references to actual neural networks.
         if nn_ids and match.group("nn_id") not in nn_ids:
             continue
-        buckets[match.group("kind")][mapping.petab_id] = match.group("nn_id")
+        buckets[match.group("entity_type")][mapping.petab_id] = match.group(
+            "nn_id"
+        )
     return inputs, outputs, parameters
 
 
