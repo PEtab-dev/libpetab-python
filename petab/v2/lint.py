@@ -45,7 +45,11 @@ __all__ = [
     "CheckUndefinedExperiments",
     "CheckInitialChangeSymbols",
     "CheckMappingTable",
+    "CheckNeuralNetworkModel",
     "CheckHybridizationTable",
+    "CheckSciMLConditionTable",
+    "CheckArrayDataFiles",
+    "CheckSciMLParameterTable",
     "lint_problem",
     "default_validation_tasks",
 ]
@@ -1190,10 +1194,23 @@ default_validation_tasks = [
     CheckMappingTable(),
 ]
 
-# Import SciML validation from sciml_lint at the end to avoid circular imports
-from ..v2.extensions.sciml_lint import CheckHybridizationTable  # noqa: E402
+# Import SciML validation from sciml_lint at the end to avoid circular
+# imports.
+try:
+    from ..v2.extensions.sciml_lint import (  # noqa: E402
+        CheckArrayDataFiles,
+        CheckHybridizationTable,
+        CheckNeuralNetworkModel,
+        CheckSciMLConditionTable,
+        CheckSciMLParameterTable,
+    )
 
-#: Validation tasks that should be run PEtab SciML problems
-sciml_validation_tasks = default_validation_tasks + [
-    CheckHybridizationTable(),
-]
+    sciml_validation_tasks = default_validation_tasks + [
+        CheckNeuralNetworkModel(),
+        CheckHybridizationTable(),
+        CheckSciMLConditionTable(),
+        CheckArrayDataFiles(),
+        CheckSciMLParameterTable(),
+    ]
+except ImportError:
+    sciml_validation_tasks = default_validation_tasks
