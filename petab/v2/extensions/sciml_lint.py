@@ -487,13 +487,10 @@ class CheckSciMLParameterTable(lint.ValidationTask):
                 "explicitly set to be estimated or fixed."
             )
 
-        # (3) In "posterior" mode (some parameter has an explicit prior), all
-        # estimated NN parameters need a proper prior or finite bounds, so that
-        # the implicit uniform(lb, ub) prior is proper.
-        posterior = any(
-            p.prior_distribution is not None for p in problem.parameters
-        )
-        if posterior:
+        # (3) In "posterior" mode (some estimated parameter has an explicit
+        # prior), all estimated NN parameters need a proper prior, or finite
+        # bounds so that the default uniform(lb, ub) prior is proper.
+        if problem.has_map_objective:
             for parameter in problem.parameters:
                 if parameter.id not in param_nn_ref or not parameter.estimate:
                     continue
