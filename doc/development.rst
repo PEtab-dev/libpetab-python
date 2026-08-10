@@ -60,7 +60,7 @@ the pre-commit hooks, run:
 
 .. code-block:: bash
 
-    pip install pre-commit
+    uv tool install pre-commit
     pre-commit install
 
 To run the pre-commit checks manually on all, not just the modified files, run:
@@ -85,6 +85,7 @@ To build the documentation, run:
 
 .. code-block:: bash
 
+    uv sync --extra doc --extra vis
     cd doc
     make html
     # then open `build/html/index.html` in a browser
