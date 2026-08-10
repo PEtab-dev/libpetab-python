@@ -157,6 +157,26 @@ def test_lint():
     assert problem.validate() == []
 
 
+def test_sciml_config_yaml_round_trip(tmp_path):
+    """The `sciml` extension config, once written to YAML via
+    `ProblemConfig.to_yaml()`, is schema-valid and can be read back.
+    """
+    from petab.v1.yaml import load_yaml, validate_yaml_syntax
+
+    problem = _get_test_problem()
+    yaml_path = tmp_path / "problem.yaml"
+    problem.config.to_yaml(yaml_path)
+
+    yaml_config = load_yaml(yaml_path)
+    validate_yaml_syntax(yaml_config)
+    assert yaml_config["extensions"]["sciml"]["required"] is True
+
+    reloaded_config = ProblemConfig(**yaml_config, base_path=tmp_path)
+    sciml_config = reloaded_config.extensions["sciml"]
+    assert isinstance(sciml_config, SciMLConfig)
+    assert sciml_config.required is True
+
+
 def test_lint_equinox_network_format():
     """Linter accepts non-YAML formats without reading the network file."""
     problem = _get_test_problem()

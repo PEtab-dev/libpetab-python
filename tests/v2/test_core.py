@@ -29,6 +29,8 @@ from petab.v2.C import (
     UPPER_BOUND,
 )
 from petab.v2.core import *
+from petab.v2.core import ExtensionConfig
+from petab.v2.lint import ValidationIssueSeverity
 from petab.v2.models.sbml_model import SbmlModel
 from petab.v2.petab1to2 import petab1to2
 
@@ -593,6 +595,83 @@ def test_problem_config_paths():
     #  pc.parameter_files[0] = "foo.tsv"
     #  assert isinstance(pc.parameter_files[0], Path)
     # see also https://github.com/pydantic/pydantic/issues/8575
+
+
+def test_problem_config_generic_extension():
+    """A generic (non-sciml) extension is parsed per the PEtab v2 schema:
+    `version` and `required` at the top level, plus arbitrary
+    extension-specific keys alongside them."""
+    pc = ProblemConfig(
+        parameter_files=["parameters.tsv"],
+        measurement_files=["measurements.tsv"],
+        observable_files=["observables.tsv"],
+        extensions={
+            "my_ext": {
+                "version": "1.0.0",
+                "required": False,
+                "some_key": "some_value",
+            }
+        },
+    )
+    ext = pc.extensions["my_ext"]
+    assert isinstance(ext, ExtensionConfig)
+    assert ext.version == "1.0.0"
+    assert ext.required is False
+    assert ext.some_key == "some_value"
+
+    dumped = pc.model_dump(by_alias=True)["extensions"]["my_ext"]
+    assert dumped == {
+        "version": "1.0.0",
+        "required": False,
+        "some_key": "some_value",
+    }
+
+
+def test_problem_config_extensions_rejects_non_dict():
+    """`extensions` must be a dict keyed by extension ID (see #474) -- a
+    list is not a valid PEtab v2 problem configuration."""
+    with pytest.raises(ValidationError):
+        ProblemConfig(
+            parameter_files=["parameters.tsv"],
+            measurement_files=["measurements.tsv"],
+            observable_files=["observables.tsv"],
+            extensions=[{"version": "1.0.0", "required": False}],
+        )
+
+
+def test_validate_unsupported_extension_severity():
+    """libpetab-python doesn't mathematically interpret extensions, so an
+    unsupported extension only ever produces a WARNING (that the problem
+    can't be fully linted) -- regardless of `required`. Rejecting a problem
+    that uses an unsupported `required` extension is up to the consumer
+    (e.g. a simulator) that actually interprets it."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("""
+    model m
+      species A;
+      A = 1;
+      k1 = 1;
+      R1: A -> ; k1 * A;
+    end
+    """)
+    problem.add_observable("obs_A", "A", noise_formula="1")
+    problem.add_parameter(
+        "k1", estimate=True, lb=1e-5, ub=1e5, nominal_value=1
+    )
+    problem.add_measurement("obs_A", time=1, measurement=1, experiment_id="")
+    assert problem.validate() == []
+
+    for required in (False, True):
+        problem.config = ProblemConfig(
+            extensions={"my_ext": {"version": "1.0.0", "required": required}}
+        )
+        results = problem.validate()
+        assert not results.has_errors()
+        assert any(
+            r.level == ValidationIssueSeverity.WARNING
+            and "my_ext" in r.message
+            for r in results
+        )
 
 
 def test_get_changes_for_period():

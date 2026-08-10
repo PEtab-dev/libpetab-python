@@ -25,6 +25,7 @@ except ModuleNotFoundError:
     pass
 
 from .. import C
+from . import ExtensionConfig
 
 __all__ = [
     "Hybridization",
@@ -136,11 +137,15 @@ class NeuralNetConfig(BaseModel):
     )
 
 
-class SciMLConfig(BaseModel):
+class SciMLConfig(ExtensionConfig):
     """The extended configuration of a PEtab SciML problem."""
 
     #: The PEtab SciML format version.
     version: str = "0.1.0"
+    #: Whether the extension is required for the mathematical
+    #: interpretation of the problem. Defaults to ``True`` since a SciML
+    #: problem's hybrid ODE/ML model is virtually always load-bearing.
+    required: bool = True
     #: The paths to the array data files.
     array_files: list[AnyUrl | Path] = []
     #: The paths to the hybridization tables.
@@ -155,7 +160,7 @@ class SciMLConfig(BaseModel):
 
     def to_yaml(self) -> dict:
         """Return a YAML-serializable dict with Paths converted to strings."""
-        from . import C
+        from .. import C
 
         d = self.model_dump(by_alias=True)
         for key in ("array_files", "hybridization_files"):
