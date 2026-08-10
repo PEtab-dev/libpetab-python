@@ -1984,11 +1984,6 @@ class Problem:
             and self.config.extensions
             and (self.config.extensions.keys() - supported_extensions)
         ):
-            # Note: whether rejecting a problem that uses an unsupported
-            # extension marked `required` is up to the consumer (e.g. a
-            # simulator) that actually interprets the extension
-            # mathematically -- libpetab-python itself doesn't, so it only
-            # warns that it can't fully lint the problem.
             extensions_without_support = ",".join(
                 self.config.extensions.keys() - supported_extensions
             )
