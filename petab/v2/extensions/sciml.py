@@ -140,8 +140,8 @@ class NeuralNetConfig(BaseModel):
 class SciMLConfig(ExtensionConfig):
     """The extended configuration of a PEtab SciML problem."""
 
-    version = "0.1.0"
-    required = True
+    version: str = "0.1.0"
+    required: bool = True
     #: The paths to the array data files.
     array_files: list[AnyUrl | Path] = []
     #: The paths to the hybridization tables.
