@@ -2549,7 +2549,7 @@ class ProblemConfig(BaseModel):
         """Parse extensions dict and convert known extensions to their specific
         config classes."""
         if not isinstance(v, dict):
-            raise ValueError(
+            raise TypeError(
                 "extensions must be a dict of extension ID to extension "
                 f"config, got {type(v)}."
             )

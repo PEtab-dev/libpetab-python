@@ -140,12 +140,8 @@ class NeuralNetConfig(BaseModel):
 class SciMLConfig(ExtensionConfig):
     """The extended configuration of a PEtab SciML problem."""
 
-    #: The PEtab SciML format version.
-    version: str = "0.1.0"
-    #: Whether the extension is required for the mathematical
-    #: interpretation of the problem. Defaults to ``True`` since a SciML
-    #: problem's hybrid ODE/ML model is virtually always load-bearing.
-    required: bool = True
+    version = "0.1.0"
+    required = True
     #: The paths to the array data files.
     array_files: list[AnyUrl | Path] = []
     #: The paths to the hybridization tables.
