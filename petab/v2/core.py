@@ -54,7 +54,7 @@ from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
-from .extensions import ExtensionConfig
+from .extensions import ExtensionConfig, parse_extension_config
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
@@ -313,10 +313,7 @@ class BaseTable(BaseModel, Generic[T]):
 
 # SciML extension classes — imported after BaseTable is defined to avoid
 # circular imports (sciml.py does not import from core.py).
-from .extensions.sciml import (  # noqa: E402
-    SciMLConfig,
-    SciMLExt,
-)
+from .extensions.sciml import SciMLExt  # noqa: E402
 
 
 class ProblemExtensions:
@@ -2549,25 +2546,14 @@ class ProblemConfig(BaseModel):
         """Parse extensions dict and convert known extensions to their specific
         config classes."""
         if not isinstance(v, dict):
-            raise TypeError(
+            raise ValueError(
                 "extensions must be a dict of extension ID to extension "
                 f"config, got {type(v)}."
             )
-        parsed_extensions = {}
-        for ext_name, ext_config in v.items():
-            if ext_name == C.EXT_ID_SCIML:
-                parsed_extensions[ext_name] = (
-                    ext_config
-                    if isinstance(ext_config, SciMLConfig)
-                    else SciMLConfig(**ext_config)
-                )
-            else:
-                parsed_extensions[ext_name] = (
-                    ext_config
-                    if isinstance(ext_config, ExtensionConfig)
-                    else ExtensionConfig(**ext_config)
-                )
-        return parsed_extensions
+        return {
+            ext_id: parse_extension_config(ext_id, ext_config)
+            for ext_id, ext_config in v.items()
+        }
 
     # convert parameter_file to list
     @field_validator(
