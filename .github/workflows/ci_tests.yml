@@ -32,8 +32,8 @@ jobs:
     - name: Unit tests
       run: |
         uv sync --group ci
-        uv pip install "sympy>=1.12.1"
-        uv run --no-sync pytest --cov=petab --cov-report=xml --cov-append --durations=10 tests
+        uv pip list
+        uv run pytest --cov=petab --cov-report=xml --cov-append --durations=10 tests
 
     - name: Coverage
       uses: codecov/codecov-action@v7

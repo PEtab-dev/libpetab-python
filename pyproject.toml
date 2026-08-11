@@ -95,6 +95,8 @@ ci = [
 # pysb<1.17 fails to build: its legacy `ez_setup.py` bootstrap downloads
 # setuptools from a defunct pypi.python.org URL.
 constraint-dependencies = ["pysb>=1.17.0"]
+# pysb pins an older sympy than we need; force a newer one.
+override-dependencies = ["sympy>=1.12.1"]
 
 [tool.setuptools.packages.find]
 include = ["petab", "petab.*"]
