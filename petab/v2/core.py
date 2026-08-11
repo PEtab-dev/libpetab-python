@@ -35,6 +35,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    SerializeAsAny,
     ValidationInfo,
     field_serializer,
     field_validator,
@@ -53,6 +54,7 @@ from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
+from .extensions import ExtensionConfig, parse_extension_config
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
@@ -311,10 +313,7 @@ class BaseTable(BaseModel, Generic[T]):
 
 # SciML extension classes — imported after BaseTable is defined to avoid
 # circular imports (sciml.py does not import from core.py).
-from .extensions.sciml import (  # noqa: E402
-    SciMLConfig,
-    SciMLExt,
-)
+from .extensions.sciml import SciMLExt  # noqa: E402
 
 
 class ProblemExtensions:
@@ -2492,13 +2491,6 @@ class ModelFile(BaseModel):
     )
 
 
-class ExtensionConfig(BaseModel):
-    """The configuration of a PEtab extension."""
-
-    version: str
-    config: dict
-
-
 class ProblemConfig(BaseModel):
     """The PEtab problem configuration."""
 
@@ -2541,8 +2533,8 @@ class ProblemConfig(BaseModel):
     # Absolute or relative to `base_path`.
     mapping_files: list[AnyUrl | Path] = []
 
-    #: Extensions used by the problem.
-    extensions: list[ExtensionConfig] | dict = {}
+    #: Extensions used by the problem, keyed by extension ID.
+    extensions: dict[str, SerializeAsAny[ExtensionConfig]] = {}
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -2553,23 +2545,15 @@ class ProblemConfig(BaseModel):
     def _parse_extensions(cls, v):
         """Parse extensions dict and convert known extensions to their specific
         config classes."""
-        if isinstance(v, dict):
-            parsed_extensions = {}
-            for ext_name, ext_config in v.items():
-                if ext_name == C.EXT_ID_SCIML:
-                    parsed_extensions[ext_name] = (
-                        ext_config
-                        if isinstance(ext_config, SciMLConfig)
-                        else SciMLConfig(**ext_config)
-                    )
-                else:
-                    parsed_extensions[ext_name] = (
-                        ext_config
-                        if isinstance(ext_config, ExtensionConfig)
-                        else ExtensionConfig(**ext_config)
-                    )
-            return parsed_extensions
-        return v
+        if not isinstance(v, dict):
+            raise ValueError(
+                "extensions must be a dict of extension ID to extension "
+                f"config, got {type(v)}."
+            )
+        return {
+            ext_id: parse_extension_config(ext_id, ext_config)
+            for ext_id, ext_config in v.items()
+        }
 
     # convert parameter_file to list
     @field_validator(
