@@ -22,7 +22,7 @@ and the easiest way to install it is running
 
     pip3 install petab
 
-`petab` requires Python>=3.11. We are following
+`petab` requires Python>=3.12. We are following
 [NumPy's Python support policy](https://numpy.org/neps/nep-0029-deprecation_policy.html).
 
 Development versions of the PEtab library can be installed using

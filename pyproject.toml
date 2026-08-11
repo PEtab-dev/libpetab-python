@@ -84,6 +84,20 @@ petab_visualize = "petab.v1.visualize.cli:_petab_visualize_main"
 Repository = "https://github.com/PEtab-dev/libpetab-python"
 Documentation = "https://petab.readthedocs.io/projects/libpetab-python/"
 
+[dependency-groups]
+ci = [
+    "petab[tests,reports,combine,vis]",
+    "petabtests @ git+https://github.com/PEtab-dev/petab_test_suite@main",
+    "benchmark_models_petab @ git+https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab.git@master#subdirectory=src/python",
+]
+
+[tool.uv]
+# pysb<1.17 fails to build: its legacy `ez_setup.py` bootstrap downloads
+# setuptools from a defunct pypi.python.org URL.
+constraint-dependencies = ["pysb>=1.17.0"]
+# pysb pins an older sympy than we need; force a newer one.
+override-dependencies = ["sympy>=1.12.1"]
+
 [tool.setuptools.packages.find]
 include = ["petab", "petab.*"]
 namespaces = false
