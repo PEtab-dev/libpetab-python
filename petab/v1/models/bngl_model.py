@@ -37,7 +37,7 @@ from .. import is_valid_identifier
 from . import MODEL_TYPE_BNGL
 from .model import Model
 
-__all__ = ["BnglModel", "BnglEntities", "parse_bngl"]
+__all__ = ["BnglEntities", "BnglModel", "parse_bngl"]
 
 #: The three keywords that open an observable declaration line.
 _OBS_KEYWORDS = frozenset({"Molecules", "Species", "Counter"})
@@ -379,6 +379,7 @@ class BnglModel(Model):
                 text=True,
                 timeout=120,
                 cwd=str(path.parent),
+                check=False,
             )
         except (OSError, subprocess.SubprocessError):
             # A tooling hiccup must not masquerade as an invalid model.

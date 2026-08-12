@@ -132,8 +132,8 @@ def _strip_to_model(text):
     out, stack = [], []
     for line in text.splitlines():
         s = line.split("#", 1)[0].strip()
-        begin = re.match(r"begin\s+(.+)", s, re.I)
-        end = re.match(r"end\s+(.+)", s, re.I)
+        begin = re.match(r"begin\s+(.+)", s, re.IGNORECASE)
+        end = re.match(r"end\s+(.+)", s, re.IGNORECASE)
         if begin:
             stack.append(begin.group(1).strip().lower())
             if stack[-1] != "actions":
@@ -157,6 +157,7 @@ def _canonical_bngl(model_text, bng2):
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
         canon = Path(work) / "canon.bngl"
         if result.returncode != 0 or not canon.is_file():
