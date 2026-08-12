@@ -65,7 +65,9 @@ class Hybridization(BaseModel):
 class HybridizationTable:
     """PEtab SciML hybridization table."""
 
-    def __init__(self, hybridizations: list[Hybridization] = None, **kwargs):
+    def __init__(
+        self, hybridizations: list[Hybridization] | None = None, **kwargs
+    ):
         self.hybridizations: list[Hybridization] = hybridizations or []
         self.rel_path: AnyUrl | Path | None = kwargs.get("rel_path")
         self.base_path: AnyUrl | Path | None = kwargs.get("base_path")
@@ -100,7 +102,7 @@ class HybridizationTable:
         records = [h.model_dump(by_alias=True) for h in self.hybridizations]
         return pd.DataFrame(records)
 
-    def to_tsv(self, file_path: str | Path = None) -> None:
+    def to_tsv(self, file_path: str | Path | None = None) -> None:
         """Write the table to a TSV file."""
         df = self.to_df()
         df.to_csv(
@@ -143,11 +145,11 @@ class SciMLConfig(ExtensionConfig):
     version: str = "0.1.0"
     required: bool = True
     #: The paths to the array data files.
-    array_files: list[AnyUrl | Path] = []
+    array_files: list[AnyUrl | Path] = []  # noqa RUF012
     #: The paths to the hybridization tables.
-    hybridization_files: list[AnyUrl | Path] = []
+    hybridization_files: list[AnyUrl | Path] = []  # noqa RUF012
     #: The neural network IDs and info.
-    neural_networks: dict[str, NeuralNetConfig] | None = {}
+    neural_networks: dict[str, NeuralNetConfig] | None = {}  # noqa RUF012
 
     #: :meta private:
     model_config = ConfigDict(

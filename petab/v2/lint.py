@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
+import typing
 from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
-from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
 from itertools import chain
@@ -20,38 +20,38 @@ from .core import PriorDistribution, Problem
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "ValidationIssueSeverity",
-    "ValidationIssue",
-    "ValidationResultList",
-    "ValidationError",
-    "ValidationTask",
-    "CheckModel",
-    "CheckProblemConfig",
-    "CheckMeasuredObservablesDefined",
-    "CheckOverridesMatchPlaceholders",
-    "CheckMeasuredExperimentsDefined",
-    "CheckMeasurementModelId",
-    "CheckPosLogMeasurements",
-    "CheckValidConditionTargets",
-    "CheckUniquePrimaryKeys",
-    "CheckExperimentTable",
-    "CheckExperimentConditionsExist",
     "CheckAllParametersPresentInParameterTable",
-    "CheckValidParameterInConditionOrParameterTable",
-    "CheckUnusedExperiments",
-    "CheckObservablesDoNotShadowModelEntities",
-    "CheckUnusedConditions",
-    "CheckPriorDistribution",
-    "CheckUndefinedExperiments",
+    "CheckArrayDataFiles",
+    "CheckExperimentConditionsExist",
+    "CheckExperimentTable",
+    "CheckHybridizationTable",
     "CheckInitialChangeSymbols",
     "CheckMappingTable",
+    "CheckMeasuredExperimentsDefined",
+    "CheckMeasuredObservablesDefined",
+    "CheckMeasurementModelId",
+    "CheckModel",
     "CheckNeuralNetworkModel",
-    "CheckHybridizationTable",
+    "CheckObservablesDoNotShadowModelEntities",
+    "CheckOverridesMatchPlaceholders",
+    "CheckPosLogMeasurements",
+    "CheckPriorDistribution",
+    "CheckProblemConfig",
     "CheckSciMLConditionTable",
-    "CheckArrayDataFiles",
     "CheckSciMLParameterTable",
-    "lint_problem",
+    "CheckUndefinedExperiments",
+    "CheckUniquePrimaryKeys",
+    "CheckUnusedConditions",
+    "CheckUnusedExperiments",
+    "CheckValidConditionTargets",
+    "CheckValidParameterInConditionOrParameterTable",
+    "ValidationError",
+    "ValidationIssue",
+    "ValidationIssueSeverity",
+    "ValidationResultList",
+    "ValidationTask",
     "default_validation_tasks",
+    "lint_problem",
 ]
 
 
@@ -347,7 +347,7 @@ class CheckPosLogMeasurements(ValidationTask):
     log-transformation are positive."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        from .core import NoiseDistribution as ND  # noqa: N813
+        from .core import NoiseDistribution as ND
 
         log_observables = {
             o.id
@@ -541,7 +541,7 @@ class CheckExperimentConditionsExist(ValidationTask):
                 key
                 for array_data in problem.extensions.sciml.array_data_files
                 for input_array in array_data.inputs.values()
-                for key in input_array.keys()
+                for key in input_array
             }
         for experiment in problem.experiments:
             missing_conditions = (
@@ -819,7 +819,7 @@ class CheckInitialChangeSymbols(ValidationTask):
 class CheckPriorDistribution(ValidationTask):
     """A task to validate the prior distribution of a PEtab problem."""
 
-    _num_pars = {
+    _num_pars: typing.ClassVar = {
         PriorDistribution.CAUCHY: 2,
         PriorDistribution.CHI_SQUARED: 1,
         PriorDistribution.EXPONENTIAL: 1,
@@ -862,7 +862,7 @@ class CheckPriorDistribution(ValidationTask):
                 if parameter.estimate and parameter.prior_dist is not None:
                     # .prior_dist fails for non-estimated parameters
                     _ = parameter.prior_dist.sample(1)
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 messages.append(
                     f"Prior parameters `{parameter.prior_parameters}` "
                     f"for parameter `{parameter.id}` are invalid "
@@ -1023,7 +1023,7 @@ def get_valid_parameters_for_parameter_table(
     )
 
     for mapping in problem.mappings:
-        if mapping.model_id and mapping.model_id in parameter_ids.keys():
+        if mapping.model_id and mapping.model_id in parameter_ids:
             parameter_ids[mapping.petab_id] = None
 
     if problem.extensions.sciml is not None:
@@ -1059,7 +1059,7 @@ def get_valid_parameters_for_parameter_table(
 
 def get_required_parameters_for_parameter_table(
     problem: Problem,
-) -> Set[str]:
+) -> set[str]:
     """
     Get the set of parameters that need to go into the parameter table
 
@@ -1197,7 +1197,7 @@ default_validation_tasks = [
 # Import SciML validation from sciml_lint at the end to avoid circular
 # imports.
 try:
-    from ..v2.extensions.sciml_lint import (  # noqa: E402
+    from ..v2.extensions.sciml_lint import (
         CheckArrayDataFiles,
         CheckHybridizationTable,
         CheckNeuralNetworkModel,

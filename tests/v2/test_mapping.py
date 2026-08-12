@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from petab.v2 import get_mapping_df, write_mapping_df
-from petab.v2.C import *  # noqa: F403
+from petab.v2.C import *
 
 
 def test_get_mapping_df():

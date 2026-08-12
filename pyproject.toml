@@ -129,6 +129,9 @@ convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T201"]
+"petab/v1/C.py" = ["N999"]
+"petab/v2/C.py" = ["N999"]
+"petab/v1/math/SympyVisitor.py" = ["N999"]
 
 [tool.ruff.format]
 docstring-code-format = true

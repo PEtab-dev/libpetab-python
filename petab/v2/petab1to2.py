@@ -24,7 +24,7 @@ __all__ = ["petab1to2"]
 
 
 def petab1to2(
-    yaml_config: Path | str, output_dir: Path | str = None
+    yaml_config: Path | str, output_dir: Path | str | None = None
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
@@ -153,9 +153,9 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         if preeq_cond_id:
             preeq_cond_id = f"{preeq_cond_id}_"
         exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
-        if exp_id in experiments:  # noqa: B023
+        if exp_id in experiments:
             i = 1
-            while f"{exp_id}_{i}" in experiments:  # noqa: B023
+            while f"{exp_id}_{i}" in experiments:
                 i += 1
             exp_id = f"{exp_id}_{i}"
         return exp_id
@@ -325,9 +325,11 @@ def _copy_file(src: Path | str, dest: Path):
         src = Path(src.removeprefix("file:/"))
 
     if is_url(src):
-        with get_handle(src, mode="r") as src_handle:
-            with open(dest, "w") as dest_handle:
-                dest_handle.write(src_handle.handle.read())
+        with (
+            get_handle(src, mode="r") as src_handle,
+            open(dest, "w") as dest_handle,
+        ):
+            dest_handle.write(src_handle.handle.read())
         return
 
     try:

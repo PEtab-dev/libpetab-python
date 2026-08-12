@@ -22,10 +22,10 @@ from .. import core, lint
 from ..C import EXT_ID_SCIML
 
 __all__ = [
-    "CheckNeuralNetworkModel",
-    "CheckHybridizationTable",
-    "CheckSciMLConditionTable",
     "CheckArrayDataFiles",
+    "CheckHybridizationTable",
+    "CheckNeuralNetworkModel",
+    "CheckSciMLConditionTable",
     "CheckSciMLParameterTable",
 ]
 
@@ -274,7 +274,7 @@ class CheckHybridizationTable(lint.ValidationTask):
             # re-check in case a target value was assigned some other way.
             try:
                 sympify_petab(str(hyb.target_value))
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 messages.append(
                     f"Hybridization target value for `{hyb.target_id}` is "
                     f"not a valid PEtab math expression (hint: {e})."

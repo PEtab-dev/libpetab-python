@@ -5,11 +5,11 @@ from math import nan
 import pandas as pd
 import pytest
 from pandas.testing import *
-
-from petab import Problem
-from petab.C import *  # noqa: F403
+from petab.C import *
 from petab.models.sbml_model import SbmlModel
 from petab.simplify import *
+
+from petab import Problem
 
 
 @pytest.fixture

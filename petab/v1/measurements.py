@@ -1,5 +1,4 @@
 """Functions operating on the PEtab measurement table"""
-# noqa: F405
 
 import itertools
 import math
@@ -10,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from . import core, lint, observables
-from .C import *  # noqa: F403
+from .C import *
 
 __all__ = [
     "assert_overrides_match_parameter_count",
@@ -19,8 +18,8 @@ __all__ = [
     "get_measurement_parameter_ids",
     "get_rows_for_condition",
     "get_simulation_conditions",
-    "measurements_have_replicates",
     "measurement_is_at_steady_state",
+    "measurements_have_replicates",
     "split_parameter_replacement_list",
     "write_measurement_df",
 ]

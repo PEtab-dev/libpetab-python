@@ -3,8 +3,7 @@ import logging
 import pandas as pd
 import pytest
 
-import petab.v1 as v1
-import petab.v2 as v2
+from petab import v1, v2
 from petab.v2 import Problem
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 

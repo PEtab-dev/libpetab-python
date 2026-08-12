@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from petab.C import *
 
 import petab
 from petab import lint
-from petab.C import *
 
 # import fixtures
 pytest_plugins = [
@@ -136,8 +136,10 @@ def test_assert_overrides_match_parameter_count():
             OBSERVABLE_ID: ["0obsPar1noisePar", "2obsPar0noisePar"],
             OBSERVABLE_FORMULA: [
                 "1.0",
-                "observableParameter1_2obsPar0noisePar + "
-                "observableParameter2_2obsPar0noisePar",
+                (
+                    "observableParameter1_2obsPar0noisePar + "
+                    "observableParameter2_2obsPar0noisePar"
+                ),
             ],
             NOISE_FORMULA: ["noiseParameter1_0obsPar1noisePar", "1.0"],
         }
@@ -437,19 +439,16 @@ def test_petablint_succeeds():
     measurement_file = os.path.join(
         script_path, dir_isensee, "Isensee_measurementData.tsv"
     )
-    result = subprocess.run(["petablint", "-m", measurement_file])  # noqa: S603,S607
-    assert result.returncode == 0
+    subprocess.run(["petablint", "-m", measurement_file], check=True)  # noqa: S603,S607
 
     # run with yaml
     yaml_file = os.path.join(script_path, dir_fujita, "Fujita.yaml")
-    result = subprocess.run(["petablint", "-v", "-y", yaml_file])  # noqa: S603,S607
-    assert result.returncode == 0
+    subprocess.run(["petablint", "-v", "-y", yaml_file], check=True)  # noqa: S603,S607
 
     parameter_file = os.path.join(
         script_path, dir_fujita, "Fujita_parameters.tsv"
     )
-    result = subprocess.run(["petablint", "-v", "-p", parameter_file])  # noqa: S603,S607
-    assert result.returncode == 0
+    subprocess.run(["petablint", "-v", "-p", parameter_file], check=True)  # noqa: S603,S607
 
 
 def test_assert_measurement_conditions_present_in_condition_table():

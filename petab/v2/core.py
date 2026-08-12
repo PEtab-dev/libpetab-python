@@ -9,7 +9,7 @@ import tempfile
 import traceback
 from abc import abstractmethod
 from collections.abc import Sequence
-from enum import Enum
+from enum import StrEnum
 from itertools import chain
 from math import nan
 from numbers import Number
@@ -18,7 +18,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    Generic,
     Literal,
     Self,
     TypeVar,
@@ -61,25 +60,25 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "Problem",
-    "ProblemConfig",
-    "Observable",
-    "ObservableTable",
-    "NoiseDistribution",
     "Change",
     "Condition",
     "ConditionTable",
-    "ExperimentPeriod",
     "Experiment",
+    "ExperimentPeriod",
     "ExperimentTable",
-    "Measurement",
-    "MeasurementTable",
     "Mapping",
     "MappingTable",
+    "Measurement",
+    "MeasurementTable",
+    "NoiseDistribution",
+    "Observable",
+    "ObservableTable",
     "Parameter",
     "ParameterScale",
     "ParameterTable",
     "PriorDistribution",
+    "Problem",
+    "ProblemConfig",
 ]
 
 logger = logging.getLogger(__name__)
@@ -134,7 +133,7 @@ def _valid_petab_id_or_none(v: str) -> str | None:
     return v
 
 
-class ParameterScale(str, Enum):
+class ParameterScale(StrEnum):
     """Parameter scales.
 
     Parameter scales as used in the PEtab parameter table.
@@ -145,7 +144,7 @@ class ParameterScale(str, Enum):
     LOG10 = C.LOG10
 
 
-class NoiseDistribution(str, Enum):
+class NoiseDistribution(StrEnum):
     """Noise distribution types.
 
     Noise distributions as used in the PEtab observable table.
@@ -161,7 +160,7 @@ class NoiseDistribution(str, Enum):
     LOG_LAPLACE = C.LOG_LAPLACE
 
 
-class PriorDistribution(str, Enum):
+class PriorDistribution(StrEnum):
     """Prior types.
 
     Prior types as used in the PEtab parameter table.
@@ -219,7 +218,7 @@ assert not (_mismatch := set(PriorDistribution) ^ set(_prior_to_cls)), (
 T = TypeVar("T", bound=BaseModel)
 
 
-class BaseTable(BaseModel, Generic[T]):
+class BaseTable[T: BaseModel](BaseModel):
     """Base class for PEtab tables."""
 
     #: The table elements
@@ -232,7 +231,7 @@ class BaseTable(BaseModel, Generic[T]):
     #: This is usually the directory of the PEtab YAML file.
     base_path: AnyUrl | Path | None = Field(exclude=True, default=None)
 
-    def __init__(self, elements: list[T] = None, **kwargs) -> None:
+    def __init__(self, elements: list[T] | None = None, **kwargs) -> None:
         """Initialize the BaseTable with a list of elements."""
         if elements is None:
             elements = []
@@ -262,12 +261,10 @@ class BaseTable(BaseModel, Generic[T]):
     @abstractmethod
     def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
         """Create a table from a DataFrame."""
-        pass
 
     @abstractmethod
     def to_df(self) -> pd.DataFrame:
         """Convert the table to a DataFrame."""
-        pass
 
     @classmethod
     def from_tsv(
@@ -277,7 +274,7 @@ class BaseTable(BaseModel, Generic[T]):
         df = pd.read_csv(_generate_path(file_path, base_path), sep="\t")
         return cls.from_df(df, rel_path=file_path, base_path=base_path)
 
-    def to_tsv(self, file_path: str | Path = None) -> None:
+    def to_tsv(self, file_path: str | Path | None = None) -> None:
         """Write the table to a TSV file."""
         df = self.to_df()
         df.to_csv(
@@ -516,7 +513,7 @@ class Condition(BaseModel):
             raise TypeError("Can only add Change to Condition")
         return Condition(id=self.id, changes=self.changes + [other])
 
-    def __iadd__(self, other: Change) -> Condition:
+    def __iadd__(self, other: Change) -> Self:
         """Add a change to the set in place."""
         if not isinstance(other, Change):
             raise TypeError("Can only add Change to Condition")
@@ -652,7 +649,7 @@ class Experiment(BaseModel):
             raise TypeError("Can only add ExperimentPeriod to Experiment")
         return Experiment(id=self.id, periods=self.periods + [other])
 
-    def __iadd__(self, other: ExperimentPeriod) -> Experiment:
+    def __iadd__(self, other: ExperimentPeriod) -> Self:
         """Add a period to the experiment in place."""
         if not isinstance(other, ExperimentPeriod):
             raise TypeError("Can only add ExperimentPeriod to Experiment")
@@ -1142,13 +1139,13 @@ class Problem:
 
     def __init__(
         self,
-        models: list[Model] = None,
-        condition_tables: list[ConditionTable] = None,
-        experiment_tables: list[ExperimentTable] = None,
-        observable_tables: list[ObservableTable] = None,
-        measurement_tables: list[MeasurementTable] = None,
-        parameter_tables: list[ParameterTable] = None,
-        mapping_tables: list[MappingTable] = None,
+        models: list[Model] | None = None,
+        condition_tables: list[ConditionTable] | None = None,
+        experiment_tables: list[ExperimentTable] | None = None,
+        observable_tables: list[ObservableTable] | None = None,
+        measurement_tables: list[MeasurementTable] | None = None,
+        parameter_tables: list[ParameterTable] | None = None,
+        mapping_tables: list[MappingTable] | None = None,
         extensions: ProblemExtensions = None,
         config: ProblemConfig = None,
     ):
@@ -1237,7 +1234,7 @@ class Problem:
 
     @staticmethod
     def from_yaml(
-        yaml_config: dict | Path | str, base_path: str | Path = None
+        yaml_config: dict | Path | str, base_path: str | Path | None = None
     ) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
@@ -1957,7 +1954,7 @@ class Problem:
         return sum(p.prior_distribution is not None for p in self.parameters)
 
     def validate(
-        self, validation_tasks: list[ValidationTask] = None
+        self, validation_tasks: list[ValidationTask] | None = None
     ) -> ValidationResultList:
         """Validate the PEtab problem.
 
@@ -2009,7 +2006,7 @@ class Problem:
         for task in validation_tasks or self.validation_tasks:
             try:
                 cur_result = task.run(self)
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 cur_result = ValidationIssue(
                     ValidationIssueSeverity.CRITICAL,
                     f"Validation task {task} failed with exception: {e}\n"
@@ -2046,7 +2043,10 @@ class Problem:
             )
 
     def add_condition(
-        self, id_: str, name: str = None, **kwargs: Number | str | sp.Expr
+        self,
+        id_: str,
+        name: str | None = None,
+        **kwargs: Number | str | sp.Expr,
     ):
         """Add a simulation condition to the problem.
 
@@ -2080,11 +2080,11 @@ class Problem:
         self,
         id_: str,
         formula: str,
-        noise_formula: str | float | int = None,
-        noise_distribution: str = None,
-        observable_placeholders: list[str] = None,
-        noise_placeholders: list[str] = None,
-        name: str = None,
+        noise_formula: str | float | None = None,
+        noise_distribution: str | None = None,
+        observable_placeholders: list[str] | None = None,
+        noise_placeholders: list[str] | None = None,
+        name: str | None = None,
         **kwargs,
     ):
         """Add an observable to the problem.
@@ -2129,10 +2129,10 @@ class Problem:
         id_: str,
         estimate: bool | str = True,
         nominal_value: Number | None = None,
-        lb: Number = None,
-        ub: Number = None,
-        prior_dist: str = None,
-        prior_pars: str | Sequence = None,
+        lb: Number | None = None,
+        ub: Number | None = None,
+        prior_dist: str | None = None,
+        prior_pars: str | Sequence | None = None,
         **kwargs,
     ):
         """Add a parameter to the problem.
@@ -2183,8 +2183,11 @@ class Problem:
         time: float,
         measurement: float,
         experiment_id: str | None = None,
-        observable_parameters: Sequence[str | float] | str | float = None,
-        noise_parameters: Sequence[str | float] | str | float = None,
+        observable_parameters: Sequence[str | float]
+        | str
+        | float
+        | None = None,
+        noise_parameters: Sequence[str | float] | str | float | None = None,
     ):
         """Add a measurement to the problem.
 
@@ -2223,7 +2226,10 @@ class Problem:
         )
 
     def add_mapping(
-        self, petab_id: str, model_id: str = None, name: str = None
+        self,
+        petab_id: str,
+        model_id: str | None = None,
+        name: str | None = None,
     ):
         """Add a mapping table entry to the problem.
 
@@ -2318,7 +2324,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                 self.experiment_tables.append(ExperimentTable())
             self.experiment_tables[-1] += other
         else:
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Cannot add object of type {type(other)} to Problem."
             )
         return self
@@ -2465,14 +2471,13 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                 if (
                     mapping.petab_id == candidate
                     and mapping.model_id is not None
+                ) and (
+                    self.model
+                    and self.model.symbol_allowed_in_observable_formula(
+                        mapping.model_id
+                    )
                 ):
-                    if (
-                        self.model
-                        and self.model.symbol_allowed_in_observable_formula(
-                            mapping.model_id
-                        )
-                    ):
-                        break
+                    break
             else:
                 # no mapping to a model entity, so it is an output parameter
                 output_parameters.append(candidate)
@@ -2546,7 +2551,7 @@ class ProblemConfig(BaseModel):
         """Parse extensions dict and convert known extensions to their specific
         config classes."""
         if not isinstance(v, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "extensions must be a dict of extension ID to extension "
                 f"config, got {type(v)}."
             )

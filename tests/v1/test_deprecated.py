@@ -17,13 +17,13 @@ def test_problem_with_sbml_model():
     (
         model,
         condition_df,
-        observable_df,
+        _observable_df,
         measurement_df,
         parameter_df,
     ) = create_test_data()
 
     with pytest.deprecated_call():
-        petab_problem = petab.Problem(  # noqa: F811
+        petab_problem = petab.Problem(
             model=model,
             condition_df=condition_df,
             measurement_df=measurement_df,

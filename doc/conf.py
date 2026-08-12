@@ -31,7 +31,7 @@ release = "latest"
 # -- Custom pre-build --------------------------------------------------------
 
 
-subprocess.run([sys.executable, "md2rst.py"])  # noqa: S603
+subprocess.run([sys.executable, "md2rst.py"], check=True)
 
 # -- General configuration ---------------------------------------------------
 
