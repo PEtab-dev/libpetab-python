@@ -36,6 +36,7 @@ maintainers = [
 tests = [
     "antimony>=3.1.0",
     "copasi-basico>=0.85",
+    "petab_sciml",
     "pysb",
     "pytest",
     "pytest-cov",
@@ -71,6 +72,9 @@ vis = [
     "seaborn",
     "scipy"
 ]
+sciml = [
+    "petab_sciml",
+]
 
 [project.scripts]
 petablint = "petab.petablint:main"
@@ -79,6 +83,20 @@ petab_visualize = "petab.v1.visualize.cli:_petab_visualize_main"
 [project.urls]
 Repository = "https://github.com/PEtab-dev/libpetab-python"
 Documentation = "https://petab.readthedocs.io/projects/libpetab-python/"
+
+[dependency-groups]
+ci = [
+    "petab[tests,reports,combine,vis]",
+    "petabtests @ git+https://github.com/PEtab-dev/petab_test_suite@main",
+    "benchmark_models_petab @ git+https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab.git@master#subdirectory=src/python",
+]
+
+[tool.uv]
+# pysb<1.17 fails to build: its legacy `ez_setup.py` bootstrap downloads
+# setuptools from a defunct pypi.python.org URL.
+constraint-dependencies = ["pysb>=1.17.0"]
+# pysb pins an older sympy than we need; force a newer one.
+override-dependencies = ["sympy>=1.12.1"]
 
 [tool.setuptools.packages.find]
 include = ["petab", "petab.*"]
@@ -111,6 +129,9 @@ convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T201"]
+"petab/v1/C.py" = ["N999"]
+"petab/v2/C.py" = ["N999"]
+"petab/v1/math/SympyVisitor.py" = ["N999"]
 
 [tool.ruff.format]
 docstring-code-format = true

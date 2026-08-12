@@ -58,7 +58,9 @@ class ExperimentsToSbmlConverter:
     #: pre-equilibration indicator to 0.
     CONDITION_ID_PREEQ_OFF = "_petab_preequilibration_off"
 
-    def __init__(self, problem: Problem, default_priority: float = None):
+    def __init__(
+        self, problem: Problem, default_priority: float | None = None
+    ):
         """Initialize the converter.
 
         :param problem: The PEtab problem to convert.
@@ -80,13 +82,18 @@ class ExperimentsToSbmlConverter:
                 "Only single-model PEtab problems are supported."
             )
         if not isinstance(problem.model, SbmlModel):
-            raise ValueError("Only SBML models are supported.")
+            raise TypeError("Only SBML models are supported.")
 
         self._original_problem = problem
         self._new_problem = deepcopy(self._original_problem)
 
         self._model: libsbml.Model = self._new_problem.model.sbml_model
         self._preeq_indicator = self.PREEQ_INDICATOR
+
+        sciml = self._new_problem.extensions.sciml
+        self._array_data_condition_ids = (
+            sciml._get_array_data_condition_ids() if sciml else set()
+        )
 
         # The maximum event priority that was found in the unprocessed model.
         self._max_event_priority = None
@@ -104,14 +111,16 @@ class ExperimentsToSbmlConverter:
         """Check whether we can handle the given problem and store some model
         information."""
         model = self._model
-        if model.getLevel() < 3:
-            # try to upgrade the SBML model
-            if not model.getSBMLDocument().setLevelAndVersion(3, 2):
-                raise ValueError(
-                    "Cannot handle SBML models with SBML level < 3, "
-                    "because they do not support initial values for event "
-                    "triggers and automatic upconversion of the model failed."
-                )
+        # try to upgrade the SBML model if necessary
+        if (
+            model.getLevel() < 3
+            and not model.getSBMLDocument().setLevelAndVersion(3, 2)
+        ):
+            raise ValueError(
+                "Cannot handle SBML models with SBML level < 3, "
+                "because they do not support initial values for event "
+                "triggers and automatic upconversion of the model failed."
+            )
 
         # Apply default priority to all events that do not have a priority
         if self._default_priority is not None:
@@ -249,6 +258,13 @@ class ExperimentsToSbmlConverter:
             #  single-period experiments.
             if i_period == 0:
                 exp_ind_id = self.get_experiment_indicator(experiment.id)
+                # Skip if condition ids are set by array data
+                # importers handle this
+                if self._array_data_condition_ids and set(
+                    period.condition_ids
+                ).issubset(self._array_data_condition_ids):
+                    continue
+
                 for change in self._new_problem.get_changes_for_period(period):
                     period0_assignments.setdefault(
                         change.target_id, []

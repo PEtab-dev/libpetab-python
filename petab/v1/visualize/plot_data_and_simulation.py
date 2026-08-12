@@ -14,7 +14,7 @@ from .plotting import VisSpecParser
 IdsList = list[str]
 NumList = list[int]
 
-__all__ = ["plot_with_vis_spec", "plot_without_vis_spec", "plot_problem"]
+__all__ = ["plot_problem", "plot_with_vis_spec", "plot_without_vis_spec"]
 
 
 def plot_with_vis_spec(

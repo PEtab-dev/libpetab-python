@@ -28,11 +28,11 @@ if importlib.util.find_spec("matplotlib") is not None:
 
     __all__.extend(
         [
-            "plot_without_vis_spec",
-            "plot_with_vis_spec",
-            "plot_problem",
-            "plot_goodness_of_fit",
-            "plot_residuals_vs_simulation",
             "MPLPlotter",
+            "plot_goodness_of_fit",
+            "plot_problem",
+            "plot_residuals_vs_simulation",
+            "plot_with_vis_spec",
+            "plot_without_vis_spec",
         ]
     )

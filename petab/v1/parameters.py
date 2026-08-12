@@ -3,7 +3,8 @@
 import numbers
 import warnings
 from collections import OrderedDict
-from collections.abc import Iterable, Sequence, Set
+from collections.abc import Iterable, Sequence
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import (
     Literal,
@@ -14,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from . import conditions, core, lint, measurements, observables
-from .C import *  # noqa: F403
+from .C import *
 from .models import Model
 
 __all__ = [
@@ -161,8 +162,8 @@ def create_parameter_df(
     model: Model | None = None,
     include_optional: bool = False,
     parameter_scale: str = LOG10,
-    lower_bound: Iterable = None,
-    upper_bound: Iterable = None,
+    lower_bound: Iterable | None = None,
+    upper_bound: Iterable | None = None,
     mapping_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Create a new PEtab parameter table
@@ -260,7 +261,7 @@ def get_required_parameters_for_parameter_table(
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
     mapping_df: pd.DataFrame = None,
-) -> Set[str]:
+) -> AbstractSet[str]:
     """
     Get set of parameters which need to go into the parameter table
 
@@ -397,7 +398,7 @@ def get_valid_parameters_for_parameter_table(
         for from_id, to_id in zip(
             mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
         ):
-            if to_id in parameter_ids.keys():
+            if to_id in parameter_ids:
                 parameter_ids[from_id] = None
 
     if observable_df is not None:
@@ -441,7 +442,7 @@ def get_valid_parameters_for_parameter_table(
 def get_priors_from_df(
     parameter_df: pd.DataFrame,
     mode: Literal["initialization", "objective"],
-    parameter_ids: Sequence[str] = None,
+    parameter_ids: Sequence[str] | None = None,
 ) -> list[tuple]:
     """Create list with information about the parameter priors
 

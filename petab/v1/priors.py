@@ -73,7 +73,7 @@ class Prior:
         self,
         type_: str,
         parameters: tuple,
-        bounds: tuple = None,
+        bounds: tuple | None = None,
         transformation: str = C.LIN,
         _bounds_truncate: bool = True,
     ):

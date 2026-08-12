@@ -27,7 +27,7 @@ from . import (
     sbml,
     yaml,
 )
-from .C import *  # noqa: F403
+from .C import *
 from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
 from .models.sbml_model import SbmlModel
@@ -77,14 +77,14 @@ class Problem:
         sbml_reader: libsbml.SBMLReader = None,
         sbml_document: libsbml.SBMLDocument = None,
         model: Model = None,
-        model_id: str = None,
+        model_id: str | None = None,
         condition_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
-        extensions_config: dict = None,
+        extensions_config: dict | None = None,
         config: ProblemConfig = None,
     ):
         self.condition_df: pd.DataFrame | None = condition_df
@@ -179,14 +179,14 @@ class Problem:
 
     @staticmethod
     def from_files(
-        sbml_file: str | Path = None,
-        condition_file: str | Path | Iterable[str | Path] = None,
-        measurement_file: str | Path | Iterable[str | Path] = None,
-        parameter_file: str | Path | Iterable[str | Path] = None,
-        visualization_files: str | Path | Iterable[str | Path] = None,
-        observable_files: str | Path | Iterable[str | Path] = None,
-        model_id: str = None,
-        extensions_config: dict = None,
+        sbml_file: str | Path | None = None,
+        condition_file: str | Path | Iterable[str | Path] | None = None,
+        measurement_file: str | Path | Iterable[str | Path] | None = None,
+        parameter_file: str | Path | Iterable[str | Path] | None = None,
+        visualization_files: str | Path | Iterable[str | Path] | None = None,
+        observable_files: str | Path | Iterable[str | Path] | None = None,
+        model_id: str | None = None,
+        extensions_config: dict | None = None,
     ) -> Problem:
         """
         Factory method to load model and tables from files.
@@ -261,7 +261,7 @@ class Problem:
 
     @staticmethod
     def from_yaml(
-        yaml_config: dict | Path | str, base_path: str | Path = None
+        yaml_config: dict | Path | str, base_path: str | Path | None = None
     ) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
@@ -1014,7 +1014,7 @@ class Problem:
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
 
-    def add_condition(self, id_: str, name: str = None, **kwargs):
+    def add_condition(self, id_: str, name: str | None = None, **kwargs):
         """Add a simulation condition to the problem.
 
         Arguments:
@@ -1035,11 +1035,11 @@ class Problem:
     def add_observable(
         self,
         id_: str,
-        formula: str | float | int,
-        noise_formula: str | float | int = None,
-        noise_distribution: str = None,
-        transform: str = None,
-        name: str = None,
+        formula: str | float,
+        noise_formula: str | float | None = None,
+        noise_distribution: str | None = None,
+        transform: str | None = None,
+        name: str | None = None,
         **kwargs,
     ):
         """Add an observable to the problem.
@@ -1080,13 +1080,13 @@ class Problem:
         id_: str,
         estimate: bool | str | int = True,
         nominal_value: Number | None = None,
-        scale: str = None,
-        lb: Number = None,
-        ub: Number = None,
-        init_prior_type: str = None,
-        init_prior_pars: str | Sequence = None,
-        obj_prior_type: str = None,
-        obj_prior_pars: str | Sequence = None,
+        scale: str | None = None,
+        lb: Number | None = None,
+        ub: Number | None = None,
+        init_prior_type: str | None = None,
+        init_prior_pars: str | Sequence | None = None,
+        obj_prior_type: str | None = None,
+        obj_prior_pars: str | Sequence | None = None,
         **kwargs,
     ):
         """Add a parameter to the problem.
@@ -1149,9 +1149,9 @@ class Problem:
         sim_cond_id: str,
         time: float,
         measurement: float,
-        observable_parameters: Sequence[str | float] = None,
-        noise_parameters: Sequence[str | float] = None,
-        preeq_cond_id: str = None,
+        observable_parameters: Sequence[str | float] | None = None,
+        noise_parameters: Sequence[str | float] | None = None,
+        preeq_cond_id: str | None = None,
     ):
         """Add a measurement to the problem.
 

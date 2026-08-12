@@ -2,7 +2,6 @@
 
 import pysb
 import pytest
-
 from petab.models.pysb_model import (
     PySBModel,
     parse_species_name,

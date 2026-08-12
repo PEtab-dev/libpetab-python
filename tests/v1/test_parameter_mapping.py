@@ -3,10 +3,10 @@ from math import nan
 
 import numpy as np
 import pandas as pd
-
-import petab
 from petab.C import *
 from petab.models.sbml_model import SbmlModel
+
+import petab
 from petab.v1.parameter_mapping import _apply_parameter_table
 
 # import fixtures

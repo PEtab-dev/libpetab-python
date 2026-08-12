@@ -12,47 +12,32 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest, macos-latest, ubuntu-latest]
-        python-version: ["3.12", "3.x"]
+        python-version: ["3.12", "3.14"]
     runs-on: ${{ matrix.platform }}
 
     steps:
     - name: Check out repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
-    - name: Prepare python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+    - name: Install uv and python ${{ matrix.python-version }}
+      uses: astral-sh/setup-uv@v9.0.0
       with:
+        enable-cache: true
         python-version: ${{ matrix.python-version }}
 
-    - name: Get pip cache directory
-      id: pip_cache_dir
-      run: |
-        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-      shell: bash
-
-    - name: Cache
-      uses: actions/cache@v5
-      with:
-        path: ${{ steps.pip_cache_dir.outputs.dir }}
-        key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/.ci_pip_reqs.txt') }}-${{ hashFiles('**/setup.py') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.python-version }}-
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip wheel
-        pip install -r requirements-dev.txt
-
     - name: Quality tests
-      run: tox -e quality
+      run: uvx pre-commit run --all-files
       if: matrix.platform == 'ubuntu-latest'
 
     - name: Unit tests
-      run: tox -e unit
+      run: |
+        uv sync --group ci
+        uv pip list
+        uv run pytest --cov=petab --cov-report=xml --cov-append --durations=10 tests
 
     - name: Coverage
       uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.x'
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.14'

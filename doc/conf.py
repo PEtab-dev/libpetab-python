@@ -9,6 +9,8 @@ import subprocess
 import sys
 import warnings
 
+from pydantic import BaseModel
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -29,7 +31,7 @@ release = "latest"
 # -- Custom pre-build --------------------------------------------------------
 
 
-subprocess.run([sys.executable, "md2rst.py"])  # noqa: S603
+subprocess.run([sys.executable, "md2rst.py"], check=True)
 
 # -- General configuration ---------------------------------------------------
 
@@ -125,6 +127,9 @@ html_logo = "logo/PEtab.png"
 def skip_some_objects(app, what, name, obj, skip, options):
     """Exclude some objects from the documentation"""
     if getattr(obj, "__module__", None) == "collections":
+        return True
+    # Napoleon + Pydantic v2 bug: BaseModel itself triggers __getattr__ error
+    if obj is BaseModel:
         return True
 
 

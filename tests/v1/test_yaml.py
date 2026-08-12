@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from jsonschema.exceptions import ValidationError
-
 from petab.yaml import create_problem_yaml, get_path_prefix, validate
 
 
@@ -102,8 +101,8 @@ def test_get_path_prefix():
 
 def test_validate_remote():
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
 
     validate(yaml_url)

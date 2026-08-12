@@ -9,12 +9,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from petab.C import *
+from petab.models.sbml_model import SbmlModel
 from yaml import safe_load
 
 import petab
 import petab.v1
-from petab.C import *
-from petab.models.sbml_model import SbmlModel
 from petab.v1 import Problem
 
 
@@ -370,8 +370,10 @@ def test_flatten_timepoint_specific_output_overrides():
                 "x",
             ],
             NOISE_FORMULA: [
-                "(observableParameter1_obs1 + observableParameter2_obs1)"
-                " * noiseParameter1_obs1",
+                (
+                    "(observableParameter1_obs1 + observableParameter2_obs1)"
+                    " * noiseParameter1_obs1"
+                ),
                 1,
             ],
         }
@@ -392,24 +394,36 @@ def test_flatten_timepoint_specific_output_overrides():
                 "obs2__condition1",
             ],
             OBSERVABLE_FORMULA: [
-                f"observableParameter1_{obs1_1_1_1}"
-                f" + observableParameter2_{obs1_1_1_1}",
-                f"observableParameter1_{obs1_2_1_1}"
-                f" + observableParameter2_{obs1_2_1_1}",
-                f"observableParameter1_{obs1_2_2_1}"
-                f" + observableParameter2_{obs1_2_2_1}",
+                (
+                    f"observableParameter1_{obs1_1_1_1}"
+                    f" + observableParameter2_{obs1_1_1_1}"
+                ),
+                (
+                    f"observableParameter1_{obs1_2_1_1}"
+                    f" + observableParameter2_{obs1_2_1_1}"
+                ),
+                (
+                    f"observableParameter1_{obs1_2_2_1}"
+                    f" + observableParameter2_{obs1_2_2_1}"
+                ),
                 "x",
             ],
             NOISE_FORMULA: [
-                f"(observableParameter1_{obs1_1_1_1}"
-                f" + observableParameter2_{obs1_1_1_1})"
-                f" * noiseParameter1_{obs1_1_1_1}",
-                f"(observableParameter1_{obs1_2_1_1}"
-                f" + observableParameter2_{obs1_2_1_1})"
-                f" * noiseParameter1_{obs1_2_1_1}",
-                f"(observableParameter1_{obs1_2_2_1}"
-                f" + observableParameter2_{obs1_2_2_1})"
-                f" * noiseParameter1_{obs1_2_2_1}",
+                (
+                    f"(observableParameter1_{obs1_1_1_1}"
+                    f" + observableParameter2_{obs1_1_1_1})"
+                    f" * noiseParameter1_{obs1_1_1_1}"
+                ),
+                (
+                    f"(observableParameter1_{obs1_2_1_1}"
+                    f" + observableParameter2_{obs1_2_1_1})"
+                    f" * noiseParameter1_{obs1_2_1_1}"
+                ),
+                (
+                    f"(observableParameter1_{obs1_2_2_1}"
+                    f" + observableParameter2_{obs1_2_2_1})"
+                    f" * noiseParameter1_{obs1_2_2_1}"
+                ),
                 1,
             ],
         }
@@ -783,8 +797,8 @@ def test_to_files(petab_problem):  # pylint: disable=W0621
 def test_load_remote():
     """Test loading remote files"""
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
     petab_problem = petab.Problem.from_yaml(yaml_url)
 

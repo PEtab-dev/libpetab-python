@@ -33,7 +33,7 @@ class SbmlModel(Model):
         sbml_model: libsbml.Model = None,
         sbml_reader: libsbml.SBMLReader = None,
         sbml_document: libsbml.SBMLDocument = None,
-        model_id: str = None,
+        model_id: str | None = None,
         rel_path: Path | str | None = None,
         base_path: str | Path | None = None,
     ):
@@ -94,7 +94,9 @@ class SbmlModel(Model):
 
     @staticmethod
     def from_file(
-        filepath_or_buffer, model_id: str = None, base_path: str | Path = None
+        filepath_or_buffer,
+        model_id: str | None = None,
+        base_path: str | Path | None = None,
     ) -> SbmlModel:
         sbml_reader, sbml_document, sbml_model = get_sbml_model(
             _generate_path(filepath_or_buffer, base_path=base_path)
@@ -109,7 +111,7 @@ class SbmlModel(Model):
         )
 
     @staticmethod
-    def from_string(sbml_string, model_id: str = None) -> SbmlModel:
+    def from_string(sbml_string, model_id: str | None = None) -> SbmlModel:
         """Create SBML model from an SBML string.
 
         :param sbml_string: SBML model as string.

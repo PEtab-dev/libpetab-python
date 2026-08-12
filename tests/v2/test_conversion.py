@@ -1,16 +1,39 @@
 import logging
 
+import pandas as pd
 import pytest
 
+from petab import v1, v2
 from petab.v2 import Problem
-from petab.v2.petab1to2 import petab1to2
+from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
+
+
+def test_v1v2_observable_df_noise_distribution():
+    """Test that noiseDistribution is correctly merged with
+    observableTransformation."""
+    observable_df = pd.DataFrame(
+        data={
+            v1.C.OBSERVABLE_ID: ["obs1", "obs2"],
+            v1.C.OBSERVABLE_FORMULA: ["a", "b"],
+            v1.C.NOISE_FORMULA: ["1", "1"],
+            v1.C.OBSERVABLE_TRANSFORMATION: [v1.C.LIN, v1.C.LOG],
+            v1.C.NOISE_DISTRIBUTION: [v1.C.NORMAL, v1.C.NORMAL],
+        }
+    ).set_index(v1.C.OBSERVABLE_ID)
+
+    new_df = v1v2_observable_df(observable_df)
+
+    assert list(new_df[v2.C.NOISE_DISTRIBUTION]) == [
+        v2.C.NORMAL,
+        v2.C.LOG_NORMAL,
+    ]
 
 
 def test_petab1to2_remote():
     """Test that we can upgrade a remote PEtab 1.0.0 problem."""
     yaml_url = (
-        "https://raw.githubusercontent.com/PEtab-dev/petab_test_suite"
-        "/main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
+        "https://cdn.jsdelivr.net/gh/PEtab-dev/petab_test_suite"
+        "@main/petabtests/cases/v1.0.0/sbml/0001/_0001.yaml"
     )
 
     problem = petab1to2(yaml_url)

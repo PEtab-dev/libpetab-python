@@ -17,11 +17,11 @@ from .helper_functions import (
 )
 
 __all__ = [
-    "DataSeries",
     "DataPlot",
-    "Subplot",
-    "Figure",
     "DataProvider",
+    "DataSeries",
+    "Figure",
+    "Subplot",
     "VisSpecParser",
 ]
 
@@ -211,12 +211,11 @@ class Subplot:
             if col in VISUALIZATION_DF_SUBPLOT_LEVEL_COLS:
                 entry = vis_spec.loc[:, col]
                 entry = np.unique(entry)
-                if entry.size > 1:
+                if entry.size > 1 and not all(pd.isna(x) for x in entry):
                     warnings.warn(
                         f"For {PLOT_ID} {plot_id} in column "
-                        f"{col} contradictory settings ({entry})"
-                        f". Proceeding with first entry "
-                        f"({entry[0]}).",
+                        f"{col} contradictory settings ({entry}). "
+                        f"Proceeding with first entry ({entry[0]}).",
                         stacklevel=2,
                     )
                 entry = entry[0]
@@ -399,7 +398,7 @@ class Figure:
                     if key in visu_dict:
                         visu_dict[key].append(value)
                     else:
-                        visu_dict[key] = [row[key]]
+                        visu_dict[key] = [value]
         visu_df = pd.DataFrame.from_dict(visu_dict)
         visu_df.to_csv(output_file_path, sep="\t", index=False)
 
@@ -1100,7 +1099,7 @@ class VisSpecParser:
         n_rows = len(dataset_ids)
         columns_dict = {DATASET_ID: dataset_ids, Y_VALUES: [obs_id] * n_rows}
 
-        for column in settings:
+        for column in settings:  # noqa PLC0206
             if column in columns_to_expand:
                 columns_dict[column] = [settings[column]] * n_rows
 

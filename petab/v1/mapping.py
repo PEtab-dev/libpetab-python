@@ -6,14 +6,14 @@ from pathlib import Path
 import pandas as pd
 
 from . import lint
-from .C import *  # noqa: F403
+from .C import *
 from .models import Model
 
 __all__ = [
-    "get_mapping_df",
-    "write_mapping_df",
     "check_mapping_df",
+    "get_mapping_df",
     "resolve_mapping",
+    "write_mapping_df",
 ]
 
 

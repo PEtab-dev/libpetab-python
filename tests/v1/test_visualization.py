@@ -5,9 +5,9 @@ from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
 import pytest
+from petab.C import *
 
 import petab
-from petab.C import *
 from petab.v1.visualize import (
     plot_goodness_of_fit,
     plot_residuals_vs_simulation,

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
+import typing
 from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
-from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
 from itertools import chain
@@ -20,32 +20,38 @@ from .core import PriorDistribution, Problem
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "ValidationIssueSeverity",
-    "ValidationIssue",
-    "ValidationResultList",
-    "ValidationError",
-    "ValidationTask",
-    "CheckModel",
-    "CheckProblemConfig",
-    "CheckMeasuredObservablesDefined",
-    "CheckOverridesMatchPlaceholders",
-    "CheckMeasuredExperimentsDefined",
-    "CheckMeasurementModelId",
-    "CheckPosLogMeasurements",
-    "CheckValidConditionTargets",
-    "CheckUniquePrimaryKeys",
-    "CheckExperimentTable",
-    "CheckExperimentConditionsExist",
     "CheckAllParametersPresentInParameterTable",
-    "CheckValidParameterInConditionOrParameterTable",
-    "CheckUnusedExperiments",
-    "CheckObservablesDoNotShadowModelEntities",
-    "CheckUnusedConditions",
-    "CheckPriorDistribution",
-    "CheckUndefinedExperiments",
+    "CheckArrayDataFiles",
+    "CheckExperimentConditionsExist",
+    "CheckExperimentTable",
+    "CheckHybridizationTable",
     "CheckInitialChangeSymbols",
-    "lint_problem",
+    "CheckMappingTable",
+    "CheckMeasuredExperimentsDefined",
+    "CheckMeasuredObservablesDefined",
+    "CheckMeasurementModelId",
+    "CheckModel",
+    "CheckNeuralNetworkModel",
+    "CheckObservablesDoNotShadowModelEntities",
+    "CheckOverridesMatchPlaceholders",
+    "CheckPosLogMeasurements",
+    "CheckPriorDistribution",
+    "CheckProblemConfig",
+    "CheckSciMLConditionTable",
+    "CheckSciMLParameterTable",
+    "CheckUndefinedExperiments",
+    "CheckUniquePrimaryKeys",
+    "CheckUnusedConditions",
+    "CheckUnusedExperiments",
+    "CheckValidConditionTargets",
+    "CheckValidParameterInConditionOrParameterTable",
+    "ValidationError",
+    "ValidationIssue",
+    "ValidationIssueSeverity",
+    "ValidationResultList",
+    "ValidationTask",
     "default_validation_tasks",
+    "lint_problem",
 ]
 
 
@@ -341,7 +347,7 @@ class CheckPosLogMeasurements(ValidationTask):
     log-transformation are positive."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        from .core import NoiseDistribution as ND  # noqa: N813
+        from .core import NoiseDistribution as ND
 
         log_observables = {
             o.id
@@ -445,7 +451,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
 
         # check for uniqueness of all primary keys
         counter = Counter(c.id for c in problem.conditions)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -453,7 +459,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(o.id for o in problem.observables)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -461,7 +467,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(e.id for e in problem.experiments)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -469,7 +475,7 @@ class CheckUniquePrimaryKeys(ValidationTask):
             )
 
         counter = Counter(p.id for p in problem.parameters)
-        duplicates = {id_ for id_, count in counter.items() if count > 1}
+        duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
 
         if duplicates:
             return ValidationError(
@@ -508,7 +514,9 @@ class CheckExperimentTable(ValidationTask):
         for experiment in problem.experiments:
             # Check that there are no duplicate timepoints
             counter = Counter(period.time for period in experiment.periods)
-            duplicates = {time for time, count in counter.items() if count > 1}
+            duplicates = sorted(
+                time for time, count in counter.items() if count > 1
+            )
             if duplicates:
                 messages.append(
                     f"Experiment {experiment.id} contains duplicate "
@@ -528,6 +536,13 @@ class CheckExperimentConditionsExist(ValidationTask):
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
         available_conditions = {c.id for c in problem.conditions}
+        if problem.extensions.sciml:
+            available_conditions |= {
+                key
+                for array_data in problem.extensions.sciml.array_data_files
+                for input_array in array_data.inputs.values()
+                for key in input_array
+            }
         for experiment in problem.experiments:
             missing_conditions = (
                 set(
@@ -551,7 +566,8 @@ class CheckExperimentConditionsExist(ValidationTask):
 
 class CheckAllParametersPresentInParameterTable(ValidationTask):
     """Ensure all required parameters are contained in the parameter table
-    with no additional ones."""
+    with no additional ones.
+    """
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         if problem.model is None:
@@ -803,7 +819,7 @@ class CheckInitialChangeSymbols(ValidationTask):
 class CheckPriorDistribution(ValidationTask):
     """A task to validate the prior distribution of a PEtab problem."""
 
-    _num_pars = {
+    _num_pars: typing.ClassVar = {
         PriorDistribution.CAUCHY: 2,
         PriorDistribution.CHI_SQUARED: 1,
         PriorDistribution.EXPONENTIAL: 1,
@@ -825,8 +841,8 @@ class CheckPriorDistribution(ValidationTask):
 
             if parameter.prior_distribution not in PRIOR_DISTRIBUTIONS:
                 messages.append(
-                    f"Prior distribution `{parameter.prior_distribution}' "
-                    f"for parameter `{parameter.id}' is not valid."
+                    f"Prior distribution `{parameter.prior_distribution}` "
+                    f"for parameter `{parameter.id}` is not valid."
                 )
                 continue
 
@@ -834,8 +850,8 @@ class CheckPriorDistribution(ValidationTask):
                 exp_num_par := self._num_pars[parameter.prior_distribution]
             ) != len(parameter.prior_parameters):
                 messages.append(
-                    f"Prior distribution `{parameter.prior_distribution}' "
-                    f"for parameter `{parameter.id}' requires "
+                    f"Prior distribution `{parameter.prior_distribution}` "
+                    f"for parameter `{parameter.id}` requires "
                     f"{exp_num_par} parameters, but got "
                     f"{len(parameter.prior_parameters)} "
                     f"({parameter.prior_parameters})."
@@ -846,10 +862,10 @@ class CheckPriorDistribution(ValidationTask):
                 if parameter.estimate and parameter.prior_dist is not None:
                     # .prior_dist fails for non-estimated parameters
                     _ = parameter.prior_dist.sample(1)
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 messages.append(
-                    f"Prior parameters `{parameter.prior_parameters}' "
-                    f"for parameter `{parameter.id}' are invalid "
+                    f"Prior parameters `{parameter.prior_parameters}` "
+                    f"for parameter `{parameter.id}` are invalid "
                     f"(hint: {e})."
                 )
 
@@ -874,7 +890,7 @@ class CheckMeasurementModelId(ValidationTask):
                     continue
 
                 messages.append(
-                    f"Measurement `{measurement}' does not have a model ID, "
+                    f"Measurement `{measurement}` does not have a model ID, "
                     "but there are multiple models available. "
                     "Please specify the model ID in the measurement table."
                 )
@@ -882,11 +898,84 @@ class CheckMeasurementModelId(ValidationTask):
 
             if measurement.model_id not in available_models:
                 messages.append(
-                    f"Measurement `{measurement}' has model ID "
-                    f"`{measurement.model_id}' which does not match "
+                    f"Measurement `{measurement}` has model ID "
+                    f"`{measurement.model_id}` which does not match "
                     "any of the available models: "
                     f"{available_models}."
                 )
+
+        if messages:
+            return ValidationError("\n".join(messages))
+
+        return None
+
+
+class CheckMappingTable(ValidationTask):
+    """Validate the mapping table."""
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        # Mapping table is optional
+        if not problem.mappings:
+            return None
+
+        messages = []
+
+        # Check that each id, across both the petabEntityId and
+        # modelEntityId columns, occurs only once
+        must_be_unique_ids = []
+        for mapping in problem.mappings:
+            petab_id = mapping.petab_id
+            model_id = mapping.model_id
+
+            if petab_id:
+                must_be_unique_ids.append(petab_id)
+            # Identity mappings are permitted for annotation
+            if petab_id == model_id:
+                continue
+            if model_id:
+                must_be_unique_ids.append(model_id)
+
+        non_unique_ids = sorted(
+            id_
+            for id_, count in Counter(must_be_unique_ids).items()
+            if count > 1
+        )
+        if non_unique_ids:
+            return ValidationError(
+                f"Mapping table contains non-unique IDs: {non_unique_ids}."
+            )
+
+        # petabEntityId is not defined elsewhere in the PEtab problem
+        new_petab_ids = {
+            m.petab_id
+            for m in problem.mappings
+            # Ignore identity mappings and annotation-only rows
+            if m.model_id and m.petab_id != m.model_id
+        }
+        old_petab_ids = (
+            {c.id for c in problem.conditions}
+            | {e.id for e in problem.experiments}
+            | {o.id for o in problem.observables}
+        )
+        if overdefined_ids := sorted(new_petab_ids & old_petab_ids):
+            messages.append(
+                f"PEtab IDs `{overdefined_ids}` are "
+                "defined in the mapping table but also defined through "
+                "other PEtab tables."
+            )
+
+        for mapping in problem.mappings:
+            # petabEntityId not referenced in any model, if alias
+            for model in problem.models:
+                if (
+                    mapping.petab_id != mapping.model_id
+                    and model.has_entity_with_id(mapping.petab_id)
+                ):
+                    messages.append(
+                        f"`{mapping.petab_id}` is used in the mapping "
+                        "table and referenced directly in the model "
+                        f"`{model.model_id}`."
+                    )
 
         if messages:
             return ValidationError("\n".join(messages))
@@ -934,8 +1023,13 @@ def get_valid_parameters_for_parameter_table(
     )
 
     for mapping in problem.mappings:
-        if mapping.model_id and mapping.model_id in parameter_ids.keys():
+        if mapping.model_id and mapping.model_id in parameter_ids:
             parameter_ids[mapping.petab_id] = None
+
+    if problem.extensions.sciml is not None:
+        for mapping in problem.mappings:
+            if mapping.petab_id not in invalid:
+                parameter_ids[mapping.petab_id] = None
 
     # add output parameters from observable table
     output_parameters = problem.get_output_parameters()
@@ -965,7 +1059,7 @@ def get_valid_parameters_for_parameter_table(
 
 def get_required_parameters_for_parameter_table(
     problem: Problem,
-) -> Set[str]:
+) -> set[str]:
     """
     Get the set of parameters that need to go into the parameter table
 
@@ -984,13 +1078,9 @@ def get_required_parameters_for_parameter_table(
         for change in cond.changes
     }
 
-    # Add parameters from measurement table, unless they are fixed parameters
     def append_overrides(overrides):
         parameter_ids.update(
-            str_p
-            for p in overrides
-            if isinstance(p, sp.Symbol)
-            and (str_p := str(p)) not in condition_targets
+            str(p) for p in overrides if isinstance(p, sp.Symbol)
         )
 
     for m in problem.measurements:
@@ -1033,8 +1123,19 @@ def get_required_parameters_for_parameter_table(
         if not problem.model.has_entity_with_id(str(p))
     )
 
-    # parameters that are overridden via the condition table are not allowed
+    # Parameters that are overridden via the condition table are not allowed
     parameter_ids -= condition_targets
+
+    if problem.extensions.sciml is not None:
+        hybridization_targets = {
+            hyb.target_id for hyb in problem.extensions.sciml.hybridizations
+        }
+        parameter_ids -= hybridization_targets
+        hybridization_target_values = {
+            str(hyb.target_value)
+            for hyb in problem.extensions.sciml.hybridizations
+        }
+        parameter_ids -= hybridization_target_values
 
     return parameter_ids
 
@@ -1090,5 +1191,26 @@ default_validation_tasks = [
     CheckUnusedConditions(),
     CheckPriorDistribution(),
     CheckInitialChangeSymbols(),
-    # TODO validate mapping table
+    CheckMappingTable(),
 ]
+
+# Import SciML validation from sciml_lint at the end to avoid circular
+# imports.
+try:
+    from ..v2.extensions.sciml_lint import (
+        CheckArrayDataFiles,
+        CheckHybridizationTable,
+        CheckNeuralNetworkModel,
+        CheckSciMLConditionTable,
+        CheckSciMLParameterTable,
+    )
+
+    sciml_validation_tasks = default_validation_tasks + [
+        CheckNeuralNetworkModel(),
+        CheckHybridizationTable(),
+        CheckSciMLConditionTable(),
+        CheckArrayDataFiles(),
+        CheckSciMLParameterTable(),
+    ]
+except ImportError:
+    sciml_validation_tasks = default_validation_tasks

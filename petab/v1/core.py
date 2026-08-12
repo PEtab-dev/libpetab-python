@@ -15,22 +15,22 @@ import pandas as pd
 from pandas.api.types import is_string_dtype
 
 from . import yaml
-from .C import *  # noqa: F403
+from .C import *
 
 logger = logging.getLogger(__name__)
 __all__ = [
-    "get_simulation_df",
-    "write_simulation_df",
-    "get_visualization_df",
-    "write_visualization_df",
-    "get_notnull_columns",
-    "flatten_timepoint_specific_output_overrides",
     "concat_tables",
-    "to_float_if_float",
-    "is_empty",
     "create_combine_archive",
-    "unique_preserve_order",
+    "flatten_timepoint_specific_output_overrides",
+    "get_notnull_columns",
+    "get_simulation_df",
+    "get_visualization_df",
+    "is_empty",
+    "to_float_if_float",
     "unflatten_simulation_df",
+    "unique_preserve_order",
+    "write_simulation_df",
+    "write_visualization_df",
 ]
 
 POSSIBLE_GROUPVARS_FLATTENED_PROBLEM = [

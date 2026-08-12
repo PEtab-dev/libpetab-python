@@ -39,12 +39,12 @@ _trig_funcs = {
 }
 _unary_funcs = {
     "exp": sp.exp,
-    "log10": lambda x, evaluate=True: -sp.oo
-    if x.is_zero is True
-    else sp.log(x, 10, evaluate=evaluate),
-    "log2": lambda x, evaluate=True: -sp.oo
-    if x.is_zero is True
-    else sp.log(x, 2, evaluate=evaluate),
+    "log10": lambda x, evaluate=True: (
+        -sp.oo if x.is_zero is True else sp.log(x, 10, evaluate=evaluate)
+    ),
+    "log2": lambda x, evaluate=True: (
+        -sp.oo if x.is_zero is True else sp.log(x, 2, evaluate=evaluate)
+    ),
     "ln": sp.log,
     "sqrt": sp.sqrt,
     "abs": sp.Abs,
