@@ -157,7 +157,7 @@ def get_optimization_to_simulation_parameter_mapping(
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
 
-    num_threads = int(os.environ.get(ENV_NUM_THREADS, 1))
+    num_threads = int(os.environ.get(ENV_NUM_THREADS, "1"))
 
     # If sequential execution is requested, let's not create any
     # thread-allocation overhead

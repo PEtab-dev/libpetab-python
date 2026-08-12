@@ -1,5 +1,6 @@
 """A PEtab-compatible sympy string-printer."""
 
+import typing
 from itertools import chain, islice
 
 import sympy as sp
@@ -12,7 +13,7 @@ class PetabStrPrinter(StrPrinter):
     """A PEtab-compatible sympy string-printer."""
 
     #: Mapping of sympy functions to PEtab functions
-    _func_map = {
+    _func_map: typing.ClassVar[dict[str, str]] = {
         "asin": "arcsin",
         "acos": "arccos",
         "atan": "arctan",

@@ -821,8 +821,10 @@ def test_petablint_v2(tmpdir):
     problem.measurement_tables[0].rel_path = "measurements.tsv"
     problem.to_files(Path(tmpdir))
 
-    result = subprocess.run(["petablint", str(Path(tmpdir, "problem.yaml"))])  # noqa: S603,S607
-    assert result.returncode == 0
+    subprocess.run(  # noqa S607
+        ["petablint", str(Path(tmpdir, "problem.yaml"))],  # noqa S607
+        check=True,
+    )
 
 
 def test_problem_id(tmpdir):

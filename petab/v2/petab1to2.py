@@ -325,9 +325,11 @@ def _copy_file(src: Path | str, dest: Path):
         src = Path(src.removeprefix("file:/"))
 
     if is_url(src):
-        with get_handle(src, mode="r") as src_handle:
-            with open(dest, "w") as dest_handle:
-                dest_handle.write(src_handle.handle.read())
+        with (
+            get_handle(src, mode="r") as src_handle,
+            open(dest, "w") as dest_handle,
+        ):
+            dest_handle.write(src_handle.handle.read())
         return
 
     try:

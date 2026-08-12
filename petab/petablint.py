@@ -5,6 +5,7 @@
 import argparse
 import logging
 import sys
+import typing
 
 import pydantic
 from colorama import Fore
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class LintFormatter(logging.Formatter):
     """Custom log formatter"""
 
-    formats = {
+    formats: typing.ClassVar[dict[int, str]] = {
         logging.DEBUG: Fore.CYAN + "%(message)s",
         logging.INFO: Fore.GREEN + "%(message)s",
         logging.WARNING: Fore.YELLOW + "%(message)s",

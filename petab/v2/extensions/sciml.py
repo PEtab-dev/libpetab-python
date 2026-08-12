@@ -145,11 +145,11 @@ class SciMLConfig(ExtensionConfig):
     version: str = "0.1.0"
     required: bool = True
     #: The paths to the array data files.
-    array_files: list[AnyUrl | Path] = []
+    array_files: list[AnyUrl | Path] = []  # noqa RUF012
     #: The paths to the hybridization tables.
-    hybridization_files: list[AnyUrl | Path] = []
+    hybridization_files: list[AnyUrl | Path] = []  # noqa RUF012
     #: The neural network IDs and info.
-    neural_networks: dict[str, NeuralNetConfig] | None = {}
+    neural_networks: dict[str, NeuralNetConfig] | None = {}  # noqa RUF012
 
     #: :meta private:
     model_config = ConfigDict(

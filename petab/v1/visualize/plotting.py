@@ -1099,7 +1099,7 @@ class VisSpecParser:
         n_rows = len(dataset_ids)
         columns_dict = {DATASET_ID: dataset_ids, Y_VALUES: [obs_id] * n_rows}
 
-        for column in settings:
+        for column in settings:  # noqa PLC0206
             if column in columns_to_expand:
                 columns_dict[column] = [settings[column]] * n_rows
 

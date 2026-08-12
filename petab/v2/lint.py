@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
+import typing
 from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
-from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import IntEnum
 from itertools import chain
@@ -819,7 +819,7 @@ class CheckInitialChangeSymbols(ValidationTask):
 class CheckPriorDistribution(ValidationTask):
     """A task to validate the prior distribution of a PEtab problem."""
 
-    _num_pars = {
+    _num_pars: typing.ClassVar = {
         PriorDistribution.CAUCHY: 2,
         PriorDistribution.CHI_SQUARED: 1,
         PriorDistribution.EXPONENTIAL: 1,
@@ -862,7 +862,7 @@ class CheckPriorDistribution(ValidationTask):
                 if parameter.estimate and parameter.prior_dist is not None:
                     # .prior_dist fails for non-estimated parameters
                     _ = parameter.prior_dist.sample(1)
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 messages.append(
                     f"Prior parameters `{parameter.prior_parameters}` "
                     f"for parameter `{parameter.id}` are invalid "
@@ -1059,7 +1059,7 @@ def get_valid_parameters_for_parameter_table(
 
 def get_required_parameters_for_parameter_table(
     problem: Problem,
-) -> Set[str]:
+) -> set[str]:
     """
     Get the set of parameters that need to go into the parameter table
 

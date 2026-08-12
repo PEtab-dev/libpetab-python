@@ -478,7 +478,7 @@ def assert_parameter_id_is_string(parameter_df: pd.DataFrame) -> None:
                     f"{PARAMETER_ID} {parameter_id} starts with integer."
                 )
         else:
-            raise AssertionError(f"Empty {PARAMETER_ID} found.")
+            raise AssertionError(f"Empty {PARAMETER_ID} found.")  # noqa TRY004
 
 
 def assert_unique_parameter_ids(parameter_df: pd.DataFrame) -> None:

@@ -82,7 +82,7 @@ class ExperimentsToSbmlConverter:
                 "Only single-model PEtab problems are supported."
             )
         if not isinstance(problem.model, SbmlModel):
-            raise ValueError("Only SBML models are supported.")
+            raise TypeError("Only SBML models are supported.")
 
         self._original_problem = problem
         self._new_problem = deepcopy(self._original_problem)
@@ -111,14 +111,16 @@ class ExperimentsToSbmlConverter:
         """Check whether we can handle the given problem and store some model
         information."""
         model = self._model
-        if model.getLevel() < 3:
-            # try to upgrade the SBML model
-            if not model.getSBMLDocument().setLevelAndVersion(3, 2):
-                raise ValueError(
-                    "Cannot handle SBML models with SBML level < 3, "
-                    "because they do not support initial values for event "
-                    "triggers and automatic upconversion of the model failed."
-                )
+        # try to upgrade the SBML model if necessary
+        if (
+            model.getLevel() < 3
+            and not model.getSBMLDocument().setLevelAndVersion(3, 2)
+        ):
+            raise ValueError(
+                "Cannot handle SBML models with SBML level < 3, "
+                "because they do not support initial values for event "
+                "triggers and automatic upconversion of the model failed."
+            )
 
         # Apply default priority to all events that do not have a priority
         if self._default_priority is not None:

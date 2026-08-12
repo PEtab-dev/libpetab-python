@@ -2006,7 +2006,7 @@ class Problem:
         for task in validation_tasks or self.validation_tasks:
             try:
                 cur_result = task.run(self)
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 cur_result = ValidationIssue(
                     ValidationIssueSeverity.CRITICAL,
                     f"Validation task {task} failed with exception: {e}\n"
@@ -2324,7 +2324,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                 self.experiment_tables.append(ExperimentTable())
             self.experiment_tables[-1] += other
         else:
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Cannot add object of type {type(other)} to Problem."
             )
         return self
@@ -2551,7 +2551,7 @@ class ProblemConfig(BaseModel):
         """Parse extensions dict and convert known extensions to their specific
         config classes."""
         if not isinstance(v, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "extensions must be a dict of extension ID to extension "
                 f"config, got {type(v)}."
             )

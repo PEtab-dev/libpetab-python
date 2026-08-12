@@ -7,12 +7,12 @@ def test_deprecated_global():
     with pytest.warns(DeprecationWarning):
         from petab import Problem
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa PT031
         import petab
 
         petab.Problem()
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa PT031
         import petab.parameters
 
         petab.parameters  # noqa
