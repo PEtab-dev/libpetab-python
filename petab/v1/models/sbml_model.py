@@ -8,7 +8,7 @@ from pathlib import Path
 
 import libsbml
 import sympy as sp
-from sympy.abc import _clash
+from sbmlmath import sbml_math_to_sympy
 
 from ..._utils import _generate_path
 from ..sbml import (
@@ -283,28 +283,7 @@ def sympify_sbml(sbml_obj: libsbml.ASTNode | libsbml.SBase) -> sp.Expr:
     -------
     The sympy expression corresponding to ``sbml_obj``.
     """
-    ast_node = (
-        sbml_obj
-        if isinstance(sbml_obj, libsbml.ASTNode)
-        else sbml_obj.getMath()
-    )
-
-    parser_settings = libsbml.L3ParserSettings(
-        ast_node.getParentSBMLObject().getModel(),
-        libsbml.L3P_PARSE_LOG_AS_LOG10,
-        libsbml.L3P_EXPAND_UNARY_MINUS,
-        libsbml.L3P_NO_UNITS,
-        libsbml.L3P_AVOGADRO_IS_CSYMBOL,
-        libsbml.L3P_COMPARE_BUILTINS_CASE_INSENSITIVE,
-        None,
-        libsbml.L3P_MODULO_IS_PIECEWISE,
-    )
-
-    formula_str = libsbml.formulaToL3StringWithSettings(
-        ast_node, parser_settings
-    )
-
-    return sp.sympify(formula_str, locals=_clash)
+    return sbml_math_to_sympy(sbml_obj)
 
 
 def antimony2sbml(ant_model: str | Path) -> str:
