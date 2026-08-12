@@ -136,8 +136,10 @@ def test_assert_overrides_match_parameter_count():
             OBSERVABLE_ID: ["0obsPar1noisePar", "2obsPar0noisePar"],
             OBSERVABLE_FORMULA: [
                 "1.0",
-                "observableParameter1_2obsPar0noisePar + "
-                "observableParameter2_2obsPar0noisePar",
+                (
+                    "observableParameter1_2obsPar0noisePar + "
+                    "observableParameter2_2obsPar0noisePar"
+                ),
             ],
             NOISE_FORMULA: ["noiseParameter1_0obsPar1noisePar", "1.0"],
         }

@@ -370,8 +370,10 @@ def test_flatten_timepoint_specific_output_overrides():
                 "x",
             ],
             NOISE_FORMULA: [
-                "(observableParameter1_obs1 + observableParameter2_obs1)"
-                " * noiseParameter1_obs1",
+                (
+                    "(observableParameter1_obs1 + observableParameter2_obs1)"
+                    " * noiseParameter1_obs1"
+                ),
                 1,
             ],
         }
@@ -392,24 +394,36 @@ def test_flatten_timepoint_specific_output_overrides():
                 "obs2__condition1",
             ],
             OBSERVABLE_FORMULA: [
-                f"observableParameter1_{obs1_1_1_1}"
-                f" + observableParameter2_{obs1_1_1_1}",
-                f"observableParameter1_{obs1_2_1_1}"
-                f" + observableParameter2_{obs1_2_1_1}",
-                f"observableParameter1_{obs1_2_2_1}"
-                f" + observableParameter2_{obs1_2_2_1}",
+                (
+                    f"observableParameter1_{obs1_1_1_1}"
+                    f" + observableParameter2_{obs1_1_1_1}"
+                ),
+                (
+                    f"observableParameter1_{obs1_2_1_1}"
+                    f" + observableParameter2_{obs1_2_1_1}"
+                ),
+                (
+                    f"observableParameter1_{obs1_2_2_1}"
+                    f" + observableParameter2_{obs1_2_2_1}"
+                ),
                 "x",
             ],
             NOISE_FORMULA: [
-                f"(observableParameter1_{obs1_1_1_1}"
-                f" + observableParameter2_{obs1_1_1_1})"
-                f" * noiseParameter1_{obs1_1_1_1}",
-                f"(observableParameter1_{obs1_2_1_1}"
-                f" + observableParameter2_{obs1_2_1_1})"
-                f" * noiseParameter1_{obs1_2_1_1}",
-                f"(observableParameter1_{obs1_2_2_1}"
-                f" + observableParameter2_{obs1_2_2_1})"
-                f" * noiseParameter1_{obs1_2_2_1}",
+                (
+                    f"(observableParameter1_{obs1_1_1_1}"
+                    f" + observableParameter2_{obs1_1_1_1})"
+                    f" * noiseParameter1_{obs1_1_1_1}"
+                ),
+                (
+                    f"(observableParameter1_{obs1_2_1_1}"
+                    f" + observableParameter2_{obs1_2_1_1})"
+                    f" * noiseParameter1_{obs1_2_1_1}"
+                ),
+                (
+                    f"(observableParameter1_{obs1_2_2_1}"
+                    f" + observableParameter2_{obs1_2_2_1})"
+                    f" * noiseParameter1_{obs1_2_2_1}"
+                ),
                 1,
             ],
         }

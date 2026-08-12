@@ -541,7 +541,7 @@ class CheckExperimentConditionsExist(ValidationTask):
                 key
                 for array_data in problem.extensions.sciml.array_data_files
                 for input_array in array_data.inputs.values()
-                for key in input_array.keys()
+                for key in input_array
             }
         for experiment in problem.experiments:
             missing_conditions = (
@@ -1023,7 +1023,7 @@ def get_valid_parameters_for_parameter_table(
     )
 
     for mapping in problem.mappings:
-        if mapping.model_id and mapping.model_id in parameter_ids.keys():
+        if mapping.model_id and mapping.model_id in parameter_ids:
             parameter_ids[mapping.petab_id] = None
 
     if problem.extensions.sciml is not None:

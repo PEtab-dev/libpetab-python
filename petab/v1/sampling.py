@@ -39,8 +39,8 @@ def sample_from_prior(
 def sample_parameter_startpoints(
     parameter_df: pd.DataFrame,
     n_starts: int = 100,
-    seed: int = None,
-    parameter_ids: Sequence[str] = None,
+    seed: int | None = None,
+    parameter_ids: Sequence[str] | None = None,
 ) -> np.array:
     """Create :class:`numpy.array` with starting points for an optimization
 

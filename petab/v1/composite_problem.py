@@ -23,7 +23,7 @@ class CompositeProblem:
     def __init__(
         self,
         parameter_df: pd.DataFrame = None,
-        problems: list[problem.Problem] = None,
+        problems: list[problem.Problem] | None = None,
     ):
         """Constructor
 

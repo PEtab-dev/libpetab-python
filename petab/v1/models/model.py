@@ -22,7 +22,9 @@ class Model(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def from_file(
-        filepath_or_buffer: Any, model_id: str, base_path: str | Path = None
+        filepath_or_buffer: Any,
+        model_id: str,
+        base_path: str | Path | None = None,
     ) -> Model:
         """Load the model from the given path/URL
 
@@ -138,8 +140,8 @@ class Model(abc.ABC):
 def model_factory(
     filepath_or_buffer: Any,
     model_language: str,
-    model_id: str = None,
-    base_path: str | Path = None,
+    model_id: str | None = None,
+    base_path: str | Path | None = None,
 ) -> Model:
     """Create a PEtab model instance from the given model
 

@@ -24,7 +24,7 @@ __all__ = ["petab1to2"]
 
 
 def petab1to2(
-    yaml_config: Path | str, output_dir: Path | str = None
+    yaml_config: Path | str, output_dir: Path | str | None = None
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 

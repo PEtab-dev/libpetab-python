@@ -58,7 +58,9 @@ class ExperimentsToSbmlConverter:
     #: pre-equilibration indicator to 0.
     CONDITION_ID_PREEQ_OFF = "_petab_preequilibration_off"
 
-    def __init__(self, problem: Problem, default_priority: float = None):
+    def __init__(
+        self, problem: Problem, default_priority: float | None = None
+    ):
         """Initialize the converter.
 
         :param problem: The PEtab problem to convert.

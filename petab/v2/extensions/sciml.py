@@ -65,7 +65,9 @@ class Hybridization(BaseModel):
 class HybridizationTable:
     """PEtab SciML hybridization table."""
 
-    def __init__(self, hybridizations: list[Hybridization] = None, **kwargs):
+    def __init__(
+        self, hybridizations: list[Hybridization] | None = None, **kwargs
+    ):
         self.hybridizations: list[Hybridization] = hybridizations or []
         self.rel_path: AnyUrl | Path | None = kwargs.get("rel_path")
         self.base_path: AnyUrl | Path | None = kwargs.get("base_path")
@@ -100,7 +102,7 @@ class HybridizationTable:
         records = [h.model_dump(by_alias=True) for h in self.hybridizations]
         return pd.DataFrame(records)
 
-    def to_tsv(self, file_path: str | Path = None) -> None:
+    def to_tsv(self, file_path: str | Path | None = None) -> None:
         """Write the table to a TSV file."""
         df = self.to_df()
         df.to_csv(

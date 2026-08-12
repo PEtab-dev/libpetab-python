@@ -256,7 +256,7 @@ def create_problem_yaml(
     yaml_file: str | Path,
     visualization_files: str | Path | list[str | Path] | None = None,
     relative_paths: bool = True,
-    mapping_files: str | Path | list[str | Path] = None,
+    mapping_files: str | Path | list[str | Path] | None = None,
 ) -> None:
     """Create and write default YAML file for a single PEtab problem
 

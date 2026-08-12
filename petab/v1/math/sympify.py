@@ -65,9 +65,9 @@ def sympify_petab(
     if isinstance(expr, sp.Basic):
         return sympify_petab(petab_math_str(expr))
 
-    if isinstance(expr, int) or isinstance(expr, np.integer):
+    if isinstance(expr, (int, np.integer)):
         return sp.Integer(expr)
-    if isinstance(expr, float) or isinstance(expr, np.floating):
+    if isinstance(expr, (float, np.floating)):
         return sp.Float(expr)
 
     try:

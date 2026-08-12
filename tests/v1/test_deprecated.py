@@ -17,7 +17,7 @@ def test_problem_with_sbml_model():
     (
         model,
         condition_df,
-        observable_df,
+        _observable_df,
         measurement_df,
         parameter_df,
     ) = create_test_data()

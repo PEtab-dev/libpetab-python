@@ -437,7 +437,7 @@ def get_parameter_mapping_for_condition(
 def _output_parameters_to_nan(mapping: ParMappingDict) -> None:
     """Set output parameters in mapping dictionary to nan"""
     rex = re.compile("^(noise|observable)Parameter[0-9]+_")
-    for key in mapping.keys():
+    for key in mapping:
         try:
             matches = rex.match(key)
         except TypeError:
@@ -645,7 +645,7 @@ def _perform_mapping_checks(
 def handle_missing_overrides(
     mapping_par_opt_to_par_sim: ParMappingDict,
     warn: bool = True,
-    condition_id: str = None,
+    condition_id: str | None = None,
 ) -> None:
     """
     Find all observable parameters and noise parameters that were not mapped

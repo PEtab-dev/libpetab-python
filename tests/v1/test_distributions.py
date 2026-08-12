@@ -32,7 +32,6 @@ from petab.v2.C import *
         Laplace(1, 0.5, log=True),
         Normal(2, 1, trunc=(1, 2)),
         Normal(2, 1, log=True, trunc=(0.5, 8)),
-        Normal(2, 1, log=10),
         Laplace(1, 2, trunc=(1, 2)),
         Laplace(1, 0.5, log=True, trunc=(0.5, 8)),
         Cauchy(2, 1),

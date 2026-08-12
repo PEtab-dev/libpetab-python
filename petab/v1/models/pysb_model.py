@@ -60,7 +60,7 @@ class PySBModel(Model):
     def __init__(
         self,
         model: pysb.Model,
-        model_id: str = None,
+        model_id: str | None = None,
         rel_path: Path | str | None = None,
         base_path: str | Path | None = None,
     ):
@@ -81,7 +81,9 @@ class PySBModel(Model):
 
     @staticmethod
     def from_file(
-        filepath_or_buffer, model_id: str = None, base_path: str | Path = None
+        filepath_or_buffer,
+        model_id: str | None = None,
+        base_path: str | Path | None = None,
     ) -> PySBModel:
         return PySBModel(
             model=_pysb_model_from_path(
