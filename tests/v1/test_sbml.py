@@ -5,7 +5,7 @@ import libsbml
 import pandas as pd
 import pytest
 
-from petab.v1.models.sbml_model import SbmlModel
+from petab.v1.models.sbml_model import SbmlModel, sympify_sbml
 
 sys.path.append(os.getcwd())
 import petab
@@ -150,3 +150,22 @@ def test_sbml_from_to_ant():
 
     # convert back to antimony
     assert "R1: S1 -> S2; k1*S1" in petab_model.to_antimony()
+
+
+def test_sympify_sbml_modulo():
+    """SBML's ``%`` follows C semantics (result has the sign of the
+    dividend), unlike Python's ``%`` (result has the sign of the divisor).
+
+    Naively converting the SBML math to a string and handing it to
+    ``sympy.sympify`` therefore silently produces a wrong result (gh-283).
+    """
+    sbml_document = libsbml.SBMLDocument(3, 2)
+    sbml_model = sbml_document.createModel()
+    parameter = sbml_model.createParameter()
+    parameter.setId("e")
+    parameter.setConstant(False)
+    initial_assignment = sbml_model.createInitialAssignment()
+    initial_assignment.setSymbol("e")
+    initial_assignment.setMath(libsbml.parseL3Formula("-5 % 3"))
+
+    assert sympify_sbml(initial_assignment).doit() == -2
