@@ -29,6 +29,9 @@ jobs:
       run: uvx pre-commit run --all-files
       if: matrix.platform == 'ubuntu-latest'
 
+    - name: Fetch BNGL test corpus
+      run: uv run python tests/v1/fetch_bngl_corpus.py
+
     - name: Unit tests
       run: |
         uv sync --group ci

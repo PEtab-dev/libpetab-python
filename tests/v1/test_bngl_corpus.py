@@ -33,6 +33,10 @@ from petab.v1.models.bngl_model import parse_bngl
 _CORPUS = Path(__file__).parent / "bngl_corpus"
 _GOLDEN = _CORPUS / "golden.json"
 _MODELS = sorted(_CORPUS.glob("*.bngl"))
+_NO_CORPUS_REASON = (
+    "no .bngl files in tests/v1/bngl_corpus/ -- fetch them first with "
+    "`python tests/v1/fetch_bngl_corpus.py`"
+)
 
 
 def _molecule_name(part):
@@ -81,7 +85,12 @@ def _reader_entities(entities):
     }
 
 
-@pytest.mark.parametrize("model", _MODELS, ids=lambda p: p.stem)
+@pytest.mark.parametrize(
+    "model",
+    _MODELS
+    or [pytest.param(None, marks=pytest.mark.skip(reason=_NO_CORPUS_REASON))],
+    ids=lambda p: p.stem if p else "no-corpus",
+)
 def test_reader_matches_bng2_golden(model):
     golden = json.loads(_GOLDEN.read_text())
     expected = golden[model.name]
