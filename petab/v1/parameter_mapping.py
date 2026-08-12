@@ -21,7 +21,7 @@ from . import (
     observables,
     parameters,
 )
-from .C import *  # noqa: F403
+from .C import *
 from .mapping import resolve_mapping
 from .models import Model
 
@@ -31,16 +31,16 @@ ENV_NUM_THREADS = "PETAB_NUM_THREADS"
 
 logger = logging.getLogger(__name__)
 __all__ = [
+    "ParMappingDict",
+    "ParMappingDictQuadruple",
+    "ParMappingDictTuple",
+    "ScaleMappingDict",
+    "ScaleMappingDictTuple",
     "get_optimization_to_simulation_parameter_mapping",
     "get_parameter_mapping_for_condition",
     "handle_missing_overrides",
     "merge_preeq_and_sim_pars",
     "merge_preeq_and_sim_pars_condition",
-    "ParMappingDict",
-    "ParMappingDictTuple",
-    "ScaleMappingDict",
-    "ScaleMappingDictTuple",
-    "ParMappingDictQuadruple",
 ]
 
 
@@ -140,7 +140,7 @@ def get_optimization_to_simulation_parameter_mapping(
     # Ensure inputs are okay
     _perform_mapping_checks(
         measurement_df,
-        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
     )
 
     if simulation_conditions is None:
@@ -287,7 +287,7 @@ def _map_condition(packed_args):
             warn_unmapped=warn_unmapped,
             scaled_parameters=scaled_parameters,
             fill_fixed_parameters=fill_fixed_parameters,
-            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
         )
 
     par_map_sim, scale_map_sim = get_parameter_mapping_for_condition(
@@ -302,7 +302,7 @@ def _map_condition(packed_args):
         warn_unmapped=warn_unmapped,
         scaled_parameters=scaled_parameters,
         fill_fixed_parameters=fill_fixed_parameters,
-        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
     )
 
     return par_map_preeq, par_map_sim, scale_map_preeq, scale_map_sim
@@ -390,7 +390,7 @@ def get_parameter_mapping_for_condition(
     if cur_measurement_df is not None:
         _perform_mapping_checks(
             cur_measurement_df,
-            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
         )
 
     if simulation_parameters is None:
@@ -633,7 +633,7 @@ def _perform_mapping_checks(
     """
     if lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df,
-        allow_scalar_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        allow_scalar_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
     ):
         # we could allow that for floats, since they don't matter in this
         # function and would be simply ignored

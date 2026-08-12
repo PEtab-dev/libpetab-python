@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from petab.C import *
 
 import petab
 from petab import lint
-from petab.C import *
 
 # import fixtures
 pytest_plugins = [

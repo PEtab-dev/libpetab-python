@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from . import conditions, core, lint, measurements, observables
-from .C import *  # noqa: F403
+from .C import *
 from .models import Model
 
 __all__ = [

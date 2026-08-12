@@ -4,9 +4,9 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
+from petab.C import *
 
 import petab.v1 as petab
-from petab.C import *
 from petab.v1.models.sbml_model import SbmlModel
 
 # import fixtures

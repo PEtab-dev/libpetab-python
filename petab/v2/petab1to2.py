@@ -153,9 +153,9 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         if preeq_cond_id:
             preeq_cond_id = f"{preeq_cond_id}_"
         exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
-        if exp_id in experiments:  # noqa: B023
+        if exp_id in experiments:
             i = 1
-            while f"{exp_id}_{i}" in experiments:  # noqa: B023
+            while f"{exp_id}_{i}" in experiments:
                 i += 1
             exp_id = f"{exp_id}_{i}"
         return exp_id

@@ -9,12 +9,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from petab.C import *
+from petab.models.sbml_model import SbmlModel
 from yaml import safe_load
 
 import petab
 import petab.v1
-from petab.C import *
-from petab.models.sbml_model import SbmlModel
 from petab.v1 import Problem
 
 

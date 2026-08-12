@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 
-from .C import *  # noqa: F403
+from .C import *
 
 __all__ = ["sample_from_prior", "sample_parameter_startpoints"]
 

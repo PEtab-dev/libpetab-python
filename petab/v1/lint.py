@@ -15,7 +15,7 @@ import sympy as sp
 import petab.v1 as petab
 
 from . import core, measurements, parameters
-from .C import *  # noqa: F403
+from .C import *
 from .math import sympify_petab
 from .models import Model
 
@@ -792,8 +792,9 @@ def observable_table_has_nontrivial_noise_formula(
     return (
         not observable_df[NOISE_FORMULA]
         .apply(
-            lambda x: is_scalar_float(x)
-            or re.match(r"^[\w]+$", str(x)) is not None
+            lambda x: (
+                is_scalar_float(x) or re.match(r"^[\w]+$", str(x)) is not None
+            )
         )
         .all()
     )

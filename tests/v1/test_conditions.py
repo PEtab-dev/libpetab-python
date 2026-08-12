@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from petab.C import *
 
 import petab
 from petab import conditions
-from petab.C import *
 
 
 def test_get_parametric_overrides():

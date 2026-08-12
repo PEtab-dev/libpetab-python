@@ -5,7 +5,7 @@ import pytest
 
 def test_deprecated_global():
     with pytest.warns(DeprecationWarning):
-        from petab import Problem  # noqa
+        from petab import Problem
 
     with pytest.warns(DeprecationWarning):
         import petab
@@ -19,7 +19,7 @@ def test_deprecated_global():
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        from petab.v1 import Problem  # noqa
+        from petab.v1 import Problem
 
         Problem()
 

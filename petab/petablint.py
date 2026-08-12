@@ -25,7 +25,7 @@ class LintFormatter(logging.Formatter):
     formats = {
         logging.DEBUG: Fore.CYAN + "%(message)s",
         logging.INFO: Fore.GREEN + "%(message)s",
-        logging.WARN: Fore.YELLOW + "%(message)s",
+        logging.WARNING: Fore.YELLOW + "%(message)s",
         logging.ERROR: Fore.RED + "%(message)s",
     }
 
@@ -155,7 +155,7 @@ def main():
     if args.verbose:
         ch.setLevel(logging.DEBUG)
     else:
-        ch.setLevel(logging.WARN)
+        ch.setLevel(logging.WARNING)
 
     if args.yaml_file_name:
         try:
@@ -167,7 +167,7 @@ def main():
                 path = list(e.absolute_path)
                 path = (
                     f" at {path[0]}"
-                    + "".join(f"[{str(p)}]" for p in path[1:])
+                    + "".join(f"[{p!s}]" for p in path[1:])
                     + ": "
                 )
             logger.error(

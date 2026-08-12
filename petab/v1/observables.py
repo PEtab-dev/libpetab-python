@@ -8,7 +8,7 @@ from typing import Literal
 import pandas as pd
 
 from . import core, lint
-from .C import *  # noqa: F403
+from .C import *
 from .math import sympify_petab
 from .models import Model
 

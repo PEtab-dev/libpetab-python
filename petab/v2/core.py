@@ -61,25 +61,25 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "Problem",
-    "ProblemConfig",
-    "Observable",
-    "ObservableTable",
-    "NoiseDistribution",
     "Change",
     "Condition",
     "ConditionTable",
-    "ExperimentPeriod",
     "Experiment",
+    "ExperimentPeriod",
     "ExperimentTable",
-    "Measurement",
-    "MeasurementTable",
     "Mapping",
     "MappingTable",
+    "Measurement",
+    "MeasurementTable",
+    "NoiseDistribution",
+    "Observable",
+    "ObservableTable",
     "Parameter",
     "ParameterScale",
     "ParameterTable",
     "PriorDistribution",
+    "Problem",
+    "ProblemConfig",
 ]
 
 logger = logging.getLogger(__name__)
@@ -262,12 +262,10 @@ class BaseTable(BaseModel, Generic[T]):
     @abstractmethod
     def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
         """Create a table from a DataFrame."""
-        pass
 
     @abstractmethod
     def to_df(self) -> pd.DataFrame:
         """Convert the table to a DataFrame."""
-        pass
 
     @classmethod
     def from_tsv(
@@ -2080,7 +2078,7 @@ class Problem:
         self,
         id_: str,
         formula: str,
-        noise_formula: str | float | int = None,
+        noise_formula: str | float = None,
         noise_distribution: str = None,
         observable_placeholders: list[str] = None,
         noise_placeholders: list[str] = None,

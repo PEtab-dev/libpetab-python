@@ -27,7 +27,7 @@ from . import (
     sbml,
     yaml,
 )
-from .C import *  # noqa: F403
+from .C import *
 from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
 from .models.sbml_model import SbmlModel
@@ -1035,8 +1035,8 @@ class Problem:
     def add_observable(
         self,
         id_: str,
-        formula: str | float | int,
-        noise_formula: str | float | int = None,
+        formula: str | float,
+        noise_formula: str | float = None,
         noise_distribution: str = None,
         transform: str = None,
         name: str = None,

@@ -14,7 +14,7 @@ import yaml
 from pandas.io.common import get_handle
 
 from ..versions import parse_version
-from .C import *  # noqa: F403
+from .C import *
 
 # directory with PEtab yaml schema files
 SCHEMA_DIR = Path(__file__).parent.parent / "schemas"
@@ -25,15 +25,15 @@ SCHEMAS = {
 }
 
 __all__ = [
-    "validate",
-    "validate_yaml_syntax",
-    "validate_yaml_semantics",
-    "load_yaml",
-    "is_composite_problem",
     "assert_single_condition_and_sbml_file",
-    "write_yaml",
     "create_problem_yaml",
     "get_path_prefix",
+    "is_composite_problem",
+    "load_yaml",
+    "validate",
+    "validate_yaml_semantics",
+    "validate_yaml_syntax",
+    "write_yaml",
 ]
 
 

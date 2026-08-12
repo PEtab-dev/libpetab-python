@@ -22,16 +22,16 @@ _SCIPY_IMPORT_ERROR = (
 )
 
 __all__ = [
-    "Distribution",
     "Cauchy",
     "ChiSquare",
+    "Distribution",
     "Exponential",
     "Gamma",
     "Laplace",
+    "LogUniform",
     "Normal",
     "Rayleigh",
     "Uniform",
-    "LogUniform",
 ]
 
 
@@ -608,7 +608,7 @@ class ChiSquare(Distribution):
 
     def __init__(
         self,
-        dof: int | float,
+        dof: float,
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):

@@ -17,11 +17,11 @@ from .helper_functions import (
 )
 
 __all__ = [
-    "DataSeries",
     "DataPlot",
-    "Subplot",
-    "Figure",
     "DataProvider",
+    "DataSeries",
+    "Figure",
+    "Subplot",
     "VisSpecParser",
 ]
 
@@ -398,7 +398,7 @@ class Figure:
                     if key in visu_dict:
                         visu_dict[key].append(value)
                     else:
-                        visu_dict[key] = [row[key]]
+                        visu_dict[key] = [value]
         visu_df = pd.DataFrame.from_dict(visu_dict)
         visu_df.to_csv(output_file_path, sep="\t", index=False)
 

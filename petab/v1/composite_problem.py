@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 from . import parameters, problem, yaml
-from .C import *  # noqa: F403
+from .C import *
 
 __all__ = ["CompositeProblem"]
 

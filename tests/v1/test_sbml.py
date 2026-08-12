@@ -8,7 +8,7 @@ import pytest
 from petab.v1.models.sbml_model import SbmlModel
 
 sys.path.append(os.getcwd())
-import petab  # noqa: E402
+import petab
 
 
 def create_test_data():

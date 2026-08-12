@@ -22,10 +22,10 @@ from .. import core, lint
 from ..C import EXT_ID_SCIML
 
 __all__ = [
-    "CheckNeuralNetworkModel",
-    "CheckHybridizationTable",
-    "CheckSciMLConditionTable",
     "CheckArrayDataFiles",
+    "CheckHybridizationTable",
+    "CheckNeuralNetworkModel",
+    "CheckSciMLConditionTable",
     "CheckSciMLParameterTable",
 ]
 
