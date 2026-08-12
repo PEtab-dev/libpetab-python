@@ -1,36 +1,25 @@
-"""Functions for handling BNGL (BioNetGen Language) models.
+"""BNGL (BioNetGen Language) model support for PEtab.
 
-``petab`` ships ``sbml`` and ``pysb`` model loaders; this module adds
-``bngl`` so that a ``language: bngl`` PEtab problem can be loaded and
-validated at the model level (see PEtab-dev/PEtab#436).
+Adds a ``bngl`` model type, so a PEtab problem declaring ``language: bngl``
+can be loaded and validated.
 
-:class:`BnglModel` is a :class:`petab.v1.models.model.Model` backed by a
-small, dependency-free BNGL *block reader* (:func:`parse_bngl`). PEtab
-validation only ever introspects a model -- it enumerates the model's named
-entities -- so the reader does not run BNG2.pl or generate a reaction
-network. The single exception is :meth:`BnglModel.is_valid`, which shells
-out to ``BNG2.pl --check`` (a parse/semantic check, *without* network
-generation) when a BNG2.pl is locatable, and degrades gracefully to
-``True`` when no BNG backend is available -- mirroring how the SBML loader
-always validates because ``libsbml`` is always present.
+:class:`BnglModel` is backed by :func:`parse_bngl`, a small, dependency-free
+BNGL reader. It only reads a model's declared entities -- parameters,
+observables, functions, molecule types, compartments, seed species -- which
+is all PEtab validation needs; it never runs BNG2.pl or generates a reaction
+network. The one exception is :meth:`BnglModel.is_valid`: if a ``BNG2.pl``
+is found (``BNGPATH`` or ``PATH``), it runs ``BNG2.pl --check`` (a
+parse/semantic check, no network generation); otherwise the model is
+assumed valid.
 
-The BNGL entity sets that back the introspection methods were established
-against BioNetGen's ``Perl2/`` source (the reference implementation), not
-inferred from the PySB analogy:
+Two things worth knowing if a model doesn't parse the way you expect:
 
-* expression symbols are exactly the BNG ``ParamList`` -- parameters,
-  observables, and global functions; compartments are *not* expression
-  symbols (they never enter the ``ParamList``);
-* the full model-entity namespace additionally includes molecule types,
-  compartments, and seed species.
-
-The block scanner is hardened against the BNGL grammar (BioNetGen ``Perl2/``;
-cross-checked against ``BNG_vscode_extension`` ``docs/bngl-grammar.md``): line
-continuations (a trailing ``\\``), the ``species`` block alias (``begin
-species`` = ``begin seed species``), line labels (a numeric index ``1 L0 1`` or
-a named ``CD14: ...``), and the seed-species ``$`` clamp marker are honored. It
-is kept in sync with PyBNF's sibling reader (``pybnf/petab/_bngl.py``,
-ADR-0026) -- the grammar-hardening tests are the anchor against drift.
+* Symbols usable in an observable formula are parameters, observables, and
+  functions -- *not* compartments.
+* The reader accepts line continuations (a trailing ``\\``), ``begin
+  species`` as an alias for ``begin seed species``, line labels (both the
+  numeric ``1 L0 1`` and named ``CD14: ...`` forms), and a leading ``$``
+  (fixed-concentration) marker on a seed species.
 """
 
 from __future__ import annotations
@@ -252,7 +241,7 @@ def _compartment_name(line: str) -> str | None:
 
 
 class BnglModel(Model):
-    """PEtab wrapper for BNGL models (introspection only; no simulation)."""
+    """PEtab wrapper for BNGL models."""
 
     type_id = MODEL_TYPE_BNGL
 
@@ -306,8 +295,6 @@ class BnglModel(Model):
     def model_id(self, model_id):
         self._model_id = model_id
 
-    # -- parameters ---------------------------------------------------------
-
     def get_parameter_ids(self) -> Iterable[str]:
         return list(self.model.parameters)
 
@@ -343,8 +330,6 @@ class BnglModel(Model):
         # All parameters are allowed in the parameter table.
         return list(self.model.parameters)
 
-    # -- model-entity namespaces (verified against BioNetGen) ---------------
-
     def has_entity_with_id(self, entity_id) -> bool:
         # The full declared-identifier namespace.
         return (
@@ -371,8 +356,6 @@ class BnglModel(Model):
         # At introspection grade only the concrete seed species are known;
         # the full species set is a network-generation product.
         return id_ in self.model.seed_species
-
-    # -- validity -----------------------------------------------------------
 
     def is_valid(self) -> bool:
         # Real BNG2.pl --check (parse/semantic validation, no network
