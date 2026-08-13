@@ -1137,6 +1137,16 @@ def get_required_parameters_for_parameter_table(
         }
         parameter_ids -= hybridization_target_values
 
+        # NN outputs can be used in observable and noise formulas without
+        # appearing in the parameter table.
+        try:
+            from .extensions.sciml_lint import get_nn_entity_petab_ids
+        except ImportError:
+            pass
+        else:
+            _, nn_outputs, _ = get_nn_entity_petab_ids(problem)
+            parameter_ids -= set(nn_outputs)
+
     return parameter_ids
 
 
