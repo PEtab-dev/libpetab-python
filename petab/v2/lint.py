@@ -1127,6 +1127,8 @@ def get_required_parameters_for_parameter_table(
     parameter_ids -= condition_targets
 
     if problem.extensions.sciml is not None:
+        from .extensions.sciml_lint import get_nn_entity_petab_ids
+
         hybridization_targets = {
             hyb.target_id for hyb in problem.extensions.sciml.hybridizations
         }
@@ -1136,6 +1138,10 @@ def get_required_parameters_for_parameter_table(
             for hyb in problem.extensions.sciml.hybridizations
         }
         parameter_ids -= hybridization_target_values
+
+        # NN outputs should not appear in the parameters table.
+        _, nn_outputs, _ = get_nn_entity_petab_ids(problem)
+        parameter_ids -= set(nn_outputs)
 
     return parameter_ids
 
