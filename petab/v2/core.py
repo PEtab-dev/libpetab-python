@@ -316,8 +316,8 @@ from .extensions.sciml import SciMLExt  # noqa: E402
 class ProblemExtensions:
     """Runtime extension state attached to a :class:`Problem`."""
 
-    def __init__(self, sciml: SciMLExt = None):
-        self.sciml: SciMLExt = sciml or SciMLExt()
+    def __init__(self, sciml: SciMLExt | None = None):
+        self.sciml: SciMLExt | None = sciml
 
 
 class Observable(BaseModel):
