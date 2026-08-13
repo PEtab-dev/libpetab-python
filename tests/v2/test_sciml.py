@@ -4,11 +4,12 @@ from petab_sciml import Input, Node
 from pydantic import ConfigDict
 
 from petab.v2.core import *
-from petab.v2.core import ModelFile
+from petab.v2.core import ModelFile, ProblemExtensions
 from petab.v2.extensions.sciml import (
     Hybridization,
     NeuralNetConfig,
     SciMLConfig,
+    SciMLExt,
 )
 from petab.v2.extensions.sciml_lint import (
     CheckArrayDataFiles,
@@ -46,7 +47,8 @@ def _get_test_problem():
                     },
                 )
             },
-        )
+        ),
+        extensions=ProblemExtensions(sciml=SciMLExt()),
     )
     problem.model = SbmlModel.from_antimony("""
     model lv
@@ -150,6 +152,15 @@ def _get_test_problem():
     # problem.extensions.sciml.array_data_files[0].rel_path = "net1_ps.hdf5"
 
     return problem
+
+
+def test_extensions_sciml_none_by_default():
+    """`Problem.extensions.sciml` is `None` unless the sciml extension is
+    actually used."""
+    assert Problem().extensions.sciml is None
+
+    problem = _get_test_problem()
+    assert problem.extensions.sciml is not None
 
 
 def test_lint():
