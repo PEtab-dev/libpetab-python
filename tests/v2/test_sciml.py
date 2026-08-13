@@ -412,8 +412,7 @@ def _add_observable_consuming_nn_output(problem):
 
 
 def test_nn_output_in_observable_formula_not_required_parameter():
-    """NN outputs consumed by an observable formula are not parameter table
-    entries -- PEtab SciML explicitly allows an NN output in a formula."""
+    """NN outputs should not appear in the parameter table, and can appear in observable formulas."""
     from petab.v2.lint import get_required_parameters_for_parameter_table
 
     problem = _add_observable_consuming_nn_output(_get_test_problem())
