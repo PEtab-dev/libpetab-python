@@ -401,6 +401,57 @@ def test_parameter_posterior_requires_bounds_or_prior():
     assert "net1_ps" in issue.message
 
 
+def _add_observable_consuming_nn_output(problem):
+    """Add an observable whose formula references an NN output directly."""
+    problem.add_mapping("net1_output2", "net1.outputs[0][1]")
+    problem.add_observable("fitness_obs", "net1_output2", noise_formula="0.05")
+    problem.add_measurement(
+        "fitness_obs", time=1, measurement=1, experiment_id="e1"
+    )
+    return problem
+
+
+def test_nn_output_in_observable_formula_not_required_parameter():
+    """NN outputs should not appear in the parameter table, and can appear in
+    observable formulas."""
+    from petab.v2.lint import get_required_parameters_for_parameter_table
+
+    problem = _add_observable_consuming_nn_output(_get_test_problem())
+
+    assert "net1_output2" not in get_required_parameters_for_parameter_table(
+        problem
+    )
+    assert problem.validate() == []
+
+
+def test_nn_output_in_noise_formula_not_required_parameter():
+    """Same for noise formulas."""
+    from petab.v2.lint import get_required_parameters_for_parameter_table
+
+    problem = _get_test_problem()
+    problem.add_mapping("net1_output2", "net1.outputs[0][1]")
+    problem.observable_tables[0]["B_obs"].noise_formula = "net1_output2"
+
+    assert "net1_output2" not in get_required_parameters_for_parameter_table(
+        problem
+    )
+    assert problem.validate() == []
+
+
+def test_genuinely_missing_output_parameter_still_reported():
+    """The NN-output carve-out does not mask real missing parameters."""
+    problem = _add_observable_consuming_nn_output(_get_test_problem())
+    # `scale` is not an NN entity and is not in the parameter table.
+    problem.observable_tables[0][
+        "fitness_obs"
+    ].formula = "scale * net1_output2"
+
+    results = problem.validate()
+    assert results.has_errors()
+    assert any("scale" in issue.message for issue in results)
+    assert not any("net1_output2" in issue.message for issue in results)
+
+
 # ---------------------------------------------------------------------------
 # Full-problem integration
 # ---------------------------------------------------------------------------
