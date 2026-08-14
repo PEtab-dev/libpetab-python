@@ -9,7 +9,9 @@ oracle. Regenerate the golden (needs BNG2.pl) with:
 
     python tests/v1/test_bngl_corpus.py
 
-Vendored from public repos (RuleWorld/RuleHub, wshlavacek/BNGL-Models).
+Vendored from public repos
+([RuleWorld/RuleHub](https://github.com/RuleWorld/rulehub),
+[wshlavacek/BNGL-Models](https://github.com/wshlavacek/BNGL-Models)).
 
 | model | source | upstream path | exercises |
 |---|---|---|---|

@@ -20,6 +20,13 @@ Two things worth knowing if a model doesn't parse the way you expect:
   species`` as an alias for ``begin seed species``, line labels (both the
   numeric ``1 L0 1`` and named ``CD14: ...`` forms), and a leading ``$``
   (fixed-concentration) marker on a seed species.
+
+Examples
+--------
+
+For example BNGL PEtab v2 problems, see the `PyBioNetFit
+<https://github.com/lanl/PyBNF>`_ `tutorials
+<https://github.com/lanl/PyBNF/tree/main/examples/tutorial/>`_.
 """
 
 from __future__ import annotations
