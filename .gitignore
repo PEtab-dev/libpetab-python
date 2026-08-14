@@ -114,3 +114,6 @@ venv.bak/
 
 _untracked
 doc/_static/README.rst
+
+# BNGL corpus fixtures are fetched on demand (tests/v1/fetch_bngl_corpus.py)
+tests/v1/bngl_corpus/*.bngl

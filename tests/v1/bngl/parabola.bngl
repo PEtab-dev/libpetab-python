@@ -1,0 +1,30 @@
+begin model
+
+  begin parameters
+    v1 5
+    v2 5
+    v3 5
+    k_cond 1
+  end parameters
+
+  begin molecule types
+    counter()
+  end molecule types
+
+  begin seed species
+    counter() -10
+  end seed species
+
+  begin observables
+    Molecules x counter()
+  end observables
+
+  begin functions
+    y()=v1*(x^2)+(v2*x)+v3
+  end functions
+
+  begin reaction rules
+    0->counter() 1
+  end reaction rules
+
+end model
