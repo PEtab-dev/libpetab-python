@@ -1,5 +1,51 @@
 # PEtab changelog
 
+## 0.9 series
+
+### 0.9.0
+
+This release will require Python>=3.12 and numpy>=2.1.
+
+**Fixes**
+* Fixed the mean of residuals and added an option to choose between
+  normalized and unnormalized errors in `plot_goodness_of_fit`
+  (by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/473)
+* Made `scipy` a lazy import, so it is no longer required unless
+  probability distributions are actually used
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/486)
+* Fixed `PetabStrPrinter` for non-integer rational exponents
+  (by @wshlavacek in https://github.com/PEtab-dev/libpetab-python/pull/489)
+* Fixed spurious `nan`-related warnings in `Subplot.from_df`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/496)
+* Fixed a missing `return` in the noise distribution merge of
+  `petab1to2`, which caused `noiseDistribution` to always be `NaN` after
+  conversion
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/502)
+* Fixed the PEtab v2 extension config model
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/506)
+* Fixed SBML math parsing by using `sbmlmath` instead of
+  `sympy.sympify`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/509)
+
+**Features**
+* Added support for PEtab SciML problems, including a dedicated linter
+  (by @BSnelling, @m-philipps and @dilpath   in https://github.com/PEtab-dev/libpetab-python/pull/482
+  https://github.com/PEtab-dev/libpetab-python/pull/505,
+  https://github.com/PEtab-dev/libpetab-python/pull/499,
+  https://github.com/PEtab-dev/libpetab-python/pull/498,
+  https://github.com/PEtab-dev/libpetab-python/pull/511, and
+  https://github.com/PEtab-dev/libpetab-python/pull/513)
+* Added support for BNGL models
+  (by @wshlavacek in https://github.com/PEtab-dev/libpetab-python/pull/508)
+* Added linting of the mapping table, and allowed pure annotation-only
+  mapping entries
+  (by @m-philipps and @BSnelling in
+  https://github.com/PEtab-dev/libpetab-python/pull/480 and
+  https://github.com/PEtab-dev/libpetab-python/pull/500)
+* Minor improvements to the v1-to-v2 converter: warn when dropping
+  `parameterScale`/`initializationPriorType`/`initializationPriorParameters`,
+  and use the experiments table column order suggested by the PEtab format
+  (by @m-philipps in https://github.com/PEtab-dev/libpetab-python/pull/479)
 
 ## 0.8 series
 
