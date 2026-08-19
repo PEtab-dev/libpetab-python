@@ -464,6 +464,43 @@ def test_genuinely_missing_output_parameter_still_reported():
 
 
 # ---------------------------------------------------------------------------
+# Experiment -> SBML conversion
+# ---------------------------------------------------------------------------
+
+def test_convert_experiments_with_array_data_condition_ids():
+    """Conditions defined only in array files are skipped in every period.
+    """
+    from petab.v2.converters import ExperimentsToSbmlConverter
+
+    problem = _get_test_problem()
+    assert not problem.conditions, "cond1 must not be in the condition table"
+    array_condition_ids = (
+        problem.extensions.sciml._get_array_data_condition_ids()
+    )
+    assert array_condition_ids == {"cond1"}
+
+    # Add preequilibration and simulation periods
+    periods = [(-float("inf"), "cond1"), (0.0, "cond1")]
+    problem.experiments[0].periods = [
+        ExperimentPeriod(time=time, condition_ids=[condition_id])
+        for time, condition_id in periods
+    ]
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+
+    # No events defined for conditions given by array data
+    sbml_model = converted.model.sbml_model
+    assigned_targets = {
+        ia.getSymbol() for ia in sbml_model.getListOfInitialAssignments()
+    } | {
+        ea.getVariable()
+        for event in sbml_model.getListOfEvents()
+        for ea in event.getListOfEventAssignments()
+    }
+    assert "net1_input2" not in assigned_targets
+
+
+# ---------------------------------------------------------------------------
 # Full-problem integration
 # ---------------------------------------------------------------------------
 

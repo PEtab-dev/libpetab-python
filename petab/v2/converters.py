@@ -248,6 +248,12 @@ class ExperimentsToSbmlConverter:
                 #  or the only non-equilibration period (handled above)
                 continue
 
+            # Skip if condition ids are set by array data
+            if self._array_data_condition_ids and set(
+                period.condition_ids
+            ).issubset(self._array_data_condition_ids):
+                continue
+
             # Encode the period changes in the SBML model as events
             #  that trigger at the start of the period or,
             #  for the first period, as initial assignments.
@@ -258,12 +264,6 @@ class ExperimentsToSbmlConverter:
             #  single-period experiments.
             if i_period == 0:
                 exp_ind_id = self.get_experiment_indicator(experiment.id)
-                # Skip if condition ids are set by array data
-                # importers handle this
-                if self._array_data_condition_ids and set(
-                    period.condition_ids
-                ).issubset(self._array_data_condition_ids):
-                    continue
 
                 for change in self._new_problem.get_changes_for_period(period):
                     period0_assignments.setdefault(
