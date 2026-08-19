@@ -467,9 +467,9 @@ def test_genuinely_missing_output_parameter_still_reported():
 # Experiment -> SBML conversion
 # ---------------------------------------------------------------------------
 
+
 def test_convert_experiments_with_array_data_condition_ids():
-    """Conditions defined only in array files are skipped in every period.
-    """
+    """Conditions defined only in array files are skipped in every period."""
     from petab.v2.converters import ExperimentsToSbmlConverter
 
     problem = _get_test_problem()
