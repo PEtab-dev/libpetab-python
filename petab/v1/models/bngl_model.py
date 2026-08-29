@@ -12,10 +12,16 @@ is found (``BNGPATH`` or ``PATH``), it runs ``BNG2.pl --check`` (a
 parse/semantic check, no network generation); otherwise the model is
 assumed valid.
 
-Two things worth knowing if a model doesn't parse the way you expect:
+Three things worth knowing if a model doesn't parse the way you expect:
 
 * Symbols usable in an observable formula are parameters, observables, and
   functions -- *not* compartments.
+* A parameter whose value is an expression over other parameters
+  (``kon  koff/(Kd*NA*V)``) is evaluated, since a parameters block is
+  arithmetic over other parameters and needs no reaction network. The
+  arithmetic follows BNGL rather than Python, so ``^`` is a power, it
+  groups from the left, and unary minus binds tighter than it does in
+  Python. See :func:`evaluate_bngl_parameters`.
 * The reader accepts line continuations (a trailing ``\\``), ``begin
   species`` as an alias for ``begin seed species``, line labels (both the
   numeric ``1 L0 1`` and named ``CD14: ...`` forms), and a leading ``$``
@@ -31,11 +37,13 @@ For example BNGL PEtab v2 problems, see the `PyBioNetFit
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import shutil
 import subprocess
-from collections.abc import Iterable
+import warnings
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -247,6 +255,442 @@ def _compartment_name(line: str) -> str | None:
     return tokens[0] if tokens else None
 
 
+# -- parameter expression evaluation -----------------------------------------
+#
+# A ``parameters`` block may give a parameter an expression over other
+# parameters (``kon  koff/(Kd*NA*V)``) rather than a literal, which is
+# ordinary BNGL style rather than an edge case: across 303 models drawn from
+# the BioNetGen model collections, 1934 of 9323 parameter declarations
+# (20.8%) are expression-valued. Resolving them needs no BNG2.pl and no
+# network generation, because a parameters block is arithmetic over other
+# parameters.
+#
+# The sublanguage is BNGL's, not Python's, and the two disagree in ways that
+# are silent rather than loud. Every rule below was checked against BNG2.pl
+# 2.9.3 by running the expression through
+# ``writeNET({evaluate_expressions=>1})``, the only export path that emits
+# numbers instead of echoing the source text. The function table and the
+# precedence order are BioNetGen's ``Perl2/Expression.pm`` (``%functions``,
+# ``%NARGS``, and the operator list in ``arrayToExpression``):
+#
+# * ``^`` raises to a power, where Python's is bitwise exclusive-or.
+# * ``^`` is *left* associative, so ``2^3^2`` is 64 rather than 512.
+# * Unary minus binds *tighter* than ``^``, so ``-2^2`` is ``(-2)^2`` == 4
+#   rather than ``-(2^2)`` == -4. This holds for literals, parameters,
+#   parenthesised groups and function calls alike (``-exp(0)^2`` == 1).
+# * The natural logarithm is ``ln``. A bare ``log`` is rejected, as BNG2.pl
+#   rejects it, so a typo stays an error instead of becoming a plausible
+#   wrong number.
+# * ``rint`` is ``floor(x + 0.5)``, rounding a half upward, where Python's
+#   ``round`` sends a half to the nearest even number.
+# * ``_pi`` and ``_e`` are zero-argument functions, written ``_pi()``.
+# * Comparison and logical operators yield 1.0/0.0, and ``if(cond, a, b)``
+#   selects on ``cond != 0``. BNG2.pl evaluates all three arguments before
+#   selecting, so ``if(1, 5, 1/0)`` is an error there and here.
+#
+# Expressions are tokenized and parsed rather than handed to ``eval``, which
+# would import Python's precedence and operator meanings along with the
+# obvious injection problem.
+
+
+class BnglExpressionError(ValueError):
+    """A parameter expression could not be parsed or evaluated."""
+
+
+class CircularParameterError(BnglExpressionError):
+    """A parameter's definition depends on itself, directly or not."""
+
+
+def _bngl_if(condition: float, then_: float, else_: float) -> float:
+    """BNGL's ``if``, which selects on ``condition != 0``."""
+    return then_ if condition != 0 else else_
+
+
+#: The built-in functions BNG2.pl accepts, mirroring ``%functions`` in
+#: ``Expression.pm``. ``log`` is absent because BNGL has no bare ``log``.
+#: ``floor`` and ``ceil`` are absent because ``Expression.pm`` keeps them
+#: commented out as unsupported, so BNG2.pl rejects them. ``TFUN`` is absent
+#: deliberately: it reads a data file while a simulation runs, so it is not a
+#: parameters-block constant.
+_FUNCTIONS: dict[str, Callable[..., float]] = {
+    "_pi": lambda: math.pi,
+    "_e": lambda: math.e,
+    "exp": math.exp,
+    "ln": math.log,
+    "log10": math.log10,
+    "log2": math.log2,
+    "sqrt": math.sqrt,
+    "abs": abs,
+    "rint": lambda x: float(math.floor(x + 0.5)),
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "asin": math.asin,
+    "acos": math.acos,
+    "atan": math.atan,
+    "sinh": math.sinh,
+    "cosh": math.cosh,
+    "tanh": math.tanh,
+    "asinh": math.asinh,
+    "acosh": math.acosh,
+    "atanh": math.atanh,
+    "if": _bngl_if,
+    "min": min,
+    "max": max,
+    "sum": lambda *a: math.fsum(a),
+    "avg": lambda *a: math.fsum(a) / len(a),
+}
+
+#: Names BNG2.pl refuses to accept as a parameter name ("Cannot use built-in
+#: function name '_pi' as a parameter").
+RESERVED_PARAMETER_NAMES = frozenset(_FUNCTIONS)
+
+# Longest-first, so ``**``, ``>=`` and ``&&`` are not split into single
+# characters. ``~=`` is BNG2.pl's alias for ``!=``.
+_TOKEN_RE = re.compile(
+    r"""
+    (?P<number>\d+\.\d*(?:[eE][+-]?\d+)?
+              |\.\d+(?:[eE][+-]?\d+)?
+              |\d+(?:[eE][+-]?\d+)?)
+  | (?P<name>[A-Za-z_]\w*)
+  | (?P<op>\*\*|&&|\|\||<=|>=|==|!=|~=|[-+*/^(),<>])
+  | (?P<space>\s+)
+    """,
+    re.VERBOSE,
+)
+
+_COMPARISONS: dict[str, Callable[[float, float], bool]] = {
+    "<": lambda a, b: a < b,
+    ">": lambda a, b: a > b,
+    "<=": lambda a, b: a <= b,
+    ">=": lambda a, b: a >= b,
+    "==": lambda a, b: a == b,
+    "!=": lambda a, b: a != b,
+    "~=": lambda a, b: a != b,
+}
+
+
+def _tokenize(text: str) -> list[tuple[str, str]]:
+    """``(kind, value)`` tokens for a BNGL expression."""
+    tokens: list[tuple[str, str]] = []
+    pos = 0
+    while pos < len(text):
+        match = _TOKEN_RE.match(text, pos)
+        if match is None:
+            raise BnglExpressionError(
+                f"Unexpected character {text[pos]!r} at position {pos} "
+                f"in {text!r}"
+            )
+        pos = match.end()
+        kind = match.lastgroup
+        if kind == "space":
+            continue
+        value = match.group()
+        # BNGL writes exponentiation as ^, and BNG2.pl also accepts **.
+        tokens.append(("op", "^") if value == "**" else (kind, value))
+    return tokens
+
+
+class _Parser:
+    """Recursive-descent parser for the arithmetic sublanguage.
+
+    Precedence, loosest to tightest, is the order of the operator list in
+    ``arrayToExpression``, which folds each level left to right::
+
+        && ||  <  < > <= >= == != ~=  <  + -  <  * /  <  unary - +  <  ^
+
+    Unary minus sitting below ``^`` is what makes ``-2^2`` come out as 4,
+    and the left fold is what makes ``2^3^2`` come out as 64.
+    """
+
+    def __init__(
+        self,
+        tokens: list[tuple[str, str]],
+        text: str,
+        lookup: Callable[[str], float],
+    ):
+        self._tokens = tokens
+        self._text = text
+        self._lookup = lookup
+        self._pos = 0
+
+    def parse(self) -> float:
+        """The value of the whole expression."""
+        value = self._parse_logical()
+        if self._pos != len(self._tokens):
+            raise BnglExpressionError(
+                f"Unexpected trailing input in {self._text!r} at token "
+                f"{self._tokens[self._pos][1]!r}"
+            )
+        return value
+
+    def _peek(self) -> tuple[str, str] | None:
+        if self._pos < len(self._tokens):
+            return self._tokens[self._pos]
+        return None
+
+    def _accept(self, value: str) -> bool:
+        token = self._peek()
+        if token is not None and token[0] == "op" and token[1] == value:
+            self._pos += 1
+            return True
+        return False
+
+    def _accept_any(self, values: Iterable[str]) -> str | None:
+        token = self._peek()
+        if token is not None and token[0] == "op" and token[1] in values:
+            self._pos += 1
+            return token[1]
+        return None
+
+    def _expect(self, value: str) -> None:
+        if not self._accept(value):
+            found = self._peek()
+            seen = repr(found[1]) if found else "end of expression"
+            raise BnglExpressionError(
+                f"Expected {value!r} in {self._text!r}, found {seen}"
+            )
+
+    def _parse_logical(self) -> float:
+        value = self._parse_comparison()
+        while True:
+            op = self._accept_any(("&&", "||"))
+            if op is None:
+                return value
+            rhs = self._parse_comparison()
+            # BNG2.pl normalises these to 1/0 rather than returning an
+            # operand the way bare Perl would, so ``0||5`` is 1.0.
+            if op == "&&":
+                value = float(value != 0 and rhs != 0)
+            else:
+                value = float(value != 0 or rhs != 0)
+
+    def _parse_comparison(self) -> float:
+        value = self._parse_sum()
+        while True:
+            op = self._accept_any(_COMPARISONS)
+            if op is None:
+                return value
+            value = float(_COMPARISONS[op](value, self._parse_sum()))
+
+    def _parse_sum(self) -> float:
+        value = self._parse_product()
+        while True:
+            if self._accept("+"):
+                value += self._parse_product()
+            elif self._accept("-"):
+                value -= self._parse_product()
+            else:
+                return value
+
+    def _parse_product(self) -> float:
+        value = self._parse_power()
+        while True:
+            if self._accept("*"):
+                value *= self._parse_power()
+            elif self._accept("/"):
+                divisor = self._parse_power()
+                if divisor == 0:
+                    raise BnglExpressionError(
+                        f"Division by zero in {self._text!r}"
+                    )
+                # True division throughout: BNGL has no integer division.
+                value = float(value) / float(divisor)
+            else:
+                return value
+
+    def _parse_power(self) -> float:
+        # Left associative, and a signed operand belongs to the base rather
+        # than to the whole power: BNG2.pl gives -2^2 == 4, 2^3^2 == 64.
+        value = self._parse_unary()
+        while self._accept("^"):
+            exponent = self._parse_unary()
+            try:
+                value = float(value**exponent)
+            except (ArithmeticError, TypeError, ValueError) as e:
+                # 0^-1, an overflow, or a negative base raised to a
+                # fractional power, which Python answers with a complex.
+                raise BnglExpressionError(
+                    f"Cannot raise {value!r} to the power {exponent!r} "
+                    f"in {self._text!r}"
+                ) from e
+        return value
+
+    def _parse_unary(self) -> float:
+        if self._accept("-"):
+            return -self._parse_unary()
+        if self._accept("+"):
+            return self._parse_unary()
+        return self._parse_atom()
+
+    def _parse_atom(self) -> float:
+        token = self._peek()
+        if token is None:
+            raise BnglExpressionError(
+                f"Expression ended unexpectedly: {self._text!r}"
+            )
+        kind, value = token
+
+        if kind == "number":
+            self._pos += 1
+            return float(value)
+
+        if kind == "op" and value == "(":
+            self._pos += 1
+            inner = self._parse_logical()
+            self._expect(")")
+            return inner
+
+        if kind == "name":
+            self._pos += 1
+            if self._accept("("):
+                # ``_pi()`` and ``_e()`` take no arguments.
+                args = []
+                if self._peek() != ("op", ")"):
+                    args.append(self._parse_logical())
+                    while self._accept(","):
+                        args.append(self._parse_logical())
+                self._expect(")")
+                return self._call(value, args)
+            return self._lookup(value)
+
+        raise BnglExpressionError(
+            f"Unexpected token {value!r} in {self._text!r}"
+        )
+
+    def _call(self, name: str, args: list[float]) -> float:
+        try:
+            func = _FUNCTIONS[name]
+        except KeyError:
+            raise BnglExpressionError(
+                f"Unknown function {name!r} in {self._text!r}"
+            ) from None
+        try:
+            return float(func(*args))
+        except TypeError as e:
+            raise BnglExpressionError(
+                f"Wrong number of arguments to {name!r} in {self._text!r}"
+            ) from e
+        except ArithmeticError as e:
+            raise BnglExpressionError(
+                f"{name}() could not be evaluated in {self._text!r}: {e}"
+            ) from e
+        except ValueError as e:
+            raise BnglExpressionError(
+                f"{name}() is undefined for its argument in "
+                f"{self._text!r}: {e}"
+            ) from e
+
+
+def evaluate_bngl_expression(text: str, symbols: dict[str, float]) -> float:
+    """Evaluate one BNGL expression against already-resolved ``symbols``.
+
+    :param text: The expression, for example ``koff/(Kd*NA*V)``.
+    :param symbols: Values for the names the expression refers to.
+    :returns: The value of the expression.
+    :raises BnglExpressionError: If it cannot be parsed or evaluated, or
+        refers to a name ``symbols`` does not define.
+    """
+
+    def lookup(name: str) -> float:
+        try:
+            return symbols[name]
+        except KeyError:
+            raise BnglExpressionError(
+                f"Unknown parameter {name!r} in {text!r}"
+            ) from None
+
+    return _Parser(_tokenize(text), text, lookup).parse()
+
+
+def _parameter_resolver(
+    parameters: dict[str, str],
+) -> tuple[Callable[[str], float], dict[str, float]]:
+    """A memoizing ``lookup(name)`` over a parameters block, and its cache."""
+    resolved: dict[str, float] = {}
+    resolving: list[str] = []
+
+    def lookup(name: str) -> float:
+        if name in resolved:
+            return resolved[name]
+        if name in resolving:
+            start = resolving.index(name)
+            cycle = " -> ".join([*resolving[start:], name])
+            raise CircularParameterError(
+                f"Parameter {name!r} is defined in terms of itself: {cycle}"
+            )
+        if name not in parameters:
+            raise BnglExpressionError(f"Unknown parameter {name!r}")
+        if name in RESERVED_PARAMETER_NAMES:
+            raise BnglExpressionError(
+                f"{name!r} is a BNGL built-in function name and cannot be "
+                f"used as a parameter name"
+            )
+        resolving.append(name)
+        try:
+            value = _Parser(
+                _tokenize(parameters[name]), parameters[name], lookup
+            ).parse()
+        finally:
+            resolving.pop()
+        resolved[name] = value
+        return value
+
+    return lookup, resolved
+
+
+def evaluate_bngl_parameters(
+    parameters: dict[str, str],
+) -> dict[str, float]:
+    """Resolve a BNGL parameters block to numbers.
+
+    Values are resolved lazily in dependency order, so a parameter may be
+    defined before the ones it depends on. BNG2.pl is stricter here, since
+    it drops a forward-referencing parameter, but accepting the
+    order-independent form loses no model BNG2.pl would have accepted.
+
+    :param parameters: Parameter name to raw right-hand side, literal or
+        expression, as :func:`parse_bngl` collects it.
+    :returns: Parameter name to value.
+    :raises CircularParameterError: On a definition that depends on itself.
+    :raises BnglExpressionError: On anything unparseable, or a reference to
+        a name the block does not define. Use
+        :func:`evaluate_bngl_parameters_partial` when one bad definition
+        should not cost the caller the whole block.
+    """
+    lookup, resolved = _parameter_resolver(parameters)
+    for name in parameters:
+        lookup(name)
+    return resolved
+
+
+def evaluate_bngl_parameters_partial(
+    parameters: dict[str, str],
+) -> tuple[dict[str, float], dict[str, str]]:
+    """Resolve what can be resolved in a parameters block, and report the rest.
+
+    A block is a single namespace, so one unusable definition should cost
+    the caller that parameter and whatever depends on it, rather than the
+    entire block.
+
+    :param parameters: Parameter name to raw right-hand side.
+    :returns: ``(values, errors)``, where ``values`` maps each parameter
+        that could be computed to its value and ``errors`` maps each one
+        that could not to the reason. Every parameter appears in exactly
+        one of the two.
+    """
+    lookup, resolved = _parameter_resolver(parameters)
+    errors: dict[str, str] = {}
+    for name in parameters:
+        if name in resolved:
+            continue
+        try:
+            lookup(name)
+        except BnglExpressionError as e:
+            errors[name] = str(e)
+    return resolved, errors
+
+
 class BnglModel(Model):
     """PEtab wrapper for BNGL models."""
 
@@ -266,6 +710,9 @@ class BnglModel(Model):
 
         self.model = model
         self._model_id = model_id
+        self._resolved_parameters: (
+            tuple[dict[str, float], dict[str, str]] | None
+        ) = None
 
         if not is_valid_identifier(self._model_id):
             raise ValueError(
@@ -305,33 +752,55 @@ class BnglModel(Model):
     def get_parameter_ids(self) -> Iterable[str]:
         return list(self.model.parameters)
 
+    def _parameter_values(self) -> tuple[dict[str, float], dict[str, str]]:
+        """``(values, errors)`` for the parameters block, computed once.
+
+        A parameters block is arithmetic over other parameters, so this
+        needs no BNG2.pl and no network generation. Resolution is partial:
+        one unusable definition costs that parameter and whatever depends
+        on it, rather than the whole block.
+        """
+        if self._resolved_parameters is None:
+            self._resolved_parameters = evaluate_bngl_parameters_partial(
+                dict(self.model.parameters)
+            )
+        return self._resolved_parameters
+
     def get_parameter_value(self, id_: str) -> float:
-        try:
-            rhs = self.model.parameters[id_]
-        except KeyError as e:
-            raise ValueError(f"Parameter {id_} does not exist.") from e
-        try:
-            return float(rhs)
-        except ValueError as e:
-            raise NotImplementedError(
-                f"Parameter '{id_}' has an expression value '{rhs}'. "
-                "Evaluating a BNGL parameter expression requires BNG2.pl / "
-                "network generation, which is out of scope for the "
-                "introspection-only BnglModel."
-            ) from e
+        if id_ not in self.model.parameters:
+            raise ValueError(f"Parameter {id_} does not exist.")
+        values, errors = self._parameter_values()
+        if id_ in values:
+            return values[id_]
+        raise ValueError(
+            f"Parameter '{id_}' has an expression value "
+            f"'{self.model.parameters[id_]}' that could not be evaluated: "
+            f"{errors[id_]}"
+        )
 
     def get_free_parameter_ids_with_values(
         self,
     ) -> Iterable[tuple[str, float]]:
-        out = []
-        for name, rhs in self.model.parameters.items():
-            try:
-                out.append((name, float(rhs)))
-            except ValueError:
-                # An expression-valued parameter has no introspection-grade
-                # value; skip it rather than evaluate the expression.
-                continue
-        return out
+        # An expression-valued parameter used to be skipped here, which
+        # lost it from the PEtab problem with nothing said. They are
+        # resolved now, and anything still unusable is named in a warning
+        # rather than disappearing, without taking the block with it.
+        values, errors = self._parameter_values()
+        if errors:
+            detail = "; ".join(
+                f"{name} ({errors[name]})" for name in sorted(errors)
+            )
+            warnings.warn(
+                f"Model {self._model_id!r}: {len(errors)} of "
+                f"{len(self.model.parameters)} parameters could not be "
+                f"evaluated and are omitted: {detail}",
+                stacklevel=2,
+            )
+        return [
+            (name, values[name])
+            for name in self.model.parameters
+            if name in values
+        ]
 
     def get_valid_parameters_for_parameter_table(self) -> Iterable[str]:
         # All parameters are allowed in the parameter table.

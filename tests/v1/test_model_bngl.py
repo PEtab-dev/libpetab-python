@@ -49,19 +49,22 @@ def test_get_parameter_value_unknown_raises(model):
         model.get_parameter_value("nope")
 
 
-def test_expression_valued_parameter_is_not_evaluated():
-    # A numeric RHS coerces to float; an expression RHS is confined to
-    # NotImplementedError rather than evaluated (that needs BNG2.pl).
+def test_expression_valued_parameter_is_evaluated():
+    # An expression RHS used to raise NotImplementedError, and
+    # get_free_parameter_ids_with_values dropped the parameter without
+    # saying so. A parameters block is arithmetic over other parameters,
+    # so it is resolved without BNG2.pl. The BNGL arithmetic itself is
+    # pinned against a real BNG2.pl in test_model_bngl_expressions.py.
     entities = parse_bngl(
         "begin parameters\n base 2\n k_on 2*base\nend parameters\n"
     )
     model = BnglModel(entities, model_id="m")
     assert model.get_parameter_value("base") == 2.0
-    with pytest.raises(NotImplementedError):
-        model.get_parameter_value("k_on")
-    # The expression-valued parameter is still an enumerated entity, but it
-    # contributes no introspection-grade value.
-    assert dict(model.get_free_parameter_ids_with_values()) == {"base": 2.0}
+    assert model.get_parameter_value("k_on") == 4.0
+    assert dict(model.get_free_parameter_ids_with_values()) == {
+        "base": 2.0,
+        "k_on": 4.0,
+    }
 
 
 # -- grammar hardening: block aliases + seed-species "$" clamp ---------------
