@@ -2,29 +2,37 @@
 
 from __future__ import annotations
 
+import numbers
 import re
 import shutil
 import warnings
+from collections.abc import Iterator
 from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 from uuid import uuid4
 
+import libsbml
 import pandas as pd
+import sympy as sp
 from pandas.io.common import get_handle, is_url
+from sbmlmath import TimeSymbol, sbml_math_to_sympy
 
 from .. import v1, v2
 from ..v1.math import sympify_petab
 from ..v1.yaml import get_path_prefix, load_yaml, validate
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
+from .models.sbml_model import SbmlModel
 
 __all__ = ["petab1to2"]
 
 
 def petab1to2(
-    yaml_config: Path | str, output_dir: Path | str | None = None
+    yaml_config: Path | str,
+    output_dir: Path | str | None = None,
+    assignments_to_experiments: bool = False,
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
@@ -46,20 +54,35 @@ def petab1to2(
     :param output_dir:
         The output directory to save the converted PEtab problem, or ``None``,
         to return a :class:`petab.v2.Problem` instance.
+    :param assignments_to_experiments:
+        If ``True``, convert time-dependent piecewise assignments in the
+        model to conditions and experiments in the tables.
 
     :raises ValueError:
         If the input is invalid or does not pass linting or if the generated
         files do not pass linting.
     """
     if output_dir is not None:
-        return petab_files_1to2(yaml_config, output_dir)
+        return petab_files_1to2(
+            yaml_config,
+            output_dir,
+            assignments_to_experiments=assignments_to_experiments,
+        )
 
     with TemporaryDirectory() as tmp_dir:
-        petab_files_1to2(yaml_config, tmp_dir)
+        petab_files_1to2(
+            yaml_config,
+            tmp_dir,
+            assignments_to_experiments=assignments_to_experiments,
+        )
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
-def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
+def petab_files_1to2(
+    yaml_config: Path | str | dict,
+    output_dir: Path | str,
+    assignments_to_experiments: bool = False,
+):
     """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
 
 
@@ -67,6 +90,9 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         The PEtab problem as dictionary or YAML file name.
     :param output_dir:
         The output directory to save the converted PEtab problem.
+    :param assignments_to_experiments:
+        If ``True``, convert time-dependent piecewise assignments in the
+        model to conditions and experiments in the PEtab tables.
 
     :raises ValueError:
         If the input is invalid or does not pass linting or if the generated
@@ -97,6 +123,25 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     if v1.lint_problem(petab_problem):
         raise ValueError("Provided PEtab problem does not pass linting.")
 
+    # convert time-dependent piecewise assignments in the model to conditions
+    #  and experiments; this modifies `petab_problem.model`
+    piecewise_conditions, piecewise_periods = [], {}
+    obsolete_columns, declared_values = [], {}
+    if assignments_to_experiments:
+        (
+            piecewise_conditions,
+            piecewise_periods,
+            obsolete_columns,
+            declared_values,
+        ) = _assignments_to_experiments(
+            petab_problem.model, petab_problem.condition_df
+        )
+        # the converted assignments made these condition table columns
+        #  obsolete
+        petab_problem.condition_df = petab_problem.condition_df.drop(
+            columns=obsolete_columns
+        )
+
     output_dir = Path(output_dir)
 
     # Update YAML file
@@ -112,10 +157,23 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     )
 
     # copy files that don't need conversion: models
-    for file in (
+    model_files = [
         model.location for model in new_yaml_config.model_files.values()
-    ):
-        _copy_file(get_src_path(file), Path(get_dest_path(file)))
+    ]
+    if piecewise_conditions:
+        # the assignments were removed from the model, so we have to write
+        #  the modified model instead of copying the original one
+        if len(model_files) > 1:
+            raise NotImplementedError(
+                "Converting assignments to experiments is not supported for "
+                "problems with multiple models."
+            )
+        libsbml.writeSBMLToFile(
+            petab_problem.model.sbml_document, get_dest_path(model_files[0])
+        )
+    else:
+        for file in model_files:
+            _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
     # Update observable table
     for observable_file in new_yaml_config.observable_files:
@@ -125,26 +183,54 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         )
         v2.write_observable_df(observable_df, get_dest_path(observable_file))
 
-    # Update condition table
-    for condition_file in new_yaml_config.condition_files:
-        condition_df = v1.get_condition_df(get_src_path(condition_file))
-        condition_df = v1v2_condition_df(condition_df, petab_problem.model)
-        v2.write_condition_df(condition_df, get_dest_path(condition_file))
-
     # records for the experiment table to be created
     experiments = []
+    # the change that each generated condition applies
+    generated_changes = {
+        record[v2.C.CONDITION_ID]: (
+            record[v2.C.TARGET_ID],
+            record[v2.C.TARGET_VALUE],
+        )
+        for record in piecewise_conditions
+    }
+
+    def apply_changes(
+        condition_ids: list[str], values: dict, drop: bool = True
+    ) -> list[str]:
+        """Drop generated conditions that don't change anything.
+
+        The targets of the converted assignments declare their pre-switch
+        value in the model, so any change to that value is redundant until
+        some period changes it. ``values`` tracks the value of each target
+        during the experiment and is updated in place.
+        """
+        applied = []
+        for condition_id in condition_ids:
+            if (change := generated_changes.get(condition_id)) is None:
+                # a condition from the v1 condition table
+                applied.append(condition_id)
+                continue
+            target_id, target_value = change
+            if drop and values.get(target_id) == target_value:
+                continue
+            values[target_id] = target_value
+            applied.append(condition_id)
+        return applied
+
+    def condition_exists(condition_id: str) -> bool:
+        """Check whether a condition will exist in the v2 condition table."""
+        return bool(condition_id) and bool(
+            petab_problem.condition_df.loc[condition_id].notna().any()
+        )
 
     def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
         if not sim_cond_id and not preeq_cond_id:
             return ""
         # check whether the conditions will exist in the v2 condition table
-        sim_cond_exists = (
-            petab_problem.condition_df.loc[sim_cond_id].notna().any()
+        sim_cond_exists = condition_exists(sim_cond_id) or bool(
+            piecewise_periods.get(sim_cond_id)
         )
-        preeq_cond_exists = (
-            preeq_cond_id
-            and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
-        )
+        preeq_cond_exists = condition_exists(preeq_cond_id)
         if not sim_cond_exists and not preeq_cond_exists:
             # if we have only all-NaN conditions, we don't create a new
             #  experiment
@@ -163,6 +249,9 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     measured_experiments = (
         petab_problem.get_simulation_conditions_from_measurement_df()
     )
+    # measurements that are not associated with any condition, and thus with
+    #  any experiment
+    unconditioned_measurements = False
     for (
         _,
         row,
@@ -173,22 +262,142 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         preeq_cond_id = row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, "")
         exp_id = create_experiment_id(sim_cond_id, preeq_cond_id)
         if not exp_id:
+            unconditioned_measurements = True
             continue
+        # the values that the converted targets have during this experiment
+        values = dict(declared_values)
         if preeq_cond_id:
-            experiments.append(
+            preeq_condition_ids = (
+                [preeq_cond_id] if condition_exists(preeq_cond_id) else []
+            )
+            # the converted assignments apply during preequilibration, too;
+            #  since that is a steady state, only their first period applies
+            if preeq_periods := piecewise_periods.get(preeq_cond_id):
+                preeq_condition_ids += preeq_periods[0][1]
+            experiments.extend(
                 {
                     v2.C.EXPERIMENT_ID: exp_id,
                     v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
-                    v2.C.CONDITION_ID: preeq_cond_id,
+                    v2.C.CONDITION_ID: condition_id,
+                }
+                # the preequilibration period is required even if it does not
+                #  change anything
+                for condition_id in apply_changes(preeq_condition_ids, values)
+                or [""]
+            )
+        if condition_exists(sim_cond_id):
+            experiments.append(
+                {
+                    v2.C.EXPERIMENT_ID: exp_id,
+                    v2.C.TIME: 0,
+                    v2.C.CONDITION_ID: sim_cond_id,
                 }
             )
-        experiments.append(
-            {
-                v2.C.EXPERIMENT_ID: exp_id,
-                v2.C.TIME: 0,
-                v2.C.CONDITION_ID: sim_cond_id,
-            }
+        # the changes of the first period of an experiment must not refer to
+        #  model symbols, so the redundant changes at its start are only
+        #  dropped if some other period comes first, or if they are the only
+        #  numeric ones
+        cur_periods = piecewise_periods.get(sim_cond_id, [])
+        keep_initial = (
+            not preeq_cond_id
+            and not condition_exists(sim_cond_id)
+            and any(
+                not isinstance(generated_changes[condition_id][1], float)
+                for _, condition_ids in cur_periods
+                for condition_id in condition_ids
+            )
         )
+        # the periods of the assignments converted for this condition
+        for i, (time, condition_ids) in enumerate(cur_periods):
+            experiments.extend(
+                {
+                    v2.C.EXPERIMENT_ID: exp_id,
+                    v2.C.TIME: time,
+                    v2.C.CONDITION_ID: condition_id,
+                }
+                for condition_id in apply_changes(
+                    condition_ids, values, drop=not (keep_initial and i == 0)
+                )
+            )
+    # measurements that are not associated with any condition still need an
+    #  experiment to refer to the periods of the converted assignments
+    default_experiment_id = ""
+    if unconditioned_measurements and (
+        default_periods := piecewise_periods.get("")
+    ):
+        taken_ids = {record[v2.C.EXPERIMENT_ID] for record in experiments} | (
+            set(petab_problem.condition_df.index)
+        )
+        i = 0
+        while (default_experiment_id := f"exp_{i}") in taken_ids:
+            i += 1
+        values = dict(declared_values)
+        for time, condition_ids in default_periods:
+            experiments.extend(
+                {
+                    v2.C.EXPERIMENT_ID: default_experiment_id,
+                    v2.C.TIME: time,
+                    v2.C.CONDITION_ID: condition_id,
+                }
+                for condition_id in apply_changes(condition_ids, values)
+            )
+
+    # experiments whose conditions all turned out to be redundant
+    defined_experiments = {
+        record[v2.C.EXPERIMENT_ID] for record in experiments
+    }
+
+    # Update condition table
+    #  the generated conditions that no experiment ended up using are dropped,
+    #  and the remaining ones are renumbered consecutively
+    used_conditions = {record[v2.C.CONDITION_ID] for record in experiments}
+    piecewise_conditions = [
+        record
+        for record in piecewise_conditions
+        if record[v2.C.CONDITION_ID] in used_conditions
+    ]
+    taken_ids = set(petab_problem.condition_df.index)
+    renamed_conditions = {}
+    counter = 0
+    for record in piecewise_conditions:
+        while (new_id := f"cond_{counter}") in taken_ids:
+            counter += 1
+        counter += 1
+        renamed_conditions[record[v2.C.CONDITION_ID]] = new_id
+        record[v2.C.CONDITION_ID] = new_id
+    for record in experiments:
+        record[v2.C.CONDITION_ID] = renamed_conditions.get(
+            record[v2.C.CONDITION_ID], record[v2.C.CONDITION_ID]
+        )
+    src_condition_files = list(new_yaml_config.condition_files)
+    if piecewise_conditions and not src_condition_files:
+        # there is no condition table yet to add the new conditions to
+        new_yaml_config.condition_files.append("conditions.tsv")
+        src_condition_files.append(None)
+    for i, condition_file in enumerate(src_condition_files):
+        condition_df = (
+            v1v2_condition_df(
+                v1.get_condition_df(get_src_path(condition_file)).drop(
+                    columns=obsolete_columns, errors="ignore"
+                ),
+                petab_problem.model,
+            )
+            if condition_file is not None
+            else pd.DataFrame(columns=v2.C.CONDITION_DF_REQUIRED_COLS)
+        )
+        if i == 0 and piecewise_conditions:
+            # the conditions generated from the model assignments go to the
+            #  first condition table
+            new_rows = pd.DataFrame(piecewise_conditions)
+            condition_df = (
+                pd.concat([condition_df, new_rows], ignore_index=True)
+                if not condition_df.empty
+                else new_rows
+            )
+        v2.write_condition_df(
+            condition_df, get_dest_path(new_yaml_config.condition_files[i])
+        )
+
     if experiments:
         exp_table_path = output_dir / "experiments.tsv"
         if exp_table_path.exists():
@@ -223,6 +432,7 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
                 set(petab_problem.condition_df.columns) - {v1.C.CONDITION_NAME}
             )
             == 0
+            and not any(piecewise_periods.values())
         ):
             # we can't have "empty" conditions with no overrides in v2,
             #  therefore, we drop the respective condition ID completely
@@ -243,6 +453,17 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
                 axis=1,
             ),
         )
+        # experiments without any change were not created
+        measurement_df.loc[
+            ~measurement_df[v2.C.EXPERIMENT_ID].isin(defined_experiments),
+            v2.C.EXPERIMENT_ID,
+        ] = ""
+        if default_experiment_id:
+            # measurements without condition are assigned to the experiment
+            #  that only contains the converted model assignments
+            measurement_df[v2.C.EXPERIMENT_ID] = measurement_df[
+                v2.C.EXPERIMENT_ID
+            ].replace("", default_experiment_id)
         del measurement_df[v1.C.SIMULATION_CONDITION_ID]
         del measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID]
         v2.write_measurement_df(
@@ -270,6 +491,400 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
                 "The generated PEtab v2 problem did not pass linting: "
                 f"{errors}"
             )
+
+
+def _time_symbol(expr: sp.Expr) -> TimeSymbol | None:
+    """Get the model time symbol occurring in the given expression."""
+    return next(
+        (sym for sym in expr.free_symbols if isinstance(sym, TimeSymbol)), None
+    )
+
+
+def _time_threshold(condition: sp.Basic) -> tuple[str, float] | None:
+    """Solve the condition of some piecewise branch for model time.
+
+    :param condition: The condition to solve.
+    :returns:
+        The comparison operator (with model time on the left-hand side) and
+        the time at which the branch changes, or ``None`` if the condition is
+        not a comparison that can be solved for a fixed point in time. The
+        time may be symbolic, e.g. some parameter that the condition table
+        sets.
+    """
+    if not isinstance(condition, sp.core.relational.Relational):
+        # e.g. a conjunction of several comparisons
+        return None
+    if (op := condition.rel_op) not in ("<", "<=", ">", ">="):
+        return None
+    if (time := _time_symbol(condition)) is None:
+        return None
+
+    # `lhs <op> rhs` is equivalent to `lhs - rhs <op> 0`, which can be solved
+    #  for time if it is linear in time
+    try:
+        poly = sp.Poly(condition.lhs - condition.rhs, time)
+    except sp.PolynomialError:
+        return None
+    if poly.degree() != 1:
+        return None
+
+    slope = poly.coeff_monomial(time)
+    if not slope.is_number:
+        return None
+    if slope < 0:
+        # dividing by a negative slope mirrors the comparison
+        op = {"<": ">", "<=": ">=", ">": "<", ">=": "<="}[op]
+
+    return op, -poly.coeff_monomial(1) / slope
+
+
+def _evaluate_comparison(time: float, op: str, threshold: float) -> bool:
+    """Evaluate a comparison as returned by :func:`_time_threshold`.
+
+    ``time`` is interpreted as the start of a half-open period, i.e., the
+    comparison is evaluated for a time infinitesimally larger than ``time``.
+    Thus, ``<`` and ``<=`` (and, respectively, ``>`` and ``>=``) cannot be
+    distinguished -- the value of a single point in time is irrelevant here.
+    """
+    match op:
+        case "<" | "<=":
+            return time < threshold
+        case ">" | ">=":
+            return time >= threshold
+    raise AssertionError(f"Unknown operator {op}.")
+
+
+def _resolve_piecewise(expr: sp.Expr, time: float) -> sp.Expr:
+    """Evaluate all piecewise sub-expressions at the given time.
+
+    Only to be used for expressions that passed the checks in
+    :func:`_piecewise_to_periods`, which ensure that a branch can be selected
+    for any point in time.
+    """
+
+    def select_branch(piecewise: sp.Piecewise) -> sp.Expr:
+        for value, condition in piecewise.args:
+            if condition is sp.true:
+                return value
+            threshold = _time_threshold(condition)
+            if (
+                threshold is not None
+                and threshold[1].is_number
+                and _evaluate_comparison(time, threshold[0], threshold[1])
+            ):
+                return value
+        raise AssertionError(f"No branch of {piecewise} applies at {time}.")
+
+    return expr.replace(lambda e: isinstance(e, sp.Piecewise), select_branch)
+
+
+def _piecewise_to_periods(expr: sp.Expr) -> list[tuple[float, sp.Expr]] | None:
+    """Split a time-dependent expression into periods of constant value.
+
+    The piecewise expressions may occur anywhere inside ``expr``, e.g. in
+    ``some_parameter * piecewise(0, time < 10, 1)``.
+
+    :param expr: The right-hand side of some assignment.
+    :returns:
+        A list of ``(start time, value)`` tuples, ordered by start time, or
+        ``None`` if the value of ``expr`` is not piecewise constant in time.
+        An expression without any piecewise sub-expression is constant, and
+        thus yields a single period -- substituting condition-specific values
+        may well collapse a piecewise expression to a constant.
+    """
+    piecewises = expr.atoms(sp.Piecewise)
+    if not piecewises:
+        return None if _time_symbol(expr) is not None else [(0.0, expr)]
+
+    breakpoints = set()
+    for piecewise in piecewises:
+        *branches, (_, fallback_condition) = piecewise.args
+        if fallback_condition is not sp.true:
+            # without an `otherwise`, the value is undefined outside the
+            #  given intervals
+            return None
+        for _, condition in branches:
+            threshold = _time_threshold(condition)
+            if threshold is None or not threshold[1].is_number:
+                # not a piecewise expression that switches at some fixed,
+                #  known point in time
+                return None
+            breakpoints.add(float(threshold[1]))
+
+    if not breakpoints:
+        return None
+    breakpoints = sorted(breakpoints)
+
+    # the breakpoints split the time axis into segments of constant value
+    periods = []
+    for i, start in enumerate([float("-inf"), *breakpoints]):
+        # a point inside the current segment at which we evaluate the
+        #  conditions; for the leading segment, any point before the first
+        #  breakpoint will do
+        probe = breakpoints[0] - 1 if i == 0 else start
+        value = _resolve_piecewise(expr, probe)
+        if _time_symbol(value) is not None:
+            # the remaining time-dependence cannot be expressed by conditions
+            return None
+        # anything before t=0 is covered by the first period
+        start = max(start, 0.0)
+
+        if periods and periods[-1][0] == start:
+            # segments before t=0 are collapsed into a single period
+            periods[-1] = (start, value)
+        elif periods and periods[-1][1] == value:
+            # no change compared to the previous period
+            continue
+        else:
+            periods.append((start, value))
+
+    return periods
+
+
+def _pre_switch_value(expr: sp.Expr) -> sp.Expr | None:
+    """Get the value of an expression before all of its switching times.
+
+    As time approaches minus infinity, ``time < x`` holds and ``time > x``
+    does not -- whatever the threshold ``x`` is. The value before the first
+    switch can therefore be determined even for switching times that are only
+    known per condition.
+
+    :returns:
+        The value, or ``None`` if it cannot be determined.
+    """
+    for piecewise in expr.atoms(sp.Piecewise):
+        selected = None
+        for value, condition in piecewise.args:
+            if condition is sp.true:
+                selected = value
+                break
+            threshold = _time_threshold(condition)
+            if threshold is None:
+                return None
+            if threshold[0] in ("<", "<="):
+                selected = value
+                break
+        if selected is None:
+            return None
+        expr = expr.subs(piecewise, selected)
+
+    if expr.atoms(sp.Piecewise) or _time_symbol(expr) is not None:
+        return None
+    return expr
+
+
+def _set_declared_value(element: libsbml.SBase, value: float) -> bool:
+    """Set the value that some model entity declares.
+
+    :returns: Whether the value could be set.
+    """
+    if isinstance(element, libsbml.Parameter):
+        element.setValue(value)
+    elif isinstance(element, libsbml.Compartment):
+        element.setSize(value)
+    elif isinstance(element, libsbml.Species):
+        if element.isSetInitialConcentration():
+            element.setInitialConcentration(value)
+        elif element.isSetInitialAmount():
+            element.setInitialAmount(value)
+        else:
+            return False
+    else:
+        return False
+    return True
+
+
+def _referenced_symbols(sbml_model: libsbml.Model) -> set[str]:
+    """Get the IDs of all model entities that are referenced by some math."""
+
+    def ast_names(node: libsbml.ASTNode) -> Iterator[str]:
+        if node is None:
+            return
+        if node.getType() == libsbml.AST_NAME:
+            yield node.getName()
+        for i in range(node.getNumChildren()):
+            yield from ast_names(node.getChild(i))
+
+    symbols = set()
+    for element in sbml_model.getListOfAllElements():
+        if getattr(element, "isSetMath", bool)():
+            symbols |= set(ast_names(element.getMath()))
+        # the target of some assignment counts as being used, too
+        for getter in ("getVariable", "getSymbol"):
+            if hasattr(element, getter):
+                symbols.add(getattr(element, getter)())
+    return symbols
+
+
+def _condition_value(value: float | str) -> sp.Expr:
+    """Convert a value from the PEtab v1 condition table to a sympy expr."""
+    if isinstance(value, numbers.Number):
+        return sp.Float(value)
+    return sympify_petab(value)
+
+
+def _assignments_to_experiments(
+    model: v1.Model, condition_df: pd.DataFrame | None
+) -> tuple[
+    list[dict],
+    dict[str, list[tuple[float, list[str]]]],
+    list[str],
+    dict[str, float],
+]:
+    """Turn time-dependent piecewise assignments into conditions/periods.
+
+    Any (initial) assignment whose value is piecewise constant in time is
+    removed from ``model`` and is replaced by one condition per time interval.
+    The value that applied before the first switch is written to the target's
+    declared value in the model, so that the conditions only have to encode
+    the actual changes.
+
+    The switching times and the values may be given by parameters that the
+    PEtab v1 condition table sets. Those are resolved for each condition
+    separately, so that the resulting periods generally differ between
+    conditions.
+
+    :param model: The model to convert. Modified in place.
+    :param condition_df: The PEtab v1 condition table.
+    :returns:
+        Records for the condition table, the experiment periods for each v1
+        condition as ``(start time, condition IDs)`` tuples ordered by start
+        time, the condition table columns that the conversion made obsolete,
+        and the values that the converted targets now declare in the model.
+    """
+    if not isinstance(model, SbmlModel):
+        raise NotImplementedError(
+            "Converting assignments to experiments is only supported for "
+            f"SBML models, but got {type(model).__name__}."
+        )
+    sbml_model = model.sbml_model
+
+    # the values to substitute for each v1 condition; if there are no
+    #  conditions, the assignments are resolved with the model values alone
+    if condition_df is not None and len(condition_df):
+        substitutions = {
+            condition_id: row.dropna().to_dict()
+            for condition_id, row in condition_df.iterrows()
+        }
+    else:
+        substitutions = {"": {}}
+
+    taken_ids = set(substitutions)
+    conditions = []
+    # condition IDs by the change they apply, for re-using conditions
+    condition_ids = {}
+    # the conditions to apply at any given start time, by v1 condition
+    periods = {condition_id: {} for condition_id in substitutions}
+    converted = []
+    counter = 0
+
+    assignments = [
+        *(rule for rule in sbml_model.getListOfRules() if rule.isAssignment()),
+        *sbml_model.getListOfInitialAssignments(),
+    ]
+    for assignment in assignments:
+        expr = sbml_math_to_sympy(assignment)
+        if not expr.atoms(sp.Piecewise):
+            # nothing to convert
+            continue
+        target_id = (
+            assignment.getVariable()
+            if isinstance(assignment, libsbml.Rule)
+            else assignment.getSymbol()
+        )
+
+        # resolve the assignment for every condition; if that is not possible
+        #  for any single one of them, the assignment is left in the model
+        resolved = {}
+        for condition_id, values in substitutions.items():
+            subs = {
+                symbol: _condition_value(values[symbol.name])
+                for symbol in expr.free_symbols
+                if symbol.name in values
+            }
+            cur_periods = _piecewise_to_periods(
+                expr.subs(subs) if subs else expr
+            )
+            if cur_periods is None:
+                break
+            resolved[condition_id] = cur_periods
+        else:
+            first_values = set()
+            for condition_id, cur_periods in resolved.items():
+                for i, (time, value) in enumerate(cur_periods):
+                    target_value = (
+                        float(value) if value.is_Number else str(value)
+                    )
+                    if i == 0:
+                        first_values.add(target_value)
+                    change = (target_id, target_value)
+                    if change not in condition_ids:
+                        while (new_id := f"cond_{counter}") in taken_ids:
+                            counter += 1
+                        taken_ids.add(new_id)
+                        counter += 1
+                        condition_ids[change] = new_id
+                        conditions.append(
+                            {
+                                v2.C.CONDITION_ID: new_id,
+                                v2.C.TARGET_ID: target_id,
+                                v2.C.TARGET_VALUE: target_value,
+                            }
+                        )
+                    periods[condition_id].setdefault(time, []).append(
+                        condition_ids[change]
+                    )
+            # the value before the first switch is the value the target
+            #  declares in the model; if the switching times leave no room
+            #  for it, fall back to the value all conditions start with
+            declared_value = _pre_switch_value(expr)
+            if declared_value is None or not declared_value.is_Number:
+                declared_value = (
+                    first_values.pop() if len(first_values) == 1 else None
+                )
+            else:
+                declared_value = float(declared_value)
+            converted.append((assignment, target_id, expr, declared_value))
+
+    declared_values = {}
+    for assignment, target_id, _, declared_value in converted:
+        if isinstance(assignment, libsbml.Rule):
+            sbml_model.removeRuleByVariable(target_id)
+        else:
+            sbml_model.removeInitialAssignment(target_id)
+        # the assignment is now handled by the condition table, but the target
+        #  still needs a value in the model
+        target = sbml_model.getElementBySId(target_id)
+        if isinstance(declared_value, float) and _set_declared_value(
+            target, declared_value
+        ):
+            declared_values[target_id] = declared_value
+
+    # condition table columns that only served the converted assignments are
+    #  now obsolete -- their effect is covered by the generated conditions
+    referenced = _referenced_symbols(sbml_model)
+    resolved_symbols = {
+        symbol.name
+        for _, _, expr, _ in converted
+        for symbol in expr.free_symbols
+    } - {target_id for _, target_id, _, _ in converted}
+    obsolete_columns = [
+        column
+        for column in (
+            condition_df.columns if condition_df is not None else []
+        )
+        if column in resolved_symbols and column not in referenced
+    ]
+
+    return (
+        conditions,
+        {
+            condition_id: sorted(times.items())
+            for condition_id, times in periods.items()
+        },
+        obsolete_columns,
+        declared_values,
+    )
 
 
 def _update_yaml(yaml_config: dict) -> dict:
