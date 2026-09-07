@@ -33,8 +33,9 @@ This release will require Python>=3.12 and numpy>=2.1.
   https://github.com/PEtab-dev/libpetab-python/pull/505,
   https://github.com/PEtab-dev/libpetab-python/pull/499,
   https://github.com/PEtab-dev/libpetab-python/pull/498,
-  https://github.com/PEtab-dev/libpetab-python/pull/511, and
-  https://github.com/PEtab-dev/libpetab-python/pull/513)
+  https://github.com/PEtab-dev/libpetab-python/pull/511,
+  https://github.com/PEtab-dev/libpetab-python/pull/513, and
+  https://github.com/PEtab-dev/libpetab-python/pull/516)
 * Added support for BNGL models
   (by @wshlavacek in https://github.com/PEtab-dev/libpetab-python/pull/508)
 * Added linting of the mapping table, and allowed pure annotation-only
