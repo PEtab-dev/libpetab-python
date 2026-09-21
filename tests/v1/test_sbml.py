@@ -17,9 +17,10 @@ def create_test_data():
         "\n".join(
             [
                 "compartment compartment_1 = 1",
-                *(f"species species_{i} = 10 * {i}" for i in range(1, 5)),
+                *(f"species species_{i} = 10 * {i}" for i in range(1, 6)),
                 *(f"parameter_{i} = {i}" for i in range(1, 4)),
                 "species_2 := 25",
+                "species_5' = 1",
             ]
         )
     )
@@ -32,6 +33,7 @@ def create_test_data():
             "species_2": [25],
             "species_3": ["parameter_1"],
             "species_4": ["not_a_model_parameter"],
+            "species_5": [55],
             "compartment_1": [2],
         }
     )
@@ -84,6 +86,12 @@ def check_model(condition_model):
     assert (
         condition_model.getSpecies("species_4").getInitialConcentration()
         == 3.25
+    )
+    assert (
+        condition_model.getSpecies("species_5").getInitialConcentration() == 55
+    )
+    assert condition_model.getRuleByVariable("species_5") is not None, (
+        "RateRule was removed although it should have been kept"
     )
     assert len(condition_model.getListOfInitialAssignments()) == 0, (
         "InitialAssignment not removed"
