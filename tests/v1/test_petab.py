@@ -824,6 +824,29 @@ def test_problem_from_yaml_v1_empty():
     petab.Problem.from_yaml(yaml_config)
 
 
+@pytest.mark.parametrize(
+    "yaml_config",
+    [
+        """
+        format_version: 1
+        parameter_file:
+        """,
+        """
+        format_version: 1
+        parameter_file:
+        problems: []
+        """,
+    ],
+)
+def test_problem_from_yaml_v1_empty_problems(yaml_config):
+    """Test loading PEtab version 1 yaml with a missing or empty
+    `problems` section raises a helpful error instead of a raw
+    KeyError/IndexError"""
+    yaml_config = safe_load(StringIO(yaml_config))
+    with pytest.raises(ValueError, match="problems"):
+        petab.Problem.from_yaml(yaml_config)
+
+
 def test_problem_from_yaml_v1_multiple_files():
     """Test loading PEtab version 1 yaml with multiple condition / measurement
     / observable files

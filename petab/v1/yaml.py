@@ -205,7 +205,7 @@ def is_composite_problem(yaml_config: dict | str | Path) -> bool:
         yaml_config: PEtab configuration as dictionary or YAML file name
     """
     yaml_config = load_yaml(yaml_config)
-    return len(yaml_config[PROBLEMS]) > 1
+    return len(yaml_config.get(PROBLEMS, [])) > 1
 
 
 def assert_single_condition_and_sbml_file(problem_config: dict) -> None:
