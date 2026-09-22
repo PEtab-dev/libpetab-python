@@ -49,22 +49,38 @@ def test_get_parameter_value_unknown_raises(model):
         model.get_parameter_value("nope")
 
 
-def test_expression_valued_parameter_is_evaluated():
-    # An expression RHS used to raise NotImplementedError, and
-    # get_free_parameter_ids_with_values dropped the parameter without
-    # saying so. A parameters block is arithmetic over other parameters,
-    # so it is resolved without BNG2.pl. The BNGL arithmetic itself is
-    # pinned against a real BNG2.pl in test_model_bngl_expressions.py.
+def test_constant_expression_parameter_is_evaluated():
+    # An expression RHS used to raise NotImplementedError, whatever it was.
+    # One that refers to no other parameter is a constant of the file, so it
+    # is evaluated here -- no BNG2.pl and no reaction network needed. The
+    # BNGL arithmetic itself is pinned against a real BNG2.pl in
+    # test_model_bngl_expressions.py.
+    entities = parse_bngl(
+        "begin parameters\n base 2\n k_on 2*3.5\nend parameters\n"
+    )
+    model = BnglModel(entities, model_id="m")
+    assert model.get_parameter_value("base") == 2.0
+    assert model.get_parameter_value("k_on") == 7.0
+    assert dict(model.get_free_parameter_ids_with_values()) == {
+        "base": 2.0,
+        "k_on": 7.0,
+    }
+
+
+def test_derived_parameter_is_left_to_the_parameter_table():
+    # `k_on` follows from `base`, and a PEtab parameter table may override or
+    # estimate `base`. Evaluating `k_on` here would hand a simulator a
+    # constant that wins over the model's own expression, leaving it stale;
+    # omitting it lets the value be recomputed from whatever `base` ends up
+    # being. Same call as SbmlModel makes for a non-self-contained
+    # InitialAssignment.
     entities = parse_bngl(
         "begin parameters\n base 2\n k_on 2*base\nend parameters\n"
     )
     model = BnglModel(entities, model_id="m")
-    assert model.get_parameter_value("base") == 2.0
-    assert model.get_parameter_value("k_on") == 4.0
-    assert dict(model.get_free_parameter_ids_with_values()) == {
-        "base": 2.0,
-        "k_on": 4.0,
-    }
+    assert dict(model.get_free_parameter_ids_with_values()) == {"base": 2.0}
+    with pytest.raises(ValueError, match="derived"):
+        model.get_parameter_value("k_on")
 
 
 # -- grammar hardening: block aliases + seed-species "$" clamp ---------------

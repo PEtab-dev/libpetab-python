@@ -16,12 +16,22 @@ Three things worth knowing if a model doesn't parse the way you expect:
 
 * Symbols usable in an observable formula are parameters, observables, and
   functions -- *not* compartments.
-* A parameter whose value is an expression over other parameters
-  (``kon  koff/(Kd*NA*V)``) is evaluated, since a parameters block is
-  arithmetic over other parameters and needs no reaction network. The
-  arithmetic follows BNGL rather than Python, so ``^`` is a power, it
+* A parameter's value may be an expression rather than a literal. One that
+  refers to no other parameter (``rate  2*_pi()``) is evaluated, and the
+  model reports the value. One that refers to another parameter
+  (``kon  koff/(Kd*NA*V)``) is *derived*: its effective value follows from
+  ``koff``, which a PEtab parameter table may override or estimate, so it
+  cannot be settled from the model file alone. A derived parameter is
+  therefore left out of
+  :meth:`BnglModel.get_free_parameter_ids_with_values`, as
+  :class:`~petab.v1.models.sbml_model.SbmlModel` leaves out a parameter
+  whose ``InitialAssignment`` is not self-contained, and
+  :meth:`BnglModel.get_parameter_value` raises for it rather than
+  returning a value the file does not really fix.
+* The arithmetic follows BNGL rather than Python, so ``^`` is a power, it
   groups from the left, and unary minus binds tighter than it does in
-  Python. See :func:`evaluate_bngl_parameters`.
+  Python. :func:`evaluate_bngl_parameters` resolves a whole block for a
+  consumer that already knows the effective values.
 * The reader accepts line continuations (a trailing ``\\``), ``begin
   species`` as an alias for ``begin seed species``, line labels (both the
   numeric ``1 L0 1`` and named ``CD14: ...`` forms), and a leading ``$``
@@ -67,6 +77,10 @@ _OBS_KEYWORDS = frozenset({"Molecules", "Species", "Counter"})
 _BLOCK_ALIASES = {
     "seed species": ("species",),
 }
+
+#: How many unusable parameters a single warning names before it says how
+#: many more there were.
+_MAX_PARAMETERS_IN_WARNING = 5
 
 
 @dataclass(frozen=True)
@@ -603,6 +617,28 @@ def evaluate_bngl_expression(text: str, symbols: dict[str, float]) -> float:
     return _Parser(_tokenize(text), text, lookup).parse()
 
 
+def bngl_expression_parameters(text: str) -> frozenset[str]:
+    """The parameter names a BNGL expression refers to.
+
+    A name followed by ``(`` is a call to a built-in function (``ln(x)``,
+    ``_pi()``) rather than a parameter reference, so it is not included.
+    An expression that refers to nothing is fixed by the model file alone;
+    one that refers to a parameter is derived, and its value cannot be
+    settled before a PEtab parameter table has been applied.
+
+    :param text: The expression, for example ``koff/(Kd*NA*V)``.
+    :returns: The names referred to, empty for a literal or an expression
+        over constants only.
+    :raises BnglExpressionError: If the expression cannot be tokenized.
+    """
+    tokens = _tokenize(text)
+    return frozenset(
+        value
+        for i, (kind, value) in enumerate(tokens)
+        if kind == "name" and tokens[i + 1 : i + 2] != [("op", "(")]
+    )
+
+
 def _parameter_resolver(
     parameters: dict[str, str],
 ) -> tuple[Callable[[str], float], dict[str, float]]:
@@ -648,6 +684,14 @@ def evaluate_bngl_parameters(
     defined before the ones it depends on. BNG2.pl is stricter here, since
     it drops a forward-referencing parameter, but accepting the
     order-independent form loses no model BNG2.pl would have accepted.
+
+    This resolves a block against the *model file's own* definitions.
+    :class:`BnglModel` deliberately does not use it: a parameter defined in
+    terms of another cannot be evaluated there, because the PEtab parameter
+    table may override or estimate what it depends on. It is meant for a
+    consumer that has already applied the parameter table and wants the
+    derived values that follow -- pass the effective values in place of the
+    file's own right-hand sides.
 
     :param parameters: Parameter name to raw right-hand side, literal or
         expression, as :func:`parse_bngl` collects it.
@@ -710,8 +754,8 @@ class BnglModel(Model):
 
         self.model = model
         self._model_id = model_id
-        self._resolved_parameters: (
-            tuple[dict[str, float], dict[str, str]] | None
+        self._constant_parameter_cache: (
+            tuple[dict[str, float], dict[str, str], frozenset[str]] | None
         ) = None
 
         if not is_valid_identifier(self._model_id):
@@ -752,44 +796,90 @@ class BnglModel(Model):
     def get_parameter_ids(self) -> Iterable[str]:
         return list(self.model.parameters)
 
-    def _parameter_values(self) -> tuple[dict[str, float], dict[str, str]]:
-        """``(values, errors)`` for the parameters block, computed once.
+    def _constant_parameters(
+        self,
+    ) -> tuple[dict[str, float], dict[str, str], frozenset[str]]:
+        """What the model file alone fixes, computed once.
 
-        A parameters block is arithmetic over other parameters, so this
-        needs no BNG2.pl and no network generation. Resolution is partial:
-        one unusable definition costs that parameter and whatever depends
-        on it, rather than the whole block.
+        Returns ``(values, errors, derived)``. ``values`` holds every
+        parameter whose right-hand side refers to no other parameter, so it
+        is a constant of the file: a literal, or arithmetic over literals
+        and built-in functions (``2*_pi()``), evaluated here without
+        BNG2.pl or a reaction network. ``derived`` holds the parameters
+        defined in terms of another parameter, whose effective value is
+        only known once the PEtab parameter table has been applied, and
+        which are therefore reported by neither accessor. ``errors`` holds
+        the rest: a right-hand side that refers to a name the block does
+        not declare, or that does not parse -- broken either way, since
+        BNG2.pl would reject it too.
         """
-        if self._resolved_parameters is None:
-            self._resolved_parameters = evaluate_bngl_parameters_partial(
-                dict(self.model.parameters)
+        if self._constant_parameter_cache is None:
+            values: dict[str, float] = {}
+            errors: dict[str, str] = {}
+            derived: set[str] = set()
+            declared = set(self.model.parameters)
+            for name, rhs in self.model.parameters.items():
+                try:
+                    referenced = bngl_expression_parameters(rhs)
+                    if undeclared := referenced - declared:
+                        errors[name] = (
+                            "refers to "
+                            + ", ".join(repr(n) for n in sorted(undeclared))
+                            + ", which the parameters block does not declare"
+                        )
+                    elif referenced:
+                        derived.add(name)
+                    else:
+                        values[name] = evaluate_bngl_expression(rhs, {})
+                except BnglExpressionError as e:
+                    errors[name] = str(e)
+            self._constant_parameter_cache = (
+                values,
+                errors,
+                frozenset(derived),
             )
-        return self._resolved_parameters
+        return self._constant_parameter_cache
 
     def get_parameter_value(self, id_: str) -> float:
         if id_ not in self.model.parameters:
             raise ValueError(f"Parameter {id_} does not exist.")
-        values, errors = self._parameter_values()
+        values, errors, derived = self._constant_parameters()
         if id_ in values:
             return values[id_]
+        rhs = self.model.parameters[id_]
+        if id_ in derived:
+            raise ValueError(
+                f"Parameter '{id_}' is derived: its value '{rhs}' is an "
+                "expression over other parameters, which the PEtab "
+                "parameter table may override or estimate, so the model "
+                "file does not fix it."
+            )
         raise ValueError(
-            f"Parameter '{id_}' has an expression value "
-            f"'{self.model.parameters[id_]}' that could not be evaluated: "
-            f"{errors[id_]}"
+            f"Parameter '{id_}' has an expression value '{rhs}' that could "
+            f"not be evaluated: {errors[id_]}"
         )
 
     def get_free_parameter_ids_with_values(
         self,
     ) -> Iterable[tuple[str, float]]:
-        # An expression-valued parameter used to be skipped here, which
-        # lost it from the PEtab problem with nothing said. They are
-        # resolved now, and anything still unusable is named in a warning
-        # rather than disappearing, without taking the block with it.
-        values, errors = self._parameter_values()
+        # Only what the file itself fixes. A parameter defined in terms of
+        # another is left out rather than evaluated against the file's own
+        # defaults: the value here would be passed on as a constant and
+        # would then win over the model's expression, so estimating
+        # anything it depends on would silently leave it stale. SbmlModel
+        # leaves a non-self-contained InitialAssignment out for the same
+        # reason. A right-hand side that is simply broken is named in a
+        # warning rather than disappearing without a word.
+        values, errors, _ = self._constant_parameters()
         if errors:
-            detail = "; ".join(
-                f"{name} ({errors[name]})" for name in sorted(errors)
-            )
+            # Naming every one of them does not help and can run to
+            # thousands of characters: a model written for a fitting tool
+            # may leave a placeholder on most of its parameters.
+            names = sorted(errors)
+            shown = names[:_MAX_PARAMETERS_IN_WARNING]
+            detail = "; ".join(f"{name} ({errors[name]})" for name in shown)
+            if len(names) > len(shown):
+                detail += f"; and {len(names) - len(shown)} more"
             warnings.warn(
                 f"Model {self._model_id!r}: {len(errors)} of "
                 f"{len(self.model.parameters)} parameters could not be "

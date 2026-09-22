@@ -24,6 +24,7 @@ from petab.v1.models.bngl_model import (
     BnglModel,
     CircularParameterError,
     _locate_bng2,
+    bngl_expression_parameters,
     evaluate_bngl_expression,
     evaluate_bngl_parameters,
     evaluate_bngl_parameters_partial,
@@ -216,6 +217,23 @@ def test_table_still_matches_bng2pl(tmp_path):
 
 
 def test_expression_over_other_parameters_resolves():
+    # The block resolver itself: dependency order, no BNG2.pl.
+    params = {
+        "NA": "6.022e23",
+        "V": "1e-12",
+        "Kd": "5.0",
+        "koff": "0.1",
+        "kon": "koff/(Kd*NA*V)",
+    }
+    assert evaluate_bngl_parameters(params)["kon"] == pytest.approx(
+        0.1 / (5.0 * 6.022e23 * 1e-12)
+    )
+
+
+def test_model_defers_a_parameter_that_depends_on_another():
+    # The same block through BnglModel, which must NOT use the resolver:
+    # `koff` may be estimated, and `kon` would then be pinned to the value
+    # the file's default implies. The literals are reported, `kon` is not.
     text = (
         "begin parameters\n"
         "  NA    6.022e23\n"
@@ -226,11 +244,38 @@ def test_expression_over_other_parameters_resolves():
         "end parameters\n"
     )
     model = BnglModel(parse_bngl(text), model_id="demo")
-    assert model.get_parameter_value("kon") == pytest.approx(
-        0.1 / (5.0 * 6.022e23 * 1e-12)
-    )
     ids = [name for name, _ in model.get_free_parameter_ids_with_values()]
-    assert ids == list(model.get_parameter_ids())
+    assert ids == ["NA", "V", "Kd", "koff"]
+    with pytest.raises(ValueError, match="derived"):
+        model.get_parameter_value("kon")
+
+
+def test_deferral_raises_value_error_not_notimplementederror():
+    """``petab.v1.parameters.create_parameter_df`` catches ``ValueError``.
+
+    It fills a parameter table's nominal values from the model and leaves
+    ``NaN`` where the model has no value to give. A ``NotImplementedError``
+    would propagate out of it instead.
+    """
+    text = "begin parameters\n  a 1\n  b a*2\nend parameters\n"
+    model = BnglModel(parse_bngl(text), model_id="demo")
+    with pytest.raises(ValueError):
+        model.get_parameter_value("b")
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("1.5", set()),
+        ("2*3 + 4^2", set()),
+        ("2*_pi()", set()),  # a call is not a reference
+        ("ln(Kd)", {"Kd"}),  # ... but its argument can be one
+        ("koff/(Kd*NA*V)", {"koff", "Kd", "NA", "V"}),
+        ("if(LT/(RT+0.01)>=ratio,1,0)", {"LT", "RT", "ratio"}),
+    ],
+)
+def test_bngl_expression_parameters(text, expected):
+    assert bngl_expression_parameters(text) == expected
 
 
 def test_declaration_order_does_not_matter():
@@ -337,7 +382,13 @@ def test_every_parameter_is_either_resolved_or_reported():
 
 
 def test_one_unevaluable_parameter_does_not_take_down_the_model():
-    """A whole-block failure would lose more than the original bug did."""
+    """A whole-block failure would lose more than the original bug did.
+
+    A reference to a name the block does not declare is broken -- BNG2.pl
+    rejects it too -- so it is named in a warning rather than dropped in
+    silence. A reference to a declared parameter is not an error; it is
+    deferred, and stays out of the warning.
+    """
     text = (
         "begin parameters\n"
         "  good1  2\n"
@@ -346,9 +397,30 @@ def test_one_unevaluable_parameter_does_not_take_down_the_model():
         "end parameters\n"
     )
     model = BnglModel(parse_bngl(text), model_id="demo")
-    with pytest.warns(UserWarning, match="could not be evaluated"):
+    with pytest.warns(UserWarning, match="could not be evaluated") as record:
         pairs = dict(model.get_free_parameter_ids_with_values())
-    assert pairs == {"good1": 2.0, "good2": 6.0}
+    assert pairs == {"good1": 2.0}
+    message = str(record[0].message)
+    assert "bad" in message and "not_a_parameter" in message
+    assert "good2" not in message
+
+
+def test_warning_about_unusable_parameters_stays_short():
+    # A model written for a fitting tool may leave a placeholder on most of
+    # its parameters, and naming all of them ran to thousands of characters.
+    text = (
+        "begin parameters\n"
+        + "".join(f"  p{i}  missing{i}\n" for i in range(12))
+        + "end parameters\n"
+    )
+    model = BnglModel(parse_bngl(text), model_id="demo")
+    with pytest.warns(UserWarning) as record:
+        dict(model.get_free_parameter_ids_with_values())
+    message = str(record[0].message)
+    assert "12 of 12 parameters" in message
+    assert "and 7 more" in message
+    assert "p7" not in message
+    assert len(message) < 600
 
 
 def test_unevaluable_parameter_surfaces_from_the_model():
