@@ -311,6 +311,11 @@ class Problem:
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=filepath
         )
+        if not config.problems:
+            raise ValueError(
+                "The 'problems' section of the PEtab problem YAML file "
+                "must not be empty."
+            )
         problem0 = config.problems[0]
         # currently required for handling PEtab v2 in here
         problem0_ = yaml_config["problems"][0]
