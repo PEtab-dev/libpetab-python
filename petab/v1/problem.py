@@ -18,7 +18,6 @@ from ..versions import get_major_version
 from . import (
     conditions,
     core,
-    mapping,
     measurements,
     observables,
     parameter_mapping,
@@ -51,7 +50,6 @@ class Problem:
     - measurement table
     - parameter table
     - observables table
-    - mapping table
 
     Optionally, it may contain visualization tables.
 
@@ -63,12 +61,10 @@ class Problem:
         parameter_df: PEtab parameter table
         observable_df: PEtab observable table
         visualization_df: PEtab visualization table
-        mapping_df: PEtab mapping table
         model: The underlying model
         sbml_reader: Stored to keep object alive (deprecated).
         sbml_document: Stored to keep object alive (deprecated).
         sbml_model: PEtab SBML model (deprecated)
-        extensions_config: Information on the extensions used
     """
 
     def __init__(
@@ -83,8 +79,6 @@ class Problem:
         parameter_df: pd.DataFrame = None,
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
-        mapping_df: pd.DataFrame = None,
-        extensions_config: dict | None = None,
         config: ProblemConfig = None,
     ):
         self.condition_df: pd.DataFrame | None = condition_df
@@ -92,7 +86,6 @@ class Problem:
         self.parameter_df: pd.DataFrame | None = parameter_df
         self.visualization_df: pd.DataFrame | None = visualization_df
         self.observable_df: pd.DataFrame | None = observable_df
-        self.mapping_df: pd.DataFrame | None = mapping_df
 
         if any(
             (sbml_model, sbml_document, sbml_reader),
@@ -119,7 +112,6 @@ class Problem:
             )
 
         self.model: Model | None = model
-        self.extensions_config = extensions_config or {}
         self.config = config
 
     def __getattr__(self, name):
@@ -186,7 +178,6 @@ class Problem:
         visualization_files: str | Path | Iterable[str | Path] | None = None,
         observable_files: str | Path | Iterable[str | Path] | None = None,
         model_id: str | None = None,
-        extensions_config: dict | None = None,
     ) -> Problem:
         """
         Factory method to load model and tables from files.
@@ -199,7 +190,6 @@ class Problem:
             visualization_files: PEtab visualization tables
             observable_files: PEtab observables tables
             model_id: PEtab ID of the model
-            extensions_config: Information on the extensions used
         """
         warn(
             "petab.Problem.from_files is deprecated and will be removed in a "
@@ -256,7 +246,6 @@ class Problem:
             parameter_df=parameter_df,
             observable_df=observable_df,
             visualization_df=visualization_df,
-            extensions_config=extensions_config,
         )
 
     @staticmethod
@@ -296,17 +285,11 @@ class Problem:
             )
 
         major_version = get_major_version(yaml_config)
-        if major_version not in {1, 2}:
+        if major_version != 1:
             raise ValueError(
-                "Provided PEtab files are of unsupported version "
-                f"{yaml_config[FORMAT_VERSION]}."
-            )
-        if major_version == 2:
-            warn(
-                "Using petab.v1.Problem with PEtab2.0 is deprecated. "
-                "Use petab.v2.Problem instead.",
-                DeprecationWarning,
-                stacklevel=2,
+                "petab.v1.Problem.from_yaml() only supports PEtab 1.x "
+                f"files, but the given files are of version {major_version}. "
+                "Use petab.v2.Problem.from_yaml() instead."
             )
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=filepath
@@ -317,8 +300,6 @@ class Problem:
                 "must not be empty."
             )
         problem0 = config.problems[0]
-        # currently required for handling PEtab v2 in here
-        problem0_ = yaml_config["problems"][0]
 
         if isinstance(config.parameter_file, list):
             parameter_df = parameters.get_parameter_df(
@@ -330,39 +311,22 @@ class Problem:
                 if config.parameter_file
                 else None
             )
-        if major_version == 1:
-            if len(problem0.sbml_files) > 1:
-                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-                raise NotImplementedError(
-                    "Support for multiple models is not yet implemented."
-                )
 
-            model = (
-                model_factory(
-                    get_path(problem0.sbml_files[0]),
-                    MODEL_TYPE_SBML,
-                    model_id=None,
-                )
-                if problem0.sbml_files
-                else None
+        if len(problem0.sbml_files) > 1:
+            # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
+            raise NotImplementedError(
+                "Support for multiple models is not yet implemented."
             )
-        else:
-            if len(problem0_[MODEL_FILES]) > 1:
-                # TODO https://github.com/PEtab-dev/libpetab-python/issues/6
-                raise NotImplementedError(
-                    "Support for multiple models is not yet implemented."
-                )
-            if not problem0_[MODEL_FILES]:
-                model = None
-            else:
-                model_id, model_info = next(
-                    iter(problem0_[MODEL_FILES].items())
-                )
-                model = model_factory(
-                    get_path(model_info[MODEL_LOCATION]),
-                    model_info[MODEL_LANGUAGE],
-                    model_id=model_id,
-                )
+
+        model = (
+            model_factory(
+                get_path(problem0.sbml_files[0]),
+                MODEL_TYPE_SBML,
+                model_id=None,
+            )
+            if problem0.sbml_files
+            else None
+        )
 
         measurement_files = [get_path(f) for f in problem0.measurement_files]
         # If there are multiple tables, we will merge them
@@ -400,14 +364,6 @@ class Problem:
             else None
         )
 
-        mapping_files = [get_path(f) for f in problem0_.get(MAPPING_FILES, [])]
-        # If there are multiple tables, we will merge them
-        mapping_df = (
-            core.concat_tables(mapping_files, mapping.get_mapping_df)
-            if mapping_files
-            else None
-        )
-
         return Problem(
             condition_df=condition_df,
             measurement_df=measurement_df,
@@ -415,8 +371,6 @@ class Problem:
             observable_df=observable_df,
             model=model,
             visualization_df=visualization_df,
-            mapping_df=mapping_df,
-            extensions_config=yaml_config.get(EXTENSIONS, {}),
             config=config,
         )
 
@@ -487,7 +441,6 @@ class Problem:
             "parameter",
             "observable",
             "visualization",
-            "mapping",
         ]:
             if getattr(self, f"{table_name}_df") is not None:
                 filenames[f"{table_name}_file"] = f"{table_name}s.tsv"
@@ -519,7 +472,6 @@ class Problem:
         prefix_path: None | str | Path = None,
         relative_paths: bool = True,
         model_file: None | str | Path = None,
-        mapping_file: None | str | Path = None,
     ) -> None:
         """
         Write PEtab tables to files for this problem
@@ -538,7 +490,6 @@ class Problem:
             parameter_file: Parameter table destination
             visualization_file: Visualization table destination
             observable_file: Observables table destination
-            mapping_file: Mapping table destination
             yaml_file: YAML file destination
             prefix_path:
                 Specify a prefix to all paths, to avoid specifying the
@@ -581,7 +532,6 @@ class Problem:
             parameter_file = add_prefix(parameter_file)
             observable_file = add_prefix(observable_file)
             visualization_file = add_prefix(visualization_file)
-            mapping_file = add_prefix(mapping_file)
             yaml_file = add_prefix(yaml_file)
 
         if model_file:
@@ -630,12 +580,6 @@ class Problem:
             else:
                 raise error("visualization")
 
-        if mapping_file:
-            if self.mapping_df is not None:
-                mapping.write_mapping_df(self.mapping_df, mapping_file)
-            else:
-                raise error("mapping")
-
         if yaml_file:
             yaml.create_problem_yaml(
                 sbml_files=model_file,
@@ -646,7 +590,6 @@ class Problem:
                 yaml_file=yaml_file,
                 visualization_files=visualization_file,
                 relative_paths=relative_paths,
-                mapping_files=mapping_file,
             )
 
     def get_optimization_parameters(self) -> list[str]:
@@ -922,7 +865,6 @@ class Problem:
             condition_df=self.condition_df,
             observable_df=self.observable_df,
             measurement_df=self.measurement_df,
-            mapping_df=self.mapping_df,
             **kwargs,
         )
 

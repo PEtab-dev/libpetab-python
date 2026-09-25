@@ -22,7 +22,6 @@ from . import (
     parameters,
 )
 from .C import *
-from .mapping import resolve_mapping
 from .models import Model
 
 # FIXME import from petab.ENV_NUM_THREADS
@@ -64,7 +63,6 @@ def get_optimization_to_simulation_parameter_mapping(
     measurement_df: pd.DataFrame,
     parameter_df: pd.DataFrame | None = None,
     observable_df: pd.DataFrame | None = None,
-    mapping_df: pd.DataFrame | None = None,
     sbml_model: libsbml.Model = None,
     simulation_conditions: pd.DataFrame | None = None,
     warn_unmapped: bool | None = True,
@@ -152,7 +150,7 @@ def get_optimization_to_simulation_parameter_mapping(
     # Add output parameters that are not already defined in the model
     if observable_df is not None:
         output_parameters = observables.get_output_parameters(
-            observable_df=observable_df, model=model, mapping_df=mapping_df
+            observable_df=observable_df, model=model
         )
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
@@ -169,7 +167,6 @@ def get_optimization_to_simulation_parameter_mapping(
                 measurement_df,
                 condition_df,
                 parameter_df,
-                mapping_df,
                 model,
                 simulation_parameters,
                 warn_unmapped,
@@ -191,7 +188,6 @@ def get_optimization_to_simulation_parameter_mapping(
                 measurement_df,
                 condition_df,
                 parameter_df,
-                mapping_df,
                 model,
                 simulation_parameters,
                 warn_unmapped,
@@ -208,7 +204,6 @@ def _map_condition_arg_packer(
     measurement_df,
     condition_df,
     parameter_df,
-    mapping_df,
     model,
     simulation_parameters,
     warn_unmapped,
@@ -223,7 +218,6 @@ def _map_condition_arg_packer(
             measurement_df,
             condition_df,
             parameter_df,
-            mapping_df,
             model,
             simulation_parameters,
             warn_unmapped,
@@ -244,7 +238,6 @@ def _map_condition(packed_args):
         measurement_df,
         condition_df,
         parameter_df,
-        mapping_df,
         model,
         simulation_parameters,
         warn_unmapped,
@@ -282,7 +275,6 @@ def _map_condition(packed_args):
             model=model,
             condition_df=condition_df,
             parameter_df=parameter_df,
-            mapping_df=mapping_df,
             simulation_parameters=simulation_parameters,
             warn_unmapped=warn_unmapped,
             scaled_parameters=scaled_parameters,
@@ -297,7 +289,6 @@ def _map_condition(packed_args):
         model=model,
         condition_df=condition_df,
         parameter_df=parameter_df,
-        mapping_df=mapping_df,
         simulation_parameters=simulation_parameters,
         warn_unmapped=warn_unmapped,
         scaled_parameters=scaled_parameters,
@@ -315,7 +306,6 @@ def get_parameter_mapping_for_condition(
     sbml_model: libsbml.Model = None,
     condition_df: pd.DataFrame = None,
     parameter_df: pd.DataFrame = None,
-    mapping_df: pd.DataFrame | None = None,
     simulation_parameters: dict[str, str] | None = None,
     warn_unmapped: bool = True,
     scaled_parameters: bool = False,
@@ -339,8 +329,6 @@ def get_parameter_mapping_for_condition(
             PEtab condition DataFrame
         parameter_df:
             PEtab parameter DataFrame
-        mapping_df:
-            PEtab mapping DataFrame
         sbml_model:
             The SBML model (deprecated)
         model:
@@ -421,7 +409,6 @@ def get_parameter_mapping_for_condition(
         condition_id,
         condition_df,
         model,
-        mapping_df,
     )
     _apply_parameter_table(
         par_mapping,
@@ -505,7 +492,6 @@ def _apply_condition_parameters(
     condition_id: str,
     condition_df: pd.DataFrame,
     model: Model,
-    mapping_df: pd.DataFrame | None = None,
 ) -> None:
     """Replace parameter IDs in parameter mapping dictionary by condition
     table parameter values (in-place).
@@ -518,8 +504,6 @@ def _apply_condition_parameters(
     for overridee_id in condition_df.columns:
         if overridee_id == CONDITION_NAME:
             continue
-
-        overridee_id = resolve_mapping(mapping_df, overridee_id)
 
         # Species, compartments, and rule targets are handled elsewhere
         if model.is_state_variable(overridee_id):

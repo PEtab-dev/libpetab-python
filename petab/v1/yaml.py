@@ -256,7 +256,6 @@ def create_problem_yaml(
     yaml_file: str | Path,
     visualization_files: str | Path | list[str | Path] | None = None,
     relative_paths: bool = True,
-    mapping_files: str | Path | list[str | Path] | None = None,
 ) -> None:
     """Create and write default YAML file for a single PEtab problem
 
@@ -273,7 +272,6 @@ def create_problem_yaml(
             whether all paths in the YAML file should be relative to the
             location of the YAML file. If ``False``, then paths are left
             unchanged.
-        mapping_files: Path of mapping file
     """
     if isinstance(sbml_files, Path | str):
         sbml_files = [sbml_files]
@@ -302,7 +300,6 @@ def create_problem_yaml(
         observable_files = get_rel_to_yaml(observable_files)
         visualization_files = get_rel_to_yaml(visualization_files)
         parameter_file = get_rel_to_yaml([parameter_file])[0]
-        mapping_files = get_rel_to_yaml(mapping_files)
 
     problem_dic = {
         CONDITION_FILES: condition_files,
@@ -310,8 +307,6 @@ def create_problem_yaml(
         SBML_FILES: sbml_files,
         OBSERVABLE_FILES: observable_files,
     }
-    if mapping_files:
-        problem_dic[MAPPING_FILES] = mapping_files
 
     if visualization_files is not None:
         problem_dic[VISUALIZATION_FILES] = visualization_files
