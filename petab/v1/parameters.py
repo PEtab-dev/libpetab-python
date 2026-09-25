@@ -164,7 +164,6 @@ def create_parameter_df(
     parameter_scale: str = LOG10,
     lower_bound: Iterable | None = None,
     upper_bound: Iterable | None = None,
-    mapping_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Create a new PEtab parameter table
 
@@ -185,7 +184,6 @@ def create_parameter_df(
         parameter_scale: parameter scaling
         lower_bound: lower bound for parameter value
         upper_bound: upper bound for parameter value
-        mapping_df: PEtab mapping DataFrame
 
     Returns:
         The created parameter DataFrame
@@ -221,7 +219,6 @@ def create_parameter_df(
                 condition_df=condition_df,
                 observable_df=observable_df,
                 measurement_df=measurement_df,
-                mapping_df=mapping_df,
             )
         )
 
@@ -260,7 +257,6 @@ def get_required_parameters_for_parameter_table(
     condition_df: pd.DataFrame,
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
-    mapping_df: pd.DataFrame = None,
 ) -> AbstractSet[str]:
     """
     Get set of parameters which need to go into the parameter table
@@ -270,7 +266,6 @@ def get_required_parameters_for_parameter_table(
         condition_df: PEtab condition table
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
-        mapping_df: PEtab mapping table
 
     Returns:
         Set of parameter IDs which PEtab requires to be present in the
@@ -318,7 +313,6 @@ def get_required_parameters_for_parameter_table(
         output_parameters = observables.get_output_parameters(
             observable_df,
             model,
-            mapping_df=mapping_df,
             **formula_type,
         )
         placeholders = observables.get_placeholders(
@@ -349,7 +343,6 @@ def get_valid_parameters_for_parameter_table(
     condition_df: pd.DataFrame,
     observable_df: pd.DataFrame,
     measurement_df: pd.DataFrame,
-    mapping_df: pd.DataFrame = None,
 ) -> set[str]:
     """
     Get set of parameters which may be present inside the parameter table
@@ -359,14 +352,12 @@ def get_valid_parameters_for_parameter_table(
         condition_df: PEtab condition table
         observable_df: PEtab observable table
         measurement_df: PEtab measurement table
-        mapping_df: PEtab mapping table for additional checks
 
     Returns:
         Set of parameter IDs which PEtab allows to be present in the
         parameter table.
     """
     # - grab all allowed model parameters
-    # - grab corresponding names from mapping table
     # - grab all output parameters defined in {observable,noise}Formula
     # - grab all parameters from measurement table
     # - grab all parametric overrides from condition table
@@ -393,13 +384,6 @@ def get_valid_parameters_for_parameter_table(
         for p in model.get_valid_parameters_for_parameter_table()
         if p not in blackset
     )
-
-    if mapping_df is not None:
-        for from_id, to_id in zip(
-            mapping_df.index.values, mapping_df[MODEL_ENTITY_ID], strict=True
-        ):
-            if to_id in parameter_ids:
-                parameter_ids[from_id] = None
 
     if observable_df is not None:
         # add output parameters from observables table

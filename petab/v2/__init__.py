@@ -5,10 +5,6 @@ Contains all functionality related to handling PEtab 2.0 problems.
 
 # TODO: move this module to v2
 from petab.v1.distributions import *
-from petab.v1.mapping import (  # noqa: F401
-    get_mapping_df,
-    write_mapping_df,
-)
 from petab.v1.measurements import (  # noqa: F401
     get_measurement_df,
     write_measurement_df,
@@ -36,4 +32,5 @@ from .experiments import (  # noqa: F401
     write_experiment_df,
 )
 from .lint import lint_problem  # noqa: F401
+from .mapping import get_mapping_df, write_mapping_df  # noqa: F401
 from .models import MODEL_TYPE_PYSB, MODEL_TYPE_SBML, Model  # noqa: F401
