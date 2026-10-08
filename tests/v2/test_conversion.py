@@ -60,7 +60,8 @@ def test_v1v2_observable_df_log10():
         }
     ).set_index(v1.C.OBSERVABLE_ID)
 
-    new_df = v1v2_observable_df(observable_df)
+    with pytest.warns(UserWarning, match=r"observables obs2, obs3 were"):
+        new_df = v1v2_observable_df(observable_df)
 
     assert list(new_df[v2.C.NOISE_DISTRIBUTION]) == [
         v2.C.LOG_NORMAL,
@@ -169,7 +170,8 @@ def test_petab1to2_log10_noise_llh(
         parameters=[_K1, *noise_parameter_rows],
     )
     v1_problem = v1.Problem.from_yaml(yaml_file)
-    v2_problem = petab1to2(yaml_file)
+    with pytest.warns(UserWarning, match=r"observables obs_B were"):
+        v2_problem = petab1to2(yaml_file)
 
     def simulate(measurement_df):
         return measurement_df.rename(
@@ -465,6 +467,9 @@ except ImportError:
 )
 @pytest.mark.filterwarnings(
     "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+@pytest.mark.filterwarnings(
+    "ignore:.*does not support log10-transformed observables.*:UserWarning"
 )
 @parametrize_or_skip
 def test_benchmark_collection(problem_id):
