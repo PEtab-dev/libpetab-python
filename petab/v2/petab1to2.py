@@ -16,7 +16,8 @@ from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
 from ..v1.math import sympify_petab
-from ..v1.yaml import get_path_prefix, load_yaml, validate
+from ..v1.yaml import get_path_prefix, load_yaml
+from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
 
@@ -24,7 +25,10 @@ __all__ = ["petab1to2"]
 
 
 def petab1to2(
-    yaml_config: Path | str, output_dir: Path | str | None = None
+    yaml_config: Path | str,
+    output_dir: Path | str | None = None,
+    *,
+    validate: bool = True,
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
@@ -46,20 +50,36 @@ def petab1to2(
     :param output_dir:
         The output directory to save the converted PEtab problem, or ``None``,
         to return a :class:`petab.v2.Problem` instance.
+    :param validate:
+        Whether to lint the PEtab v1 problem before and the generated
+        PEtab v2 problem after the conversion.
+        If ``True`` (default), the conversion fails if either does not pass
+        linting.
+        If ``False``, both lint steps are skipped. This allows converting
+        problems that fail linting for reasons unrelated to the conversion,
+        e.g., a visualization table referencing non-existent datasets or an
+        intentionally incomplete model. In this case, the result should be
+        checked separately, e.g., using ``petablint``.
+        The YAML file is validated against the PEtab v1 schema in either case.
 
     :raises ValueError:
-        If the input is invalid or does not pass linting or if the generated
-        files do not pass linting.
+        If the input is invalid or, if ``validate`` is ``True``, if the input
+        does not pass linting or if the generated files do not pass linting.
     """
     if output_dir is not None:
-        return petab_files_1to2(yaml_config, output_dir)
+        return petab_files_1to2(yaml_config, output_dir, validate=validate)
 
     with TemporaryDirectory() as tmp_dir:
-        petab_files_1to2(yaml_config, tmp_dir)
+        petab_files_1to2(yaml_config, tmp_dir, validate=validate)
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
-def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
+def petab_files_1to2(
+    yaml_config: Path | str | dict,
+    output_dir: Path | str,
+    *,
+    validate: bool = True,
+):
     """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
 
 
@@ -67,10 +87,13 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         The PEtab problem as dictionary or YAML file name.
     :param output_dir:
         The output directory to save the converted PEtab problem.
+    :param validate:
+        Whether to lint the PEtab v1 problem before and the generated
+        PEtab v2 problem after the conversion. See :func:`petab1to2`.
 
     :raises ValueError:
-        If the input is invalid or does not pass linting or if the generated
-        files do not pass linting.
+        If the input is invalid or, if ``validate`` is ``True``, if the input
+        does not pass linting or if the generated files do not pass linting.
     """
     if isinstance(yaml_config, Path | str):
         yaml_file = str(yaml_config)
@@ -85,7 +108,7 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     get_dest_path = lambda filename: f"{output_dir}/{filename}"  # noqa: E731
 
     # Validate the original PEtab problem
-    validate(yaml_config, path_prefix=path_prefix)
+    validate_yaml(yaml_config, path_prefix=path_prefix)
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
     petab_problem = v1.Problem.from_yaml(yaml_file or yaml_config)
@@ -94,7 +117,7 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     petab_problem.condition_df = petab_problem.condition_df.drop(
         columns=[v1.C.CONDITION_NAME], errors="ignore"
     )
-    if v1.lint_problem(petab_problem):
+    if validate and v1.lint_problem(petab_problem):
         raise ValueError("Provided PEtab problem does not pass linting.")
 
     output_dir = Path(output_dir)
@@ -252,6 +275,9 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     # Write the new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
     new_yaml_config.to_yaml(new_yaml_file)
+
+    if not validate:
+        return
 
     # validate updated Problem
     validation_issues = v2.lint_problem(new_yaml_file)

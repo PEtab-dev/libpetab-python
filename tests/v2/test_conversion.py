@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -39,6 +40,75 @@ def test_petab1to2_remote():
     problem = petab1to2(yaml_url)
     assert isinstance(problem, Problem)
     assert len(problem.measurements)
+
+
+def test_petab1to2_validate(tmp_path):
+    """Test that `validate=False` allows converting problems that fail
+    linting for reasons unrelated to the conversion."""
+    from petab.v1.models.sbml_model import SbmlModel
+
+    v1_problem = v1.Problem(
+        model=SbmlModel.from_antimony(
+            "A -> B; k1 * A; A = 1; B = 0; k1 = 0.5"
+        ),
+        condition_df=v1.get_condition_df(
+            pd.DataFrame({v1.C.CONDITION_ID: ["c0"], "A": [1.0]})
+        ),
+        observable_df=v1.get_observable_df(
+            pd.DataFrame(
+                {
+                    v1.C.OBSERVABLE_ID: ["obs_B"],
+                    v1.C.OBSERVABLE_FORMULA: ["B"],
+                    v1.C.NOISE_FORMULA: [0.1],
+                }
+            )
+        ),
+        measurement_df=v1.get_measurement_df(
+            pd.DataFrame(
+                {
+                    v1.C.OBSERVABLE_ID: ["obs_B", "obs_B"],
+                    v1.C.SIMULATION_CONDITION_ID: ["c0", "c0"],
+                    v1.C.TIME: [1.0, 2.0],
+                    v1.C.MEASUREMENT: [0.3, 0.5],
+                    v1.C.DATASET_ID: ["d1", "d1"],
+                }
+            )
+        ),
+        parameter_df=v1.get_parameter_df(
+            pd.DataFrame(
+                {
+                    v1.C.PARAMETER_ID: ["k1"],
+                    v1.C.PARAMETER_SCALE: [v1.C.LIN],
+                    v1.C.LOWER_BOUND: [1e-3],
+                    v1.C.UPPER_BOUND: [1e3],
+                    v1.C.NOMINAL_VALUE: [0.5],
+                    v1.C.ESTIMATE: [1],
+                }
+            )
+        ),
+        # refers to a dataset that is not in the measurement table
+        visualization_df=pd.DataFrame(
+            {
+                v1.C.PLOT_ID: ["p1"],
+                v1.C.DATASET_ID: ["no_such_dataset"],
+                v1.C.X_VALUES: [v1.C.TIME],
+            }
+        ),
+    )
+    yaml_file = v1_problem.to_files_generic(tmp_path / "v1")
+
+    with pytest.raises(ValueError, match="does not pass linting"):
+        petab1to2(yaml_file)
+
+    problem = petab1to2(yaml_file, validate=False)
+    assert isinstance(problem, Problem)
+    assert len(problem.measurements) == 2
+
+    output_dir = tmp_path / "v2"
+    output_dir.mkdir()
+    petab1to2(yaml_file, output_dir, validate=False)
+    problem = Problem.from_yaml(output_dir / Path(yaml_file).name)
+    assert len(problem.measurements) == 2
 
 
 try:
