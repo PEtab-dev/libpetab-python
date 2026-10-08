@@ -51,16 +51,11 @@ def petab1to2(
         The output directory to save the converted PEtab problem, or ``None``,
         to return a :class:`petab.v2.Problem` instance.
     :param validate:
-        Whether to lint the PEtab v1 problem before and the generated
-        PEtab v2 problem after the conversion.
-        If ``True`` (default), the conversion fails if either does not pass
-        linting.
-        If ``False``, both lint steps are skipped. This allows converting
-        problems that fail linting for reasons unrelated to the conversion,
-        e.g., a visualization table referencing non-existent datasets or an
-        intentionally incomplete model. In this case, the result should be
-        checked separately, e.g., using ``petablint``.
-        The YAML file is validated against the PEtab v1 schema in either case.
+        Whether to lint the input PEtab v1 problem, and the
+        output PEtab v2 problem.
+        If ``True`` (default), both problems are validated.
+        If ``False``, neither problem is validated.
+        The ``yaml_config`` content is validated regardless.
 
     :raises ValueError:
         If the input is invalid or, if ``validate`` is ``True``, if the input
