@@ -132,7 +132,7 @@ def test_v1v2_observable_df_placeholder_gap(type_):
         }
     ).set_index(v1.C.OBSERVABLE_ID)
 
-    with pytest.raises(ValueError, match="not numbered consecutively"):
+    with pytest.raises(ValueError, match="Non-consecutive numbering"):
         v1v2_observable_df(observable_df)
 
 
