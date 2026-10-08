@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import shutil
 import warnings
@@ -397,19 +398,11 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
 
             if trans == v1.C.LIN:
                 new_dist = dist
+            elif trans == v1.C.LOG10:
+                # see `get_noise_formula`
+                new_dist = f"{v1.C.LOG}-{dist}"
             else:
                 new_dist = f"{trans}-{dist}"
-
-            if new_dist == "log10-normal":
-                warnings.warn(
-                    f"Noise distribution `{new_dist}' for "
-                    f"observable `{row[v1.C.OBSERVABLE_ID]}'"
-                    f" is not supported in PEtab v2. "
-                    "Using `log-normal` instead.",
-                    # call to `petab1to2`
-                    stacklevel=9,
-                )
-                new_dist = v2.C.LOG_NORMAL
 
             if new_dist not in v2.C.NOISE_DISTRIBUTIONS:
                 raise NotImplementedError(
@@ -420,7 +413,20 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
 
             return new_dist
 
+        # PEtab v2 has no log10-based noise distributions. Since
+        #  ln(y) = ln(10) * log10(y), a normal (Laplace) distribution of
+        #  log10(y) with standard deviation (scale) sigma is a normal
+        #  (Laplace) distribution of ln(y) with ln(10) * sigma.
+        #  Therefore, log10-<dist> becomes log-<dist> with the noise
+        #  formula multiplied by ln(10).
+        def get_noise_formula(row):
+            formula = row[v1.C.NOISE_FORMULA]
+            if row[v1.C.OBSERVABLE_TRANSFORMATION] != v1.C.LOG10:
+                return formula
+            return f"log(10) * ({formula})"
+
         df[v2.C.NOISE_DISTRIBUTION] = df.apply(get_noise_dist, axis=1)
+        df[v1.C.NOISE_FORMULA] = df.apply(get_noise_formula, axis=1)
         df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
 
     def extract_placeholders(row: pd.Series, type_: str) -> str:
@@ -478,32 +484,38 @@ def v1v2_parameter_df(
         lambda x: str(bool(int(x))).lower()
     )
 
-    def update_prior(row):
-        """Convert prior to v2 format."""
+    def update_prior(row) -> tuple[str, str | None]:
+        """Convert prior type and prior parameters to v2 format."""
         prior_type = row.get(v1.C.OBJECTIVE_PRIOR_TYPE)
         if pd.isna(prior_type):
             prior_type = v1.C.UNIFORM
+        prior_pars = row.get(v1.C.OBJECTIVE_PRIOR_PARAMETERS)
 
         pscale = row.get(v1.C.PARAMETER_SCALE)
         if pd.isna(pscale):
             pscale = v1.C.LIN
 
         if prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES:
-            return prior_type
+            return prior_type, prior_pars
+
+        if pscale == v1.C.LOG10 and prior_type in (
+            v1.C.PARAMETER_SCALE_NORMAL,
+            v1.C.PARAMETER_SCALE_LAPLACE,
+        ):
+            # PEtab v2 has no log10-based priors. Since
+            #  ln(x) = ln(10) * log10(x), a normal (Laplace) distribution of
+            #  log10(x) with mean (location) mu and standard deviation
+            #  (scale) sigma is a normal (Laplace) distribution of ln(x)
+            #  with ln(10) * mu and ln(10) * sigma.
+            pscale = v1.C.LOG
+            prior_pars = v2.C.PARAMETER_SEPARATOR.join(
+                str(float(p) * math.log(10))
+                for p in str(prior_pars).split(v1.C.PARAMETER_SEPARATOR)
+            )
 
         new_prior_type = prior_type.removeprefix("parameterScale").lower()
         if pscale != v1.C.LIN:
             new_prior_type = f"{pscale}-{new_prior_type}"
-
-        if new_prior_type == "log10-normal":
-            warnings.warn(
-                f"Prior distribution `{new_prior_type}' for parameter "
-                f"`{row[v1.C.PARAMETER_ID]}' is not supported in PEtab v2. "
-                "Using `log-normal` instead.",
-                # call to `petab1to2`
-                stacklevel=9,
-            )
-            new_prior_type = v2.C.LOG_NORMAL
 
         if new_prior_type not in v2.C.PRIOR_DISTRIBUTIONS:
             raise NotImplementedError(
@@ -511,11 +523,13 @@ def v1v2_parameter_df(
                 f"required for parameter `{row[v1.C.PARAMETER_ID]}'."
             )
 
-        return new_prior_type
+        return new_prior_type, prior_pars
 
     # update parameterScale*-priors
     if v1.C.OBJECTIVE_PRIOR_TYPE in df.columns:
-        df[v1.C.OBJECTIVE_PRIOR_TYPE] = df.apply(update_prior, axis=1)
+        df[[v1.C.OBJECTIVE_PRIOR_TYPE, v1.C.OBJECTIVE_PRIOR_PARAMETERS]] = (
+            df.apply(update_prior, axis=1, result_type="expand")
+        )
 
     # rename objectivePrior* to prior*
     df.rename(
