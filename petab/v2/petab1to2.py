@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import warnings
+from collections import defaultdict
 from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,9 +12,12 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pandas as pd
+import sympy as sp
 from pandas.io.common import get_handle, is_url
+from sbmlmath import TimeSymbol, sbml_math_to_sympy
 
 from .. import v1, v2
+from ..v1.math import petab_math_str, sympify_petab
 from ..v1.yaml import get_path_prefix, load_yaml
 from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
@@ -25,6 +29,7 @@ __all__ = ["petab1to2"]
 def petab1to2(
     yaml_config: Path | str,
     output_dir: Path | str | None = None,
+    assignments_to_experiments: bool = False,
     *,
     validate: bool = True,
 ) -> v2.Problem | None:
@@ -48,6 +53,10 @@ def petab1to2(
     :param output_dir:
         The output directory to save the converted PEtab problem, or ``None``,
         to return a :class:`petab.v2.Problem` instance.
+    :param assignments_to_experiments:
+        Whether to replace time-dependent piecewise assignments in the model,
+        such as ``k := dose * piecewise(0, time < t_dose, 1)``, by
+        experiment periods and conditions.
     :param validate:
         Whether to lint the input PEtab v1 problem, and the
         output PEtab v2 problem.
@@ -60,16 +69,22 @@ def petab1to2(
         does not pass linting or if the generated files do not pass linting.
     """
     if output_dir is not None:
-        return petab_files_1to2(yaml_config, output_dir, validate=validate)
+        return petab_files_1to2(
+            yaml_config, output_dir, assignments_to_experiments, 
+            validate=validate
+        )
 
     with TemporaryDirectory() as tmp_dir:
-        petab_files_1to2(yaml_config, tmp_dir, validate=validate)
+        petab_files_1to2(
+          yaml_config, tmp_dir, assignments_to_experiments, validate=validate
+        )
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
 def petab_files_1to2(
     yaml_config: Path | str | dict,
     output_dir: Path | str,
+    assignments_to_experiments: bool = False,
     *,
     validate: bool = True,
 ):
@@ -80,6 +95,8 @@ def petab_files_1to2(
         The PEtab problem as dictionary or YAML file name.
     :param output_dir:
         The output directory to save the converted PEtab problem.
+    :param assignments_to_experiments:
+        See :func:`petab1to2`.
     :param validate:
         Whether to lint the PEtab v1 problem before and the generated
         PEtab v2 problem after the conversion. See :func:`petab1to2`.
@@ -112,6 +129,11 @@ def petab_files_1to2(
     )
     if validate and v1.lint_problem(petab_problem):
         raise ValueError("Provided PEtab problem does not pass linting.")
+    new_periods = (
+        _assignments_to_periods(petab_problem)
+        if assignments_to_experiments
+        else {}
+    )
 
     output_dir = Path(output_dir)
 
@@ -131,7 +153,10 @@ def petab_files_1to2(
     for file in (
         model.location for model in new_yaml_config.model_files.values()
     ):
-        _copy_file(get_src_path(file), Path(get_dest_path(file)))
+        if new_periods:
+            petab_problem.model.to_file(get_dest_path(file))
+        else:
+            _copy_file(get_src_path(file), Path(get_dest_path(file)))
 
     # Update observable table
     for observable_file in new_yaml_config.observable_files:
@@ -144,6 +169,8 @@ def petab_files_1to2(
     # Update condition table
     for condition_file in new_yaml_config.condition_files:
         condition_df = v1.get_condition_df(get_src_path(condition_file))
+        if new_periods:
+            condition_df = petab_problem.condition_df
         condition_df = v1v2_condition_df(condition_df, petab_problem.model)
         v2.write_condition_df(condition_df, get_dest_path(condition_file))
 
@@ -162,9 +189,11 @@ def petab_files_1to2(
         return ""
 
     def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
-        if not sim_cond_id and not preeq_cond_id:
-            return ""
-        if not preeq_cond_id and not v2_condition_id(sim_cond_id):
+        if (
+            not preeq_cond_id
+            and not v2_condition_id(sim_cond_id)
+            and (sim_cond_id, preeq_cond_id) not in new_periods
+        ):
             # without pre-equilibration and without any changes, there is
             #  nothing to be described by an experiment
             return ""
@@ -208,6 +237,16 @@ def petab_files_1to2(
                 v2.C.CONDITION_ID: v2_condition_id(sim_cond_id),
             }
         )
+        experiments.extend(
+            {v2.C.EXPERIMENT_ID: exp_id, v2.C.TIME: t, v2.C.CONDITION_ID: c}
+            for t, c in new_periods.get((sim_cond_id, preeq_cond_id), [])
+        )
+    if new_periods:
+        # drop periods of conditions whose changes were all replaced
+        has_changes = petab_problem.condition_df.notna().any(axis=1)
+        experiments = [
+            e for e in experiments if has_changes[e[v2.C.CONDITION_ID]]
+        ]
     if experiments:
         exp_table_path = output_dir / "experiments.tsv"
         if exp_table_path.exists():
@@ -345,6 +384,101 @@ def _copy_file(src: Path | str, dest: Path):
             return
     except FileNotFoundError:
         shutil.copy(str(src), str(dest))
+
+
+def _assignments_to_periods(
+    problem: v1.Problem,
+) -> dict[tuple[str, str], list[tuple[float, str]]]:
+    """Replace time-dependent piecewise assignments by experiment periods.
+
+    Assignment rules and initial assignments containing
+    ``piecewise(before, time < t_switch, after)`` are removed from the model,
+    which keeps the value before the switch. The condition table columns they
+    depend on are replaced by new conditions that set the assignment target
+    at the start of the respective periods.
+
+    :returns: The new ``(time, condition ID)`` periods for each measured
+        ``(simulation condition ID, preequilibration condition ID)`` pair.
+    """
+    sbml_model = problem.model.sbml_model
+    condition_df = problem.condition_df
+    overrides = {
+        cid: row.dropna().to_dict() for cid, row in condition_df.iterrows()
+    }
+    pairs = list(
+        problem.get_simulation_conditions_from_measurement_df()
+        .reindex(
+            columns=[
+                v1.C.SIMULATION_CONDITION_ID,
+                v1.C.PREEQUILIBRATION_CONDITION_ID,
+            ],
+            fill_value="",
+        )
+        .itertuples(index=False)
+    )
+    parameter_ids = set(problem.parameter_df.index)
+    periods = defaultdict(list)
+    # (target ID, target value) -> new condition ID
+    new_conditions = {}
+    replaced_columns = set()
+
+    for assignment in [
+        *(r for r in sbml_model.getListOfRules() if r.isAssignment()),
+        *sbml_model.getListOfInitialAssignments(),
+    ]:
+        expr = sbml_math_to_sympy(assignment)
+        pws = [pw for pw in expr.atoms(sp.Piecewise) if pw.has(TimeSymbol)]
+        if not pws:
+            continue
+        (pw,) = pws
+        (time,) = pw.atoms(TimeSymbol)
+        (before, switch), _ = pw.args
+        t_switch = sp.solve(switch.lhs - switch.rhs, time)[0]
+
+        target_id = assignment.getId()
+        target = sbml_model.getParameter(target_id)
+        target.setValue(float(expr.subs(pw, before)))
+        target.setConstant(False)
+        assignment.removeFromParentAndDelete()
+        replaced_columns |= {str(s) for s in expr.free_symbols}
+
+        for sim_id, preeq_id in pairs:
+            t_sim = float(t_switch.subs(overrides[sim_id]))
+            values = {
+                t: expr.subs(overrides[sim_id]).subs(time, t)
+                for t in (0.0, t_sim)
+            }
+            if preeq_id:
+                values[v2.C.TIME_PREEQUILIBRATION] = expr.subs(
+                    overrides[preeq_id]
+                ).subs(time, 0)
+            elif {str(s) for s in values[t_sim].free_symbols} <= parameter_ids:
+                # the model already has the pre-switch value, and the switch
+                #  is valid as first period (only parameter table symbols)
+                del values[0.0]
+            for t, value in values.items():
+                cond_id = new_conditions.setdefault(
+                    (target_id, value), f"cond_{len(new_conditions)}"
+                )
+                periods[sim_id, preeq_id].append((t, cond_id))
+
+    problem.condition_df = pd.concat(
+        [
+            condition_df.drop(columns=replaced_columns, errors="ignore"),
+            pd.DataFrame.from_dict(
+                {
+                    cid: {
+                        target_id: float(value)
+                        if value.is_number
+                        else petab_math_str(value)
+                    }
+                    for (target_id, value), cid in new_conditions.items()
+                },
+                orient="index",
+            ),
+        ]
+    ).rename_axis(v1.C.CONDITION_ID)
+    return {pair: sorted(p) for pair, p in periods.items()}
 
 
 def v1v2_condition_df(
