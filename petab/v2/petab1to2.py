@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 import warnings
 from collections import defaultdict
@@ -19,7 +18,8 @@ from sbmlmath import TimeSymbol, sbml_math_to_sympy
 
 from .. import v1, v2
 from ..v1.math import petab_math_str, sympify_petab
-from ..v1.yaml import get_path_prefix, load_yaml, validate
+from ..v1.yaml import get_path_prefix, load_yaml
+from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
 
@@ -30,6 +30,8 @@ def petab1to2(
     yaml_config: Path | str,
     output_dir: Path | str | None = None,
     assignments_to_experiments: bool = False,
+    *,
+    validate: bool = True,
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
@@ -55,18 +57,27 @@ def petab1to2(
         Whether to replace time-dependent piecewise assignments in the model,
         such as ``k := dose * piecewise(0, time < t_dose, 1)``, by
         experiment periods and conditions.
+    :param validate:
+        Whether to lint the input PEtab v1 problem, and the
+        output PEtab v2 problem.
+        If ``True`` (default), both problems are validated.
+        If ``False``, neither problem is validated.
+        The ``yaml_config`` content is validated regardless.
 
     :raises ValueError:
-        If the input is invalid or does not pass linting or if the generated
-        files do not pass linting.
+        If the input is invalid or, if ``validate`` is ``True``, if the input
+        does not pass linting or if the generated files do not pass linting.
     """
     if output_dir is not None:
         return petab_files_1to2(
-            yaml_config, output_dir, assignments_to_experiments
+            yaml_config, output_dir, assignments_to_experiments, 
+            validate=validate
         )
 
     with TemporaryDirectory() as tmp_dir:
-        petab_files_1to2(yaml_config, tmp_dir, assignments_to_experiments)
+        petab_files_1to2(
+          yaml_config, tmp_dir, assignments_to_experiments, validate=validate
+        )
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
@@ -74,6 +85,8 @@ def petab_files_1to2(
     yaml_config: Path | str | dict,
     output_dir: Path | str,
     assignments_to_experiments: bool = False,
+    *,
+    validate: bool = True,
 ):
     """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
 
@@ -84,10 +97,13 @@ def petab_files_1to2(
         The output directory to save the converted PEtab problem.
     :param assignments_to_experiments:
         See :func:`petab1to2`.
+    :param validate:
+        Whether to lint the PEtab v1 problem before and the generated
+        PEtab v2 problem after the conversion. See :func:`petab1to2`.
 
     :raises ValueError:
-        If the input is invalid or does not pass linting or if the generated
-        files do not pass linting.
+        If the input is invalid or, if ``validate`` is ``True``, if the input
+        does not pass linting or if the generated files do not pass linting.
     """
     if isinstance(yaml_config, Path | str):
         yaml_file = str(yaml_config)
@@ -102,7 +118,7 @@ def petab_files_1to2(
     get_dest_path = lambda filename: f"{output_dir}/{filename}"  # noqa: E731
 
     # Validate the original PEtab problem
-    validate(yaml_config, path_prefix=path_prefix)
+    validate_yaml(yaml_config, path_prefix=path_prefix)
     if get_major_version(yaml_config) != 1:
         raise ValueError("PEtab problem is not version 1.")
     petab_problem = v1.Problem.from_yaml(yaml_file or yaml_config)
@@ -111,7 +127,7 @@ def petab_files_1to2(
     petab_problem.condition_df = petab_problem.condition_df.drop(
         columns=[v1.C.CONDITION_NAME], errors="ignore"
     )
-    if v1.lint_problem(petab_problem):
+    if validate and v1.lint_problem(petab_problem):
         raise ValueError("Provided PEtab problem does not pass linting.")
     new_periods = (
         _assignments_to_periods(petab_problem)
@@ -161,24 +177,25 @@ def petab_files_1to2(
     # records for the experiment table to be created
     experiments = []
 
+    def v2_condition_id(cond_id: str) -> str:
+        """Get the condition ID to use in the v2 experiment table.
+
+        Conditions without any changes (all-NaN rows) are not included in the
+        v2 condition table. Periods applying such a condition get an empty
+        condition ID ("use the model as is").
+        """
+        if petab_problem.condition_df.loc[cond_id].notna().any():
+            return cond_id
+        return ""
+
     def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
-        if not sim_cond_id and not preeq_cond_id:
-            return ""
-        # check whether the conditions will exist in the v2 condition table
-        sim_cond_exists = (
-            petab_problem.condition_df.loc[sim_cond_id].notna().any()
-        )
-        preeq_cond_exists = (
-            preeq_cond_id
-            and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
-        )
         if (
-            not sim_cond_exists
-            and not preeq_cond_exists
+            not preeq_cond_id
+            and not v2_condition_id(sim_cond_id)
             and (sim_cond_id, preeq_cond_id) not in new_periods
         ):
-            # if we have only all-NaN conditions, we don't create a new
-            #  experiment
+            # without pre-equilibration and without any changes, there is
+            #  nothing to be described by an experiment
             return ""
 
         if preeq_cond_id:
@@ -210,14 +227,14 @@ def petab_files_1to2(
                 {
                     v2.C.EXPERIMENT_ID: exp_id,
                     v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
-                    v2.C.CONDITION_ID: preeq_cond_id,
+                    v2.C.CONDITION_ID: v2_condition_id(preeq_cond_id),
                 }
             )
         experiments.append(
             {
                 v2.C.EXPERIMENT_ID: exp_id,
                 v2.C.TIME: 0,
-                v2.C.CONDITION_ID: sim_cond_id,
+                v2.C.CONDITION_ID: v2_condition_id(sim_cond_id),
             }
         )
         experiments.extend(
@@ -258,20 +275,6 @@ def petab_files_1to2(
         else:
             measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
 
-        if (
-            petab_problem.condition_df is not None
-            and len(
-                set(petab_problem.condition_df.columns) - {v1.C.CONDITION_NAME}
-            )
-            == 0
-        ):
-            # we can't have "empty" conditions with no overrides in v2,
-            #  therefore, we drop the respective condition ID completely
-            #   TODO: or can we?
-            # TODO: this needs to be checked condition-wise, not globally
-            measurement_df[v1.C.SIMULATION_CONDITION_ID] = ""
-            if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
-                measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
         # condition IDs to experiment IDs
         measurement_df.insert(
             0,
@@ -293,6 +296,9 @@ def petab_files_1to2(
     # Write the new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
     new_yaml_config.to_yaml(new_yaml_file)
+
+    if not validate:
+        return
 
     # validate updated Problem
     validation_issues = v2.lint_problem(new_yaml_file)
@@ -571,23 +577,19 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
         if pd.isna(formula):
             return ""
 
-        t = f"{re.escape(type_)}Parameter"
-        o = re.escape(row[v1.C.OBSERVABLE_ID])
-
-        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
-
-        expr = sympify_petab(formula)
-        # for 10+ placeholders, the current lexicographical sorting will result
-        #  in incorrect ordering of the placeholder IDs, so that they don't
-        #  align with the overrides in the measurement table, but who does
-        #  that anyway?
-        return v2.C.PARAMETER_SEPARATOR.join(
-            sorted(
-                str(sym)
-                for sym in expr.free_symbols
-                if sym.is_Symbol and pattern.match(str(sym))
+        # v1 overrides are positional: the i-th override replaces
+        #  `{type_}Parameter{i}_{observableId}`. This returns the placeholders
+        #  ordered by index and fails if they are not numbered 1..n.
+        try:
+            placeholders = v1.get_formula_placeholders(
+                formula, row[v1.C.OBSERVABLE_ID], type_
             )
-        )
+        except AssertionError as e:
+            raise ValueError(
+                f"Cannot convert the {type_} placeholders of observable "
+                f"`{row[v1.C.OBSERVABLE_ID]}': {e}"
+            ) from e
+        return v2.C.PARAMETER_SEPARATOR.join(placeholders)
 
     df[v2.C.OBSERVABLE_PLACEHOLDERS] = df.apply(
         extract_placeholders, args=("observable",), axis=1
