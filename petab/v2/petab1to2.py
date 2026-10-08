@@ -17,6 +17,7 @@ from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
 from ..v1.math import sympify_petab
+from ..v1.parameters import unscale
 from ..v1.yaml import get_path_prefix, load_yaml, validate
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
@@ -496,7 +497,25 @@ def v1v2_parameter_df(
             pscale = v1.C.LIN
 
         if prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES:
-            return prior_type, prior_pars
+            # v1 logNormal / logLaplace are based on the natural logarithm,
+            #  just like v2 log-normal / log-laplace
+            return {
+                v1.C.LOG_NORMAL: v2.C.LOG_NORMAL,
+                v1.C.LOG_LAPLACE: v2.C.LOG_LAPLACE,
+            }.get(prior_type, prior_type), prior_pars
+
+        if prior_type == v1.C.PARAMETER_SCALE_UNIFORM and pscale != v1.C.LIN:
+            # A uniform distribution of ln(x) (log10(x)) on [a, b] is a
+            #  log-uniform distribution of x on [e^a, e^b] ([10^a, 10^b]).
+            #  v2 log-uniform takes the bounds of x as parameters.
+            #  Missing parameters default to the parameter bounds (see
+            #  `update_prior_pars` below), as in v1.
+            if not pd.isna(prior_pars):
+                prior_pars = v2.C.PARAMETER_SEPARATOR.join(
+                    str(float(unscale(float(p), pscale)))
+                    for p in str(prior_pars).split(v1.C.PARAMETER_SEPARATOR)
+                )
+            return v2.C.LOG_UNIFORM, prior_pars
 
         if pscale == v1.C.LOG10 and prior_type in (
             v1.C.PARAMETER_SCALE_NORMAL,
