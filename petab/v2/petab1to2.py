@@ -134,20 +134,23 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
     # records for the experiment table to be created
     experiments = []
 
+    def v2_condition_id(cond_id: str) -> str:
+        """Get the condition ID to use in the v2 experiment table.
+
+        Conditions without any changes (all-NaN rows) are not included in the
+        v2 condition table. Periods applying such a condition get an empty
+        condition ID ("use the model as is").
+        """
+        if petab_problem.condition_df.loc[cond_id].notna().any():
+            return cond_id
+        return ""
+
     def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
         if not sim_cond_id and not preeq_cond_id:
             return ""
-        # check whether the conditions will exist in the v2 condition table
-        sim_cond_exists = (
-            petab_problem.condition_df.loc[sim_cond_id].notna().any()
-        )
-        preeq_cond_exists = (
-            preeq_cond_id
-            and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
-        )
-        if not sim_cond_exists and not preeq_cond_exists:
-            # if we have only all-NaN conditions, we don't create a new
-            #  experiment
+        if not preeq_cond_id and not v2_condition_id(sim_cond_id):
+            # without pre-equilibration and without any changes, there is
+            #  nothing to be described by an experiment
             return ""
 
         if preeq_cond_id:
@@ -179,14 +182,14 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
                 {
                     v2.C.EXPERIMENT_ID: exp_id,
                     v2.C.TIME: v2.C.TIME_PREEQUILIBRATION,
-                    v2.C.CONDITION_ID: preeq_cond_id,
+                    v2.C.CONDITION_ID: v2_condition_id(preeq_cond_id),
                 }
             )
         experiments.append(
             {
                 v2.C.EXPERIMENT_ID: exp_id,
                 v2.C.TIME: 0,
-                v2.C.CONDITION_ID: sim_cond_id,
+                v2.C.CONDITION_ID: v2_condition_id(sim_cond_id),
             }
         )
     if experiments:
@@ -217,20 +220,6 @@ def petab_files_1to2(yaml_config: Path | str | dict, output_dir: Path | str):
         else:
             measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
 
-        if (
-            petab_problem.condition_df is not None
-            and len(
-                set(petab_problem.condition_df.columns) - {v1.C.CONDITION_NAME}
-            )
-            == 0
-        ):
-            # we can't have "empty" conditions with no overrides in v2,
-            #  therefore, we drop the respective condition ID completely
-            #   TODO: or can we?
-            # TODO: this needs to be checked condition-wise, not globally
-            measurement_df[v1.C.SIMULATION_CONDITION_ID] = ""
-            if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
-                measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
         # condition IDs to experiment IDs
         measurement_df.insert(
             0,
