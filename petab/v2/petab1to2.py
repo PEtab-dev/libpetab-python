@@ -16,7 +16,6 @@ import pandas as pd
 from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
-from ..v1.math import sympify_petab
 from ..v1.yaml import get_path_prefix, load_yaml
 from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
@@ -467,23 +466,19 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
         if pd.isna(formula):
             return ""
 
-        t = f"{re.escape(type_)}Parameter"
-        o = re.escape(row[v1.C.OBSERVABLE_ID])
-
-        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
-
-        expr = sympify_petab(formula)
-        # for 10+ placeholders, the current lexicographical sorting will result
-        #  in incorrect ordering of the placeholder IDs, so that they don't
-        #  align with the overrides in the measurement table, but who does
-        #  that anyway?
-        return v2.C.PARAMETER_SEPARATOR.join(
-            sorted(
-                str(sym)
-                for sym in expr.free_symbols
-                if sym.is_Symbol and pattern.match(str(sym))
+        # v1 overrides are positional: the i-th override replaces
+        #  `{type_}Parameter{i}_{observableId}`. This returns the placeholders
+        #  ordered by index and fails if they are not numbered 1..n.
+        try:
+            placeholders = v1.get_formula_placeholders(
+                formula, row[v1.C.OBSERVABLE_ID], type_
             )
-        )
+        except AssertionError as e:
+            raise ValueError(
+                f"Cannot convert the {type_} placeholders of observable "
+                f"`{row[v1.C.OBSERVABLE_ID]}': {e}"
+            ) from e
+        return v2.C.PARAMETER_SEPARATOR.join(placeholders)
 
     df[v2.C.OBSERVABLE_PLACEHOLDERS] = df.apply(
         extract_placeholders, args=("observable",), axis=1

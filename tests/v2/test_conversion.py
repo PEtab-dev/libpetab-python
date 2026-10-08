@@ -242,6 +242,113 @@ def test_petab1to2_parameter_scale_priors(
     assert v2_prior.pdf(x) == pytest.approx(v1_prior.pdf(x), rel=1e-12)
 
 
+def test_petab1to2_placeholder_order(tmp_path):
+    """Test that placeholders are ordered by index, not as text, so that the
+    positional overrides still match for 10+ placeholders."""
+    obs_id = "obs_B"
+    n_obs, n_noise = 12, 11
+    observable_df = pd.DataFrame(
+        data={
+            v1.C.OBSERVABLE_ID: [obs_id],
+            v1.C.OBSERVABLE_FORMULA: [
+                " + ".join(
+                    f"observableParameter{i}_{obs_id} * B^{i}"
+                    for i in range(1, n_obs + 1)
+                )
+            ],
+            v1.C.NOISE_FORMULA: [
+                " + ".join(
+                    f"noiseParameter{i}_{obs_id}"
+                    for i in range(1, n_noise + 1)
+                )
+            ],
+        }
+    ).set_index(v1.C.OBSERVABLE_ID)
+    # the i-th observable override is i, the i-th noise override is 100 + i
+    measurement_df = pd.DataFrame(
+        data={
+            v1.C.OBSERVABLE_ID: [obs_id, obs_id],
+            v1.C.SIMULATION_CONDITION_ID: ["c0", "c0"],
+            v1.C.TIME: [1.0, 2.0],
+            v1.C.MEASUREMENT: [0.3, 0.5],
+            v1.C.OBSERVABLE_PARAMETERS: ";".join(
+                str(i) for i in range(1, n_obs + 1)
+            ),
+            v1.C.NOISE_PARAMETERS: ";".join(
+                str(100 + i) for i in range(1, n_noise + 1)
+            ),
+        }
+    )
+    condition_df = pd.DataFrame(
+        data={v1.C.CONDITION_ID: ["c0"], "A": [1.0]}
+    ).set_index(v1.C.CONDITION_ID)
+    parameter_df = pd.DataFrame(
+        data={
+            v1.C.PARAMETER_ID: ["k1"],
+            v1.C.PARAMETER_SCALE: [v1.C.LIN],
+            v1.C.LOWER_BOUND: [1e-3],
+            v1.C.UPPER_BOUND: [1e3],
+            v1.C.NOMINAL_VALUE: [0.5],
+            v1.C.ESTIMATE: [1],
+        }
+    ).set_index(v1.C.PARAMETER_ID)
+    v1_problem = v1.Problem(
+        model=v1.models.sbml_model.SbmlModel.from_antimony(
+            "A -> B; k1 * A; A = 1; B = 0; k1 = 0.5"
+        ),
+        condition_df=condition_df,
+        measurement_df=measurement_df,
+        parameter_df=parameter_df,
+        observable_df=observable_df,
+    )
+
+    problem = petab1to2(v1_problem.to_files_generic(tmp_path))
+
+    observable = problem[obs_id]
+    assert len(problem.measurements) == 2
+    for measurement in problem.measurements:
+        assert {
+            str(placeholder): float(override)
+            for placeholder, override in zip(
+                observable.observable_placeholders,
+                measurement.observable_parameters,
+                strict=True,
+            )
+        } == {
+            f"observableParameter{i}_{obs_id}": i for i in range(1, n_obs + 1)
+        }
+        assert {
+            str(placeholder): float(override)
+            for placeholder, override in zip(
+                observable.noise_placeholders,
+                measurement.noise_parameters,
+                strict=True,
+            )
+        } == {
+            f"noiseParameter{i}_{obs_id}": 100 + i
+            for i in range(1, n_noise + 1)
+        }
+
+
+@pytest.mark.parametrize("type_", ["observable", "noise"])
+def test_v1v2_observable_df_placeholder_gap(type_):
+    """Test that non-consecutively numbered placeholders are rejected,
+    because v1 overrides are positional."""
+    formula = f"{type_}Parameter1_obs1 + {type_}Parameter3_obs1"
+    observable_df = pd.DataFrame(
+        data={
+            v1.C.OBSERVABLE_ID: ["obs1"],
+            v1.C.OBSERVABLE_FORMULA: [
+                formula if type_ == "observable" else "a"
+            ],
+            v1.C.NOISE_FORMULA: [formula if type_ == "noise" else "1"],
+        }
+    ).set_index(v1.C.OBSERVABLE_ID)
+
+    with pytest.raises(ValueError, match="Non-consecutive numbering"):
+        v1v2_observable_df(observable_df)
+
+
 def test_petab1to2_remote():
     """Test that we can upgrade a remote PEtab 1.0.0 problem."""
     yaml_url = (
