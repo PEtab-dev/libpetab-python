@@ -438,20 +438,26 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
         t = f"{re.escape(type_)}Parameter"
         o = re.escape(row[v1.C.OBSERVABLE_ID])
 
-        pattern = re.compile(rf"(?:^|\W)({t}\d+_{o})(?=\W|$)")
+        pattern = re.compile(rf"(?:^|\W)({t}(\d+)_{o})(?=\W|$)")
 
         expr = sympify_petab(formula)
-        # for 10+ placeholders, the current lexicographical sorting will result
-        #  in incorrect ordering of the placeholder IDs, so that they don't
-        #  align with the overrides in the measurement table, but who does
-        #  that anyway?
-        return v2.C.PARAMETER_SEPARATOR.join(
-            sorted(
-                str(sym)
-                for sym in expr.free_symbols
-                if sym.is_Symbol and pattern.match(str(sym))
-            )
+        # v1 overrides are positional: the i-th override replaces
+        #  `{type_}Parameter{i}_{observableId}`. Therefore, sort by index
+        #  (not as text, which would put 10 before 2) and require 1..n.
+        placeholders = sorted(
+            (int(match.group(2)), str(sym))
+            for sym in expr.free_symbols
+            if sym.is_Symbol and (match := pattern.match(str(sym)))
         )
+        if [i for i, _ in placeholders] != list(
+            range(1, len(placeholders) + 1)
+        ):
+            raise ValueError(
+                f"The {type_} placeholders of observable "
+                f"`{row[v1.C.OBSERVABLE_ID]}' are not numbered consecutively "
+                f"starting from 1: {[p for _, p in placeholders]}."
+            )
+        return v2.C.PARAMETER_SEPARATOR.join(p for _, p in placeholders)
 
     df[v2.C.OBSERVABLE_PLACEHOLDERS] = df.apply(
         extract_placeholders, args=("observable",), axis=1
