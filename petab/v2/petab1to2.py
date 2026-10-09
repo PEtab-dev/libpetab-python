@@ -436,6 +436,22 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
 
         df[v2.C.NOISE_DISTRIBUTION] = df.apply(get_noise_dist, axis=1)
         df[v1.C.NOISE_FORMULA] = df.apply(get_noise_formula, axis=1)
+
+        is_log10 = df[v1.C.OBSERVABLE_TRANSFORMATION] == v1.C.LOG10
+        if is_log10.any():
+            log10_ids = ", ".join(df.loc[is_log10, v1.C.OBSERVABLE_ID])
+            warnings.warn(
+                "PEtab v2 does not support log10-transformed observables. "
+                f"The noise distributions of observables {log10_ids} were "
+                "converted to log-normal or log-laplace, and their noise "
+                "formulas were multiplied by `log(10)`. Parameters in these "
+                "noise formulas (e.g., estimated noise parameters) keep their "
+                "PEtab v1 meaning, i.e., they refer to the log10-transformed "
+                "observable, not to its natural logarithm.",
+                # call to `petab1to2`
+                stacklevel=4,
+            )
+
         df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
 
     def extract_placeholders(row: pd.Series, type_: str) -> str:
