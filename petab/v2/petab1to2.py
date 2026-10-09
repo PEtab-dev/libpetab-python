@@ -15,7 +15,7 @@ import pandas as pd
 from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
-from ..v1.parameters import unscale
+from ..v1.parameters import scale, unscale
 from ..v1.yaml import get_path_prefix, load_yaml
 from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
@@ -531,9 +531,20 @@ def v1v2_parameter_df(
             #  Missing parameters default to the parameter bounds (see
             #  `update_prior_pars` below), as in v1.
             if not pd.isna(prior_pars):
-                prior_pars = v2.C.PARAMETER_SEPARATOR.join(
-                    str(float(unscale(float(p), pscale)))
-                    for p in str(prior_pars).split(v1.C.PARAMETER_SEPARATOR)
+                # Clip [a, b] to the bounds before unscaling, as v1 does
+                #  (see `petab.v1.priors.Prior`). This avoids overflow for
+                #  intervals that exceed the floating-point range when
+                #  unscaled.
+                low, high = map(
+                    float, str(prior_pars).split(v1.C.PARAMETER_SEPARATOR)
+                )
+                lb, ub = row[v1.C.LOWER_BOUND], row[v1.C.UPPER_BOUND]
+                low = lb if low <= scale(lb, pscale) else unscale(low, pscale)
+                high = (
+                    ub if high >= scale(ub, pscale) else unscale(high, pscale)
+                )
+                prior_pars = (
+                    f"{float(low)}{v2.C.PARAMETER_SEPARATOR}{float(high)}"
                 )
             return v2.C.LOG_UNIFORM, prior_pars
 

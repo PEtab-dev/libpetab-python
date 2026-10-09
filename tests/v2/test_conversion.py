@@ -204,13 +204,16 @@ def test_petab1to2_log10_noise_llh(
         (v1.C.LOG, v1.C.PARAMETER_SCALE_NORMAL, "-0.5;0.7"),
         (v1.C.LOG, v1.C.PARAMETER_SCALE_LAPLACE, "-0.5;0.7"),
         (v1.C.LIN, v1.C.PARAMETER_SCALE_NORMAL, "-0.5;0.7"),
-        # parameterScaleUniform within the bounds, exceeding the bounds,
+        # parameterScaleUniform within the bounds, exceeding the bounds
+        #  (also beyond the floating-point range when unscaled),
         #  and defaulting to the bounds
         (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, "-0.5;0.7"),
         (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, "-5;0.7"),
+        (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, "-400;400"),
         (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, np.nan),
         (v1.C.LOG, v1.C.PARAMETER_SCALE_UNIFORM, "-0.5;0.7"),
         (v1.C.LOG, v1.C.PARAMETER_SCALE_UNIFORM, "-10;0.7"),
+        (v1.C.LOG, v1.C.PARAMETER_SCALE_UNIFORM, "-1000;1000"),
         (v1.C.LOG, v1.C.PARAMETER_SCALE_UNIFORM, np.nan),
         (v1.C.LIN, v1.C.PARAMETER_SCALE_UNIFORM, "0.1;0.7"),
         # logNormal / logLaplace do not depend on the parameter scale
