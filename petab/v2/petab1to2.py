@@ -15,6 +15,7 @@ import pandas as pd
 from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
+from ..v1.parameters import scale, unscale
 from ..v1.yaml import get_path_prefix, load_yaml
 from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
@@ -516,7 +517,36 @@ def v1v2_parameter_df(
             pscale = v1.C.LIN
 
         if prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES:
-            return prior_type, prior_pars
+            # v1 logNormal / logLaplace are based on the natural logarithm,
+            #  just like v2 log-normal / log-laplace
+            return {
+                v1.C.LOG_NORMAL: v2.C.LOG_NORMAL,
+                v1.C.LOG_LAPLACE: v2.C.LOG_LAPLACE,
+            }.get(prior_type, prior_type), prior_pars
+
+        if prior_type == v1.C.PARAMETER_SCALE_UNIFORM and pscale != v1.C.LIN:
+            # A uniform distribution of ln(x) (log10(x)) on [a, b] is a
+            #  log-uniform distribution of x on [e^a, e^b] ([10^a, 10^b]).
+            #  v2 log-uniform takes the bounds of x as parameters.
+            #  Missing parameters default to the parameter bounds (see
+            #  `update_prior_pars` below), as in v1.
+            if not pd.isna(prior_pars):
+                # Clip [a, b] to the bounds before unscaling, as v1 does
+                #  (see `petab.v1.priors.Prior`). This avoids overflow for
+                #  intervals that exceed the floating-point range when
+                #  unscaled.
+                low, high = map(
+                    float, str(prior_pars).split(v1.C.PARAMETER_SEPARATOR)
+                )
+                lb, ub = row[v1.C.LOWER_BOUND], row[v1.C.UPPER_BOUND]
+                low = lb if low <= scale(lb, pscale) else unscale(low, pscale)
+                high = (
+                    ub if high >= scale(ub, pscale) else unscale(high, pscale)
+                )
+                prior_pars = (
+                    f"{float(low)}{v2.C.PARAMETER_SEPARATOR}{float(high)}"
+                )
+            return v2.C.LOG_UNIFORM, prior_pars
 
         if pscale == v1.C.LOG10 and prior_type in (
             v1.C.PARAMETER_SCALE_NORMAL,
