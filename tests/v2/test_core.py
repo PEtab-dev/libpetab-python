@@ -980,3 +980,149 @@ def test_objective_type():
     )
     assert problem.has_map_objective is True
     assert problem.has_ml_objective is False
+
+
+def _two_model_problem() -> Problem:
+    """A valid problem with two models that share some parameters."""
+    problem = Problem()
+    problem.models = [
+        SbmlModel.from_antimony(
+            "x_A' = k_A - k_deg * x_A; x_A = 0; k_A = 1; k_deg = 0.1",
+            model_id="model_A",
+        ),
+        SbmlModel.from_antimony(
+            "x_B' = k_B - k_deg * x_B; x_B = 0; k_B = 1; k_deg = 0.1",
+            model_id="model_B",
+        ),
+    ]
+    problem.add_mapping("k_B", "k_B", name="production rate B")
+    problem.add_condition("cA", x_A=1)
+    problem.add_condition("cB", x_B=2)
+    problem.add_experiment("eA", 0, "cA")
+    problem.add_experiment("eB", 0, "cB")
+    problem.add_observable("obs_A", "x_A", "sigma")
+    problem.add_observable("obs_B", "x_B", "sigma")
+    for t in (1, 2):
+        problem.add_measurement(
+            "obs_A",
+            experiment_id="eA",
+            time=t,
+            measurement=t,
+            model_id="model_A",
+        )
+        problem.add_measurement(
+            "obs_B",
+            experiment_id="eB",
+            time=t,
+            measurement=t,
+            model_id="model_B",
+        )
+    for parameter_id in ("k_A", "k_B", "k_deg", "sigma"):
+        problem.add_parameter(parameter_id, nominal_value=1, lb=0.1, ub=10)
+    return problem
+
+
+def test_split_by_model():
+    problem = _two_model_problem()
+    sub_problems = problem.split_by_model()
+
+    assert list(sub_problems) == ["model_A", "model_B"]
+    for suffix in ("A", "B"):
+        sub_problem = sub_problems[f"model_{suffix}"]
+        assert sub_problem.models == [problem.models["AB".index(suffix)]]
+        assert [c.id for c in sub_problem.conditions] == [f"c{suffix}"]
+        assert [e.id for e in sub_problem.experiments] == [f"e{suffix}"]
+        assert [o.id for o in sub_problem.observables] == [f"obs_{suffix}"]
+        assert {m.observable_id for m in sub_problem.measurements} == {
+            f"obs_{suffix}"
+        }
+        assert len(sub_problem.measurements) == 2
+        sub_problem.assert_valid()
+
+    assert sub_problems["model_A"].x_ids == ["k_A", "k_deg", "sigma"]
+    assert sub_problems["model_B"].x_ids == ["k_B", "k_deg", "sigma"]
+    assert [m.petab_id for m in sub_problems["model_A"].mappings] == []
+    assert [m.petab_id for m in sub_problems["model_B"].mappings] == ["k_B"]
+
+    # a measurement without model
+    problem.measurements[0].model_id = None
+    with pytest.raises(ValueError, match="not assigned"):
+        problem.split_by_model()
+
+    # duplicate model IDs
+    problem = _two_model_problem()
+    problem.models[1].model_id = "model_A"
+    with pytest.raises(ValueError, match="unique"):
+        problem.split_by_model()
+
+
+def test_split_by_model_single_model():
+    """With one model, measurements don't need a model ID."""
+    problem = _two_model_problem().split_by_model()["model_A"]
+    for m in problem.measurements:
+        m.model_id = None
+    sub_problems = problem.split_by_model()
+    assert list(sub_problems) == ["model_A"]
+    assert len(sub_problems["model_A"].measurements) == 2
+
+
+def test_validate_multi_model():
+    problem = _two_model_problem()
+    assert (result := problem.validate()) == [], result
+    problem.assert_valid()
+    str(problem)
+
+    # parameter not used by any model
+    problem.add_parameter("unused", nominal_value=1, lb=0.1, ub=10)
+    result = problem.validate()
+    assert result.has_errors()
+    assert len(result) == 1
+    assert "unused" in result[0].message
+    assert "not used by any model" in result[0].message
+
+    # missing model ID
+    problem = _two_model_problem()
+    problem.measurements[0].model_id = None
+    result = problem.validate()
+    assert result.has_errors()
+    assert "does not have a model ID" in result[0].message
+
+    # duplicate model IDs
+    problem = _two_model_problem()
+    problem.models[1].model_id = "model_A"
+    result = problem.validate()
+    assert result.has_errors()
+    assert "Duplicate model IDs" in result[0].message
+
+    # unknown model ID
+    problem = _two_model_problem()
+    problem.measurements[0].model_id = "model_C"
+    result = problem.validate()
+    assert result.has_errors()
+    assert "does not match any of the available models" in result[0].message
+
+    # issues found in a single model are labelled with the model ID
+    problem = _two_model_problem()
+    problem.add_measurement(
+        "obs_undefined",
+        experiment_id="eB",
+        time=1,
+        measurement=1,
+        model_id="model_B",
+    )
+    result = problem.validate()
+    assert result.has_errors()
+    assert any(
+        r.message.startswith("Model `model_B`: ")
+        and "obs_undefined" in r.message
+        for r in result
+    ), result
+
+    # unused experiments and conditions are reported
+    problem = _two_model_problem()
+    problem.add_condition("c_unused", x_A=3)
+    problem.add_experiment("e_unused", 0, "cA")
+    result = problem.validate()
+    assert not result.has_errors()
+    assert any("e_unused" in r.message for r in result), result
+    assert any("c_unused" in r.message for r in result), result
