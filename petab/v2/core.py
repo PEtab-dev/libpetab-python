@@ -1180,7 +1180,9 @@ class Problem:
     def __str__(self):
         pid = repr(self.id) if self.id else "without ID"
 
-        model = f"with models {self.models}" if self.model else "without model"
+        model = (
+            f"with models {self.models}" if self.models else "without model"
+        )
 
         ne = len(self.experiments)
         experiments = f"{ne} experiments"
@@ -1990,20 +1992,33 @@ class Problem:
                 )
             )
 
+        validation_tasks = validation_tasks or self.validation_tasks
         if len(self.models) > 1:
-            # TODO https://github.com/PEtab-dev/libpetab-python/issues/392
-            #  We might just want to split the problem into multiple
-            #  problems, one for each model, and then validate each
-            #  problem separately.
-            validation_results.append(
-                ValidationIssue(
-                    ValidationIssueSeverity.WARNING,
-                    "Problem contains multiple models. "
-                    "Validation is not yet fully supported.",
-                )
+            validation_results.extend(
+                self._validate_multi_model(validation_tasks)
+            )
+        else:
+            validation_results.extend(
+                self._run_validation_tasks(validation_tasks)
             )
 
-        for task in validation_tasks or self.validation_tasks:
+        return validation_results
+
+    def _run_validation_tasks(
+        self, validation_tasks: list[ValidationTask]
+    ) -> ValidationResultList:
+        """Run the given validation tasks on this problem.
+
+        Stops at the first critical issue.
+        """
+        from ..v2.lint import (
+            ValidationIssue,
+            ValidationIssueSeverity,
+            ValidationResultList,
+        )
+
+        validation_results = ValidationResultList()
+        for task in validation_tasks:
             try:
                 cur_result = task.run(self)
             except Exception as e:  # noqa BLE001
@@ -2020,6 +2035,176 @@ class Problem:
                     break
 
         return validation_results
+
+    def _validate_multi_model(
+        self, validation_tasks: list[ValidationTask]
+    ) -> ValidationResultList:
+        """Validate a problem with multiple models.
+
+        Runs the validation tasks on each part of
+        :meth:`Problem.split_by_model`. Checks that need the full problem
+        (model IDs of measurements, unused experiments, conditions and
+        parameters) run on the full problem.
+        See https://github.com/PEtab-dev/libpetab-python/issues/392.
+        """
+        from ..v2.lint import (
+            CheckMeasurementModelId,
+            CheckUnusedConditions,
+            CheckUnusedExperiments,
+            ValidationError,
+            ValidationResultList,
+        )
+
+        validation_results = ValidationResultList()
+
+        model_ids = [model.model_id for model in self.models]
+        if duplicates := sorted(
+            {id_ for id_ in model_ids if model_ids.count(id_) > 1}
+        ):
+            validation_results.append(
+                ValidationError(f"Duplicate model IDs: {duplicates}")
+            )
+        # always required, otherwise the problem can't be split
+        validation_results.extend(
+            self._run_validation_tasks([CheckMeasurementModelId()])
+        )
+        if validation_results.has_errors():
+            return validation_results
+
+        # the split drops unused experiments and conditions,
+        #  so these have to be checked on the full problem
+        full_problem_task_types = (
+            CheckUnusedExperiments,
+            CheckUnusedConditions,
+        )
+        validation_results.extend(
+            self._run_validation_tasks(
+                [
+                    task
+                    for task in validation_tasks
+                    if isinstance(task, full_problem_task_types)
+                ]
+            )
+        )
+
+        sub_problems = self.split_by_model()
+        for model_id, sub_problem in sub_problems.items():
+            for issue in sub_problem._run_validation_tasks(
+                [
+                    task
+                    for task in validation_tasks
+                    if not isinstance(task, full_problem_task_types)
+                ]
+            ):
+                issue.message = f"Model `{model_id}`: {issue.message}"
+                validation_results.append(issue)
+
+        # extraneous parameters are dropped by the split
+        used_parameter_ids = set().union(
+            *(sub_problem.x_ids for sub_problem in sub_problems.values())
+        )
+        if unused := [x for x in self.x_ids if x not in used_parameter_ids]:
+            validation_results.append(
+                ValidationError(
+                    "Extraneous parameter(s) in parameter table, not used "
+                    f"by any model: {unused}"
+                )
+            )
+
+        return validation_results
+
+    def split_by_model(self) -> dict[str, Problem]:
+        """Split the problem into one single-model problem per model.
+
+        Each part contains the model, its measurements, and the experiments,
+        conditions, observables, mappings and parameters these require.
+        The parts share their models and table entries with this problem.
+
+        See https://github.com/PEtab-dev/libpetab-python/issues/392.
+
+        :returns: The single-model problems, keyed by model ID.
+        :raises ValueError: If model IDs are not unique, or if any
+            measurement is not assigned to a model.
+        """
+        from ..v2.lint import get_valid_parameters_for_parameter_table
+
+        model_ids = {model.model_id for model in self.models}
+        if len(model_ids) != len(self.models):
+            raise ValueError("Model IDs must be unique.")
+
+        def get_model_id(measurement: Measurement) -> str | None:
+            # with a single model, the model ID is optional
+            if measurement.model_id is None and len(self.models) == 1:
+                return self.models[0].model_id
+            return measurement.model_id
+
+        if unassigned := [
+            m for m in self.measurements if get_model_id(m) not in model_ids
+        ]:
+            raise ValueError(
+                f"Measurement not assigned to any model: {unassigned[0]}"
+            )
+
+        sub_problems = {}
+        for model in self.models:
+            measurements = [
+                m
+                for m in self.measurements
+                if get_model_id(m) == model.model_id
+            ]
+            experiment_ids = {m.experiment_id for m in measurements}
+            experiments = [
+                e for e in self.experiments if e.id in experiment_ids
+            ]
+            condition_ids = {
+                condition_id
+                for e in experiments
+                for period in e.periods
+                for condition_id in period.condition_ids
+            }
+            observable_ids = {m.observable_id for m in measurements}
+
+            sub_problem = Problem(
+                models=[model],
+                condition_tables=[
+                    ConditionTable(
+                        [c for c in self.conditions if c.id in condition_ids]
+                    )
+                ],
+                experiment_tables=[ExperimentTable(experiments)],
+                observable_tables=[
+                    ObservableTable(
+                        [o for o in self.observables if o.id in observable_ids]
+                    )
+                ],
+                measurement_tables=[MeasurementTable(measurements)],
+                mapping_tables=[
+                    MappingTable(
+                        [
+                            m
+                            for m in self.mappings
+                            if m.model_id is None
+                            or model.has_entity_with_id(m.model_id)
+                        ]
+                    )
+                ],
+                extensions=self.extensions,
+                config=self.config,
+            )
+            sub_problem.validation_tasks = self.validation_tasks.copy()
+            # get_valid_parameters_for_parameter_table doesn't depend on the
+            #  parameter table, so we can use it before adding the parameters
+            valid_parameter_ids = get_valid_parameters_for_parameter_table(
+                sub_problem
+            )
+            sub_problem.parameter_tables = [
+                ParameterTable(
+                    [p for p in self.parameters if p.id in valid_parameter_ids]
+                )
+            ]
+            sub_problems[model.model_id] = sub_problem
+
+        return sub_problems
 
     def assert_valid(self, **kwargs) -> None:
         """Assert that the PEtab problem is valid.
@@ -2188,6 +2373,7 @@ class Problem:
         | float
         | None = None,
         noise_parameters: Sequence[str | float] | str | float | None = None,
+        model_id: str | None = None,
     ):
         """Add a measurement to the problem.
 
@@ -2201,6 +2387,7 @@ class Problem:
             measurement: The measurement value
             observable_parameters: The observable parameters
             noise_parameters: The noise parameters
+            model_id: The ID of the model the measurement belongs to
         """
         if observable_parameters is not None and not isinstance(
             observable_parameters, Sequence
@@ -2222,6 +2409,7 @@ class Problem:
                 measurement=measurement,
                 observable_parameters=observable_parameters,
                 noise_parameters=noise_parameters,
+                model_id=model_id,
             )
         )
 
