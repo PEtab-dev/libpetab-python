@@ -1049,12 +1049,6 @@ def test_split_by_model():
     with pytest.raises(ValueError, match="not assigned"):
         problem.split_by_model()
 
-    # duplicate model IDs
-    problem = _two_model_problem()
-    problem.models[1].model_id = "model_A"
-    with pytest.raises(ValueError, match="unique"):
-        problem.split_by_model()
-
 
 def test_split_by_model_single_model():
     """With one model, measurements don't need a model ID."""
@@ -1087,7 +1081,15 @@ def test_validate_multi_model():
     assert result.has_errors()
     assert "does not have a model ID" in result[0].message
 
+    # duplicate model IDs
+    problem = _two_model_problem()
+    problem.models[1].model_id = "model_A"
+    result = problem.validate()
+    assert result.has_errors()
+    assert "Duplicate model IDs" in result[0].message
+
     # unknown model ID
+    problem = _two_model_problem()
     problem.measurements[0].model_id = "model_C"
     result = problem.validate()
     assert result.has_errors()

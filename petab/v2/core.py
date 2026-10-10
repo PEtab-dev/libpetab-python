@@ -2123,14 +2123,11 @@ class Problem:
         See https://github.com/PEtab-dev/libpetab-python/issues/392.
 
         :returns: The single-model problems, keyed by model ID.
-        :raises ValueError: If model IDs are not unique, or if any
-            measurement is not assigned to a model.
+        :raises ValueError: If any measurement is not assigned to a model.
         """
         from ..v2.lint import get_valid_parameters_for_parameter_table
 
         model_ids = {model.model_id for model in self.models}
-        if len(model_ids) != len(self.models):
-            raise ValueError("Model IDs must be unique.")
 
         def get_model_id(measurement: Measurement) -> str | None:
             # with a single model, the model ID is optional
