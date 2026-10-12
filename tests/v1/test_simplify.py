@@ -5,11 +5,11 @@ from math import nan
 import pandas as pd
 import pytest
 from pandas.testing import *
-from petab.C import *
-from petab.models.sbml_model import SbmlModel
-from petab.simplify import *
 
-from petab import Problem
+from petab.v1 import Problem
+from petab.v1.C import *
+from petab.v1.models.sbml_model import SbmlModel
+from petab.v1.simplify import *
 
 
 @pytest.fixture
