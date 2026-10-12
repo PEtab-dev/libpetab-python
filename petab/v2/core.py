@@ -2042,13 +2042,16 @@ class Problem:
         """Validate a problem with multiple models.
 
         Runs the validation tasks on each part of
-        :meth:`Problem.split_by_model`. Checks that need the full problem
-        (model IDs of measurements, unused experiments, conditions and
-        parameters) run on the full problem.
+        :meth:`Problem.split_by_model`. Checks of the shared tables
+        (model IDs of measurements, unique IDs, the mapping table, unused
+        experiments, conditions and parameters) run on the full problem.
         See https://github.com/PEtab-dev/libpetab-python/issues/392.
         """
         from ..v2.lint import (
+            CheckAllParametersPresentInParameterTable,
+            CheckMappingTable,
             CheckMeasurementModelId,
+            CheckUniquePrimaryKeys,
             CheckUnusedConditions,
             CheckUnusedExperiments,
             ValidationError,
@@ -2071,9 +2074,11 @@ class Problem:
         if validation_results.has_errors():
             return validation_results
 
-        # the split drops unused experiments and conditions,
-        #  so these have to be checked on the full problem
+        # the split drops unused or other models' table entries,
+        #  so checks of the shared tables have to run on the full problem
         full_problem_task_types = (
+            CheckUniquePrimaryKeys,
+            CheckMappingTable,
             CheckUnusedExperiments,
             CheckUnusedConditions,
         )
@@ -2100,6 +2105,11 @@ class Problem:
                 validation_results.append(issue)
 
         # extraneous parameters are dropped by the split
+        if not any(
+            isinstance(task, CheckAllParametersPresentInParameterTable)
+            for task in validation_tasks
+        ):
+            return validation_results
         used_parameter_ids = set().union(
             *(sub_problem.x_ids for sub_problem in sub_problems.values())
         )
@@ -2118,6 +2128,8 @@ class Problem:
 
         Each part contains the model, its measurements, and the experiments,
         conditions, observables, mappings and parameters these require.
+        Mappings to entities of other models are dropped, all other mappings
+        (e.g., to extension entities) are kept.
         The parts share their models and table entries with this problem.
 
         See https://github.com/PEtab-dev/libpetab-python/issues/392.
@@ -2185,6 +2197,10 @@ class Problem:
                             for m in self.mappings
                             if m.model_id is None
                             or model.has_entity_with_id(m.model_id)
+                            or not any(
+                                other.has_entity_with_id(m.model_id)
+                                for other in self.models
+                            )
                         ]
                     )
                 ],

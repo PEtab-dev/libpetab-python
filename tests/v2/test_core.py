@@ -30,7 +30,7 @@ from petab.v2.C import (
 )
 from petab.v2.core import *
 from petab.v2.core import ExtensionConfig
-from petab.v2.lint import ValidationIssueSeverity
+from petab.v2.lint import CheckUnusedConditions, ValidationIssueSeverity
 from petab.v2.models.sbml_model import SbmlModel
 from petab.v2.petab1to2 import petab1to2
 
@@ -1044,6 +1044,11 @@ def test_split_by_model():
     assert [m.petab_id for m in sub_problems["model_A"].mappings] == []
     assert [m.petab_id for m in sub_problems["model_B"].mappings] == ["k_B"]
 
+    # mappings to non-model entities, e.g., of extensions, are kept
+    problem.add_mapping("net1_ps", "net1.parameters")
+    for sub_problem in problem.split_by_model().values():
+        assert "net1_ps" in {m.petab_id for m in sub_problem.mappings}
+
     # a measurement without model
     problem.measurements[0].model_id = None
     with pytest.raises(ValueError, match="not assigned"):
@@ -1079,6 +1084,9 @@ def test_validate_multi_model():
     assert len(result) == 1
     assert "unused" in result[0].message
     assert "not used by any model" in result[0].message
+
+    # ... unless parameter table checks are not requested
+    assert problem.validate([CheckUnusedConditions()]) == []
 
     # missing model ID
     problem = _two_model_problem()
@@ -1126,3 +1134,11 @@ def test_validate_multi_model():
     assert not result.has_errors()
     assert any("e_unused" in r.message for r in result), result
     assert any("c_unused" in r.message for r in result), result
+
+    # duplicate IDs of entries that the split drops are reported
+    problem = _two_model_problem()
+    problem.add_condition("c_dup", x_A=3)
+    problem.add_condition("c_dup", x_A=4)
+    result = problem.validate()
+    assert result.has_errors()
+    assert any("duplicate IDs: ['c_dup']" in r.message for r in result), result
