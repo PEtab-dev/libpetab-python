@@ -12,7 +12,6 @@ from petab.v1.priors import Prior
 from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
 from petab.v2.converters import assignments_to_experiments
-from petab.v2.models.sbml_model import SbmlModel
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 
 

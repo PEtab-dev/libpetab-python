@@ -29,7 +29,6 @@ def petab1to2(
     output_dir: Path | str | None = None,
     *,
     validate: bool = True,
-    assignments_to_experiments: bool = False,
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
@@ -57,10 +56,6 @@ def petab1to2(
         If ``True`` (default), both problems are validated.
         If ``False``, neither problem is validated.
         The ``yaml_config`` content is validated regardless.
-    :param assignments_to_experiments:
-        Whether to replace time-dependent piecewise assignments in the model,
-        such as ``k := dose * piecewise(0, time < t_dose, 1)``, by
-        experiment periods and conditions.
 
     :raises ValueError:
         If the input is invalid or, if ``validate`` is ``True``, if the input
@@ -71,13 +66,6 @@ def petab1to2(
 
     with TemporaryDirectory() as tmp_dir:
         petab_files_1to2(yaml_config, tmp_dir, validate=validate)
-        return petab_files_1to2(
-            yaml_config, output_dir, assignments_to_experiments
-        )
-        return petab_files_1to2(yaml_config, output_dir)
-
-    with TemporaryDirectory() as tmp_dir:
-        petab_files_1to2(yaml_config, tmp_dir)
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
@@ -86,7 +74,6 @@ def petab_files_1to2(
     output_dir: Path | str,
     *,
     validate: bool = True,
-    assignments_to_experiments: bool = False,
 ):
     """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
 
@@ -98,8 +85,6 @@ def petab_files_1to2(
     :param validate:
         Whether to lint the PEtab v1 problem before and the generated
         PEtab v2 problem after the conversion. See :func:`petab1to2`.
-    :param assignments_to_experiments:
-        See :func:`petab1to2`.
 
     :raises ValueError:
         If the input is invalid or, if ``validate`` is ``True``, if the input
@@ -184,18 +169,6 @@ def petab_files_1to2(
         if not preeq_cond_id and not v2_condition_id(sim_cond_id):
             # without pre-equilibration and without any changes, there is
             #  nothing to be described by an experiment
-            return ""
-        # check whether the conditions will exist in the v2 condition table
-        sim_cond_exists = (
-            petab_problem.condition_df.loc[sim_cond_id].notna().any()
-        )
-        preeq_cond_exists = (
-            preeq_cond_id
-            and petab_problem.condition_df.loc[preeq_cond_id].notna().any()
-        )
-        if not sim_cond_exists and not preeq_cond_exists:
-            # if we have only all-NaN conditions, we don't create a new
-            #  experiment
             return ""
 
         if preeq_cond_id:
