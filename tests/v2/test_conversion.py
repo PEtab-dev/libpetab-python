@@ -914,3 +914,42 @@ def test_assignments_to_experiments_multiple_switches(assignment):
 
     with pytest.raises(NotImplementedError, match="single time-dependent"):
         assignments_to_experiments(problem)
+
+
+@pytest.mark.parametrize(
+    "assignment, estimated",
+    [
+        # depends on a species
+        ("piecewise(0, time < A, 1)", None),
+        ("piecewise(0, A * time < 5, 1)", None),
+        # depends on an estimated parameter
+        ("piecewise(0, time < t_dose, 1)", "t_dose"),
+        # no real solution
+        ("piecewise(0, time^2 + 1 < 0, 1)", None),
+    ],
+)
+def test_assignments_to_experiments_non_numeric_switch(assignment, estimated):
+    """Test that switching times that are not real numbers are rejected."""
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        t_dose = 5;
+        k1 := {assignment};
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=0.0, measurement=10.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+    if estimated:
+        problem.add_parameter(estimated, estimate=True, lb=0, ub=10)
+
+    with pytest.raises(NotImplementedError, match="evaluate to a real number"):
+        assignments_to_experiments(problem)

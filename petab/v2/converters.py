@@ -725,7 +725,15 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                     continue
 
                 t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
-                t = float(t_switch.subs(subs))
+                t = t_switch.subs(subs)
+                if not (t.is_number and t.is_real):
+                    raise NotImplementedError(
+                        "Only switching times that evaluate to a real number "
+                        "are supported, but the switching time of the "
+                        f"assignment to `{target_id}` in experiment "
+                        f"`{experiment.id}` is `{t}`."
+                    )
+                t = float(t)
                 switch_value = (
                     cur_expr.subs(time, t) if period.time < t < t_end else None
                 )
