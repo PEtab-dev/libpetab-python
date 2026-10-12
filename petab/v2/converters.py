@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
+from itertools import count
 
 import libsbml
 import sympy as sp
-from sbmlmath import sbml_math_to_sympy, set_math
+from sbmlmath import TimeSymbol, sbml_math_to_sympy, set_math
 
 from .core import (
     Change,
@@ -20,7 +21,7 @@ from .core import (
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
 
-__all__ = ["ExperimentsToSbmlConverter"]
+__all__ = ["ExperimentsToSbmlConverter", "assignments_to_experiments"]
 
 
 class ExperimentsToSbmlConverter:
@@ -632,3 +633,167 @@ class ExperimentsToSbmlConverter:
                 ]
             )
         ]
+
+
+DEFAULT_EXPERIMENT_ID = "default_experiment"
+
+def assignments_to_experiments(problem: Problem) -> Problem:
+    """Replace time-dependent piecewise assignments by experiment periods.
+
+    Measurements without an experiment ID are assigned to a new experiment
+    :data:`DEFAULT_EXPERIMENT_ID`, if needed.
+
+    :param problem: The PEtab problem to convert. This will not be modified.
+    :returns: The converted PEtab problem.
+    """
+    if not isinstance(problem.model, SbmlModel):
+        raise TypeError("Only SBML models are supported.")
+
+    problem = deepcopy(problem)
+    sbml_model = problem.model.sbml_model
+    parameter_ids = {p.id for p in problem.parameters}
+
+    experiments = list(problem.experiments)
+    if any(m.experiment_id is None for m in problem.measurements):
+        default_experiment = Experiment(id=DEFAULT_EXPERIMENT_ID)
+        experiments.append(default_experiment)
+    else:
+        default_experiment = None
+    # periods that are dropped if all their conditions were replaced
+    droppable = {
+        id(p) for e in experiments for p in e.periods if p.condition_ids
+    }
+    for experiment in experiments:
+        if all(p.is_preequilibration for p in experiment.periods):
+            experiment += (period := ExperimentPeriod(time=0))
+            droppable.add(id(period))
+
+    # (experiment, period start time, target ID, target value)
+    additions = []
+    replaced_symbols = set()
+
+    for assignment in [
+        *(r for r in sbml_model.getListOfRules() if r.isAssignment()),
+        *sbml_model.getListOfInitialAssignments(),
+    ]:
+        expr = sbml_math_to_sympy(assignment)
+        pws = [pw for pw in expr.atoms(sp.Piecewise) if pw.has(TimeSymbol)]
+        if not pws:
+            continue
+        (pw,) = pws
+        (time,) = pw.atoms(TimeSymbol)
+        (before, switch), _ = pw.args
+        t_switch = sp.solve(switch.lhs - switch.rhs, time)[0]
+
+        target_id = assignment.getId()
+        default = expr.subs(pw, before)
+        target = sbml_model.getParameter(target_id)
+        target.setValue(float(default))
+        target.setConstant(False)
+        assignment.removeFromParentAndDelete()
+        symbol_ids = {str(s) for s in expr.free_symbols}
+        replaced_symbols |= symbol_ids
+
+        for experiment in experiments:
+            periods = experiment.sorted_periods
+            overrides = {}
+            for i, period in enumerate(periods):
+                changes = problem.get_changes_for_period(period)
+                overrides |= {c.target_id: c.target_value for c in changes}
+                subs = {
+                    s: overrides[str(s)]
+                    for s in expr.free_symbols
+                    if str(s) in overrides
+                }
+                cur_expr = expr.subs(subs)
+                if period.is_preequilibration:
+                    additions.append(
+                        (
+                            experiment,
+                            period.time,
+                            target_id,
+                            cur_expr.subs(time, 0),
+                        )
+                    )
+                    continue
+
+                t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
+                t = float(t_switch.subs(subs))
+                switch_value = (
+                    cur_expr.subs(time, t) if period.time < t < t_end else None
+                )
+                start_value = cur_expr.subs(time, period.time)
+                # The model already has the pre-switch value at the start of
+                #  the first period, and the switch can become the first
+                #  period if it only refers to parameter table symbols.
+                redundant = (
+                    i == 0
+                    and (start_value - default).is_zero
+                    and (
+                        switch_value is None
+                        or {str(s) for s in switch_value.free_symbols}
+                        <= parameter_ids
+                    )
+                )
+                if not redundant and (
+                    i == 0 or {c.target_id for c in changes} & symbol_ids
+                ):
+                    additions.append(
+                        (experiment, period.time, target_id, start_value)
+                    )
+                if switch_value is not None:
+                    additions.append((experiment, t, target_id, switch_value))
+
+    # drop changes that are covered by the new conditions
+    condition_ids = {c.id for c in problem.conditions}
+    for table in problem.condition_tables:
+        for condition in table.conditions:
+            condition.changes = [
+                c
+                for c in condition.changes
+                if c.target_id not in replaced_symbols
+            ]
+        table.elements = [c for c in table.conditions if c.changes]
+    removed_condition_ids = condition_ids - {c.id for c in problem.conditions}
+    for experiment in experiments:
+        for period in experiment.periods:
+            period.condition_ids = [
+                cid
+                for cid in period.condition_ids
+                if cid not in removed_condition_ids
+            ]
+
+    # add the new conditions to new or existing periods
+    new_conditions = {}
+    cond_counter = count()
+    for experiment, t, target_id, value in additions:
+        if (cond_id := new_conditions.get((target_id, value))) is None:
+            while (cond_id := f"cond_{next(cond_counter)}") in condition_ids:
+                pass
+            new_conditions[target_id, value] = cond_id
+            problem += Condition(
+                id=cond_id,
+                changes=[Change(target_id=target_id, target_value=value)],
+            )
+        period = next((p for p in experiment.periods if p.time == t), None)
+        if period is None:
+            experiment += (period := ExperimentPeriod(time=t))
+        period.condition_ids.append(cond_id)
+
+    for experiment in experiments:
+        experiment.sort_periods()
+        experiment.periods = [
+            p
+            for p in experiment.periods
+            if p.condition_ids or id(p) not in droppable
+        ] or experiment.periods[:1]
+
+    if default_experiment and any(
+        p.condition_ids for p in default_experiment.periods
+    ):
+        problem += default_experiment
+        for measurement in problem.measurements:
+            if measurement.experiment_id is None:
+                measurement.experiment_id = DEFAULT_EXPERIMENT_ID
+
+    return problem
