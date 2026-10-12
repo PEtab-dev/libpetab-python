@@ -637,6 +637,7 @@ class ExperimentsToSbmlConverter:
 
 DEFAULT_EXPERIMENT_ID = "default_experiment"
 
+
 def assignments_to_experiments(problem: Problem) -> Problem:
     """Replace time-dependent piecewise assignments by experiment periods.
 
@@ -680,6 +681,12 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         pws = [pw for pw in expr.atoms(sp.Piecewise) if pw.has(TimeSymbol)]
         if not pws:
             continue
+        if len(pws) > 1 or len(pws[0].args) != 2:
+            raise NotImplementedError(
+                "Only assignments with a single time-dependent piecewise "
+                "function with a single condition are supported, but "
+                f"the assignment to `{assignment.getId()}` is `{expr}`."
+            )
         (pw,) = pws
         (time,) = pw.atoms(TimeSymbol)
         (before, switch), _ = pw.args

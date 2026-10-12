@@ -665,6 +665,56 @@ def test_assignments_to_experiments():
     ]
 
 
+def test_assignments_to_experiments_reversed():
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 = piecewise(1, 10 > time, 2);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=0.0, measurement=10.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    # the value before the switch is kept in the model, so that only the
+    #  switch itself needs a condition
+    assert converted.model.sbml_model.getParameter("k1").getValue() == 1.0
+
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: ["default_experiment"],
+            v2.C.TIME: [10.0],
+            v2.C.CONDITION_ID: ["cond_0"],
+        }
+    )
+
+    conditions_expected = pd.DataFrame(
+        data={
+            v2.C.CONDITION_ID: ["cond_0"],
+            v2.C.TARGET_ID: ["k1"],
+            v2.C.TARGET_VALUE: [2.0],
+        }
+    )
+
+    assert converted.experiment_df.equals(experiments_expected)
+    assert converted.condition_df.equals(conditions_expected)
+    assert converted.measurement_df[v2.C.EXPERIMENT_ID].tolist() == [
+        "default_experiment",
+        "default_experiment",
+    ]
+
+
 def test_assignments_to_experiments_nested():
     """Test conversion of piecewise assignments that are nested inside a
     larger expression and switch at a time given by some expression."""
@@ -833,3 +883,34 @@ def test_assignments_to_experiments_preequilibration():
 
     assert converted.experiment_df.equals(experiments_expected)
     assert converted.condition_df.equals(conditions_expected)
+
+
+@pytest.mark.parametrize(
+    "assignment",
+    [
+        "piecewise(0, time < 10, 1) + piecewise(0, time < 20, 1)",
+        "piecewise(0, time < 10, 1, time < 20, 2)",
+    ],
+)
+def test_assignments_to_experiments_multiple_switches(assignment):
+    """Test that assignments with more than one switch are rejected."""
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 := {assignment};
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=0.0, measurement=10.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    with pytest.raises(NotImplementedError, match="single time-dependent"):
+        assignments_to_experiments(problem)
