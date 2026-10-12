@@ -11,7 +11,7 @@
   `petab.__version__` now raises `AttributeError` / `ModuleNotFoundError`.
   Use `petab.v1.<name>` instead, e.g., `import petab.v1 as petab`.
   `import petab` no longer imports `petab.v1`.
-  (by @dweindl)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/538)
 
 **Fixes**
 * `get_model_for_condition` no longer turns rate-rule targets that are
