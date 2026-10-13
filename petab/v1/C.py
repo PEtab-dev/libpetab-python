@@ -335,15 +335,6 @@ PARAMETER_FILE = "parameter_file"
 PROBLEMS = "problems"
 #: SBML files key in the YAML file
 SBML_FILES = "sbml_files"
-#: Model files key in the YAML file
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-MODEL_FILES = "model_files"
-#: Model location key in the YAML file
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-MODEL_LOCATION = "location"
-#: Model language key in the YAML file
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-MODEL_LANGUAGE = "language"
 #: Condition files key in the YAML file
 CONDITION_FILES = "condition_files"
 #: Measurement files key in the YAML file
@@ -352,25 +343,6 @@ MEASUREMENT_FILES = "measurement_files"
 OBSERVABLE_FILES = "observable_files"
 #: Visualization files key in the YAML file
 VISUALIZATION_FILES = "visualization_files"
-#: Mapping files key in the YAML file
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-MAPPING_FILES = "mapping_files"
-#: Extensions key in the YAML file
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-EXTENSIONS = "extensions"
-
-
-# MAPPING
-
-#: PEtab entity ID column in the mapping table
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-PETAB_ENTITY_ID = "petabEntityId"
-#: Model entity ID column in the mapping table
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-MODEL_ENTITY_ID = "modelEntityId"
-#: Required columns of the mapping table
-#  (PEtab v2.0 -- DEPRECATED: use value from petab.v2.C)
-MAPPING_DF_REQUIRED_COLS = [PETAB_ENTITY_ID, MODEL_ENTITY_ID]
 
 # MORE
 

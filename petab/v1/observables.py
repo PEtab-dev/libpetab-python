@@ -80,7 +80,6 @@ def get_output_parameters(
     model: Model,
     observables: bool = True,
     noise: bool = True,
-    mapping_df: pd.DataFrame = None,
 ) -> list[str]:
     """Get output parameters
 
@@ -92,7 +91,6 @@ def get_output_parameters(
         model: The underlying model
         observables: Include parameters from observableFormulas
         noise: Include parameters from noiseFormulas
-        mapping_df: PEtab mapping table
 
     Returns:
         List of output parameter IDs
@@ -112,16 +110,6 @@ def get_output_parameters(
         for free_sym in free_syms:
             sym = str(free_sym)
             if model.symbol_allowed_in_observable_formula(sym):
-                continue
-
-            # does it map to a model entity?
-            if (
-                mapping_df is not None
-                and sym in mapping_df.index
-                and model.symbol_allowed_in_observable_formula(
-                    mapping_df.loc[sym, MODEL_ENTITY_ID]
-                )
-            ):
                 continue
 
             output_parameters[sym] = None
