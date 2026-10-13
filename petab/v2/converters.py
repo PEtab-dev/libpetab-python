@@ -644,6 +644,8 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     Measurements without an experiment ID are assigned to a new experiment
     :data:`DEFAULT_EXPERIMENT_ID`, if needed.
 
+    **Scope:** conversion is supported for a single piecewise function with exactly 3 arguments, where the 2nd argument is an inequality that can be re-arranged explicitly into `t </<=/>/>= ...`. Anything else raises a :class:`NotImplementedError`.
+
     .. warning::
 
         Switches during preequilibration are not supported. The problem
@@ -652,6 +654,8 @@ def assignments_to_experiments(problem: Problem) -> Problem:
 
     :param problem: The PEtab problem to convert. This will not be modified.
     :returns: The converted PEtab problem.
+    :raises NotImplementedError:
+        If a time-dependent assignment is outside the scope described above.
     :raises ValueError:
         If the converted problem does not pass linting.
     """
@@ -690,32 +694,28 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         pws = [pw for pw in expr.atoms(sp.Piecewise) if pw.has(TimeSymbol)]
         if not pws:
             continue
-        if len(pws) > 1 or len(pws[0].args) != 2:
-            raise NotImplementedError(
-                "Only assignments with a single time-dependent piecewise "
-                "function with a single condition are supported, but "
-                f"the assignment to `{assignment.getId()}` is `{expr}`."
-            )
-        (pw,) = pws
-        (time,) = pw.atoms(TimeSymbol)
-        (value, switch), (otherwise, _) = pw.args
         target_id = assignment.getId()
-
-        # `switch` is equivalent to `g > 0` (or `g >= 0`), so it holds after
-        #  the switch if `g` increases with time, and before it otherwise
-        g = switch.gts - switch.lts
-        slope = sp.diff(g, time)
-        if slope.is_positive:
-            before, after = otherwise, value
-        elif slope.is_negative:
-            before, after = value, otherwise
-        else:
+        pw = pws[0]
+        (time,) = pw.atoms(TimeSymbol)
+        switch = pw.args[0].cond
+        if not (
+            len(pws) == 1
+            and len(pw.args) == 2
+            and pw.args[1].cond == sp.true
+            and isinstance(switch, (sp.Gt, sp.Ge, sp.Lt, sp.Le))
+            and not expr.subs(switch, sp.Dummy()).has(time)
+            and (slope := sp.diff(switch.gts - switch.lts, time)).is_number
+            and slope.is_nonzero
+        ):
             raise NotImplementedError(
-                "Cannot determine whether the condition "
-                f"`{switch}` of the assignment to `{target_id}` holds "
-                "before or after the switch."
+                "Only time dependence via a single 3-argument piecewise "
+                "function with a condition linear in time is supported, but "
+                f"the assignment to `{target_id}` is `{expr}`."
             )
-        t_switch = sp.solve(g, time)[0]
+        # `switch` holds after the switch iff `gts - lts` increases with time
+        value, otherwise = (piece.expr for piece in pw.args)
+        before, after = (otherwise, value) if slope > 0 else (value, otherwise)
+        t_switch = sp.solve(switch.gts - switch.lts, time)[0]
 
         default = expr.subs(pw, before)
         after_expr = expr.subs(pw, after)
@@ -747,10 +747,6 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                         f"`{experiment.id}` is `{t}`."
                     )
                 t = float(t)
-                cur_before, cur_after = (
-                    default.subs(subs),
-                    after_expr.subs(subs),
-                )
 
                 if period.is_preequilibration:
                     # the value at time 0, which respects whether the
@@ -763,13 +759,11 @@ def assignments_to_experiments(problem: Problem) -> Problem:
 
                 t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
                 switch_value = (
-                    cur_after.subs(time, t)
-                    if period.time < t < t_end
-                    else None
+                    after_expr.subs(subs) if period.time < t < t_end else None
                 )
                 start_value = (
-                    cur_before if period.time < t else cur_after
-                ).subs(time, period.time)
+                    default if period.time < t else after_expr
+                ).subs(subs)
                 # The model already has the pre-switch value at the start of
                 #  the first period, and the switch can become the first
                 #  period if it only refers to parameter table symbols.
