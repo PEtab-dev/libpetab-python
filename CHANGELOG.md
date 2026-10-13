@@ -63,6 +63,12 @@
   `Problem.to_files(columns=...)`, or globally via `petab.v2.set_options` and
   `petab.v2.option_context`
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+* `petab.v2.reparametrize_log` estimates parameters on log scale by replacing
+  them with new log-transformed parameters. `petab1to2` and
+  `petab_files_1to2` can use it via `reparametrize="priors"` or
+  `reparametrize="all"` to preserve the objective function of log-scaled
+  parameters with `parameterScale*` priors
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/539)
 
 ## 0.9 series
 
