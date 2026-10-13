@@ -1,9 +1,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from petab.visualize.data_overview import create_report
-
-import petab
+import petab.v1 as petab
+from petab.v1.visualize.data_overview import create_report
 
 
 def test_data_overview():

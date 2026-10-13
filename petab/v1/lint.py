@@ -1172,7 +1172,7 @@ def assert_measurements_numeric(
     )
     if not all_measurements_are_numeric:
         raise AssertionError(
-            "Some values in the `petab.C.MEASUREMENT` column of the PEtab "
+            "Some values in the `petab.v1.C.MEASUREMENT` column of the PEtab "
             "measurements table are not numeric."
         )
 

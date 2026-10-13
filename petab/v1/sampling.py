@@ -17,7 +17,7 @@ def sample_from_prior(
 
     Arguments:
         prior: A tuple as obtained from
-            :func:`petab.parameter.get_priors_from_df`
+            :func:`petab.v1.parameters.get_priors_from_df`
         n_starts: Number of samples
 
     Returns:

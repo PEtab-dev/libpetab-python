@@ -21,7 +21,7 @@ class Simulator(abc.ABC):
     """Base class that specific simulators should inherit.
 
     Specific simulators should minimally implement the
-    :meth:`petab.simulate.Simulator.simulate_without_noise` method.
+    :meth:`petab.v1.simulate.Simulator.simulate_without_noise` method.
     Example (AMICI): https://bit.ly/33SUSG4
 
     Attributes:
@@ -79,7 +79,7 @@ class Simulator(abc.ABC):
     def remove_working_dir(self, force: bool = False, **kwargs) -> None:
         """Remove the simulator working directory, and all files within.
 
-        See the :meth:`petab.simulate.Simulator.__init__` method arguments.
+        See the :meth:`petab.v1.simulate.Simulator.__init__` method arguments.
 
         Arguments:
             force:
@@ -115,9 +115,9 @@ class Simulator(abc.ABC):
         Returns:
             Simulated data, as a PEtab measurements table, which should be
             equivalent to replacing all values in the
-            :const:`petab.C.MEASUREMENT` column of the measurements table (of
-            the PEtab problem supplied to the
-            :meth:`petab.simulate.Simulator.__init__` method), with
+            :const:`petab.v1.C.MEASUREMENT` column of the measurements table
+            (of the PEtab problem supplied to the
+            :meth:`petab.v1.simulate.Simulator.__init__` method), with
             simulated values.
         """
         raise NotImplementedError()
@@ -136,11 +136,12 @@ class Simulator(abc.ABC):
             noise_scaling_factor:
                 A multiplier of the scale of the noise distribution.
             as_measurement:
-                Whether the data column is named :const:`petab.C.MEASUREMENT`
-                (`True`) or :const:`petab.C.SIMULATION` (`False`).
+                Whether the data column is named
+                :const:`petab.v1.C.MEASUREMENT` (`True`) or
+                :const:`petab.v1.C.SIMULATION` (`False`).
             **kwargs:
                 Additional keyword arguments are passed to
-                :meth:`petab.simulate.Simulator.simulate_without_noise`.
+                :meth:`petab.v1.simulate.Simulator.simulate_without_noise`.
 
         Returns:
             Simulated data, as a PEtab measurements table.
@@ -206,7 +207,7 @@ def sample_noise(
     Arguments:
         petab_problem:
             The PEtab problem used to generate the simulated value.
-            Instance of :class:`petab.Problem`.
+            Instance of :class:`petab.v1.Problem`.
         measurement_row:
             The row in the PEtab problem measurement table that corresponds
             to the simulated value.
@@ -214,7 +215,8 @@ def sample_noise(
             A simulated value without noise.
         noise_formulas:
             Processed noise formulas from the PEtab observables table, in the
-            form output by :func:`petab.calculate.get_symbolic_noise_formulas`.
+            form output by
+            :func:`petab.v1.calculate.get_symbolic_noise_formulas`.
         rng:
             A NumPy random generator.
         noise_scaling_factor:
