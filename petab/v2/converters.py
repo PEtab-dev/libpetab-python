@@ -644,7 +644,10 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     Measurements without an experiment ID are assigned to a new experiment
     :data:`DEFAULT_EXPERIMENT_ID`, if needed.
 
-    **Scope:** conversion is supported for a single piecewise function with exactly 3 arguments, where the 2nd argument is an inequality that can be re-arranged explicitly into `t </<=/>/>= ...`. Anything else raises a :class:`NotImplementedError`.
+    **Scope:** conversion is supported for a single piecewise function with
+    exactly 3 arguments, where the 2nd argument is an inequality that can be
+    re-arranged explicitly into `t </<=/>/>= ...`. Anything else raises a
+    :class:`NotImplementedError`.
 
     .. warning::
 
