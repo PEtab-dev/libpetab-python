@@ -689,11 +689,27 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             )
         (pw,) = pws
         (time,) = pw.atoms(TimeSymbol)
-        (before, switch), _ = pw.args
-        t_switch = sp.solve(switch.lhs - switch.rhs, time)[0]
-
+        (value, switch), (otherwise, _) = pw.args
         target_id = assignment.getId()
+
+        # `switch` is equivalent to `g > 0` (or `g >= 0`), so it holds after
+        #  the switch if `g` increases with time, and before it otherwise
+        g = switch.gts - switch.lts
+        slope = sp.diff(g, time)
+        if slope.is_positive:
+            before, after = otherwise, value
+        elif slope.is_negative:
+            before, after = value, otherwise
+        else:
+            raise NotImplementedError(
+                "Cannot determine whether the condition "
+                f"`{switch}` of the assignment to `{target_id}` holds "
+                "before or after the switch."
+            )
+        t_switch = sp.solve(g, time)[0]
+
         default = expr.subs(pw, before)
+        after_expr = expr.subs(pw, after)
         target = sbml_model.getParameter(target_id)
         target.setValue(float(default))
         target.setConstant(False)
@@ -712,19 +728,6 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                     for s in expr.free_symbols
                     if str(s) in overrides
                 }
-                cur_expr = expr.subs(subs)
-                if period.is_preequilibration:
-                    additions.append(
-                        (
-                            experiment,
-                            period.time,
-                            target_id,
-                            cur_expr.subs(time, 0),
-                        )
-                    )
-                    continue
-
-                t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
                 t = t_switch.subs(subs)
                 if not (t.is_number and t.is_real):
                     raise NotImplementedError(
@@ -734,10 +737,29 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                         f"`{experiment.id}` is `{t}`."
                     )
                 t = float(t)
-                switch_value = (
-                    cur_expr.subs(time, t) if period.time < t < t_end else None
+                cur_before, cur_after = (
+                    default.subs(subs),
+                    after_expr.subs(subs),
                 )
-                start_value = cur_expr.subs(time, period.time)
+
+                if period.is_preequilibration:
+                    # the value at time 0, which respects whether the
+                    #  condition holds at a switch at time 0
+                    value = expr.subs(subs).subs(time, 0)
+                    additions.append(
+                        (experiment, period.time, target_id, value)
+                    )
+                    continue
+
+                t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
+                switch_value = (
+                    cur_after.subs(time, t)
+                    if period.time < t < t_end
+                    else None
+                )
+                start_value = (
+                    cur_before if period.time < t else cur_after
+                ).subs(time, period.time)
                 # The model already has the pre-switch value at the start of
                 #  the first period, and the switch can become the first
                 #  period if it only refers to parameter table symbols.

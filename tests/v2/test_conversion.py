@@ -916,19 +916,31 @@ def test_assignments_to_experiments_multiple_switches(assignment):
 
 
 @pytest.mark.parametrize(
-    "assignment, estimated",
+    "assignment, estimated, match",
     [
         # depends on a species
-        ("piecewise(0, time < A, 1)", None),
-        ("piecewise(0, A * time < 5, 1)", None),
+        ("piecewise(0, time < A, 1)", None, "evaluate to a real number"),
+        # switch direction depends on the sign of a species
+        ("piecewise(0, A * time < 5, 1)", None, "before or after the switch"),
         # depends on an estimated parameter
-        ("piecewise(0, time < t_dose, 1)", "t_dose"),
-        # no real solution
-        ("piecewise(0, time^2 + 1 < 0, 1)", None),
+        (
+            "piecewise(0, time < t_dose, 1)",
+            "t_dose",
+            "evaluate to a real number",
+        ),
+        # no real solution, and not monotonic in time
+        (
+            "piecewise(0, time^2 + 1 < 0, 1)",
+            None,
+            "before or after the switch",
+        ),
     ],
 )
-def test_assignments_to_experiments_non_numeric_switch(assignment, estimated):
-    """Test that switching times that are not real numbers are rejected."""
+def test_assignments_to_experiments_non_numeric_switch(
+    assignment, estimated, match
+):
+    """Test that switching times that are not real numbers, or switches
+    in an unknown direction, are rejected."""
     problem = Problem()
     ant_model = f"""
         model conversion
@@ -950,5 +962,117 @@ def test_assignments_to_experiments_non_numeric_switch(assignment, estimated):
     if estimated:
         problem.add_parameter(estimated, estimate=True, lb=0, ub=10)
 
-    with pytest.raises(NotImplementedError, match="evaluate to a real number"):
+    with pytest.raises(NotImplementedError, match=match):
         assignments_to_experiments(problem)
+
+
+def test_assignments_to_experiments_switch_direction():
+    """Test that `time < t` and `t < time` switch in opposite directions."""
+
+    def convert(assignment):
+        problem = Problem()
+        ant_model = f"""
+            model conversion
+            species A, B;
+            A = 10;
+            B = 0;
+            k1 := {assignment};
+            k2 = 0.5;
+            R1: A -> B; k1 * A;
+            R2: B -> A; k2 * B;
+            end
+        """
+        problem.model = SbmlModel.from_antimony(ant_model)
+        problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+        problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+        problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+        return assignments_to_experiments(problem)
+
+    # k1 is 0 before and 1 after t=10
+    converted_lt = convert("piecewise(0, time < 10, 1)")
+    # k1 is 1 before and 0 after t=10
+    converted_gt = convert("piecewise(0, 10 < time, 1)")
+
+    # the value before the switch is kept in the model
+    assert converted_lt.model.sbml_model.getParameter("k1").getValue() == 0.0
+    assert converted_gt.model.sbml_model.getParameter("k1").getValue() == 1.0
+
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: ["default_experiment"],
+            v2.C.TIME: [10.0],
+            v2.C.CONDITION_ID: ["cond_0"],
+        }
+    )
+    assert converted_lt.experiment_df.equals(experiments_expected)
+    assert converted_gt.experiment_df.equals(experiments_expected)
+
+    # the switch sets k1 to the value after t=10
+    assert converted_lt.condition_df.equals(
+        pd.DataFrame(
+            data={
+                v2.C.CONDITION_ID: ["cond_0"],
+                v2.C.TARGET_ID: ["k1"],
+                v2.C.TARGET_VALUE: [1.0],
+            }
+        )
+    )
+    assert converted_gt.condition_df.equals(
+        pd.DataFrame(
+            data={
+                v2.C.CONDITION_ID: ["cond_0"],
+                v2.C.TARGET_ID: ["k1"],
+                v2.C.TARGET_VALUE: [0.0],
+            }
+        )
+    )
+
+
+@pytest.mark.parametrize("t_switch", [0, 10])
+@pytest.mark.parametrize(
+    "condition, holds_at_switch, holds_before",
+    [
+        ("time < {t}", False, True),
+        ("time <= {t}", True, True),
+        ("time > {t}", False, False),
+        ("time >= {t}", True, False),
+        ("{t} < time", False, False),
+        ("{t} >= time", True, True),
+    ],
+)
+def test_assignments_to_experiments_preequilibration_boundary(
+    t_switch, condition, holds_at_switch, holds_before
+):
+    """Test that preequilibration uses the assignment's value at time 0,
+    including whether the condition holds for a switch at time 0."""
+    condition = condition.format(t=t_switch)
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 := piecewise(0, {condition}, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_experiment("e1", v2.C.TIME_PREEQUILIBRATION, [], 0, [])
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="e1", time=20.0, measurement=5.0
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    holds_at_0 = holds_at_switch if t_switch == 0 else holds_before
+    (preeq_period,) = (
+        p for p in converted.experiments[0].periods if p.is_preequilibration
+    )
+    assert [
+        (c.target_id, float(c.target_value))
+        for c in converted.get_changes_for_period(preeq_period)
+    ] == [("k1", 0.0 if holds_at_0 else 1.0)]
