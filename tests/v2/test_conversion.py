@@ -849,6 +849,8 @@ def test_assignments_to_experiments_preequilibration():
         ("piecewise(0, time^2 < 10, 1)", "single"),
         ("piecewise(time, time < 10, 1)", "single"),
         ("piecewise(0, time < t_dose, 1)", "evaluate to a real number"),
+        ("piecewise(0, time < A, 1)", "constant model parameters"),
+        ("A * piecewise(0, time < 10, 1)", "constant model parameters"),
     ],
 )
 def test_assignments_to_experiments_unsupported(assignment, match):

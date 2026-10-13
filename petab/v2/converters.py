@@ -646,7 +646,8 @@ def assignments_to_experiments(problem: Problem) -> Problem:
 
     **Scope:** conversion is supported for a single piecewise function with
     exactly 3 arguments, where the 2nd argument is an inequality that can be
-    re-arranged explicitly into `t </<=/>/>= ...`. Anything else raises a
+    re-arranged explicitly into `t </<=/>/>= ...`, and whose other symbols
+    are all constant model parameters. Anything else raises a
     :class:`NotImplementedError`.
 
     .. warning::
@@ -714,6 +715,17 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                 "Only time dependence via a single 3-argument piecewise "
                 "function with a condition linear in time is supported, but "
                 f"the assignment to `{target_id}` is `{expr}`."
+            )
+        if non_constant := sorted(
+            str(s)
+            for s in expr.free_symbols - {time}
+            if not (p := sbml_model.getParameter(str(s)))
+            or not p.getConstant()
+        ):
+            raise NotImplementedError(
+                "Only constant model parameters are supported as symbols in "
+                f"the assignment to `{target_id}`, but it refers to "
+                f"{non_constant}."
             )
         # `switch` holds after the switch iff `gts - lts` increases with time
         value, otherwise = (piece.expr for piece in pw.args)
