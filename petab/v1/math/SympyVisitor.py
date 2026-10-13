@@ -73,7 +73,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     Converts PEtab math expressions to sympy expressions.
 
     Most users will not need to interact with this class directly, but rather
-    use :func:`petab.math.sympify_petab`.
+    use :func:`petab.v1.math.sympify_petab`.
 
     Evaluation of any sub-expressions currently relies on sympy's defaults.
 

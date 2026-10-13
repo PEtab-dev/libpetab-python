@@ -3,10 +3,11 @@ from math import nan
 
 import numpy as np
 import pandas as pd
-from petab.C import *
-from petab.models.sbml_model import SbmlModel
 
-import petab
+import petab.v1 as petab
+from petab import ENV_NUM_THREADS
+from petab.v1.C import *
+from petab.v1.models.sbml_model import SbmlModel
 from petab.v1.parameter_mapping import _apply_parameter_table
 
 # import fixtures
@@ -336,7 +337,7 @@ class TestGetSimulationToOptimizationParameterMapping:
 
         # For one case we test parallel execution, which must yield the same
         # result
-        os.environ[petab.ENV_NUM_THREADS] = "4"
+        os.environ[ENV_NUM_THREADS] = "4"
         actual = petab.get_optimization_to_simulation_parameter_mapping(
             measurement_df=measurement_df,
             condition_df=condition_df,

@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from petab.C import *
 
-import petab
+import petab.v1 as petab
+from petab.v1.C import *
 
 # import fixtures
 pytest_plugins = [
@@ -70,7 +70,7 @@ def test_write_observable_df():
 
 def test_get_output_parameters():
     """Test measurements.get_output_parameters."""
-    from petab.models.sbml_model import SbmlModel
+    from petab.v1.models.sbml_model import SbmlModel
 
     model = SbmlModel.from_antimony(
         "fixedParameter1 = 1.0; observable_1 = 1.0"

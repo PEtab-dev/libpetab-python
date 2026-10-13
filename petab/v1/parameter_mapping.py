@@ -14,6 +14,7 @@ import libsbml
 import numpy as np
 import pandas as pd
 
+from .. import ENV_NUM_THREADS
 from . import (
     core,
     lint,
@@ -24,10 +25,6 @@ from . import (
 from .C import *
 from .mapping import resolve_mapping
 from .models import Model
-
-# FIXME import from petab.ENV_NUM_THREADS
-ENV_NUM_THREADS = "PETAB_NUM_THREADS"
-
 
 logger = logging.getLogger(__name__)
 __all__ = [
@@ -89,7 +86,7 @@ def get_optimization_to_simulation_parameter_mapping(
             The model.
         simulation_conditions:
             Table of simulation conditions as created by
-            ``petab.get_simulation_conditions``.
+            ``petab.v1.get_simulation_conditions``.
         warn_unmapped:
             If ``True``, log warning regarding unmapped parameters
         scaled_parameters:
@@ -124,7 +121,7 @@ def get_optimization_to_simulation_parameter_mapping(
     if sbml_model:
         warnings.warn(
             "Passing a model via the `sbml_model` argument is "
-            "deprecated, use `model=petab.models.sbml_model."
+            "deprecated, use `model=petab.v1.models.sbml_model."
             "SbmlModel(...)` instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -347,7 +344,7 @@ def get_parameter_mapping_for_condition(
             The model.
         simulation_parameters:
             Model simulation parameter IDs mapped to parameter values (output
-            of ``petab.sbml.get_model_parameters(.., with_values=True)``).
+            of ``petab.v1.sbml.get_model_parameters(.., with_values=True)``).
             Optional, saves time if precomputed.
         warn_unmapped:
             If ``True``, log warning regarding unmapped parameters
@@ -374,7 +371,7 @@ def get_parameter_mapping_for_condition(
     if sbml_model:
         warnings.warn(
             "Passing a model via the `sbml_model` argument is "
-            "deprecated, use `model=petab.models.sbml_model."
+            "deprecated, use `model=petab.v1.models.sbml_model."
             "SbmlModel(...)` instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -778,10 +775,10 @@ def merge_preeq_and_sim_pars(
     Parameters:
         parameter_mappings:
             As returned by
-            :py:func:`petab.get_optimization_to_simulation_parameter_mapping`.
+            :py:func:`petab.v1.get_optimization_to_simulation_parameter_mapping`.
         scale_mappings:
             As returned by
-            :py:func:`petab.get_optimization_to_simulation_parameter_mapping`.
+            :py:func:`petab.v1.get_optimization_to_simulation_parameter_mapping`.
 
     Returns:
         The parameter and scale simulation mappings, modified and checked.

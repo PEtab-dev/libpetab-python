@@ -5,9 +5,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from petab.C import *
 
-import petab
+import petab.v1 as petab
+from petab.v1.C import *
 
 
 def test_get_measurement_df():
