@@ -860,7 +860,8 @@ def test_assignments_to_experiments_preequilibration():
     )
     problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
 
-    converted = assignments_to_experiments(problem)
+    with pytest.warns(UserWarning, match="during preequilibration"):
+        converted = assignments_to_experiments(problem)
 
     # the dose is applied during preequilibration, so the reset to the
     #  pre-dose value at t=0 is not redundant here and must be kept
@@ -1066,7 +1067,8 @@ def test_assignments_to_experiments_preequilibration_boundary(
     )
     problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
 
-    converted = assignments_to_experiments(problem)
+    with pytest.warns(UserWarning, match="during preequilibration"):
+        converted = assignments_to_experiments(problem)
 
     holds_at_0 = holds_at_switch if t_switch == 0 else holds_before
     (preeq_period,) = (
@@ -1076,3 +1078,32 @@ def test_assignments_to_experiments_preequilibration_boundary(
         (c.target_id, float(c.target_value))
         for c in converted.get_changes_for_period(preeq_period)
     ] == [("k1", 0.0 if holds_at_0 else 1.0)]
+
+
+def test_assignments_to_experiments_validate():
+    """Test that the converted problem is linted.
+
+    Here, the input problem is valid, but the conversion makes the estimated
+    parameter `k1` a condition table target.
+    """
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 = piecewise(0, time < 10, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("k1", estimate=True, lb=1e-3, ub=1e3)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+    assert not problem.validate().has_errors()
+
+    with pytest.raises(ValueError, match="did not pass linting"):
+        assignments_to_experiments(problem)
