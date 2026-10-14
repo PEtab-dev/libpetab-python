@@ -18,6 +18,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Literal,
     Self,
     TypeVar,
@@ -40,6 +41,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.fields import FieldInfo
 
 from .._utils import _generate_path
 from ..v1 import (
@@ -54,6 +56,7 @@ from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
 from .extensions import ExtensionConfig, parse_extension_config
+from .options import TableColumns, get_options
 
 if TYPE_CHECKING:
     from ..v2.lint import ValidationResultList, ValidationTask
@@ -121,6 +124,14 @@ def _reset_index(df: pd.DataFrame) -> pd.DataFrame:
     Avoids spurious ``index`` columns for DataFrames with a default index.
     """
     return df.reset_index(drop=all(name is None for name in df.index.names))
+
+
+def _column_name(name: str, field: FieldInfo) -> str:
+    """Get the table column name for a model field.
+
+    Fields without an alias (e.g., ``Condition.changes``) use their name.
+    """
+    return field.alias or name
 
 
 def _valid_petab_id(v: str) -> str:
@@ -239,6 +250,9 @@ class BaseTable[T: BaseModel](BaseModel):
     #: This is usually the directory of the PEtab YAML file.
     base_path: AnyUrl | Path | None = Field(exclude=True, default=None)
 
+    #: Columns that are always included, even if empty.
+    _required_columns: ClassVar[list[str]] = []
+
     def __init__(self, elements: list[T] | None = None, **kwargs) -> None:
         """Initialize the BaseTable with a list of elements."""
         if elements is None:
@@ -270,9 +284,52 @@ class BaseTable[T: BaseModel](BaseModel):
     def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
         """Create a table from a DataFrame."""
 
+    def to_df(
+        self, *, columns: TableColumns | str | None = None
+    ) -> pd.DataFrame:
+        """Convert the table to a DataFrame.
+
+        :param columns:
+            The columns to include. See :class:`TableColumns`.
+            If ``None``, :attr:`Options.table_columns` is used
+            (see :func:`get_options`).
+        """
+        if columns is None:
+            columns = get_options().table_columns
+        columns = TableColumns(columns)
+
+        df = self._to_df()
+        if columns == TableColumns.ALL:
+            return df
+
+        drop = (df.isna() | df.eq("")).all()
+        if columns == TableColumns.NON_DEFAULT:
+            drop |= df.columns.isin(self._default_columns())
+        drop &= ~df.columns.isin(self._required_columns)
+        return df.loc[:, ~drop]
+
     @abstractmethod
-    def to_df(self) -> pd.DataFrame:
-        """Convert the table to a DataFrame."""
+    def _to_df(self) -> pd.DataFrame:
+        """Convert the table to a DataFrame with all columns."""
+
+    @classmethod
+    def _standard_columns(cls) -> list[str]:
+        """The standard columns of this table, in the default order."""
+        return [
+            _column_name(name, field)
+            for name, field in cls._element_class().model_fields.items()
+        ]
+
+    def _default_columns(self) -> list[str]:
+        """Get the standard columns that have the default value in all rows."""
+        result = []
+        for name, field in self._element_class().model_fields.items():
+            if field.is_required():
+                continue
+            default = field.get_default(call_default_factory=True)
+            if all(getattr(row, name) == default for row in self.elements):
+                result.append(_column_name(name, field))
+        return result
 
     @classmethod
     def from_tsv(
@@ -282,9 +339,21 @@ class BaseTable[T: BaseModel](BaseModel):
         df = pd.read_csv(_generate_path(file_path, base_path), sep="\t")
         return cls.from_df(df, rel_path=file_path, base_path=base_path)
 
-    def to_tsv(self, file_path: str | Path | None = None) -> None:
-        """Write the table to a TSV file."""
-        df = self.to_df()
+    def to_tsv(
+        self,
+        file_path: str | Path | None = None,
+        *,
+        columns: TableColumns | str | None = None,
+    ) -> None:
+        """Write the table to a TSV file.
+
+        :param file_path:
+            The file to write to. If ``None``, the path is generated from
+            :attr:`rel_path` and :attr:`base_path`.
+        :param columns:
+            The columns to include. See :meth:`to_df`.
+        """
+        df = self.to_df(columns=columns)
         df.to_csv(
             file_path or _generate_path(self.rel_path, self.base_path),
             sep="\t",
@@ -408,6 +477,8 @@ class Observable(BaseModel):
 class ObservableTable(BaseTable[Observable]):
     """PEtab observable table."""
 
+    _required_columns: ClassVar[list[str]] = C.OBSERVABLE_DF_REQUIRED_COLS
+
     @property
     def observables(self) -> list[Observable]:
         """List of observables."""
@@ -426,8 +497,13 @@ class ObservableTable(BaseTable[Observable]):
         ]
         return cls(observables, **kwargs)
 
-    def to_df(self) -> pd.DataFrame:
+    def _to_df(self) -> pd.DataFrame:
         """Convert the ObservableTable to a DataFrame."""
+        if not self.observables:
+            return pd.DataFrame(columns=self._standard_columns()).set_index(
+                [C.OBSERVABLE_ID]
+            )
+
         records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             obs = record[C.OBSERVABLE_FORMULA]
@@ -532,6 +608,8 @@ class Condition(BaseModel):
 class ConditionTable(BaseTable[Condition]):
     """PEtab condition table."""
 
+    _required_columns: ClassVar[list[str]] = C.CONDITION_DF_REQUIRED_COLS
+
     @property
     def conditions(self) -> list[Condition]:
         """List of conditions."""
@@ -550,7 +628,11 @@ class ConditionTable(BaseTable[Condition]):
 
         return cls(conditions, **kwargs)
 
-    def to_df(self) -> pd.DataFrame:
+    @classmethod
+    def _standard_columns(cls) -> list[str]:
+        return C.CONDITION_DF_COLS
+
+    def _to_df(self) -> pd.DataFrame:
         """Convert the ConditionTable to a DataFrame."""
         records = [
             {C.CONDITION_ID: condition.id, **change.model_dump(by_alias=True)}
@@ -566,7 +648,7 @@ class ConditionTable(BaseTable[Condition]):
         return (
             pd.DataFrame(records)
             if records
-            else pd.DataFrame(columns=C.CONDITION_DF_REQUIRED_COLS)
+            else pd.DataFrame(columns=self._standard_columns())
         )
 
     @property
@@ -682,6 +764,8 @@ class Experiment(BaseModel):
 class ExperimentTable(BaseTable[Experiment]):
     """PEtab experiment table."""
 
+    _required_columns: ClassVar[list[str]] = C.EXPERIMENT_DF_REQUIRED_COLS
+
     @property
     def experiments(self) -> list[Experiment]:
         """List of experiments."""
@@ -714,7 +798,11 @@ class ExperimentTable(BaseTable[Experiment]):
 
         return cls(experiments, **kwargs)
 
-    def to_df(self) -> pd.DataFrame:
+    @classmethod
+    def _standard_columns(cls) -> list[str]:
+        return C.EXPERIMENT_DF_REQUIRED_COLS
+
+    def _to_df(self) -> pd.DataFrame:
         """Convert the ExperimentTable to a DataFrame."""
         records = [
             {
@@ -729,7 +817,7 @@ class ExperimentTable(BaseTable[Experiment]):
         return (
             pd.DataFrame(records)
             if records
-            else pd.DataFrame(columns=C.EXPERIMENT_DF_REQUIRED_COLS)
+            else pd.DataFrame(columns=self._standard_columns())
         )
 
 
@@ -811,6 +899,8 @@ class Measurement(BaseModel):
 class MeasurementTable(BaseTable[Measurement]):
     """PEtab measurement table."""
 
+    _required_columns: ClassVar[list[str]] = C.MEASUREMENT_DF_REQUIRED_COLS
+
     @property
     def measurements(self) -> list[Measurement]:
         """List of measurements."""
@@ -835,8 +925,11 @@ class MeasurementTable(BaseTable[Measurement]):
 
         return cls(measurements, **kwargs)
 
-    def to_df(self) -> pd.DataFrame:
+    def _to_df(self) -> pd.DataFrame:
         """Convert the MeasurementTable to a DataFrame."""
+        if not self.measurements:
+            return pd.DataFrame(columns=self._standard_columns())
+
         records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             record[C.OBSERVABLE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
@@ -890,6 +983,8 @@ class Mapping(BaseModel):
 class MappingTable(BaseTable[Mapping]):
     """PEtab mapping table."""
 
+    _required_columns: ClassVar[list[str]] = C.MAPPING_DF_REQUIRED_COLS
+
     @property
     def mappings(self) -> list[Mapping]:
         """List of mappings."""
@@ -906,12 +1001,12 @@ class MappingTable(BaseTable[Mapping]):
         ]
         return cls(mappings, **kwargs)
 
-    def to_df(self) -> pd.DataFrame:
+    def _to_df(self) -> pd.DataFrame:
         """Convert the MappingTable to a DataFrame."""
         res = (
             pd.DataFrame(self.model_dump(by_alias=True)["elements"])
             if self.mappings
-            else pd.DataFrame(columns=C.MAPPING_DF_REQUIRED_COLS)
+            else pd.DataFrame(columns=self._standard_columns())
         )
         return res.set_index([C.PETAB_ENTITY_ID])
 
@@ -936,6 +1031,10 @@ class Parameter(BaseModel):
     #: Parameter ID.
     id: Annotated[str, BeforeValidator(_valid_petab_id)] = Field(
         alias=C.PARAMETER_ID
+    )
+    #: Parameter name.
+    name: Annotated[str | None, BeforeValidator(_convert_nan_to_none)] = Field(
+        alias=C.PARAMETER_NAME, default=None
     )
     #: Lower bound.
     lb: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
@@ -1099,6 +1198,8 @@ class Parameter(BaseModel):
 class ParameterTable(BaseTable[Parameter]):
     """PEtab parameter table."""
 
+    _required_columns: ClassVar[list[str]] = C.PARAMETER_DF_REQUIRED_COLS
+
     @property
     def parameters(self) -> list[Parameter]:
         """List of parameters."""
@@ -1117,11 +1218,14 @@ class ParameterTable(BaseTable[Parameter]):
 
         return cls(parameters, **kwargs)
 
-    def to_df(self) -> pd.DataFrame:
+    def _to_df(self) -> pd.DataFrame:
         """Convert the ParameterTable to a DataFrame."""
-        return pd.DataFrame(
-            self.model_dump(by_alias=True)["elements"]
-        ).set_index([C.PARAMETER_ID])
+        res = (
+            pd.DataFrame(self.model_dump(by_alias=True)["elements"])
+            if self.parameters
+            else pd.DataFrame(columns=self._standard_columns())
+        )
+        return res.set_index([C.PARAMETER_ID])
 
     @property
     def n_estimated(self) -> int:
@@ -1431,7 +1535,12 @@ class Problem:
             "or a PEtab problem object."
         )
 
-    def to_files(self, base_path: str | Path | None) -> None:
+    def to_files(
+        self,
+        base_path: str | Path | None,
+        *,
+        columns: TableColumns | str | None = None,
+    ) -> None:
         """Write the PEtab problem to files.
 
         Writes the model, condition, experiment, measurement, parameter,
@@ -1445,6 +1554,9 @@ class Problem:
             The base path the yaml file and tables will be written to.
             If ``None``, the `base_path` of the individual tables and
             :obj:`Problem.config.base_path` will be used.
+        :param columns:
+            The columns to include in the tables.
+            See :meth:`BaseTable.to_df`.
         """
         config = copy.deepcopy(self.config) or ProblemConfig(
             format_version="2.0.0"
@@ -1499,7 +1611,8 @@ class Problem:
                 table.to_tsv(
                     _generate_path(
                         table.rel_path, base_path or table.base_path
-                    )
+                    ),
+                    columns=columns,
                 )
 
         config.to_yaml(
@@ -2578,6 +2691,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
          'parameters': [{'estimate': 'true',
                          'id': 'par',
                          'lb': 0.0,
+                         'name': None,
                          'nominal_value': None,
                          'prior_distribution': '',
                          'prior_parameters': '',

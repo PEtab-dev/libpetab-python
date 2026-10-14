@@ -383,6 +383,7 @@ def test_parameter():
         id="k1", estimate=True, lb=1, ub=2, prior_parameters=[1, 2]
     ).model_dump() == {
         "id": "k1",
+        "name": None,
         "lb": 1.0,
         "ub": 2.0,
         "nominal_value": None,
@@ -394,6 +395,7 @@ def test_parameter():
         id="k1", estimate=False, nominal_value="8"
     ).model_dump() == {
         "id": "k1",
+        "name": None,
         "lb": None,
         "ub": None,
         "nominal_value": 8.0,
@@ -1339,3 +1341,193 @@ def test_validate_multi_model():
     result = problem.validate()
     assert result.has_errors()
     assert any("duplicate IDs: ['c_dup']" in r.message for r in result), result
+
+
+def _all_columns(df: pd.DataFrame) -> list[str]:
+    """Get the column names of a table DataFrame, including the index."""
+    if isinstance(df.index, pd.RangeIndex):
+        return list(df.columns)
+    return [*df.index.names, *df.columns]
+
+
+def test_table_columns():
+    """Test selecting columns when converting tables to DataFrames."""
+    observables = ObservableTable(
+        [
+            Observable(id="obs1", formula="x", noise_formula="1"),
+            Observable(
+                id="obs2",
+                formula="y",
+                noise_formula="1",
+                noise_distribution="laplace",
+            ),
+        ]
+    )
+    estimated = ParameterTable(
+        [
+            Parameter(id="p1", lb=1, ub=2, name="P1"),
+            Parameter(id="p2", lb=1, ub=2),
+        ]
+    )
+    fixed = ParameterTable(
+        [Parameter(id="p3", estimate=False, nominal_value=1)]
+    )
+    measurements = MeasurementTable(
+        [Measurement(observable_id="obs1", time=1, measurement=2)]
+    )
+    tables = [observables, estimated, fixed, measurements]
+
+    for table in tables:
+        df = table.to_df(columns="all")
+        assert _all_columns(df) == table._standard_columns()
+
+    # Required columns are kept even if empty or at their default
+    # (nominalValue, lowerBound, upperBound, experimentId, estimate).
+    # noiseDistribution differs from its default in one row.
+    expected = [
+        [*C.OBSERVABLE_DF_REQUIRED_COLS, C.NOISE_DISTRIBUTION],
+        [
+            C.PARAMETER_ID,
+            C.PARAMETER_NAME,
+            *C.PARAMETER_DF_REQUIRED_COLS[1:],
+        ],
+        C.PARAMETER_DF_REQUIRED_COLS,
+        C.MEASUREMENT_DF_REQUIRED_COLS,
+    ]
+    for mode in ("non_empty", "non_default"):
+        for table, exp in zip(tables, expected, strict=True):
+            assert _all_columns(table.to_df(columns=mode)) == exp
+
+    # all noise distributions at their default
+    observables.observables[1].noise_distribution = "normal"
+    assert _all_columns(observables.to_df(columns="non_empty")) == [
+        *C.OBSERVABLE_DF_REQUIRED_COLS,
+        C.NOISE_DISTRIBUTION,
+    ]
+    assert (
+        _all_columns(observables.to_df(columns="non_default"))
+        == C.OBSERVABLE_DF_REQUIRED_COLS
+    )
+
+
+@pytest.mark.parametrize(
+    "table_cls,required",
+    [
+        (ConditionTable, C.CONDITION_DF_REQUIRED_COLS),
+        (ExperimentTable, C.EXPERIMENT_DF_REQUIRED_COLS),
+        (MeasurementTable, C.MEASUREMENT_DF_REQUIRED_COLS),
+        (ObservableTable, C.OBSERVABLE_DF_REQUIRED_COLS),
+        (ParameterTable, C.PARAMETER_DF_REQUIRED_COLS),
+        (MappingTable, C.MAPPING_DF_REQUIRED_COLS),
+    ],
+)
+def test_empty_table_columns(table_cls, required):
+    """Empty tables contain the standard or required columns."""
+    table = table_cls()
+    df = table.to_df(columns="all")
+    assert _all_columns(df) == table._standard_columns()
+    for mode in ("non_empty", "non_default"):
+        df = table.to_df(columns=mode)
+        assert _all_columns(df) == required
+
+
+def test_options():
+    """Test setting options globally and temporarily."""
+    problem = Problem()
+    problem.add_observable("obs1", "x", noise_formula="1")
+    all_cols = list(problem.observable_df.columns)
+    assert C.OBSERVABLE_NAME in all_cols
+
+    assert petab.get_options().table_columns == petab.TableColumns.ALL
+    with petab.option_context(table_columns="non_default") as options:
+        assert options.table_columns == petab.TableColumns.NON_DEFAULT
+        assert list(problem.observable_df.columns) == [
+            C.OBSERVABLE_FORMULA,
+            C.NOISE_FORMULA,
+        ]
+        # an explicit argument takes precedence
+        df = problem.observable_tables[0].to_df(columns="all")
+        assert list(df.columns) == all_cols
+        # set_options inside a context only applies to that context
+        petab.set_options(table_columns="non_empty")
+        assert petab.get_options().table_columns == "non_empty"
+    assert petab.get_options().table_columns == petab.TableColumns.ALL
+    assert list(problem.observable_df.columns) == all_cols
+
+    try:
+        petab.set_options(table_columns="non_empty")
+        assert petab.get_options().table_columns == "non_empty"
+        assert list(problem.observable_df.columns) == [
+            C.OBSERVABLE_FORMULA,
+            C.NOISE_FORMULA,
+            C.NOISE_DISTRIBUTION,
+        ]
+    finally:
+        petab.set_options(table_columns="all")
+
+    with pytest.raises(ValueError):
+        petab.set_options(table_columns="invalid")
+    assert petab.get_options().table_columns == petab.TableColumns.ALL
+
+
+@pytest.mark.parametrize(
+    "table_cls,content",
+    [
+        (
+            ObservableTable,
+            "observableId\tobservableFormula\tnoiseFormula\nobs1\tx\t1\n",
+        ),
+        (
+            ParameterTable,
+            (
+                "parameterId\tparameterName\tlowerBound\tupperBound\t"
+                "nominalValue\testimate\np1\tP1\t0\t10\t1\ttrue\n"
+            ),
+        ),
+        (
+            MeasurementTable,
+            "observableId\texperimentId\ttime\tmeasurement\nobs1\te1\t0\t1\n",
+        ),
+        (
+            ConditionTable,
+            "conditionId\ttargetId\ttargetValue\nc1\tx\t1\n",
+        ),
+        (
+            ExperimentTable,
+            "experimentId\ttime\tconditionId\ne1\t0\tc1\n",
+        ),
+        (
+            MappingTable,
+            "petabEntityId\tmodelEntityId\np1\t1p\n",
+        ),
+    ],
+)
+def test_minimal_table_round_trip(tmp_path, table_cls, content):
+    """Writing minimal tables with `non_default` preserves their columns."""
+    in_file = tmp_path / "in.tsv"
+    in_file.write_text(content)
+    out_file = tmp_path / "out.tsv"
+
+    table = table_cls.from_tsv(in_file)
+    table.to_tsv(out_file, columns="non_default")
+
+    assert out_file.read_text().split("\n")[0] == content.split("\n")[0]
+    assert_frame_equal(table_cls.from_tsv(out_file).to_df(), table.to_df())
+
+
+def test_problem_to_files_columns(tmp_path):
+    """Test selecting columns in `Problem.to_files`."""
+    problem = Problem()
+    problem.add_observable("obs1", "x", noise_formula="1")
+    problem.observable_tables[0].rel_path = "observables.tsv"
+    problem.config = ProblemConfig(
+        format_version="2.0.0", filepath="problem.yaml"
+    )
+
+    problem.to_files(tmp_path, columns="non_default")
+    df = pd.read_csv(tmp_path / "observables.tsv", sep="\t")
+    assert list(df.columns) == [
+        C.OBSERVABLE_ID,
+        C.OBSERVABLE_FORMULA,
+        C.NOISE_FORMULA,
+    ]

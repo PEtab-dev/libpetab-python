@@ -38,4 +38,5 @@ API Reference
    petab.v2.extensions
    petab.v2.lint
    petab.v2.models
+   petab.v2.options
    petab.v2.petab1to2

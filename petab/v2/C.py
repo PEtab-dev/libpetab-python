@@ -45,8 +45,8 @@ MODEL_ID = "modelId"
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
     EXPERIMENT_ID,
-    MEASUREMENT,
     TIME,
+    MEASUREMENT,
 ]
 
 #: Optional columns of measurement table
@@ -91,13 +91,13 @@ PARAMETER_DF_REQUIRED_COLS = [
     PARAMETER_ID,
     LOWER_BOUND,
     UPPER_BOUND,
+    NOMINAL_VALUE,
     ESTIMATE,
 ]
 
 #: Optional columns of parameter table
 PARAMETER_DF_OPTIONAL_COLS = [
     PARAMETER_NAME,
-    NOMINAL_VALUE,
     PRIOR_DISTRIBUTION,
     PRIOR_PARAMETERS,
 ]
