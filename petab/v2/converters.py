@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
+from itertools import count
 
 import libsbml
 import sympy as sp
-from sbmlmath import sbml_math_to_sympy, set_math
+from sbmlmath import TimeSymbol, sbml_math_to_sympy, set_math
 
 from .core import (
     Change,
@@ -20,7 +21,7 @@ from .core import (
 from .models._sbml_utils import add_sbml_parameter, check
 from .models.sbml_model import SbmlModel
 
-__all__ = ["ExperimentsToSbmlConverter"]
+__all__ = ["ExperimentsToSbmlConverter", "assignments_to_experiments"]
 
 
 class ExperimentsToSbmlConverter:
@@ -632,3 +633,263 @@ class ExperimentsToSbmlConverter:
                 ]
             )
         ]
+
+
+DEFAULT_EXPERIMENT_ID = "default_experiment"
+
+
+def assignments_to_experiments(problem: Problem) -> Problem:
+    """Replace time-dependent piecewise assignments by experiment periods.
+
+    Fixed parameters may change over the course of a single simulation, e.g.,
+    as described by a v2 experiment with multiple periods. As v1 did not have
+    experiments, then these changes were
+    sometimes directly encoded in an SBML model as assignment rules with
+    piecewise functions. This method takes a v2 problem
+    (possibly converted from a v1 problem) and replaces those SBML assignment
+    rules with v2 experiments.
+
+    .. note::
+
+        Measurements without an experiment ID are assigned to a new experiment
+        :data:`DEFAULT_EXPERIMENT_ID`, if needed.
+
+    **Scope:** conversion is supported for SBML assignment rules that contain
+    a single piecewise function with exactly 3 arguments, where the 2nd
+    argument is an inequality that can be
+    re-arranged explicitly into `t </<=/>/>= ...`, and whose other symbols
+    are all truly constant model parameters. Anything else raises a
+    :class:`NotImplementedError`.
+
+    .. warning::
+
+        As SBML assignment rules, the changes would occur during
+        pre-equilibration. As v2 experiments, the changes do not occur during
+        pre-equilibration. Hence, using this converter may affect the
+        correctness of your model's pre-equilibration. In this case, you could
+        e.g. keep the SBML assignment rules and/or add indicator variables to
+        trigger them correctly in the model for some/all pre-equilibration
+        conditions.
+
+
+    :param problem: The PEtab problem to convert. This will not be modified.
+    :returns: The converted PEtab problem.
+    :raises NotImplementedError:
+        If a time-dependent assignment is outside the scope described above.
+    :raises ValueError:
+        If the converted problem does not pass linting.
+    """
+    if not isinstance(problem.model, SbmlModel):
+        raise TypeError("Only SBML models are supported.")
+
+    problem = deepcopy(problem)
+    sbml_model = problem.model.sbml_model
+    parameter_ids = {p.id for p in problem.parameters}
+
+    experiments = list(problem.experiments)
+    if any(m.experiment_id is None for m in problem.measurements):
+        default_experiment = Experiment(id=DEFAULT_EXPERIMENT_ID)
+        experiments.append(default_experiment)
+    else:
+        default_experiment = None
+    # periods that are dropped if all their conditions were replaced
+    droppable = {
+        id(p) for e in experiments for p in e.periods if p.condition_ids
+    }
+    for experiment in experiments:
+        if all(p.is_preequilibration for p in experiment.periods):
+            experiment += (period := ExperimentPeriod(time=0))
+            droppable.add(id(period))
+
+    # (experiment, period start time, target ID, target value)
+    additions = []
+    replaced_symbols = set()
+    converted_ids = []
+
+    for assignment in [
+        *(r for r in sbml_model.getListOfRules() if r.isAssignment()),
+        *sbml_model.getListOfInitialAssignments(),
+    ]:
+        expr = sbml_math_to_sympy(assignment)
+        pws = [pw for pw in expr.atoms(sp.Piecewise) if pw.has(TimeSymbol)]
+        if not pws:
+            continue
+        target_id = assignment.getId()
+        pw = pws[0]
+        (time,) = pw.atoms(TimeSymbol)
+        switch = pw.args[0].cond
+        if not (
+            # A single piecewise
+            len(pws) == 1
+            # with "conditional" and "otherwise" pieces
+            and len(pw.args) == 2
+            # and explicitly an "otherwise" piece,
+            and pw.args[1].cond == sp.true
+            # with a supported inequality condition
+            and isinstance(switch, (sp.Gt, sp.Ge, sp.Lt, sp.Le))
+            # that involves the time variable,
+            and not expr.subs(switch, sp.Dummy()).has(time)
+            # and that changes value at maximally a single time point
+            and (slope := sp.diff(switch.gts - switch.lts, time)).is_number
+            # and this time point is identifiable.
+            and slope.is_nonzero
+        ):
+            raise NotImplementedError(
+                "Only time dependence via a single 3-argument piecewise "
+                "function with a condition linear in time is supported, but "
+                f"the assignment to `{target_id}` is `{expr}`."
+            )
+        if non_constant := sorted(
+            str(s)
+            for s in expr.free_symbols - {time}
+            if not (p := sbml_model.getParameter(str(s)))
+            or not p.getConstant()
+        ):
+            raise NotImplementedError(
+                "Only constant model parameters are supported as symbols in "
+                f"the assignment to `{target_id}`, but it refers to "
+                f"{non_constant}."
+            )
+        # `switch` holds after the switch iff `gts - lts` increases with time
+        value, otherwise = (piece.expr for piece in pw.args)
+        before, after = (otherwise, value) if slope > 0 else (value, otherwise)
+        t_switch = sp.solve(switch.gts - switch.lts, time)[0]
+
+        default = expr.subs(pw, before)
+        after_expr = expr.subs(pw, after)
+        target = sbml_model.getParameter(target_id)
+        target.setValue(float(default))
+        target.setConstant(False)
+        assignment.removeFromParentAndDelete()
+        symbol_ids = {str(s) for s in expr.free_symbols}
+        replaced_symbols |= symbol_ids
+        converted_ids.append(target_id)
+
+        for experiment in experiments:
+            periods = experiment.sorted_periods
+            overrides = {}
+            for i, period in enumerate(periods):
+                changes = problem.get_changes_for_period(period)
+                overrides |= {c.target_id: c.target_value for c in changes}
+                subs = {
+                    s: overrides[str(s)]
+                    for s in expr.free_symbols
+                    if str(s) in overrides
+                }
+                t = t_switch.subs(subs)
+                if not (t.is_number and t.is_real and t.is_finite):
+                    raise NotImplementedError(
+                        "Only switching times that evaluate to a real number "
+                        "are supported, but the switching time of the "
+                        f"assignment to `{target_id}` in experiment "
+                        f"`{experiment.id}` is `{t}`."
+                    )
+                t = float(t)
+
+                if period.is_preequilibration:
+                    # the value at time 0, which respects whether the
+                    #  condition holds at a switch at time 0
+                    value = expr.subs(subs).subs(time, 0)
+                    additions.append(
+                        (experiment, period.time, target_id, value)
+                    )
+                    continue
+
+                t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
+                switch_value = (
+                    after_expr.subs(subs) if period.time < t < t_end else None
+                )
+                start_value = (
+                    default if period.time < t else after_expr
+                ).subs(subs)
+                # The model already has the pre-switch value at the start of
+                #  the first period, and the switch can become the first
+                #  period if it only refers to parameter table symbols.
+                redundant = (
+                    i == 0
+                    and (start_value - default).is_zero
+                    and (
+                        switch_value is None
+                        or {str(s) for s in switch_value.free_symbols}
+                        <= parameter_ids
+                    )
+                )
+                if not redundant and (
+                    i == 0 or {c.target_id for c in changes} & symbol_ids
+                ):
+                    additions.append(
+                        (experiment, period.time, target_id, start_value)
+                    )
+                if switch_value is not None:
+                    additions.append((experiment, t, target_id, switch_value))
+
+    if converted_ids and any(e.has_preequilibration for e in experiments):
+        warnings.warn(
+            "Switches of time-dependent piecewise assignments during "
+            "preequilibration are not supported. The converted "
+            f"assignments to {converted_ids} keep their value at time 0 "
+            "throughout "
+            "preequilibration.",
+            stacklevel=2,
+        )
+
+    # drop changes that are covered by the new conditions
+    condition_ids = {c.id for c in problem.conditions}
+    for table in problem.condition_tables:
+        for condition in table.conditions:
+            condition.changes = [
+                c
+                for c in condition.changes
+                if c.target_id not in replaced_symbols
+            ]
+        table.elements = [c for c in table.conditions if c.changes]
+    removed_condition_ids = condition_ids - {c.id for c in problem.conditions}
+    for experiment in experiments:
+        for period in experiment.periods:
+            period.condition_ids = [
+                cid
+                for cid in period.condition_ids
+                if cid not in removed_condition_ids
+            ]
+
+    # add the new conditions to new or existing periods
+    new_conditions = {}
+    cond_counter = count()
+    for experiment, t, target_id, value in additions:
+        if (cond_id := new_conditions.get((target_id, value))) is None:
+            while (cond_id := f"cond_{next(cond_counter)}") in condition_ids:
+                pass
+            new_conditions[target_id, value] = cond_id
+            problem += Condition(
+                id=cond_id,
+                changes=[Change(target_id=target_id, target_value=value)],
+            )
+        period = next((p for p in experiment.periods if p.time == t), None)
+        if period is None:
+            experiment += (period := ExperimentPeriod(time=t))
+        period.condition_ids.append(cond_id)
+
+    for experiment in experiments:
+        experiment.sort_periods()
+        experiment.periods = [
+            p
+            for p in experiment.periods
+            if p.condition_ids or id(p) not in droppable
+        ] or experiment.periods[:1]
+
+    if default_experiment and any(
+        p.condition_ids for p in default_experiment.periods
+    ):
+        problem += default_experiment
+        for measurement in problem.measurements:
+            if measurement.experiment_id is None:
+                measurement.experiment_id = DEFAULT_EXPERIMENT_ID
+
+    validation_issues = problem.validate()
+    if validation_issues.has_errors():
+        messages = "\n".join(f"{issue.message}" for issue in validation_issues)
+        raise ValueError(
+            f"The converted PEtab problem did not pass linting:\n{messages}"
+        )
+
+    return problem
