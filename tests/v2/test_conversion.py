@@ -11,7 +11,10 @@ from petab.v1.models.sbml_model import SbmlModel
 from petab.v1.priors import Prior
 from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
-from petab.v2.converters import assignments_to_experiments
+from petab.v2.converters import (
+    DEFAULT_EXPERIMENT_ID,
+    assignments_to_experiments,
+)
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 
 
@@ -664,8 +667,8 @@ def test_assignments_to_experiments(condition, before, after):
     assert converted.experiment_df.equals(experiments_expected)
     assert converted.condition_df.equals(conditions_expected)
     assert converted.measurement_df[v2.C.EXPERIMENT_ID].tolist() == [
-        "default_experiment",
-        "default_experiment",
+        DEFAULT_EXPERIMENT_ID,
+        DEFAULT_EXPERIMENT_ID,
     ]
 
 
@@ -699,7 +702,7 @@ def test_assignments_to_experiments_nested():
     #  first period -- the pre-dose value is kept as a condition here
     experiments_expected = pd.DataFrame(
         data={
-            v2.C.EXPERIMENT_ID: ["default_experiment"] * 2,
+            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID] * 2,
             v2.C.TIME: [0.0, 10.0],
             v2.C.CONDITION_ID: ["cond_0", "cond_1"],
         }
