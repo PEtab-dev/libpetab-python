@@ -647,7 +647,7 @@ def test_assignments_to_experiments(condition, before, after):
 
     experiments_expected = pd.DataFrame(
         data={
-            v2.C.EXPERIMENT_ID: ["default_experiment"],
+            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID],
             v2.C.TIME: [10.0],
             v2.C.CONDITION_ID: ["cond_0"],
         }
