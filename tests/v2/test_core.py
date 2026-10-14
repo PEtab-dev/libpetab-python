@@ -64,6 +64,103 @@ def test_condition_table_round_trip():
         assert conditions == conditions2
 
 
+@pytest.mark.parametrize(
+    "table_cls,df",
+    [
+        (
+            ParameterTable,
+            pd.DataFrame(
+                {
+                    PARAMETER_ID: ["k1", "k2"],
+                    LOWER_BOUND: [0.1, 0.1],
+                    UPPER_BOUND: [10.0, 10.0],
+                    NOMINAL_VALUE: [1.0, 2.0],
+                    ESTIMATE: [True, False],
+                }
+            ),
+        ),
+        (
+            ObservableTable,
+            pd.DataFrame(
+                {
+                    OBSERVABLE_ID: ["obs1", "obs2"],
+                    OBSERVABLE_FORMULA: ["x", "y"],
+                    NOISE_FORMULA: ["1", "2"],
+                }
+            ),
+        ),
+        (
+            MeasurementTable,
+            pd.DataFrame(
+                {
+                    C.OBSERVABLE_ID: ["obs1", "obs2"],
+                    C.TIME: [0.0, 1.0],
+                    C.MEASUREMENT: [1.0, 2.0],
+                }
+            ),
+        ),
+        (
+            MappingTable,
+            pd.DataFrame(
+                {
+                    PETAB_ENTITY_ID: ["a", "b"],
+                    MODEL_ENTITY_ID: ["1a", "1b"],
+                }
+            ),
+        ),
+    ],
+)
+def test_from_df_ignores_unnamed_index(table_cls, df):
+    """Unnamed indices must not end up as extra columns."""
+    # non-default unnamed index
+    df.index = [5, 7]
+    df_orig = df.copy()
+    table = table_cls.from_df(df)
+    assert_frame_equal(df, df_orig)
+    out_df = table.to_df()
+    cols = set(out_df.columns) | set(filter(None, out_df.index.names))
+    assert not cols & {"index", "level_0"}
+    assert table_cls.from_df(out_df) == table
+
+    # a named index is kept as a column
+    id_col = df.columns[0]
+    table2 = table_cls.from_df(df.set_index(id_col))
+    assert table2 == table
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+def test_problem_to_files_round_trip_columns():
+    """Saving and reloading a problem must not add columns."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        petab1to2(example_dir_fujita / "Fujita.yaml", tmp_dir)
+        yaml_file = Path(tmp_dir, "Fujita.yaml")
+        problem = Problem.from_yaml(yaml_file)
+
+        def get_columns(p: Problem):
+            return {
+                name: set(getattr(p, name).columns)
+                | set(filter(None, getattr(p, name).index.names))
+                for name in (
+                    "parameter_df",
+                    "measurement_df",
+                    "observable_df",
+                    "condition_df",
+                    "experiment_df",
+                )
+            }
+
+        expected = get_columns(problem)
+        for i in range(2):
+            out_dir = Path(tmp_dir, f"round{i}")
+            problem.to_files(out_dir)
+            problem = Problem.from_yaml(out_dir / yaml_file.name)
+            assert get_columns(problem) == expected
+            for cols in expected.values():
+                assert not cols & {"index", "level_0"}
+
+
 @pytest.mark.filterwarnings(
     "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
 )
