@@ -198,8 +198,15 @@ class ExperimentsToSbmlConverter:
 
         self._add_preequilibration_indicator()
 
+        # Collect values for initial assignments for the different experiments.
+        #  All expressions must be combined into a single initial assignment
+        #  per target.
+        # target_id -> [(experiment_indicator, target_value), ...]
+        period0_assignments: dict[str, list[tuple[str, sp.Basic]]] = {}
         for experiment in self._new_problem.experiments:
-            self._convert_experiment(experiment)
+            self._convert_experiment(experiment, period0_assignments)
+
+        self._create_initial_assignments(period0_assignments)
 
         self._add_indicators_to_conditions()
 
@@ -208,9 +215,20 @@ class ExperimentsToSbmlConverter:
 
         return self._new_problem
 
-    def _convert_experiment(self, experiment: Experiment) -> None:
+    def _convert_experiment(
+        self,
+        experiment: Experiment,
+        period0_assignments: dict[str, list[tuple[str, sp.Basic]]],
+    ) -> None:
         """
         Convert a single experiment to SBML events or initial assignments.
+
+        :param experiment: The experiment to convert.
+        :param period0_assignments: The changes of the first period are not
+            applied directly, but are added to this dictionary
+            (``target_id -> [(experiment_indicator, target_value), ...]``).
+            They are combined across experiments into a single initial
+            assignment per target by :meth:`_create_initial_assignments`.
         """
         model = self._model
         experiment.sort_periods()
@@ -227,11 +245,6 @@ class ExperimentsToSbmlConverter:
             )
         add_sbml_parameter(model, id_=exp_ind_id, constant=False, value=0)
         kept_periods: list[ExperimentPeriod] = []
-        # Collect values for initial assignments for the different experiments.
-        #  All expressions must be combined into a single initial assignment
-        #  per target.
-        # target_id -> [(experiment_indicator, target_value), ...]
-        period0_assignments: dict[str, list[tuple[str, sp.Basic]]] = {}
 
         for i_period, period in enumerate(experiment.sorted_periods):
             if period.is_preequilibration:
@@ -280,60 +293,6 @@ class ExperimentsToSbmlConverter:
                     self._new_problem.get_changes_for_period(period),
                 )
 
-        # Create initial assignments for the first period
-        if period0_assignments:
-            free_symbols_in_assignments = set()
-            for target_id, changes in period0_assignments.items():
-                # The initial value might only be changed for a subset of
-                #  experiments. We need to keep the original initial value
-                #  for all other experiments.
-
-                # Is there an initial assignment for this target already?
-                # If not, fall back to the initial value of the target.
-                if (
-                    ia := model.getInitialAssignmentBySymbol(target_id)
-                ) is not None:
-                    default = sbml_math_to_sympy(ia.getMath())
-                else:
-                    # use the initial value of the target as default
-                    target = model.getElementBySId(target_id)
-                    default = self._initial_value_from_element(target)
-
-                # Only create the initial assignment if there is
-                #  actually something to change.
-                if expr_cond_pairs := [
-                    (target_value, sp.Symbol(exp_ind) > 0.5)
-                    for exp_ind, target_value in changes
-                    if target_value != default
-                ]:
-                    # Unlike events, we can't have different initial
-                    #  assignments for different experiments, so we need to
-                    #  combine all changes into a single piecewise
-                    #  expression.
-
-                    expr = sp.Piecewise(
-                        *expr_cond_pairs,
-                        (default, True),
-                    )
-
-                    # Create a new initial assignment if necessary, otherwise
-                    #  overwrite the existing one.
-                    if ia is None:
-                        ia = model.createInitialAssignment()
-                        ia.setSymbol(target_id)
-
-                    set_math(ia, expr)
-                    free_symbols_in_assignments |= expr.free_symbols
-
-            # the target value may depend on parameters that are only
-            #  introduced in the PEtab parameter table - those need
-            #  to be added to the model
-            for sym in free_symbols_in_assignments:
-                if model.getElementBySId(sym.name) is None:
-                    add_sbml_parameter(
-                        model, id_=sym.name, constant=True, value=0
-                    )
-
         if len(kept_periods) > 2:
             raise AssertionError("Expected at most two periods to be kept.")
 
@@ -347,6 +306,66 @@ class ExperimentsToSbmlConverter:
             ]
 
         experiment.periods = kept_periods
+
+    def _create_initial_assignments(
+        self, period0_assignments: dict[str, list[tuple[str, sp.Basic]]]
+    ) -> None:
+        """Create initial assignments for the first period of all experiments.
+
+        Unlike events, we can't have different initial assignments for
+        different experiments, so all changes of a target are combined into
+        a single piecewise expression, conditioned on the experiment
+        indicators.
+
+        :param period0_assignments: The changes of the first period of all
+            experiments
+            (``target_id -> [(experiment_indicator, target_value), ...]``).
+        """
+        model = self._model
+        free_symbols_in_assignments = set()
+        for target_id, changes in period0_assignments.items():
+            # The initial value might only be changed for a subset of
+            #  experiments. We need to keep the original initial value
+            #  for all other experiments.
+
+            # Is there an initial assignment for this target already?
+            # If not, fall back to the initial value of the target.
+            if (
+                ia := model.getInitialAssignmentBySymbol(target_id)
+            ) is not None:
+                default = sbml_math_to_sympy(ia.getMath())
+            else:
+                # use the initial value of the target as default
+                target = model.getElementBySId(target_id)
+                default = self._initial_value_from_element(target)
+
+            # Only create the initial assignment if there is
+            #  actually something to change.
+            if expr_cond_pairs := [
+                (target_value, sp.Symbol(exp_ind) > 0.5)
+                for exp_ind, target_value in changes
+                if target_value != default
+            ]:
+                expr = sp.Piecewise(
+                    *expr_cond_pairs,
+                    (default, True),
+                )
+
+                # Create a new initial assignment if necessary, otherwise
+                #  overwrite the existing one.
+                if ia is None:
+                    ia = model.createInitialAssignment()
+                    ia.setSymbol(target_id)
+
+                set_math(ia, expr)
+                free_symbols_in_assignments |= expr.free_symbols
+
+        # the target value may depend on parameters that are only
+        #  introduced in the PEtab parameter table - those need
+        #  to be added to the model
+        for sym in free_symbols_in_assignments:
+            if model.getElementBySId(sym.name) is None:
+                add_sbml_parameter(model, id_=sym.name, constant=True, value=0)
 
     @staticmethod
     def _initial_value_from_element(target: libsbml.SBase) -> sp.Basic:

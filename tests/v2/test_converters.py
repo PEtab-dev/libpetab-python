@@ -1,6 +1,8 @@
 from math import inf
 
 import pandas as pd
+import sympy as sp
+from sbmlmath import sbml_math_to_sympy
 
 from petab.v2 import Change, Condition, Experiment, ExperimentPeriod, Problem
 from petab.v2.converters import ExperimentsToSbmlConverter
@@ -77,6 +79,58 @@ def test_experiments_to_events_converter():
             ],
         ),
     ]
+
+
+def test_initial_assignments_many_experiments():
+    """The first-period changes of all experiments are combined into a single
+    flat piecewise initial assignment per target.
+
+    Nesting the piecewise once per experiment exceeded lxml's depth limit
+    (https://github.com/PEtab-dev/libpetab-python/issues/540).
+    """
+    n_experiments = 300
+    ant_model = """
+    species A = 1
+    species B
+    k = 3
+    B = 2 * k
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    for i in range(n_experiments):
+        problem.add_condition(f"c{i}", A=i + 2, B=i + 2)
+        problem.add_experiment(f"e{i}", 0, f"c{i}")
+    # an experiment that does not change the initial values
+    problem.add_condition("c_default", k=3)
+    problem.add_experiment("e_default", 0, "c_default")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    sbml_model = converted.model.sbml_model
+
+    indicators = {
+        sp.Symbol(ExperimentsToSbmlConverter.get_experiment_indicator(exp.id))
+        for exp in problem.experiments
+    }
+    for target_id, default in (("A", 1), ("B", 2 * sp.Symbol("k"))):
+        expr = sbml_math_to_sympy(
+            sbml_model.getInitialAssignmentBySymbol(target_id).getMath()
+        )
+        assert isinstance(expr, sp.Piecewise)
+        assert len(expr.args) == n_experiments + 1
+        assert not any(isinstance(e, sp.Piecewise) for e, _ in expr.args)
+
+        for exp_id, expected in (
+            ("e0", 2),
+            (f"e{n_experiments - 1}", n_experiments + 1),
+            ("e_default", default),
+        ):
+            active = sp.Symbol(
+                ExperimentsToSbmlConverter.get_experiment_indicator(exp_id)
+            )
+            assert (
+                expr.xreplace({ind: int(ind == active) for ind in indicators})
+                == expected
+            )
 
 
 def test_simulate_experiment_to_events():
