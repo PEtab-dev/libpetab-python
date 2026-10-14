@@ -29,6 +29,11 @@
   https://github.com/PEtab-dev/libpetab-python/pull/533,
   https://github.com/PEtab-dev/libpetab-python/pull/535, and
   https://github.com/PEtab-dev/libpetab-python/pull/536)
+* `petab_math_str` now produces valid PEtab math expressions for boolean
+  operators, (in)equality, `min`/`max`, powers with negative bases, and
+  `pi`/`e`, and prints floats without loss of precision. PEtab v2 condition
+  and measurement tables now write expressions in PEtab syntax
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/545)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
