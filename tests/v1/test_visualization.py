@@ -6,8 +6,8 @@ from tempfile import TemporaryDirectory
 import matplotlib.pyplot as plt
 import pytest
 
-import petab
-from petab.C import *
+import petab.v1 as petab
+from petab.v1.C import *
 from petab.v1.visualize import (
     plot_goodness_of_fit,
     plot_residuals_vs_simulation,

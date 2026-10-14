@@ -20,7 +20,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Install uv and python ${{ matrix.python-version }}
-      uses: astral-sh/setup-uv@v9.0.0
+      uses: astral-sh/setup-uv@v10.0.1
       with:
         enable-cache: true
         python-version: ${{ matrix.python-version }}
@@ -28,6 +28,9 @@ jobs:
     - name: Quality tests
       run: uvx pre-commit run --all-files
       if: matrix.platform == 'ubuntu-latest'
+
+    - name: Fetch BNGL test corpus
+      run: uv run python tests/v1/fetch_bngl_corpus.py
 
     - name: Unit tests
       run: |

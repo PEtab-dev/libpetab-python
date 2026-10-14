@@ -8,7 +8,7 @@ from pathlib import Path
 
 import libsbml
 import sympy as sp
-from sympy.abc import _clash
+from sbmlmath import sbml_math_to_sympy
 
 from ..._utils import _generate_path
 from ..sbml import (
@@ -33,7 +33,7 @@ class SbmlModel(Model):
         sbml_model: libsbml.Model = None,
         sbml_reader: libsbml.SBMLReader = None,
         sbml_document: libsbml.SBMLDocument = None,
-        model_id: str = None,
+        model_id: str | None = None,
         rel_path: Path | str | None = None,
         base_path: str | Path | None = None,
     ):
@@ -94,7 +94,9 @@ class SbmlModel(Model):
 
     @staticmethod
     def from_file(
-        filepath_or_buffer, model_id: str = None, base_path: str | Path = None
+        filepath_or_buffer,
+        model_id: str | None = None,
+        base_path: str | Path | None = None,
     ) -> SbmlModel:
         sbml_reader, sbml_document, sbml_model = get_sbml_model(
             _generate_path(filepath_or_buffer, base_path=base_path)
@@ -109,7 +111,7 @@ class SbmlModel(Model):
         )
 
     @staticmethod
-    def from_string(sbml_string, model_id: str = None) -> SbmlModel:
+    def from_string(sbml_string, model_id: str | None = None) -> SbmlModel:
         """Create SBML model from an SBML string.
 
         :param sbml_string: SBML model as string.
@@ -283,28 +285,7 @@ def sympify_sbml(sbml_obj: libsbml.ASTNode | libsbml.SBase) -> sp.Expr:
     -------
     The sympy expression corresponding to ``sbml_obj``.
     """
-    ast_node = (
-        sbml_obj
-        if isinstance(sbml_obj, libsbml.ASTNode)
-        else sbml_obj.getMath()
-    )
-
-    parser_settings = libsbml.L3ParserSettings(
-        ast_node.getParentSBMLObject().getModel(),
-        libsbml.L3P_PARSE_LOG_AS_LOG10,
-        libsbml.L3P_EXPAND_UNARY_MINUS,
-        libsbml.L3P_NO_UNITS,
-        libsbml.L3P_AVOGADRO_IS_CSYMBOL,
-        libsbml.L3P_COMPARE_BUILTINS_CASE_INSENSITIVE,
-        None,
-        libsbml.L3P_MODULO_IS_PIECEWISE,
-    )
-
-    formula_str = libsbml.formulaToL3StringWithSettings(
-        ast_node, parser_settings
-    )
-
-    return sp.sympify(formula_str, locals=_clash)
+    return sbml_math_to_sympy(sbml_obj)
 
 
 def antimony2sbml(ant_model: str | Path) -> str:

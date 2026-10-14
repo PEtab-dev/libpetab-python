@@ -20,6 +20,7 @@ dependencies = [
     "jsonschema",
     "antlr4-python3-runtime==4.13.1",
     "pydantic>=2.10",
+    "sbmlmath>=0.4.0",
 ]
 license = "MIT"
 authors = [
@@ -65,7 +66,6 @@ doc = [
     "ipython>=7.21.0, !=8.7.0",
     "pysb",
     "antimony>=2.14.0",
-    "sbmlmath>=0.4.0",
 ]
 vis = [
     "matplotlib>=3.6.0",
@@ -129,6 +129,9 @@ convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T201"]
+"petab/v1/C.py" = ["N999"]
+"petab/v2/C.py" = ["N999"]
+"petab/v1/math/SympyVisitor.py" = ["N999"]
 
 [tool.ruff.format]
 docstring-code-format = true

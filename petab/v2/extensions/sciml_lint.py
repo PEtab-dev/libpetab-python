@@ -22,11 +22,12 @@ from .. import core, lint
 from ..C import EXT_ID_SCIML
 
 __all__ = [
-    "CheckNeuralNetworkModel",
-    "CheckHybridizationTable",
-    "CheckSciMLConditionTable",
     "CheckArrayDataFiles",
+    "CheckHybridizationTable",
+    "CheckNeuralNetworkModel",
+    "CheckSciMLConditionTable",
     "CheckSciMLParameterTable",
+    "get_nn_entity_petab_ids",
 ]
 
 #: Placeholder used in messages when a neural network has no ID.
@@ -67,7 +68,7 @@ def _nn_ids(problem: core.Problem) -> set[str]:
     return ids
 
 
-def _nn_entity_petab_ids(
+def get_nn_entity_petab_ids(
     problem: core.Problem,
 ) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
     """Classify NN entities referenced in the mapping table.
@@ -209,7 +210,7 @@ class CheckHybridizationTable(lint.ValidationTask):
         condition_targets = {
             c.target_id for ct in problem.conditions for c in ct.changes
         }
-        nn_inputs, nn_outputs, nn_params = _nn_entity_petab_ids(problem)
+        nn_inputs, nn_outputs, nn_params = get_nn_entity_petab_ids(problem)
         array_input_ids = _array_input_ids(problem)
         array_param_layers = _array_parameter_layers(problem)
         array_param_petab_ids = {
@@ -274,7 +275,7 @@ class CheckHybridizationTable(lint.ValidationTask):
             # re-check in case a target value was assigned some other way.
             try:
                 sympify_petab(str(hyb.target_value))
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 messages.append(
                     f"Hybridization target value for `{hyb.target_id}` is "
                     f"not a valid PEtab math expression (hint: {e})."
@@ -333,7 +334,7 @@ class CheckSciMLConditionTable(lint.ValidationTask):
     def run(self, problem: core.Problem) -> lint.ValidationIssue | None:
         messages = []
 
-        nn_inputs, nn_outputs, nn_params = _nn_entity_petab_ids(problem)
+        nn_inputs, nn_outputs, nn_params = get_nn_entity_petab_ids(problem)
         array_input_ids = _array_input_ids(problem)
         array_param_layers = _array_parameter_layers(problem)
         array_param_petab_ids = {

@@ -11,11 +11,10 @@ import pandas as pd
 import pytest
 from yaml import safe_load
 
-import petab
-import petab.v1
-from petab.C import *
-from petab.models.sbml_model import SbmlModel
+import petab.v1 as petab
 from petab.v1 import Problem
+from petab.v1.C import *
+from petab.v1.models.sbml_model import SbmlModel
 
 
 @pytest.fixture
@@ -312,7 +311,7 @@ def test_create_parameter_df(
     # Test old API with passing libsbml.Model directly
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        parameter_df = petab.v1.create_parameter_df(
+        parameter_df = petab.create_parameter_df(
             sbml_model=model.sbml_model,
             condition_df=condition_df_2_conditions,
             observable_df=observable_df,
@@ -370,8 +369,10 @@ def test_flatten_timepoint_specific_output_overrides():
                 "x",
             ],
             NOISE_FORMULA: [
-                "(observableParameter1_obs1 + observableParameter2_obs1)"
-                " * noiseParameter1_obs1",
+                (
+                    "(observableParameter1_obs1 + observableParameter2_obs1)"
+                    " * noiseParameter1_obs1"
+                ),
                 1,
             ],
         }
@@ -392,24 +393,36 @@ def test_flatten_timepoint_specific_output_overrides():
                 "obs2__condition1",
             ],
             OBSERVABLE_FORMULA: [
-                f"observableParameter1_{obs1_1_1_1}"
-                f" + observableParameter2_{obs1_1_1_1}",
-                f"observableParameter1_{obs1_2_1_1}"
-                f" + observableParameter2_{obs1_2_1_1}",
-                f"observableParameter1_{obs1_2_2_1}"
-                f" + observableParameter2_{obs1_2_2_1}",
+                (
+                    f"observableParameter1_{obs1_1_1_1}"
+                    f" + observableParameter2_{obs1_1_1_1}"
+                ),
+                (
+                    f"observableParameter1_{obs1_2_1_1}"
+                    f" + observableParameter2_{obs1_2_1_1}"
+                ),
+                (
+                    f"observableParameter1_{obs1_2_2_1}"
+                    f" + observableParameter2_{obs1_2_2_1}"
+                ),
                 "x",
             ],
             NOISE_FORMULA: [
-                f"(observableParameter1_{obs1_1_1_1}"
-                f" + observableParameter2_{obs1_1_1_1})"
-                f" * noiseParameter1_{obs1_1_1_1}",
-                f"(observableParameter1_{obs1_2_1_1}"
-                f" + observableParameter2_{obs1_2_1_1})"
-                f" * noiseParameter1_{obs1_2_1_1}",
-                f"(observableParameter1_{obs1_2_2_1}"
-                f" + observableParameter2_{obs1_2_2_1})"
-                f" * noiseParameter1_{obs1_2_2_1}",
+                (
+                    f"(observableParameter1_{obs1_1_1_1}"
+                    f" + observableParameter2_{obs1_1_1_1})"
+                    f" * noiseParameter1_{obs1_1_1_1}"
+                ),
+                (
+                    f"(observableParameter1_{obs1_2_1_1}"
+                    f" + observableParameter2_{obs1_2_1_1})"
+                    f" * noiseParameter1_{obs1_2_1_1}"
+                ),
+                (
+                    f"(observableParameter1_{obs1_2_2_1}"
+                    f" + observableParameter2_{obs1_2_2_1})"
+                    f" * noiseParameter1_{obs1_2_2_1}"
+                ),
                 1,
             ],
         }
@@ -810,6 +823,29 @@ def test_problem_from_yaml_v1_empty():
     petab.Problem.from_yaml(yaml_config)
 
 
+@pytest.mark.parametrize(
+    "yaml_config",
+    [
+        """
+        format_version: 1
+        parameter_file:
+        """,
+        """
+        format_version: 1
+        parameter_file:
+        problems: []
+        """,
+    ],
+)
+def test_problem_from_yaml_v1_empty_problems(yaml_config):
+    """Test loading PEtab version 1 yaml with a missing or empty
+    `problems` section raises a helpful error instead of a raw
+    KeyError/IndexError"""
+    yaml_config = safe_load(StringIO(yaml_config))
+    with pytest.raises(ValueError, match="problems"):
+        petab.Problem.from_yaml(yaml_config)
+
+
 def test_problem_from_yaml_v1_multiple_files():
     """Test loading PEtab version 1 yaml with multiple condition / measurement
     / observable files
@@ -848,7 +884,7 @@ def test_problem_from_yaml_v1_multiple_files():
         petab_problem1 = petab.Problem.from_yaml(yaml_path)
 
         # test that we can load the problem from a dict with a custom base path
-        yaml_config = petab.v1.load_yaml(yaml_path)
+        yaml_config = petab.load_yaml(yaml_path)
         petab_problem2 = petab.Problem.from_yaml(yaml_config, base_path=tmpdir)
 
     for petab_problem in (petab_problem1, petab_problem2):

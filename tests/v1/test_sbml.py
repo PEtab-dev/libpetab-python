@@ -5,10 +5,10 @@ import libsbml
 import pandas as pd
 import pytest
 
-from petab.v1.models.sbml_model import SbmlModel
+from petab.v1.models.sbml_model import SbmlModel, sympify_sbml
 
 sys.path.append(os.getcwd())
-import petab  # noqa: E402
+import petab.v1 as petab
 
 
 def create_test_data():
@@ -17,9 +17,10 @@ def create_test_data():
         "\n".join(
             [
                 "compartment compartment_1 = 1",
-                *(f"species species_{i} = 10 * {i}" for i in range(1, 5)),
+                *(f"species species_{i} = 10 * {i}" for i in range(1, 6)),
                 *(f"parameter_{i} = {i}" for i in range(1, 4)),
                 "species_2 := 25",
+                "species_5' = 1",
             ]
         )
     )
@@ -32,6 +33,7 @@ def create_test_data():
             "species_2": [25],
             "species_3": ["parameter_1"],
             "species_4": ["not_a_model_parameter"],
+            "species_5": [55],
             "compartment_1": [2],
         }
     )
@@ -84,6 +86,12 @@ def check_model(condition_model):
     assert (
         condition_model.getSpecies("species_4").getInitialConcentration()
         == 3.25
+    )
+    assert (
+        condition_model.getSpecies("species_5").getInitialConcentration() == 55
+    )
+    assert condition_model.getRuleByVariable("species_5") is not None, (
+        "RateRule was removed although it should have been kept"
     )
     assert len(condition_model.getListOfInitialAssignments()) == 0, (
         "InitialAssignment not removed"
@@ -150,3 +158,22 @@ def test_sbml_from_to_ant():
 
     # convert back to antimony
     assert "R1: S1 -> S2; k1*S1" in petab_model.to_antimony()
+
+
+def test_sympify_sbml_modulo():
+    """SBML's ``%`` follows C semantics (result has the sign of the
+    dividend), unlike Python's ``%`` (result has the sign of the divisor).
+
+    Naively converting the SBML math to a string and handing it to
+    ``sympy.sympify`` therefore silently produces a wrong result (gh-283).
+    """
+    sbml_document = libsbml.SBMLDocument(3, 2)
+    sbml_model = sbml_document.createModel()
+    parameter = sbml_model.createParameter()
+    parameter.setId("e")
+    parameter.setConstant(False)
+    initial_assignment = sbml_model.createInitialAssignment()
+    initial_assignment.setSymbol("e")
+    initial_assignment.setMath(libsbml.parseL3Formula("-5 % 3"))
+
+    assert sympify_sbml(initial_assignment).doit() == -2

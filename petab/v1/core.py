@@ -15,22 +15,22 @@ import pandas as pd
 from pandas.api.types import is_string_dtype
 
 from . import yaml
-from .C import *  # noqa: F403
+from .C import *
 
 logger = logging.getLogger(__name__)
 __all__ = [
-    "get_simulation_df",
-    "write_simulation_df",
-    "get_visualization_df",
-    "write_visualization_df",
-    "get_notnull_columns",
-    "flatten_timepoint_specific_output_overrides",
     "concat_tables",
-    "to_float_if_float",
-    "is_empty",
     "create_combine_archive",
-    "unique_preserve_order",
+    "flatten_timepoint_specific_output_overrides",
+    "get_notnull_columns",
+    "get_simulation_df",
+    "get_visualization_df",
+    "is_empty",
+    "to_float_if_float",
     "unflatten_simulation_df",
+    "unique_preserve_order",
+    "write_simulation_df",
+    "write_visualization_df",
 ]
 
 POSSIBLE_GROUPVARS_FLATTENED_PROBLEM = [
@@ -185,7 +185,7 @@ def get_hyperparameter_replacement_id(
 
 
 def get_flattened_id_mappings(
-    petab_problem: "petab.problem.Problem",
+    petab_problem: "petab.v1.problem.Problem",
 ) -> dict[str, dict[str, str]]:
     """Get mapping from unflattened to flattened observable IDs.
 
@@ -240,7 +240,7 @@ def get_flattened_id_mappings(
 
 
 def flatten_timepoint_specific_output_overrides(
-    petab_problem: "petab.problem.Problem",
+    petab_problem: "petab.v1.problem.Problem",
 ) -> None:
     """Flatten timepoint-specific output parameter overrides.
 
@@ -322,7 +322,7 @@ def flatten_timepoint_specific_output_overrides(
 
 def unflatten_simulation_df(
     simulation_df: pd.DataFrame,
-    petab_problem: "petab.problem.Problem",
+    petab_problem: "petab.v1.problem.Problem",
 ) -> pd.DataFrame:
     """Unflatten simulations from a flattened PEtab problem.
 

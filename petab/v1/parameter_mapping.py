@@ -14,6 +14,7 @@ import libsbml
 import numpy as np
 import pandas as pd
 
+from .. import ENV_NUM_THREADS
 from . import (
     core,
     lint,
@@ -21,26 +22,22 @@ from . import (
     observables,
     parameters,
 )
-from .C import *  # noqa: F403
+from .C import *
 from .mapping import resolve_mapping
 from .models import Model
 
-# FIXME import from petab.ENV_NUM_THREADS
-ENV_NUM_THREADS = "PETAB_NUM_THREADS"
-
-
 logger = logging.getLogger(__name__)
 __all__ = [
+    "ParMappingDict",
+    "ParMappingDictQuadruple",
+    "ParMappingDictTuple",
+    "ScaleMappingDict",
+    "ScaleMappingDictTuple",
     "get_optimization_to_simulation_parameter_mapping",
     "get_parameter_mapping_for_condition",
     "handle_missing_overrides",
     "merge_preeq_and_sim_pars",
     "merge_preeq_and_sim_pars_condition",
-    "ParMappingDict",
-    "ParMappingDictTuple",
-    "ScaleMappingDict",
-    "ScaleMappingDictTuple",
-    "ParMappingDictQuadruple",
 ]
 
 
@@ -89,7 +86,7 @@ def get_optimization_to_simulation_parameter_mapping(
             The model.
         simulation_conditions:
             Table of simulation conditions as created by
-            ``petab.get_simulation_conditions``.
+            ``petab.v1.get_simulation_conditions``.
         warn_unmapped:
             If ``True``, log warning regarding unmapped parameters
         scaled_parameters:
@@ -124,7 +121,7 @@ def get_optimization_to_simulation_parameter_mapping(
     if sbml_model:
         warnings.warn(
             "Passing a model via the `sbml_model` argument is "
-            "deprecated, use `model=petab.models.sbml_model."
+            "deprecated, use `model=petab.v1.models.sbml_model."
             "SbmlModel(...)` instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -140,7 +137,7 @@ def get_optimization_to_simulation_parameter_mapping(
     # Ensure inputs are okay
     _perform_mapping_checks(
         measurement_df,
-        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
     )
 
     if simulation_conditions is None:
@@ -157,7 +154,7 @@ def get_optimization_to_simulation_parameter_mapping(
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
 
-    num_threads = int(os.environ.get(ENV_NUM_THREADS, 1))
+    num_threads = int(os.environ.get(ENV_NUM_THREADS, "1"))
 
     # If sequential execution is requested, let's not create any
     # thread-allocation overhead
@@ -287,7 +284,7 @@ def _map_condition(packed_args):
             warn_unmapped=warn_unmapped,
             scaled_parameters=scaled_parameters,
             fill_fixed_parameters=fill_fixed_parameters,
-            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
         )
 
     par_map_sim, scale_map_sim = get_parameter_mapping_for_condition(
@@ -302,7 +299,7 @@ def _map_condition(packed_args):
         warn_unmapped=warn_unmapped,
         scaled_parameters=scaled_parameters,
         fill_fixed_parameters=fill_fixed_parameters,
-        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
     )
 
     return par_map_preeq, par_map_sim, scale_map_preeq, scale_map_sim
@@ -347,7 +344,7 @@ def get_parameter_mapping_for_condition(
             The model.
         simulation_parameters:
             Model simulation parameter IDs mapped to parameter values (output
-            of ``petab.sbml.get_model_parameters(.., with_values=True)``).
+            of ``petab.v1.sbml.get_model_parameters(.., with_values=True)``).
             Optional, saves time if precomputed.
         warn_unmapped:
             If ``True``, log warning regarding unmapped parameters
@@ -374,7 +371,7 @@ def get_parameter_mapping_for_condition(
     if sbml_model:
         warnings.warn(
             "Passing a model via the `sbml_model` argument is "
-            "deprecated, use `model=petab.models.sbml_model."
+            "deprecated, use `model=petab.v1.models.sbml_model."
             "SbmlModel(...)` instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -390,7 +387,7 @@ def get_parameter_mapping_for_condition(
     if cur_measurement_df is not None:
         _perform_mapping_checks(
             cur_measurement_df,
-            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+            allow_timepoint_specific_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
         )
 
     if simulation_parameters is None:
@@ -437,7 +434,7 @@ def get_parameter_mapping_for_condition(
 def _output_parameters_to_nan(mapping: ParMappingDict) -> None:
     """Set output parameters in mapping dictionary to nan"""
     rex = re.compile("^(noise|observable)Parameter[0-9]+_")
-    for key in mapping.keys():
+    for key in mapping:
         try:
             matches = rex.match(key)
         except TypeError:
@@ -633,7 +630,7 @@ def _perform_mapping_checks(
     """
     if lint.measurement_table_has_timepoint_specific_mappings(
         measurement_df,
-        allow_scalar_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,  # noqa: E251,E501
+        allow_scalar_numeric_noise_parameters=allow_timepoint_specific_numeric_noise_parameters,
     ):
         # we could allow that for floats, since they don't matter in this
         # function and would be simply ignored
@@ -645,7 +642,7 @@ def _perform_mapping_checks(
 def handle_missing_overrides(
     mapping_par_opt_to_par_sim: ParMappingDict,
     warn: bool = True,
-    condition_id: str = None,
+    condition_id: str | None = None,
 ) -> None:
     """
     Find all observable parameters and noise parameters that were not mapped
@@ -778,10 +775,10 @@ def merge_preeq_and_sim_pars(
     Parameters:
         parameter_mappings:
             As returned by
-            :py:func:`petab.get_optimization_to_simulation_parameter_mapping`.
+            :py:func:`petab.v1.get_optimization_to_simulation_parameter_mapping`.
         scale_mappings:
             As returned by
-            :py:func:`petab.get_optimization_to_simulation_parameter_mapping`.
+            :py:func:`petab.v1.get_optimization_to_simulation_parameter_mapping`.
 
     Returns:
         The parameter and scale simulation mappings, modified and checked.

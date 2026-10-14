@@ -7,15 +7,15 @@ import pandas as pd
 import petab.v1 as petab
 
 from . import Problem
-from .C import *  # noqa: F403
+from .C import *
 from .lint import lint_problem
 
 __all__ = [
-    "remove_nan_measurements",
-    "remove_unused_observables",
-    "remove_unused_conditions",
-    "simplify_problem",
     "condition_parameters_to_parameter_table",
+    "remove_nan_measurements",
+    "remove_unused_conditions",
+    "remove_unused_observables",
+    "simplify_problem",
 ]
 
 

@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import petab
-from petab.C import *
+import petab.v1 as petab
+from petab.v1.C import *
 
 
 def test_get_optimization_parameter_scaling():
@@ -106,12 +106,12 @@ def test_get_parameter_df():
                 PARAMETER_NAME: ["different_name2", "name3"],
             }
         )
-        for name in parameter_dfs:
+        for name, df in parameter_dfs.items():
             with tempfile.NamedTemporaryFile(
                 mode="w", delete=False, dir=directory
             ) as fh:
                 parameter_files[name] = fh.name
-                parameter_dfs[name].to_csv(fh, sep="\t", index=False)
+                df.to_csv(fh, sep="\t", index=False)
         # Check that subset files are correctly combined
         assert petab.get_parameter_df(parameter_files["complete"]).equals(
             petab.get_parameter_df(

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from jsonschema.exceptions import ValidationError
 
-from petab.yaml import create_problem_yaml, get_path_prefix, validate
+from petab.v1.yaml import create_problem_yaml, get_path_prefix, validate
 
 
 def test_validate():

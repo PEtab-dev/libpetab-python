@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import petab
-from petab import conditions
-from petab.C import *
+import petab.v1 as petab
+from petab.v1 import conditions
+from petab.v1.C import *
 
 
 def test_get_parametric_overrides():

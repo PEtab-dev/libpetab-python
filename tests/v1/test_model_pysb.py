@@ -3,7 +3,7 @@
 import pysb
 import pytest
 
-from petab.models.pysb_model import (
+from petab.v1.models.pysb_model import (
     PySBModel,
     parse_species_name,
     pattern_from_string,

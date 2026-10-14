@@ -1,5 +1,86 @@
 # PEtab changelog
 
+## 0.10 series
+
+### 0.10.0 (unreleased)
+
+**Breaking changes**
+* Removed the deprecated top-level aliases for `petab.v1` (deprecated since
+  0.4.0). Accessing `petab.<name>` or importing `petab.<module>` for anything
+  other than `petab.v1`, `petab.v2`, `petab.ENV_NUM_THREADS` and
+  `petab.__version__` now raises `AttributeError` / `ModuleNotFoundError`.
+  Use `petab.v1.<name>` instead, e.g., `import petab.v1 as petab`.
+  `import petab` no longer imports `petab.v1`.
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/538)
+
+**Fixes**
+* `get_model_for_condition` no longer turns rate-rule targets that are
+  overridden in the condition table into constants
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/520)
+* Raise a clear error for a PEtab YAML file with an empty `problems` section
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/521)
+* Several fixes to the v1-to-v2 converter (`petab1to2`): keep
+  pre-equilibration for conditions that set nothing, order placeholders by
+  index instead of lexicographically, rescale noise and priors when
+  converting `log10` to `log`, and fix the conversion of `logNormal`,
+  `logLaplace` and `parameterScaleUniform` priors
+  (by @FFroehlich in
+  https://github.com/PEtab-dev/libpetab-python/pull/532,
+  https://github.com/PEtab-dev/libpetab-python/pull/533,
+  https://github.com/PEtab-dev/libpetab-python/pull/535, and
+  https://github.com/PEtab-dev/libpetab-python/pull/536)
+
+**Features**
+* `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
+  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/534)
+
+## 0.9 series
+
+### 0.9.0
+
+This release will require Python>=3.12 and numpy>=2.1.
+
+**Fixes**
+* Fixed the mean of residuals and added an option to choose between
+  normalized and unnormalized errors in `plot_goodness_of_fit`
+  (by @plakrisenko in https://github.com/PEtab-dev/libpetab-python/pull/473)
+* Made `scipy` a lazy import, so it is no longer required unless
+  probability distributions are actually used
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/486)
+* Fixed `PetabStrPrinter` for non-integer rational exponents
+  (by @wshlavacek in https://github.com/PEtab-dev/libpetab-python/pull/489)
+* Fixed spurious `nan`-related warnings in `Subplot.from_df`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/496)
+* Fixed a missing `return` in the noise distribution merge of
+  `petab1to2`, which caused `noiseDistribution` to always be `NaN` after
+  conversion
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/502)
+* Fixed the PEtab v2 extension config model
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/506)
+* Fixed SBML math parsing by using `sbmlmath` instead of
+  `sympy.sympify`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/509)
+
+**Features**
+* Added support for PEtab SciML problems, including a dedicated linter
+  (by @BSnelling, @m-philipps and @dilpath   in https://github.com/PEtab-dev/libpetab-python/pull/482
+  https://github.com/PEtab-dev/libpetab-python/pull/505,
+  https://github.com/PEtab-dev/libpetab-python/pull/499,
+  https://github.com/PEtab-dev/libpetab-python/pull/498,
+  https://github.com/PEtab-dev/libpetab-python/pull/511,
+  https://github.com/PEtab-dev/libpetab-python/pull/513, and
+  https://github.com/PEtab-dev/libpetab-python/pull/516)
+* Added support for BNGL models
+  (by @wshlavacek in https://github.com/PEtab-dev/libpetab-python/pull/508)
+* Added linting of the mapping table, and allowed pure annotation-only
+  mapping entries
+  (by @m-philipps and @BSnelling in
+  https://github.com/PEtab-dev/libpetab-python/pull/480 and
+  https://github.com/PEtab-dev/libpetab-python/pull/500)
+* Minor improvements to the v1-to-v2 converter: warn when dropping
+  `parameterScale`/`initializationPriorType`/`initializationPriorParameters`,
+  and use the experiments table column order suggested by the PEtab format
+  (by @m-philipps in https://github.com/PEtab-dev/libpetab-python/pull/479)
 
 ## 0.8 series
 

@@ -13,7 +13,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from ..C import *
 from .plotting import DataPlot, DataProvider, DataSeries, Figure, Subplot
 
-__all__ = ["Plotter", "MPLPlotter", "SeabornPlotter"]
+__all__ = ["MPLPlotter", "Plotter", "SeabornPlotter"]
 
 
 #: Line style (:class:`matplotlib.lines.Line2D` options) for the measurement

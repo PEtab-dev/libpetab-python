@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 from . import parameters, problem, yaml
-from .C import *  # noqa: F403
+from .C import *
 
 __all__ = ["CompositeProblem"]
 
@@ -15,7 +15,7 @@ class CompositeProblem:
 
     Attributes:
         problems:
-            List of :py:class:`petab.Problem` s
+            List of :py:class:`petab.v1.Problem` s
         parameter_df:
             PEtab parameter DataFrame
     """
@@ -23,7 +23,7 @@ class CompositeProblem:
     def __init__(
         self,
         parameter_df: pd.DataFrame = None,
-        problems: list[problem.Problem] = None,
+        problems: list[problem.Problem] | None = None,
     ):
         """Constructor
 

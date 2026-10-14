@@ -185,8 +185,10 @@ def model_non_numeric_overrides():
             OBSERVABLE_FORMULA: ["A"],
             NOISE_DISTRIBUTION: [LOG_NORMAL],
             NOISE_FORMULA: [
-                "2*noiseParameter1_obs_a + "
-                "noiseParameter2_obs_a + par2 + obs_a"
+                (
+                    "2*noiseParameter1_obs_a + "
+                    "noiseParameter2_obs_a + par2 + obs_a"
+                )
             ],
             NOISE_PLACEHOLDERS: [
                 "noiseParameter1_obs_a;noiseParameter2_obs_a"

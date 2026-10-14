@@ -14,7 +14,7 @@ __all__ = ["sympify_petab"]
 
 
 def sympify_petab(
-    expr: str | int | float | sp.Basic, evaluate: bool = True
+    expr: str | float | sp.Basic, evaluate: bool = True
 ) -> sp.Expr | sp.Basic:
     """Convert PEtab math expression to sympy expression.
 
@@ -65,9 +65,9 @@ def sympify_petab(
     if isinstance(expr, sp.Basic):
         return sympify_petab(petab_math_str(expr))
 
-    if isinstance(expr, int) or isinstance(expr, np.integer):
+    if isinstance(expr, (int, np.integer)):
         return sp.Integer(expr)
-    if isinstance(expr, float) or isinstance(expr, np.floating):
+    if isinstance(expr, (float, np.floating)):
         return sp.Float(expr)
 
     try:
@@ -112,5 +112,5 @@ def sympify_petab(
 class MathErrorListener(ErrorListener):
     """Error listener for math expression parser/lexer."""
 
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # noqa N803
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
         raise ValueError(f"Syntax error at {line}:{column}: {msg}")

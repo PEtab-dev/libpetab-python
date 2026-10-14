@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 import scipy.stats
 
-import petab
-from petab.C import MEASUREMENT
+import petab.v1 as petab
+from petab.v1.C import MEASUREMENT
 
 
 class TestSimulator(petab.simulate.Simulator):

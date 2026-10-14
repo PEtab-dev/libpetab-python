@@ -9,7 +9,7 @@ import tempfile
 import traceback
 from abc import abstractmethod
 from collections.abc import Sequence
-from enum import Enum
+from enum import StrEnum
 from itertools import chain
 from math import nan
 from numbers import Number
@@ -18,7 +18,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    Generic,
     Literal,
     Self,
     TypeVar,
@@ -61,25 +60,25 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "Problem",
-    "ProblemConfig",
-    "Observable",
-    "ObservableTable",
-    "NoiseDistribution",
     "Change",
     "Condition",
     "ConditionTable",
-    "ExperimentPeriod",
     "Experiment",
+    "ExperimentPeriod",
     "ExperimentTable",
-    "Measurement",
-    "MeasurementTable",
     "Mapping",
     "MappingTable",
+    "Measurement",
+    "MeasurementTable",
+    "NoiseDistribution",
+    "Observable",
+    "ObservableTable",
     "Parameter",
     "ParameterScale",
     "ParameterTable",
     "PriorDistribution",
+    "Problem",
+    "ProblemConfig",
 ]
 
 logger = logging.getLogger(__name__)
@@ -142,7 +141,7 @@ def _valid_petab_id_or_none(v: str) -> str | None:
     return v
 
 
-class ParameterScale(str, Enum):
+class ParameterScale(StrEnum):
     """Parameter scales.
 
     Parameter scales as used in the PEtab parameter table.
@@ -153,7 +152,7 @@ class ParameterScale(str, Enum):
     LOG10 = C.LOG10
 
 
-class NoiseDistribution(str, Enum):
+class NoiseDistribution(StrEnum):
     """Noise distribution types.
 
     Noise distributions as used in the PEtab observable table.
@@ -169,7 +168,7 @@ class NoiseDistribution(str, Enum):
     LOG_LAPLACE = C.LOG_LAPLACE
 
 
-class PriorDistribution(str, Enum):
+class PriorDistribution(StrEnum):
     """Prior types.
 
     Prior types as used in the PEtab parameter table.
@@ -227,7 +226,7 @@ assert not (_mismatch := set(PriorDistribution) ^ set(_prior_to_cls)), (
 T = TypeVar("T", bound=BaseModel)
 
 
-class BaseTable(BaseModel, Generic[T]):
+class BaseTable[T: BaseModel](BaseModel):
     """Base class for PEtab tables."""
 
     #: The table elements
@@ -240,7 +239,7 @@ class BaseTable(BaseModel, Generic[T]):
     #: This is usually the directory of the PEtab YAML file.
     base_path: AnyUrl | Path | None = Field(exclude=True, default=None)
 
-    def __init__(self, elements: list[T] = None, **kwargs) -> None:
+    def __init__(self, elements: list[T] | None = None, **kwargs) -> None:
         """Initialize the BaseTable with a list of elements."""
         if elements is None:
             elements = []
@@ -270,12 +269,10 @@ class BaseTable(BaseModel, Generic[T]):
     @abstractmethod
     def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
         """Create a table from a DataFrame."""
-        pass
 
     @abstractmethod
     def to_df(self) -> pd.DataFrame:
         """Convert the table to a DataFrame."""
-        pass
 
     @classmethod
     def from_tsv(
@@ -285,7 +282,7 @@ class BaseTable(BaseModel, Generic[T]):
         df = pd.read_csv(_generate_path(file_path, base_path), sep="\t")
         return cls.from_df(df, rel_path=file_path, base_path=base_path)
 
-    def to_tsv(self, file_path: str | Path = None) -> None:
+    def to_tsv(self, file_path: str | Path | None = None) -> None:
         """Write the table to a TSV file."""
         df = self.to_df()
         df.to_csv(
@@ -327,8 +324,8 @@ from .extensions.sciml import SciMLExt  # noqa: E402
 class ProblemExtensions:
     """Runtime extension state attached to a :class:`Problem`."""
 
-    def __init__(self, sciml: SciMLExt = None):
-        self.sciml: SciMLExt = sciml or SciMLExt()
+    def __init__(self, sciml: SciMLExt | None = None):
+        self.sciml: SciMLExt | None = sciml
 
 
 class Observable(BaseModel):
@@ -524,7 +521,7 @@ class Condition(BaseModel):
             raise TypeError("Can only add Change to Condition")
         return Condition(id=self.id, changes=self.changes + [other])
 
-    def __iadd__(self, other: Change) -> Condition:
+    def __iadd__(self, other: Change) -> Self:
         """Add a change to the set in place."""
         if not isinstance(other, Change):
             raise TypeError("Can only add Change to Condition")
@@ -660,7 +657,7 @@ class Experiment(BaseModel):
             raise TypeError("Can only add ExperimentPeriod to Experiment")
         return Experiment(id=self.id, periods=self.periods + [other])
 
-    def __iadd__(self, other: ExperimentPeriod) -> Experiment:
+    def __iadd__(self, other: ExperimentPeriod) -> Self:
         """Add a period to the experiment in place."""
         if not isinstance(other, ExperimentPeriod):
             raise TypeError("Can only add ExperimentPeriod to Experiment")
@@ -1151,13 +1148,13 @@ class Problem:
 
     def __init__(
         self,
-        models: list[Model] = None,
-        condition_tables: list[ConditionTable] = None,
-        experiment_tables: list[ExperimentTable] = None,
-        observable_tables: list[ObservableTable] = None,
-        measurement_tables: list[MeasurementTable] = None,
-        parameter_tables: list[ParameterTable] = None,
-        mapping_tables: list[MappingTable] = None,
+        models: list[Model] | None = None,
+        condition_tables: list[ConditionTable] | None = None,
+        experiment_tables: list[ExperimentTable] | None = None,
+        observable_tables: list[ObservableTable] | None = None,
+        measurement_tables: list[MeasurementTable] | None = None,
+        parameter_tables: list[ParameterTable] | None = None,
+        mapping_tables: list[MappingTable] | None = None,
         extensions: ProblemExtensions = None,
         config: ProblemConfig = None,
     ):
@@ -1192,7 +1189,9 @@ class Problem:
     def __str__(self):
         pid = repr(self.id) if self.id else "without ID"
 
-        model = f"with models {self.models}" if self.model else "without model"
+        model = (
+            f"with models {self.models}" if self.models else "without model"
+        )
 
         ne = len(self.experiments)
         experiments = f"{ne} experiments"
@@ -1246,7 +1245,7 @@ class Problem:
 
     @staticmethod
     def from_yaml(
-        yaml_config: dict | Path | str, base_path: str | Path = None
+        yaml_config: dict | Path | str, base_path: str | Path | None = None
     ) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
@@ -1966,7 +1965,7 @@ class Problem:
         return sum(p.prior_distribution is not None for p in self.parameters)
 
     def validate(
-        self, validation_tasks: list[ValidationTask] = None
+        self, validation_tasks: list[ValidationTask] | None = None
     ) -> ValidationResultList:
         """Validate the PEtab problem.
 
@@ -2002,23 +2001,36 @@ class Problem:
                 )
             )
 
+        validation_tasks = validation_tasks or self.validation_tasks
         if len(self.models) > 1:
-            # TODO https://github.com/PEtab-dev/libpetab-python/issues/392
-            #  We might just want to split the problem into multiple
-            #  problems, one for each model, and then validate each
-            #  problem separately.
-            validation_results.append(
-                ValidationIssue(
-                    ValidationIssueSeverity.WARNING,
-                    "Problem contains multiple models. "
-                    "Validation is not yet fully supported.",
-                )
+            validation_results.extend(
+                self._validate_multi_model(validation_tasks)
+            )
+        else:
+            validation_results.extend(
+                self._run_validation_tasks(validation_tasks)
             )
 
-        for task in validation_tasks or self.validation_tasks:
+        return validation_results
+
+    def _run_validation_tasks(
+        self, validation_tasks: list[ValidationTask]
+    ) -> ValidationResultList:
+        """Run the given validation tasks on this problem.
+
+        Stops at the first critical issue.
+        """
+        from ..v2.lint import (
+            ValidationIssue,
+            ValidationIssueSeverity,
+            ValidationResultList,
+        )
+
+        validation_results = ValidationResultList()
+        for task in validation_tasks:
             try:
                 cur_result = task.run(self)
-            except Exception as e:
+            except Exception as e:  # noqa BLE001
                 cur_result = ValidationIssue(
                     ValidationIssueSeverity.CRITICAL,
                     f"Validation task {task} failed with exception: {e}\n"
@@ -2032,6 +2044,192 @@ class Problem:
                     break
 
         return validation_results
+
+    def _validate_multi_model(
+        self, validation_tasks: list[ValidationTask]
+    ) -> ValidationResultList:
+        """Validate a problem with multiple models.
+
+        Runs the validation tasks on each part of
+        :meth:`Problem.split_by_model`. Checks of the shared tables
+        (model IDs of measurements, unique IDs, the mapping table, unused
+        experiments, conditions and parameters) run on the full problem.
+        See https://github.com/PEtab-dev/libpetab-python/issues/392.
+        """
+        from ..v2.lint import (
+            CheckAllParametersPresentInParameterTable,
+            CheckMappingTable,
+            CheckMeasurementModelId,
+            CheckUniquePrimaryKeys,
+            CheckUnusedConditions,
+            CheckUnusedExperiments,
+            ValidationError,
+            ValidationResultList,
+        )
+
+        validation_results = ValidationResultList()
+
+        model_ids = [model.model_id for model in self.models]
+        if duplicates := sorted(
+            {id_ for id_ in model_ids if model_ids.count(id_) > 1}
+        ):
+            validation_results.append(
+                ValidationError(f"Duplicate model IDs: {duplicates}")
+            )
+        # always required, otherwise the problem can't be split
+        validation_results.extend(
+            self._run_validation_tasks([CheckMeasurementModelId()])
+        )
+        if validation_results.has_errors():
+            return validation_results
+
+        # the split drops unused or other models' table entries,
+        #  so checks of the shared tables have to run on the full problem
+        full_problem_task_types = (
+            CheckUniquePrimaryKeys,
+            CheckMappingTable,
+            CheckUnusedExperiments,
+            CheckUnusedConditions,
+        )
+        validation_results.extend(
+            self._run_validation_tasks(
+                [
+                    task
+                    for task in validation_tasks
+                    if isinstance(task, full_problem_task_types)
+                ]
+            )
+        )
+
+        sub_problems = self.split_by_model()
+        for model_id, sub_problem in sub_problems.items():
+            for issue in sub_problem._run_validation_tasks(
+                [
+                    task
+                    for task in validation_tasks
+                    if not isinstance(task, full_problem_task_types)
+                ]
+            ):
+                issue.message = f"Model `{model_id}`: {issue.message}"
+                validation_results.append(issue)
+
+        # extraneous parameters are dropped by the split
+        if not any(
+            isinstance(task, CheckAllParametersPresentInParameterTable)
+            for task in validation_tasks
+        ):
+            return validation_results
+        used_parameter_ids = set().union(
+            *(sub_problem.x_ids for sub_problem in sub_problems.values())
+        )
+        if unused := [x for x in self.x_ids if x not in used_parameter_ids]:
+            validation_results.append(
+                ValidationError(
+                    "Extraneous parameter(s) in parameter table, not used "
+                    f"by any model: {unused}"
+                )
+            )
+
+        return validation_results
+
+    def split_by_model(self) -> dict[str, Problem]:
+        """Split the problem into one single-model problem per model.
+
+        Each part contains the model, its measurements, and the experiments,
+        conditions, observables, mappings and parameters these require.
+        Mappings to entities of other models are dropped, all other mappings
+        (e.g., to extension entities) are kept.
+        The parts share their models and table entries with this problem.
+
+        See https://github.com/PEtab-dev/libpetab-python/issues/392.
+
+        :returns: The single-model problems, keyed by model ID.
+        :raises ValueError: If model IDs are not unique, or if any
+            measurement is not assigned to a model.
+        """
+        from ..v2.lint import get_valid_parameters_for_parameter_table
+
+        model_ids = {model.model_id for model in self.models}
+        if len(model_ids) != len(self.models):
+            raise ValueError("Model IDs must be unique.")
+
+        def get_model_id(measurement: Measurement) -> str | None:
+            # with a single model, the model ID is optional
+            if measurement.model_id is None and len(self.models) == 1:
+                return self.models[0].model_id
+            return measurement.model_id
+
+        if unassigned := [
+            m for m in self.measurements if get_model_id(m) not in model_ids
+        ]:
+            raise ValueError(
+                f"Measurement not assigned to any model: {unassigned[0]}"
+            )
+
+        sub_problems = {}
+        for model in self.models:
+            measurements = [
+                m
+                for m in self.measurements
+                if get_model_id(m) == model.model_id
+            ]
+            experiment_ids = {m.experiment_id for m in measurements}
+            experiments = [
+                e for e in self.experiments if e.id in experiment_ids
+            ]
+            condition_ids = {
+                condition_id
+                for e in experiments
+                for period in e.periods
+                for condition_id in period.condition_ids
+            }
+            observable_ids = {m.observable_id for m in measurements}
+
+            sub_problem = Problem(
+                models=[model],
+                condition_tables=[
+                    ConditionTable(
+                        [c for c in self.conditions if c.id in condition_ids]
+                    )
+                ],
+                experiment_tables=[ExperimentTable(experiments)],
+                observable_tables=[
+                    ObservableTable(
+                        [o for o in self.observables if o.id in observable_ids]
+                    )
+                ],
+                measurement_tables=[MeasurementTable(measurements)],
+                mapping_tables=[
+                    MappingTable(
+                        [
+                            m
+                            for m in self.mappings
+                            if m.model_id is None
+                            or model.has_entity_with_id(m.model_id)
+                            or not any(
+                                other.has_entity_with_id(m.model_id)
+                                for other in self.models
+                            )
+                        ]
+                    )
+                ],
+                extensions=self.extensions,
+                config=self.config,
+            )
+            sub_problem.validation_tasks = self.validation_tasks.copy()
+            # get_valid_parameters_for_parameter_table doesn't depend on the
+            #  parameter table, so we can use it before adding the parameters
+            valid_parameter_ids = get_valid_parameters_for_parameter_table(
+                sub_problem
+            )
+            sub_problem.parameter_tables = [
+                ParameterTable(
+                    [p for p in self.parameters if p.id in valid_parameter_ids]
+                )
+            ]
+            sub_problems[model.model_id] = sub_problem
+
+        return sub_problems
 
     def assert_valid(self, **kwargs) -> None:
         """Assert that the PEtab problem is valid.
@@ -2055,7 +2253,10 @@ class Problem:
             )
 
     def add_condition(
-        self, id_: str, name: str = None, **kwargs: Number | str | sp.Expr
+        self,
+        id_: str,
+        name: str | None = None,
+        **kwargs: Number | str | sp.Expr,
     ):
         """Add a simulation condition to the problem.
 
@@ -2089,11 +2290,11 @@ class Problem:
         self,
         id_: str,
         formula: str,
-        noise_formula: str | float | int = None,
-        noise_distribution: str = None,
-        observable_placeholders: list[str] = None,
-        noise_placeholders: list[str] = None,
-        name: str = None,
+        noise_formula: str | float | None = None,
+        noise_distribution: str | None = None,
+        observable_placeholders: list[str] | None = None,
+        noise_placeholders: list[str] | None = None,
+        name: str | None = None,
         **kwargs,
     ):
         """Add an observable to the problem.
@@ -2138,10 +2339,10 @@ class Problem:
         id_: str,
         estimate: bool | str = True,
         nominal_value: Number | None = None,
-        lb: Number = None,
-        ub: Number = None,
-        prior_dist: str = None,
-        prior_pars: str | Sequence = None,
+        lb: Number | None = None,
+        ub: Number | None = None,
+        prior_dist: str | None = None,
+        prior_pars: str | Sequence | None = None,
         **kwargs,
     ):
         """Add a parameter to the problem.
@@ -2192,8 +2393,12 @@ class Problem:
         time: float,
         measurement: float,
         experiment_id: str | None = None,
-        observable_parameters: Sequence[str | float] | str | float = None,
-        noise_parameters: Sequence[str | float] | str | float = None,
+        observable_parameters: Sequence[str | float]
+        | str
+        | float
+        | None = None,
+        noise_parameters: Sequence[str | float] | str | float | None = None,
+        model_id: str | None = None,
     ):
         """Add a measurement to the problem.
 
@@ -2207,6 +2412,7 @@ class Problem:
             measurement: The measurement value
             observable_parameters: The observable parameters
             noise_parameters: The noise parameters
+            model_id: The ID of the model the measurement belongs to
         """
         if observable_parameters is not None and not isinstance(
             observable_parameters, Sequence
@@ -2228,11 +2434,15 @@ class Problem:
                 measurement=measurement,
                 observable_parameters=observable_parameters,
                 noise_parameters=noise_parameters,
+                model_id=model_id,
             )
         )
 
     def add_mapping(
-        self, petab_id: str, model_id: str = None, name: str = None
+        self,
+        petab_id: str,
+        model_id: str | None = None,
+        name: str | None = None,
     ):
         """Add a mapping table entry to the problem.
 
@@ -2327,7 +2537,7 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                 self.experiment_tables.append(ExperimentTable())
             self.experiment_tables[-1] += other
         else:
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Cannot add object of type {type(other)} to Problem."
             )
         return self
@@ -2474,14 +2684,13 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
                 if (
                     mapping.petab_id == candidate
                     and mapping.model_id is not None
+                ) and (
+                    self.model
+                    and self.model.symbol_allowed_in_observable_formula(
+                        mapping.model_id
+                    )
                 ):
-                    if (
-                        self.model
-                        and self.model.symbol_allowed_in_observable_formula(
-                            mapping.model_id
-                        )
-                    ):
-                        break
+                    break
             else:
                 # no mapping to a model entity, so it is an output parameter
                 output_parameters.append(candidate)
@@ -2555,7 +2764,7 @@ class ProblemConfig(BaseModel):
         """Parse extensions dict and convert known extensions to their specific
         config classes."""
         if not isinstance(v, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "extensions must be a dict of extension ID to extension "
                 f"config, got {type(v)}."
             )

@@ -15,7 +15,7 @@ import sympy as sp
 import petab.v1 as petab
 
 from . import core, measurements, parameters
-from .C import *  # noqa: F403
+from .C import *
 from .math import sympify_petab
 from .models import Model
 
@@ -478,7 +478,7 @@ def assert_parameter_id_is_string(parameter_df: pd.DataFrame) -> None:
                     f"{PARAMETER_ID} {parameter_id} starts with integer."
                 )
         else:
-            raise AssertionError(f"Empty {PARAMETER_ID} found.")
+            raise AssertionError(f"Empty {PARAMETER_ID} found.")  # noqa TRY004
 
 
 def assert_unique_parameter_ids(parameter_df: pd.DataFrame) -> None:
@@ -792,8 +792,9 @@ def observable_table_has_nontrivial_noise_formula(
     return (
         not observable_df[NOISE_FORMULA]
         .apply(
-            lambda x: is_scalar_float(x)
-            or re.match(r"^[\w]+$", str(x)) is not None
+            lambda x: (
+                is_scalar_float(x) or re.match(r"^[\w]+$", str(x)) is not None
+            )
         )
         .all()
     )
@@ -1171,7 +1172,7 @@ def assert_measurements_numeric(
     )
     if not all_measurements_are_numeric:
         raise AssertionError(
-            "Some values in the `petab.C.MEASUREMENT` column of the PEtab "
+            "Some values in the `petab.v1.C.MEASUREMENT` column of the PEtab "
             "measurements table are not numeric."
         )
 

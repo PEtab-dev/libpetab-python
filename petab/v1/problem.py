@@ -27,7 +27,7 @@ from . import (
     sbml,
     yaml,
 )
-from .C import *  # noqa: F403
+from .C import *
 from .models import MODEL_TYPE_SBML
 from .models.model import Model, model_factory
 from .models.sbml_model import SbmlModel
@@ -77,14 +77,14 @@ class Problem:
         sbml_reader: libsbml.SBMLReader = None,
         sbml_document: libsbml.SBMLDocument = None,
         model: Model = None,
-        model_id: str = None,
+        model_id: str | None = None,
         condition_df: pd.DataFrame = None,
         measurement_df: pd.DataFrame = None,
         parameter_df: pd.DataFrame = None,
         visualization_df: pd.DataFrame = None,
         observable_df: pd.DataFrame = None,
         mapping_df: pd.DataFrame = None,
-        extensions_config: dict = None,
+        extensions_config: dict | None = None,
         config: ProblemConfig = None,
     ):
         self.condition_df: pd.DataFrame | None = condition_df
@@ -99,8 +99,8 @@ class Problem:
         ):
             warn(
                 "Passing `sbml_model`, `sbml_document`, or `sbml_reader` "
-                "to petab.Problem is deprecated and will be removed in a "
-                "future version. Use `model=petab.models.sbml_model."
+                "to petab.v1.Problem is deprecated and will be removed in a "
+                "future version. Use `model=petab.v1.models.sbml_model."
                 "SbmlModel(...)` instead.",
                 DeprecationWarning,
                 stacklevel=2,
@@ -179,14 +179,14 @@ class Problem:
 
     @staticmethod
     def from_files(
-        sbml_file: str | Path = None,
-        condition_file: str | Path | Iterable[str | Path] = None,
-        measurement_file: str | Path | Iterable[str | Path] = None,
-        parameter_file: str | Path | Iterable[str | Path] = None,
-        visualization_files: str | Path | Iterable[str | Path] = None,
-        observable_files: str | Path | Iterable[str | Path] = None,
-        model_id: str = None,
-        extensions_config: dict = None,
+        sbml_file: str | Path | None = None,
+        condition_file: str | Path | Iterable[str | Path] | None = None,
+        measurement_file: str | Path | Iterable[str | Path] | None = None,
+        parameter_file: str | Path | Iterable[str | Path] | None = None,
+        visualization_files: str | Path | Iterable[str | Path] | None = None,
+        observable_files: str | Path | Iterable[str | Path] | None = None,
+        model_id: str | None = None,
+        extensions_config: dict | None = None,
     ) -> Problem:
         """
         Factory method to load model and tables from files.
@@ -202,8 +202,8 @@ class Problem:
             extensions_config: Information on the extensions used
         """
         warn(
-            "petab.Problem.from_files is deprecated and will be removed in a "
-            "future version. Use `petab.Problem.from_yaml instead.",
+            "petab.v1.Problem.from_files is deprecated and will be removed "
+            "in a future version. Use `petab.v1.Problem.from_yaml instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -261,7 +261,7 @@ class Problem:
 
     @staticmethod
     def from_yaml(
-        yaml_config: dict | Path | str, base_path: str | Path = None
+        yaml_config: dict | Path | str, base_path: str | Path | None = None
     ) -> Problem:
         """
         Factory method to load model and tables as specified by YAML file.
@@ -289,10 +289,10 @@ class Problem:
 
         if yaml.is_composite_problem(yaml_config):
             raise ValueError(
-                "petab.Problem.from_yaml() can only be used for "
+                "petab.v1.Problem.from_yaml() can only be used for "
                 "yaml files comprising a single model. "
                 "Consider using "
-                "petab.CompositeProblem.from_yaml() instead."
+                "petab.v1.CompositeProblem.from_yaml() instead."
             )
 
         major_version = get_major_version(yaml_config)
@@ -311,6 +311,11 @@ class Problem:
         config = ProblemConfig(
             **yaml_config, base_path=base_path, filepath=filepath
         )
+        if not config.problems:
+            raise ValueError(
+                "The 'problems' section of the PEtab problem YAML file "
+                "must not be empty."
+            )
         problem0 = config.problems[0]
         # currently required for handling PEtab v2 in here
         problem0_ = yaml_config["problems"][0]
@@ -419,13 +424,13 @@ class Problem:
     def from_combine(filename: Path | str) -> Problem:
         """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
 
-        See also :py:func:`petab.create_combine_archive`.
+        See also :py:func:`petab.v1.create_combine_archive`.
 
         Arguments:
             filename: Path to the PEtab-COMBINE archive
 
         Returns:
-            A :py:class:`petab.Problem` instance.
+            A :py:class:`petab.v1.Problem` instance.
         """
         # function-level import, because module-level import interfered with
         # other SWIG interfaces
@@ -466,7 +471,7 @@ class Problem:
                 Specify a prefix to all paths, to avoid specifying the
                 prefix for all paths individually. NB: the prefix is added to
                 paths before ``relative_paths`` is handled downstream in
-                :func:`petab.yaml.create_problem_yaml`.
+                :func:`petab.v1.yaml.create_problem_yaml`.
 
         Returns:
             The path to the PEtab problem YAML file.
@@ -648,7 +653,7 @@ class Problem:
         """
         Return list of optimization parameter IDs.
 
-        See :py:func:`petab.parameters.get_optimization_parameters`.
+        See :py:func:`petab.v1.parameters.get_optimization_parameters`.
         """
         return parameters.get_optimization_parameters(self.parameter_df)
 
@@ -656,14 +661,14 @@ class Problem:
         """
         Return list of optimization parameter scaling strings.
 
-        See :py:func:`petab.parameters.get_optimization_parameters`.
+        See :py:func:`petab.v1.parameters.get_optimization_parameters`.
         """
         return parameters.get_optimization_parameter_scaling(self.parameter_df)
 
     def get_model_parameters(self) -> list[str] | dict[str, float]:
-        """See :py:func:`petab.sbml.get_model_parameters`"""
+        """See :py:func:`petab.v1.sbml.get_model_parameters`"""
         warn(
-            "petab.Problem.get_model_parameters is deprecated and will be "
+            "petab.v1.Problem.get_model_parameters is deprecated and will be "
             "removed in a future version.",
             DeprecationWarning,
             stacklevel=2,
@@ -887,13 +892,13 @@ class Problem:
         return [j for j, val in enumerate(estimated) if val == 0]
 
     def get_simulation_conditions_from_measurement_df(self):
-        """See petab.get_simulation_conditions"""
+        """See petab.v1.get_simulation_conditions"""
         return measurements.get_simulation_conditions(self.measurement_df)
 
     def get_optimization_to_simulation_parameter_mapping(self, **kwargs):
         """
         See
-        :py:func:`petab.parameter_mapping.get_optimization_to_simulation_parameter_mapping`,
+        :py:func:`petab.v1.parameter_mapping.get_optimization_to_simulation_parameter_mapping`,
         to which all keyword arguments are forwarded.
         """
         return (
@@ -924,7 +929,7 @@ class Problem:
     def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
         """Create 2D array with starting points for optimization
 
-        See :py:func:`petab.sample_parameter_startpoints`.
+        See :py:func:`petab.v1.sample_parameter_startpoints`.
         """
         return sampling.sample_parameter_startpoints(
             self.parameter_df, n_starts=n_starts, **kwargs
@@ -935,7 +940,7 @@ class Problem:
     ) -> list[dict[str, float]]:
         """Create dictionaries with starting points for optimization
 
-        See also :py:func:`petab.sample_parameter_startpoints`.
+        See also :py:func:`petab.v1.sample_parameter_startpoints`.
 
         Returns:
             A list of dictionaries with parameter IDs mapping to samples
@@ -1014,7 +1019,7 @@ class Problem:
 
         return self.parameter_df[OBJECTIVE_PRIOR_PARAMETERS].notna().sum()
 
-    def add_condition(self, id_: str, name: str = None, **kwargs):
+    def add_condition(self, id_: str, name: str | None = None, **kwargs):
         """Add a simulation condition to the problem.
 
         Arguments:
@@ -1035,11 +1040,11 @@ class Problem:
     def add_observable(
         self,
         id_: str,
-        formula: str | float | int,
-        noise_formula: str | float | int = None,
-        noise_distribution: str = None,
-        transform: str = None,
-        name: str = None,
+        formula: str | float,
+        noise_formula: str | float | None = None,
+        noise_distribution: str | None = None,
+        transform: str | None = None,
+        name: str | None = None,
         **kwargs,
     ):
         """Add an observable to the problem.
@@ -1080,13 +1085,13 @@ class Problem:
         id_: str,
         estimate: bool | str | int = True,
         nominal_value: Number | None = None,
-        scale: str = None,
-        lb: Number = None,
-        ub: Number = None,
-        init_prior_type: str = None,
-        init_prior_pars: str | Sequence = None,
-        obj_prior_type: str = None,
-        obj_prior_pars: str | Sequence = None,
+        scale: str | None = None,
+        lb: Number | None = None,
+        ub: Number | None = None,
+        init_prior_type: str | None = None,
+        init_prior_pars: str | Sequence | None = None,
+        obj_prior_type: str | None = None,
+        obj_prior_pars: str | Sequence | None = None,
         **kwargs,
     ):
         """Add a parameter to the problem.
@@ -1149,9 +1154,9 @@ class Problem:
         sim_cond_id: str,
         time: float,
         measurement: float,
-        observable_parameters: Sequence[str | float] = None,
-        noise_parameters: Sequence[str | float] = None,
-        preeq_cond_id: str = None,
+        observable_parameters: Sequence[str | float] | None = None,
+        noise_parameters: Sequence[str | float] | None = None,
+        preeq_cond_id: str | None = None,
     ):
         """Add a measurement to the problem.
 

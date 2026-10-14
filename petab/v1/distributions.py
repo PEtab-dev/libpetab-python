@@ -22,16 +22,16 @@ _SCIPY_IMPORT_ERROR = (
 )
 
 __all__ = [
-    "Distribution",
     "Cauchy",
     "ChiSquare",
+    "Distribution",
     "Exponential",
     "Gamma",
     "Laplace",
+    "LogUniform",
     "Normal",
     "Rayleigh",
     "Uniform",
-    "LogUniform",
 ]
 
 
@@ -56,7 +56,10 @@ class Distribution(abc.ABC):
     """
 
     def __init__(
-        self, *, log: bool | float = False, trunc: tuple[float, float] = None
+        self,
+        *,
+        log: bool | float = False,
+        trunc: tuple[float, float] | None = None,
     ):
         if log is True:
             log = np.exp(1)
@@ -297,7 +300,7 @@ class Distribution(abc.ABC):
         )
         return self._ppf_transformed_untruncated(uniform_sample)
 
-    def _repr(self, pars: dict[str, Any] = None) -> str:
+    def _repr(self, pars: dict[str, Any] | None = None) -> str:
         """Return a string representation of the distribution."""
         pars = ", ".join(f"{k}={v}" for k, v in pars.items()) if pars else ""
 
@@ -608,7 +611,7 @@ class ChiSquare(Distribution):
 
     def __init__(
         self,
-        dof: int | float,
+        dof: float,
         trunc: tuple[float, float] | None = None,
         log: bool | float = False,
     ):

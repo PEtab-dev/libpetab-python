@@ -193,7 +193,7 @@ def plot_goodness_of_fit(
         error_name = "mean of squared residuals"
     error = np.mean(np.power(residual_df["residual"], 2))
 
-    slope, intercept, r_value, p_value, std_err = stats.linregress(
+    slope, intercept, r_value, p_value, _std_err = stats.linregress(
         simulations_df["simulation"],
         petab_problem.measurement_df["measurement"],
     )  # x, y

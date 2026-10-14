@@ -235,7 +235,7 @@ def load_sbml_from_file(
 
 def get_model_for_condition(
     petab_problem: "petab.Problem",
-    sim_condition_id: str = None,
+    sim_condition_id: str | None = None,
     preeq_condition_id: str | None = None,
 ) -> tuple[libsbml.SBMLDocument, libsbml.Model]:
     """Create an SBML model for the given condition.
@@ -268,7 +268,7 @@ def get_model_for_condition(
     )
     (
         parameter_map,
-        scale_map,
+        _scale_map,
     ) = petab.parameter_mapping.get_parameter_mapping_for_condition(
         condition_id=sim_condition_id,
         is_preeq=False,
@@ -307,7 +307,15 @@ def get_model_for_condition(
         ]
 
     def remove_rules(target_id: str):
-        if sbml_model.removeRuleByVariable(target_id):
+        """Remove any assignment rule and initial assignment for
+        ``target_id`` so that its initial value can be set explicitly.
+        """
+        rule = sbml_model.getRuleByVariable(target_id)
+        if (
+            rule is not None
+            and rule.getTypeCode() == libsbml.SBML_ASSIGNMENT_RULE
+        ):
+            sbml_model.removeRuleByVariable(target_id)
             warn(
                 "An SBML rule was removed to set the component "
                 f"{target_id} to a constant value.",

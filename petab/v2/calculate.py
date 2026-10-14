@@ -14,15 +14,15 @@ from .C import *
 from .math import sympify_petab
 
 __all__ = [
-    "calculate_residuals",
-    "calculate_residuals_for_table",
-    "get_symbolic_noise_formulas",
-    "evaluate_noise_formula",
     "calculate_chi2",
     "calculate_chi2_for_table_from_residuals",
     "calculate_llh",
     "calculate_llh_for_table",
+    "calculate_residuals",
+    "calculate_residuals_for_table",
     "calculate_single_llh",
+    "evaluate_noise_formula",
+    "get_symbolic_noise_formulas",
 ]
 
 

@@ -5,41 +5,9 @@ from pathlib import Path
 
 import pytest
 
-import petab
+import petab.v1 as petab
 
 from .test_petab import petab_problem  # noqa: F401
-from .test_sbml import check_model, create_test_data
-
-
-def test_problem_with_sbml_model():
-    """Test that a problem can be correctly created from sbml model."""
-    # retrieve test data
-    (
-        model,
-        condition_df,
-        observable_df,
-        measurement_df,
-        parameter_df,
-    ) = create_test_data()
-
-    with pytest.deprecated_call():
-        petab_problem = petab.Problem(  # noqa: F811
-            model=model,
-            condition_df=condition_df,
-            measurement_df=measurement_df,
-            parameter_df=parameter_df,
-        )
-
-    with pytest.warns(
-        UserWarning,
-        match="An SBML rule was removed to set the component "
-        "species_2 to a constant value.",
-    ):
-        _, condition_model = petab.get_model_for_condition(
-            petab_problem, "condition_1"
-        )
-
-    check_model(condition_model)
 
 
 def test_to_files_with_sbml_model(petab_problem):  # noqa: F811
