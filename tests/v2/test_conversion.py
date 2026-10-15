@@ -4,9 +4,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import sympy as sp
 
 from petab import v1, v2
 from petab.v1.calculate import calculate_llh as calculate_llh_v1
+from petab.v1.math import sympify_petab
 from petab.v1.models.sbml_model import SbmlModel
 from petab.v1.priors import Prior
 from petab.v2 import Problem
@@ -200,6 +202,9 @@ def test_petab1to2_log10_noise_llh(
 @pytest.mark.filterwarnings(
     "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
 )
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter-scale priors of log-scaled parameters.*:UserWarning"
+)
 @pytest.mark.parametrize(
     "parameter_scale, prior_type, prior_parameters",
     [
@@ -261,6 +266,484 @@ def test_petab1to2_priors(
 
     x = np.logspace(-3, 2, 21)
     assert v2_prior.pdf(x) == pytest.approx(v1_prior.pdf(x), rel=1e-12)
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+@pytest.mark.parametrize("reparametrize", ["priors", "all"])
+@pytest.mark.parametrize(
+    "parameter_scale, prior_type, prior_parameters",
+    [
+        (v1.C.LOG10, v1.C.PARAMETER_SCALE_NORMAL, "-0.5;0.7"),
+        (v1.C.LOG10, v1.C.PARAMETER_SCALE_LAPLACE, "-0.5;0.7"),
+        (v1.C.LOG, v1.C.PARAMETER_SCALE_NORMAL, "-0.5;0.7"),
+        (v1.C.LOG, v1.C.PARAMETER_SCALE_LAPLACE, "-0.5;0.7"),
+        (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, "-0.5;0.7"),
+        (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, "-400;400"),
+        (v1.C.LOG10, v1.C.PARAMETER_SCALE_UNIFORM, np.nan),
+        (v1.C.LOG, v1.C.PARAMETER_SCALE_UNIFORM, "-1000;1000"),
+        (v1.C.LOG10, np.nan, np.nan),
+    ],
+)
+def test_petab1to2_reparametrize_priors(
+    tmp_path, parameter_scale, prior_type, prior_parameters, reparametrize
+):
+    """Test that reparametrization preserves parameter-scale priors,
+    including their normalization constant up to truncation."""
+    k1 = _K1 | {
+        v1.C.PARAMETER_SCALE: parameter_scale,
+        v1.C.OBJECTIVE_PRIOR_TYPE: prior_type,
+        v1.C.OBJECTIVE_PRIOR_PARAMETERS: prior_parameters,
+    }
+    yaml_file = _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "B",
+                v1.C.NOISE_FORMULA: "0.1",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: 1.0,
+                v1.C.MEASUREMENT: 0.3,
+            }
+        ],
+        parameters=[k1],
+    )
+    problem = petab1to2(yaml_file, reparametrize=reparametrize)
+
+    if pd.isna(prior_type) and reparametrize == "priors":
+        # the default prior is only reparametrized with "all"
+        assert [p.id for p in problem.parameters] == ["k1"]
+        return
+
+    new_id = "log10_k1" if parameter_scale == v1.C.LOG10 else "log_k1"
+    assert [p.id for p in problem.parameters] == [new_id]
+    par = problem[new_id]
+    lb, ub = (
+        v1.parameters.scale(x, parameter_scale)
+        for x in (_K1[v1.C.LOWER_BOUND], _K1[v1.C.UPPER_BOUND])
+    )
+    assert (par.lb, par.ub) == pytest.approx((lb, ub))
+    assert par.nominal_value == pytest.approx(
+        v1.parameters.scale(_K1[v1.C.NOMINAL_VALUE], parameter_scale)
+    )
+
+    # k1 = b^q in the model
+    sbml_model = problem.model.sbml_model
+    assert sbml_model.getInitialAssignmentBySymbol("k1") is not None
+    assert sbml_model.getParameter(new_id).getConstant()
+
+    # the v2 prior of the new parameter is the v1 prior density over the
+    #  scaled parameter (both truncated to the bounds)
+    v1_prior = Prior.from_par_dict(k1, type_="objective")
+    if prior_type == v1.C.PARAMETER_SCALE_UNIFORM and not pd.isna(
+        prior_parameters
+    ):
+        # evaluate within the support
+        low, high = map(float, prior_parameters.split(";"))
+        lb, ub = max(lb, low), min(ub, high)
+    theta = np.linspace(lb, ub, 13)[1:-1]
+    v1_pdf = v1_prior.pdf(theta, x_scaled=True, rescale=True)
+    v2_pdf = par.prior_dist.pdf(theta)
+    if prior_type in (
+        v1.C.PARAMETER_SCALE_NORMAL,
+        v1.C.PARAMETER_SCALE_LAPLACE,
+    ):
+        assert np.ptp(np.log(v1_pdf)) > 1
+    else:
+        # uniform within the bounds
+        assert np.ptp(np.log(v1_pdf)) < 1e-12
+    assert np.all(v1_pdf > 0)
+    np.testing.assert_allclose(v2_pdf, v1_pdf, rtol=1e-12)
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+def test_petab1to2_reparametrize_llh(tmp_path):
+    """Test that reparametrizing overrides and parameters used in formulas
+    preserves the likelihood, for both bases."""
+
+    def par(par_id, scale, nominal_value):
+        return {
+            v1.C.PARAMETER_ID: par_id,
+            v1.C.PARAMETER_SCALE: scale,
+            v1.C.LOWER_BOUND: 1e-3,
+            v1.C.UPPER_BOUND: 1e3,
+            v1.C.NOMINAL_VALUE: nominal_value,
+            v1.C.ESTIMATE: 1,
+            v1.C.OBJECTIVE_PRIOR_TYPE: v1.C.PARAMETER_SCALE_NORMAL,
+            v1.C.OBJECTIVE_PRIOR_PARAMETERS: "0;1",
+        }
+
+    yaml_file = _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "observableParameter1_obs_B * B "
+                "+ offset",
+                v1.C.NOISE_FORMULA: "noiseParameter1_obs_B",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: float(t),
+                v1.C.MEASUREMENT: 0.3 + t,
+                v1.C.OBSERVABLE_PARAMETERS: obs_par,
+                v1.C.NOISE_PARAMETERS: noise_par,
+            }
+            for t, (obs_par, noise_par) in enumerate(
+                [("s1", "sd"), ("s2", "0.2"), ("4", "sd")]
+            )
+        ],
+        parameters=[
+            _K1,
+            par("s1", v1.C.LOG10, 3.0),
+            par("s2", v1.C.LOG10, 0.7),
+            par("sd", v1.C.LOG, 0.25),
+            par("offset", v1.C.LOG10, 0.13),
+        ],
+    )
+    v1_problem = v1.Problem.from_yaml(yaml_file)
+    v2_problem = petab1to2(yaml_file, reparametrize="priors")
+    assert [p.id for p in v2_problem.parameters] == [
+        "k1",
+        "log10_s1",
+        "log10_s2",
+        "log_sd",
+        "log10_offset",
+    ]
+
+    def simulate(measurement_df):
+        return measurement_df.rename(
+            columns={v1.C.MEASUREMENT: v1.C.SIMULATION}
+        ).assign(**{v1.C.SIMULATION: [0.5, 0.6, 0.7]})
+
+    llh_v1 = calculate_llh_v1(
+        v1_problem.measurement_df,
+        simulate(v1_problem.measurement_df),
+        v1_problem.observable_df,
+        v1_problem.parameter_df,
+    )
+    llh_v2 = calculate_llh_v2(
+        v2_problem.measurement_df,
+        simulate(v2_problem.measurement_df),
+        v2_problem.observable_df,
+        v2_problem.parameter_df,
+    )
+    assert np.isfinite(llh_v1)
+    assert llh_v2 == pytest.approx(llh_v1, rel=1e-12)
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning",
+    "ignore:Initialisation priors.*:UserWarning",
+)
+@pytest.mark.parametrize(
+    "prior_type,prior_parameters,reparametrize",
+    [
+        (v1.C.PARAMETER_SCALE_NORMAL, "-1;0.5", "priors"),
+        (v1.C.PARAMETER_SCALE_NORMAL, "-1;0.5", "all"),
+        (np.nan, np.nan, "all"),
+    ],
+)
+def test_petab1to2_reparametrize_zero_lower_bound(
+    tmp_path, prior_type, prior_parameters, reparametrize
+):
+    """Parameters with a lower bound of 0 are skipped."""
+    # v1 allows a lower bound of 0 for log-scaled parameters
+    #  if there is an initialization prior
+    k1 = _K1 | {
+        v1.C.PARAMETER_SCALE: v1.C.LOG10,
+        v1.C.LOWER_BOUND: 0.0,
+        v1.C.INITIALIZATION_PRIOR_TYPE: v1.C.PARAMETER_SCALE_UNIFORM,
+        v1.C.INITIALIZATION_PRIOR_PARAMETERS: "-3;2",
+        v1.C.OBJECTIVE_PRIOR_TYPE: prior_type,
+        v1.C.OBJECTIVE_PRIOR_PARAMETERS: prior_parameters,
+    }
+    yaml_file = _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "B",
+                v1.C.NOISE_FORMULA: "0.1",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: 1.0,
+                v1.C.MEASUREMENT: 0.3,
+            }
+        ],
+        parameters=[k1],
+    )
+    assert not v1.lint_problem(v1.Problem.from_yaml(yaml_file))
+
+    with pytest.warns(UserWarning, match=r"k1 were not reparametrized"):
+        problem = petab1to2(yaml_file, reparametrize=reparametrize)
+
+    assert [p.id for p in problem.parameters] == ["k1"]
+    par = problem["k1"]
+    assert (par.lb, par.ub) == (0.0, _K1[v1.C.UPPER_BOUND])
+    if pd.isna(prior_type):
+        # as with reparametrize="none"
+        assert par.prior_distribution == v2.C.UNIFORM
+        assert par.prior_parameters == [0.0, _K1[v1.C.UPPER_BOUND]]
+    else:
+        assert par.prior_distribution == v2.C.LOG_NORMAL
+    sbml_model = problem.model.sbml_model
+    assert sbml_model.getInitialAssignmentBySymbol("k1") is None
+    assert sbml_model.getAssignmentRuleByVariable("k1") is None
+
+
+def _write_v1_problem_with_overrides(
+    tmp_path, parameters: list[dict], overrides: list[str]
+) -> str:
+    return _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "observableParameter1_obs_B * B",
+                v1.C.NOISE_FORMULA: "0.1",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: float(i),
+                v1.C.MEASUREMENT: 0.3,
+                v1.C.OBSERVABLE_PARAMETERS: override,
+            }
+            for i, override in enumerate(overrides)
+        ],
+        parameters=[_K1, *parameters],
+    )
+
+
+_LOG10_PAR = {
+    v1.C.PARAMETER_SCALE: v1.C.LOG10,
+    v1.C.LOWER_BOUND: 1e-3,
+    v1.C.UPPER_BOUND: 1e3,
+    v1.C.NOMINAL_VALUE: 2,
+    v1.C.ESTIMATE: 1,
+}
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+def test_petab1to2_reparametrize_overrides(tmp_path):
+    """Test reparametrization of placeholder overrides, including
+    parameters that are added because they share a placeholder."""
+    yaml_file = _write_v1_problem_with_overrides(
+        tmp_path,
+        parameters=[
+            _LOG10_PAR
+            | {
+                v1.C.PARAMETER_ID: "s1",
+                v1.C.OBJECTIVE_PRIOR_TYPE: v1.C.PARAMETER_SCALE_NORMAL,
+                v1.C.OBJECTIVE_PRIOR_PARAMETERS: "0;1",
+            },
+            _LOG10_PAR | {v1.C.PARAMETER_ID: "s2"},
+            _LOG10_PAR | {v1.C.PARAMETER_ID: "s3"},
+        ],
+        overrides=["s1", "s2", "100", "s3"],
+    )
+    # s2 and s3 have no prior, but share the placeholder with s1
+    problem = petab1to2(yaml_file, reparametrize="priors")
+    assert [p.id for p in problem.parameters] == [
+        "k1",
+        "log10_s1",
+        "log10_s2",
+        "log10_s3",
+    ]
+    assert problem["log10_s1"].prior_distribution == v2.C.NORMAL
+    assert problem["log10_s1"].prior_parameters == [0, 1]
+    # explicit default prior, as other parameters have priors
+    assert problem["log10_s2"].prior_distribution == v2.C.UNIFORM
+    assert problem["log10_s2"].prior_parameters == pytest.approx([-3, 3])
+
+    observable = problem["obs_B"]
+    placeholder = observable.observable_placeholders[0]
+    assert observable.formula == sympify_petab(f"10^{placeholder} * B")
+    assert [m.observable_parameters[0] for m in problem.measurements] == [
+        sp.Symbol("log10_s1", real=True),
+        sp.Symbol("log10_s2", real=True),
+        pytest.approx(2.0),
+        sp.Symbol("log10_s3", real=True),
+    ]
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+def test_petab1to2_reparametrize_all_skips_unresolvable(tmp_path):
+    """With "all", parameters without parameter-scale priors are skipped if
+    their placeholder can't be log-transformed."""
+    yaml_file = _write_v1_problem_with_overrides(
+        tmp_path,
+        parameters=[
+            _LOG10_PAR | {v1.C.PARAMETER_ID: "s1"},
+            _LOG10_PAR | {v1.C.PARAMETER_ID: "s2"},
+        ],
+        overrides=["s1", "s2", "0"],
+    )
+    with pytest.warns(UserWarning, match="s1, s2 were not reparametrized"):
+        problem = petab1to2(yaml_file, reparametrize="all")
+    assert [p.id for p in problem.parameters] == ["k1", "s1", "s2"]
+
+    yaml_file = _write_v1_problem_with_overrides(
+        tmp_path,
+        parameters=[
+            _LOG10_PAR
+            | {
+                v1.C.PARAMETER_ID: "s1",
+                v1.C.OBJECTIVE_PRIOR_TYPE: v1.C.PARAMETER_SCALE_NORMAL,
+                v1.C.OBJECTIVE_PRIOR_PARAMETERS: "0;1",
+            },
+            _LOG10_PAR | {v1.C.PARAMETER_ID: "s2"},
+        ],
+        overrides=["s1", "s2", "0"],
+    )
+    # s1 has a prior, so it must be reparametrized
+    with (
+        pytest.raises(NotImplementedError) as excinfo,
+        pytest.warns(UserWarning, match="s2 were not reparametrized"),
+    ):
+        petab1to2(yaml_file, reparametrize="all")
+    msg = str(excinfo.value)
+    assert "(overridden by `s1')" in msg
+    assert "not reparametrized: `s2'" in msg
+    assert "non-positive numbers: 0" in msg
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+def test_petab1to2_reparametrize_overrides_unresolvable(tmp_path):
+    yaml_file = _write_v1_problem_with_overrides(
+        tmp_path,
+        parameters=[
+            _LOG10_PAR
+            | {
+                v1.C.PARAMETER_ID: "s1",
+                v1.C.OBJECTIVE_PRIOR_TYPE: v1.C.PARAMETER_SCALE_NORMAL,
+                v1.C.OBJECTIVE_PRIOR_PARAMETERS: "0;1",
+            },
+            _LOG10_PAR
+            | {v1.C.PARAMETER_ID: "s2", v1.C.PARAMETER_SCALE: v1.C.LIN},
+        ],
+        overrides=["s1", "s2"],
+    )
+    with pytest.raises(NotImplementedError) as excinfo:
+        petab1to2(yaml_file, reparametrize="priors")
+    msg = str(excinfo.value)
+    assert "Use `reparametrize='none'`" in msg
+    assert "not reparametrized: `s2'\n" in msg
+
+
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning"
+)
+def test_petab1to2_reparametrize_output_parameter(tmp_path):
+    """Test reparametrization of parameters that are not model entities,
+    and that x-space priors are not reparametrized."""
+    yaml_file = _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "scaling * B",
+                v1.C.NOISE_FORMULA: "sigma",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: 1.0,
+                v1.C.MEASUREMENT: 0.3,
+            }
+        ],
+        parameters=[
+            _K1,
+            _LOG10_PAR | {v1.C.PARAMETER_ID: "scaling"},
+            _LOG10_PAR
+            | {
+                v1.C.PARAMETER_ID: "sigma",
+                v1.C.OBJECTIVE_PRIOR_TYPE: v1.C.LOG_NORMAL,
+                v1.C.OBJECTIVE_PRIOR_PARAMETERS: "0;1",
+            },
+        ],
+    )
+    problem = petab1to2(yaml_file, reparametrize="all")
+    assert [p.id for p in problem.parameters] == [
+        "k1",
+        "log10_scaling",
+        "sigma",
+    ]
+    assert problem["log10_scaling"].prior_distribution == v2.C.UNIFORM
+    assert problem["obs_B"].formula == sympify_petab("10^log10_scaling * B")
+
+
+@pytest.mark.parametrize(
+    "prior_type",
+    [
+        v1.C.PARAMETER_SCALE_NORMAL,
+        v1.C.PARAMETER_SCALE_LAPLACE,
+        v1.C.PARAMETER_SCALE_UNIFORM,
+    ],
+)
+def test_petab1to2_reparametrize_warnings_and_errors(tmp_path, prior_type):
+    k1 = _K1 | {
+        v1.C.PARAMETER_SCALE: v1.C.LOG10,
+        v1.C.OBJECTIVE_PRIOR_TYPE: prior_type,
+        v1.C.OBJECTIVE_PRIOR_PARAMETERS: "-1;1",
+    }
+    yaml_file = _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "B",
+                v1.C.NOISE_FORMULA: "0.1",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: 1.0,
+                v1.C.MEASUREMENT: 0.3,
+            }
+        ],
+        parameters=[k1],
+    )
+    with (
+        pytest.warns(UserWarning, match="reparametrize='all'"),
+        pytest.warns(UserWarning, match=r"k1 were converted.*'priors'"),
+    ):
+        petab1to2(yaml_file)
+
+    with pytest.raises(ValueError, match="Invalid value"):
+        petab1to2(yaml_file, reparametrize="some")
+
+    with pytest.raises(ValueError, match="output directory"):
+        petab1to2(yaml_file, tmp_path, reparametrize="all")
 
 
 def test_petab1to2_placeholder_order(tmp_path):
@@ -638,8 +1121,18 @@ except ImportError:
 @pytest.mark.filterwarnings(
     "ignore:.*does not support log10-transformed observables.*:UserWarning"
 )
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter-scale priors of log-scaled parameters.*:UserWarning"
+)
+@pytest.mark.filterwarnings(
+    "ignore:Log-scaled parameters .* were not reparametrized.*:UserWarning"
+)
+@pytest.mark.filterwarnings(
+    "ignore:Parameter .* has no positive nominal value.*:UserWarning"
+)
+@pytest.mark.parametrize("reparametrize", ["none", "all"])
 @parametrize_or_skip
-def test_benchmark_collection(problem_id):
+def test_benchmark_collection(problem_id, reparametrize):
     """Test that we can upgrade all benchmark collection models."""
     logging.basicConfig(level=logging.DEBUG)
 
@@ -649,8 +1142,10 @@ def test_benchmark_collection(problem_id):
 
     yaml_path = benchmark_models_petab.get_problem_yaml_path(problem_id)
     try:
-        problem = petab1to2(yaml_path)
+        problem = petab1to2(yaml_path, reparametrize=reparametrize)
     except NotImplementedError as e:
+        if "could not be reparametrized" in str(e):
+            raise
         pytest.skip(str(e))
     assert isinstance(problem, Problem)
     assert len(problem.measurements)
