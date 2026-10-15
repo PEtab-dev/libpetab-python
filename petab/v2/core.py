@@ -623,7 +623,12 @@ class ConditionTable(BaseTable[Condition]):
 
         conditions = []
         for condition_id, sub_df in df.groupby(C.CONDITION_ID):
-            changes = [Change(**row) for row in sub_df.to_dict("records")]
+            changes = [
+                Change(**row)
+                for row in sub_df.drop(columns=C.CONDITION_ID).to_dict(
+                    "records"
+                )
+            ]
             conditions.append(Condition(id=condition_id, changes=changes))
 
         return cls(conditions, **kwargs)
@@ -635,7 +640,10 @@ class ConditionTable(BaseTable[Condition]):
     def _to_df(self) -> pd.DataFrame:
         """Convert the ConditionTable to a DataFrame."""
         records = [
-            {C.CONDITION_ID: condition.id, **change.model_dump(by_alias=True)}
+            {
+                C.CONDITION_ID: condition.id,
+                **change.model_dump(by_alias=True, exclude={C.CONDITION_ID}),
+            }
             for condition in self.conditions
             for change in condition.changes
         ]

@@ -438,6 +438,25 @@ def test_experiment():
     assert e.has_preequilibration is False
 
 
+def test_condition_table_from_df_condition_id():
+    """The condition ID is not stored on the individual changes."""
+    conditions = ConditionTable(
+        [
+            Condition(
+                id="c1",
+                changes=[Change(target_id="k1", target_value=2.0)],
+            )
+        ]
+    )
+    loaded = ConditionTable.from_df(conditions.to_df())
+    assert C.CONDITION_ID not in loaded.conditions[0].changes[0].model_extra
+    assert loaded == conditions
+
+    # renaming a condition is reflected in the output
+    loaded.conditions[0].id = "c2"
+    assert loaded.to_df()[CONDITION_ID].tolist() == ["c2"]
+
+
 def test_condition_table():
     assert ConditionTable().free_symbols == set()
 
