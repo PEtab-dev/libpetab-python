@@ -115,6 +115,14 @@ def _convert_nan_to_none(v):
     return v
 
 
+def _reset_index(df: pd.DataFrame) -> pd.DataFrame:
+    """Move named index levels to columns and drop unnamed ones.
+
+    Avoids spurious ``index`` columns for DataFrames with a default index.
+    """
+    return df.reset_index(drop=all(name is None for name in df.index.names))
+
+
 def _valid_petab_id(v: str) -> str:
     """Field validator for PEtab IDs."""
     if not v:
@@ -411,10 +419,10 @@ class ObservableTable(BaseTable[Observable]):
         if df is None:
             return cls(**kwargs)
 
-        df = get_observable_df(df)
+        df = get_observable_df(df.copy())
         observables = [
             Observable(**row.to_dict())
-            for _, row in df.reset_index().iterrows()
+            for _, row in _reset_index(df).iterrows()
         ]
         return cls(observables, **kwargs)
 
@@ -786,7 +794,7 @@ class Measurement(BaseModel):
     )
     @classmethod
     def _sympify_list(cls, v):
-        if v is None:
+        if v is None or v == "":
             return []
 
         if isinstance(v, float) and np.isnan(v):
@@ -814,6 +822,7 @@ class MeasurementTable(BaseTable[Measurement]):
         if df is None:
             return cls(**kwargs)
 
+        df = _reset_index(df)
         if C.MODEL_ID in df.columns:
             df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
 
@@ -821,7 +830,7 @@ class MeasurementTable(BaseTable[Measurement]):
             Measurement(
                 **row.to_dict(),
             )
-            for _, row in df.reset_index().iterrows()
+            for _, row in df.iterrows()
         ]
 
         return cls(measurements, **kwargs)
@@ -893,7 +902,7 @@ class MappingTable(BaseTable[Mapping]):
             return cls(**kwargs)
 
         mappings = [
-            Mapping(**row.to_dict()) for _, row in df.reset_index().iterrows()
+            Mapping(**row.to_dict()) for _, row in _reset_index(df).iterrows()
         ]
         return cls(mappings, **kwargs)
 
@@ -1103,7 +1112,7 @@ class ParameterTable(BaseTable[Parameter]):
 
         parameters = [
             Parameter(**row.to_dict())
-            for _, row in df.reset_index().iterrows()
+            for _, row in _reset_index(df).iterrows()
         ]
 
         return cls(parameters, **kwargs)
