@@ -44,6 +44,9 @@
 * `to_df` no longer fails for empty v2 parameter, observable and measurement
   tables
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+* `petab1to2` no longer writes condition tables without any
+  condition-specific changes
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/554)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`

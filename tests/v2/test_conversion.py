@@ -383,12 +383,16 @@ def test_petab1to2_remote():
 
 
 def _petab1to2_with_conditions(
-    tmp_path, condition_df: pd.DataFrame, conditions: list[tuple[str, str]]
+    tmp_path,
+    condition_df: pd.DataFrame,
+    conditions: list[tuple[str, str]],
+    output_dir: Path | None = None,
 ) -> Problem:
     """Convert a minimal PEtab v1 problem with the given condition table.
 
     ``conditions`` are (preequilibrationConditionId, simulationConditionId)
-    pairs, one measurement per pair.
+    pairs, one measurement per pair. If ``output_dir`` is given, the
+    converted problem is written there.
     """
     problem = v1.Problem(
         model=SbmlModel.from_antimony(
@@ -432,7 +436,11 @@ def _petab1to2_with_conditions(
             )
         ),
     )
-    return petab1to2(problem.to_files_generic(tmp_path))
+    yaml_file = problem.to_files_generic(tmp_path)
+    if output_dir is None:
+        return petab1to2(yaml_file)
+    petab1to2(yaml_file, output_dir)
+    return Problem.from_yaml(output_dir / Path(yaml_file).name)
 
 
 def _measured_periods(
@@ -508,6 +516,37 @@ def test_petab1to2_empty_conditions_no_preequilibration(tmp_path):
 
     assert problem.experiments == []
     assert _measured_periods(problem) == [None]
+
+
+@pytest.mark.parametrize("has_changes", [False, True])
+def test_petab1to2_empty_condition_table_omitted(tmp_path, has_changes):
+    """A condition table without any changes is not written."""
+    from petab.v1.yaml import load_yaml
+
+    output_dir = tmp_path / "v2"
+    problem = _petab1to2_with_conditions(
+        tmp_path,
+        pd.DataFrame(
+            {
+                v1.C.CONDITION_ID: ["c0", "steady"],
+                "A": [2.0 if has_changes else None, None],
+            }
+        ),
+        [("steady", "c0")],
+        output_dir=output_dir,
+    )
+
+    yaml_config = load_yaml(output_dir / "problem.yaml")
+    condition_file = output_dir / "conditions.tsv"
+    if has_changes:
+        assert yaml_config[v2.C.CONDITION_FILES] == ["conditions.tsv"]
+        assert condition_file.exists()
+        assert [c.id for c in problem.conditions] == ["c0"]
+    else:
+        assert v2.C.CONDITION_FILES not in yaml_config
+        assert not condition_file.exists()
+        assert problem.conditions == []
+    assert problem.validate() == []
 
 
 def test_petab1to2_validate(tmp_path):
