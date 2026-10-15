@@ -2812,22 +2812,18 @@ class ProblemConfig(BaseModel):
             data["model_files"][model_id][C.MODEL_LOCATION] = str(
                 data["model_files"][model_id][C.MODEL_LOCATION]
             )
-        if data["id"] is None:
+        if data[C.PROBLEM_ID] is None:
             # The schema requires a valid id or no id field at all.
-            del data["id"]
+            del data[C.PROBLEM_ID]
 
         for ext_id in list(data[C.EXTENSIONS]):
             if ext_id == C.EXT_ID_SCIML:
                 data[C.EXTENSIONS][ext_id] = self.extensions[ext_id].to_yaml()
 
         # Omit empty optional entries. Required ones are kept even if empty.
-        for key in (
-            C.CONDITION_FILES,
-            C.EXPERIMENT_FILES,
-            C.MAPPING_FILES,
-            C.EXTENSIONS,
-        ):
-            if not data[key]:
+        for key in C.PROBLEM_CONFIG_OPTIONAL_KEYS:
+            # an empty `id` is invalid and must not be dropped silently
+            if key != C.PROBLEM_ID and not data[key]:
                 del data[key]
 
         write_yaml(data, filename)

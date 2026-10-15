@@ -780,6 +780,17 @@ def test_problem_config_extensions_rejects_non_dict():
         )
 
 
+def test_problem_config_keys_match_schema():
+    """The required/optional YAML keys in `C` match the PEtab v2 schema."""
+    from petab.v1.yaml import SCHEMAS, load_yaml
+
+    schema = load_yaml(SCHEMAS[(2, 0)])
+    assert set(C.PROBLEM_CONFIG_REQUIRED_KEYS) == set(schema["required"])
+    assert set(C.PROBLEM_CONFIG_OPTIONAL_KEYS) == set(
+        schema["properties"]
+    ) - set(schema["required"])
+
+
 def test_problem_config_to_yaml_omits_empty_optional(tmp_path):
     """Empty optional entries are not written; empty required ones are."""
     from petab.v1.yaml import load_yaml, validate_yaml_syntax

@@ -36,11 +36,14 @@
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/545)
 * `petab.v2.ProblemConfig.to_yaml` no longer writes empty optional entries
   (`condition_files`, `experiment_files`, `mapping_files`, `extensions`)
-  (by @dweindl)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
   (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/534)
+* Added `petab.v2.C.PROBLEM_CONFIG_REQUIRED_KEYS` and
+  `petab.v2.C.PROBLEM_CONFIG_OPTIONAL_KEYS`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
 
 ## 0.9 series
 
