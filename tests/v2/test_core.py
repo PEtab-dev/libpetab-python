@@ -365,7 +365,10 @@ def test_condition_table():
 
 
 def test_to_df_math_expressions():
-    """Expressions are written in PEtab syntax and without precision loss."""
+    """Expressions are written in PEtab syntax and without precision loss.
+
+    Previously, floats were written with only 15 significant digits.
+    """
     conditions = ConditionTable(
         [
             Condition(
@@ -401,7 +404,8 @@ def test_to_df_math_expressions():
     )
     df = measurements.to_df()
     assert df[C.OBSERVABLE_PARAMETERS].tolist() == ["x ^ y;p1"]
-    assert df[C.NOISE_PARAMETERS].tolist() == [repr(2 / 3)]
+    # full double precision, not str(sp.Float(2 / 3)) == "0.666666666666667"
+    assert df[C.NOISE_PARAMETERS].tolist() == ["0.6666666666666666"]
 
 
 def test_load_remote():
