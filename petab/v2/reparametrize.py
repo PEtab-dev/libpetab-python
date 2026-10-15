@@ -58,7 +58,8 @@ def reparametrize_log(
       Parameters without a positive nominal value get no nominal value for
       ``q``.
     * Model: If ``p`` is a model parameter, ``q`` is added to the model,
-      and ``p`` becomes the target of the assignment rule ``p = base^q``.
+      and ``p`` is defined by the initial assignment ``p = base^q``,
+      replacing any existing initial assignment for ``p``.
       Only SBML models are supported.
     * Observable and noise formulas, and condition table target values:
       ``p`` is substituted by ``base^q``.
@@ -251,7 +252,7 @@ def reparametrize_log(
 
     # update the model
     for p in model_entities:
-        _add_sbml_log_rule(
+        _add_sbml_log_assignment(
             model.sbml_model,
             p,
             id_map[p],
@@ -444,27 +445,26 @@ def _reparametrize_overrides(
                 )
 
 
-def _add_sbml_log_rule(
+def _add_sbml_log_assignment(
     model: libsbml.Model,
     parameter_id: str,
     new_id: str,
     b_expr: sp.Expr,
     value: float | None,
 ) -> None:
-    """Add parameter ``new_id`` and the rule ``parameter_id = b^new_id``."""
+    """Add parameter ``new_id`` and the initial assignment
+    ``parameter_id = b^new_id``."""
     add_sbml_parameter(model, new_id, value=value, constant=True)
 
-    par = model.getParameter(parameter_id)
-    check(par.setConstant(False))
-    # an assignment rule and an initial assignment must not have the same
-    #  target
+    # any existing initial assignment is overridden by the parameter table
+    #  value anyway
     if model.getInitialAssignmentBySymbol(parameter_id) is not None:
         model.removeInitialAssignment(parameter_id)
 
-    rule = model.createAssignmentRule()
-    check(rule.setVariable(parameter_id))
+    ia = model.createInitialAssignment()
+    check(ia.setSymbol(parameter_id))
     formula = f"exp({new_id})" if b_expr == sp.E else f"10^({new_id})"
     ast = libsbml.parseL3Formula(formula)
     if ast is None:
         raise RuntimeError(f"Failed to parse `{formula}'.")
-    check(rule.setMath(ast))
+    check(ia.setMath(ast))

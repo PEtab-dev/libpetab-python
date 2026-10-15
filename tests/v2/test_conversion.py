@@ -336,7 +336,7 @@ def test_petab1to2_reparametrize_priors(
 
     # k1 = b^q in the model
     sbml_model = problem.model.sbml_model
-    assert sbml_model.getAssignmentRuleByVariable("k1") is not None
+    assert sbml_model.getInitialAssignmentBySymbol("k1") is not None
     assert sbml_model.getParameter(new_id).getConstant()
 
     # the v2 prior of the new parameter is the v1 prior density over the

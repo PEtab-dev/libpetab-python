@@ -144,21 +144,24 @@ def test_reparametrize_log_expressions_and_model():
 
     # model
     sbml_model = problem.model.sbml_model
-    assert sbml_model.getParameter("k1").getConstant() is False
+    assert sbml_model.getParameter("k1").getConstant() is True
     q = sbml_model.getParameter("log10_k1")
     assert q.getConstant() is True
     assert q.getValue() == pytest.approx(math.log10(2))
-    rule = sbml_model.getAssignmentRuleByVariable("k1")
-    assert rule is not None
-    assert sympify_petab(rule.getFormula()) == sympify_petab("10^log10_k1")
+    assert sbml_model.getAssignmentRuleByVariable("k1") is None
+    ia = sbml_model.getInitialAssignmentBySymbol("k1")
+    assert ia is not None
+    assert sympify_petab(libsbml.formulaToL3String(ia.getMath())) == (
+        sympify_petab("10^log10_k1")
+    )
     assert problem.model.is_valid()
     # k2 is not reparametrized, it's a condition target
-    assert sbml_model.getAssignmentRuleByVariable("k2") is None
+    assert sbml_model.getInitialAssignmentBySymbol("k2") is None
 
     assert not problem.validate().has_errors()
 
 
-def test_reparametrize_log_initial_assignment_removed():
+def test_reparametrize_log_initial_assignment_replaced():
     problem = Problem()
     problem.model = SbmlModel.from_antimony("k1 = 2; A' = -k1 * A; A = 1")
     sbml_model = problem.model.sbml_model
@@ -167,8 +170,10 @@ def test_reparametrize_log_initial_assignment_removed():
     ia.setMath(libsbml.parseL3Formula("3"))
     problem.add_parameter("k1", nominal_value=2, lb=1, ub=10)
     reparametrize_log(problem, ["k1"])
-    assert sbml_model.getInitialAssignmentBySymbol("k1") is None
-    assert sbml_model.getAssignmentRuleByVariable("k1") is not None
+    assert sbml_model.getNumInitialAssignments() == 1
+    ia = sbml_model.getInitialAssignmentBySymbol("k1")
+    assert libsbml.formulaToL3String(ia.getMath()) == "10^log10_k1"
+    assert problem.model.is_valid()
 
 
 def test_reparametrize_log_id_collision():
