@@ -330,44 +330,80 @@ def _reparametrize_overrides(
     log_b,
 ) -> None:
     """Log-transform placeholders overridden by reparametrized parameters."""
+    observables = {o.id: o for o in problem.observables}
+
+    def get_placeholder(obs_id: str, type_: str, i: int) -> sp.Symbol:
+        observable = observables[obs_id]
+        if type_ == "observable":
+            return observable.observable_placeholders[i]
+        return observable.noise_placeholders[i]
+
+    def quote(values) -> str:
+        return ", ".join(f"`{v}'" for v in values)
+
     slots_to_transform = []
+    errors = []
     for slot, values in _get_override_slots(problem).items():
-        if not any(
-            isinstance(v, sp.Symbol) and v.name in id_map for v in values
-        ):
-            continue
-        invalid = {
-            v
+        reparametrized = sorted(
+            v.name
             for v in values
-            if not (
-                (isinstance(v, sp.Symbol) and v.name in id_map)
-                or (v.is_number and v > 0)
+            if isinstance(v, sp.Symbol) and v.name in id_map
+        )
+        if not reparametrized:
+            continue
+        non_positive = sorted(
+            float(v) for v in values if v.is_number and not v > 0
+        )
+        others = sorted(
+            str(v)
+            for v in values
+            if not v.is_number
+            and not (isinstance(v, sp.Symbol) and v.name in id_map)
+        )
+        if not non_positive and not others:
+            slots_to_transform.append(slot)
+            continue
+
+        obs_id, type_, i = slot
+        error = (
+            f"* {type_.capitalize()} placeholder `{get_placeholder(*slot)}' "
+            f"of observable `{obs_id}' (overridden by "
+            f"{quote(reparametrized)}) also receives:"
+        )
+        if others:
+            error += (
+                f"\n  - parameters that are not reparametrized: "
+                f"{quote(others)} (consider including them in "
+                "`parameter_ids')"
             )
-        }
-        if invalid:
-            obs_id, type_, i = slot
-            raise NotImplementedError(
-                f"Cannot reparametrize {type_} placeholder {i + 1} of "
-                f"observable `{obs_id}': all its overrides must be "
-                "reparametrized parameters or positive numbers, but got "
-                f"{sorted(map(str, invalid))}."
+        if non_positive:
+            error += "\n  - non-positive numbers: " + ", ".join(
+                f"{v:g}" for v in non_positive
             )
-        slots_to_transform.append(slot)
+        errors.append(error)
+
+    if errors:
+        raise NotImplementedError(
+            "Cannot log-transform the following placeholders, which are "
+            "overridden by parameters to be reparametrized. This requires "
+            "all overrides of a placeholder to be reparametrized parameters "
+            "or positive numbers.\n"
+            + "\n".join(errors)
+            + "\nSplitting observables is not supported. Exclude the "
+            "affected parameters or split the observables manually."
+        )
 
     if not slots_to_transform:
         return
 
     # placeholder -> b^placeholder in formulas
-    observables = {o.id: o for o in problem.observables}
     for obs_id, type_, i in slots_to_transform:
         observable = observables[obs_id]
+        placeholder = get_placeholder(obs_id, type_, i)
         if type_ == "observable":
-            placeholder = observable.observable_placeholders[i]
             observable.formula = observable.formula.subs(
                 placeholder, b_expr**placeholder
             )
-        else:
-            placeholder = observable.noise_placeholders[i]
         # observable placeholders may also occur in the noise formula
         observable.noise_formula = observable.noise_formula.subs(
             placeholder, b_expr**placeholder

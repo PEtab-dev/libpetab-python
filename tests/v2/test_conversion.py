@@ -476,10 +476,14 @@ def test_petab1to2_reparametrize_all_skips_unresolvable(tmp_path):
     )
     # s1 has a prior, so it must be reparametrized
     with (
-        pytest.raises(NotImplementedError, match=r"\['0(\.0)?', 's2'\]"),
+        pytest.raises(NotImplementedError) as excinfo,
         pytest.warns(UserWarning, match="s2 were not reparametrized"),
     ):
         petab1to2(yaml_file, reparametrize="all")
+    msg = str(excinfo.value)
+    assert "(overridden by `s1')" in msg
+    assert "not reparametrized: `s2'" in msg
+    assert "non-positive numbers: 0" in msg
 
 
 @pytest.mark.filterwarnings(
@@ -500,7 +504,9 @@ def test_petab1to2_reparametrize_overrides_unresolvable(tmp_path):
         ],
         overrides=["s1", "s2"],
     )
-    with pytest.raises(NotImplementedError, match=r"\['s2'\]"):
+    with pytest.raises(
+        NotImplementedError, match=r"not reparametrized: `s2' \("
+    ):
         petab1to2(yaml_file, reparametrize="priors")
 
 

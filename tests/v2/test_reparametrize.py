@@ -231,16 +231,30 @@ def test_reparametrize_log_unresolvable_override():
     problem["offset2"].lb = 1
     problem["offset2"].ub = 10
     problem["offset2"].estimate = True
-    with pytest.raises(
-        NotImplementedError, match=r"observable placeholder 1 of .*offset2"
-    ):
+    with pytest.raises(NotImplementedError) as excinfo:
         reparametrize_log(problem, ["offset1"])
+    msg = str(excinfo.value)
+    assert (
+        "Observable placeholder `offset_A' of observable `obs_A' "
+        "(overridden by `offset1') also receives:" in msg
+    )
+    assert "not reparametrized: `offset2' (consider including" in msg
+    assert "non-positive" not in msg
 
-    # non-positive numeric override
+    # non-positive numeric overrides, in several placeholders, reported at
+    #  once
     problem = _problem()
+    problem.measurements[0].noise_parameters = ["offset1"]
     problem.measurements[1].observable_parameters = [0]
-    with pytest.raises(NotImplementedError, match=r"\['0'\]"):
+    problem.measurements[1].noise_parameters = [-1]
+    with pytest.raises(NotImplementedError) as excinfo:
         reparametrize_log(problem, ["offset1"])
+    msg = str(excinfo.value)
+    assert "Observable placeholder `offset_A'" in msg
+    assert "Noise placeholder `noiseParameter1_obs_A'" in msg
+    assert "non-positive numbers: 0\n" in msg
+    assert "non-positive numbers: -1\n" in msg
+    assert "not reparametrized" not in msg
 
 
 def test_reparametrize_log_noise_override():
