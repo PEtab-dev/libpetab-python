@@ -701,7 +701,11 @@ def v1v2_parameter_df(
         has_scale_prior = parameter_df[v1.C.PARAMETER_SCALE].isin(
             [v1.C.LOG, v1.C.LOG10]
         ) & parameter_df[v1.C.OBJECTIVE_PRIOR_TYPE].isin(
-            [v1.C.PARAMETER_SCALE_NORMAL, v1.C.PARAMETER_SCALE_LAPLACE]
+            [
+                v1.C.PARAMETER_SCALE_NORMAL,
+                v1.C.PARAMETER_SCALE_LAPLACE,
+                v1.C.PARAMETER_SCALE_UNIFORM,
+            ]
         )
         if has_scale_prior.any():
             warnings.warn(
@@ -779,16 +783,13 @@ def _reparametrize_log_scaled(
             # A prior over the unscaled parameter. Its conversion already
             #  preserves the objective function.
             continue
-        if (
-            row.get(v1.C.LOWER_BOUND, 1) <= 0
-            or row.get(v1.C.UPPER_BOUND, 1) <= 0
+        if int(row[v1.C.ESTIMATE]) and (
+            row[v1.C.LOWER_BOUND] <= 0 or row[v1.C.UPPER_BOUND] <= 0
         ):
             # v1 allows a lower bound of 0 for log-scaled parameters.
             #  This would be -inf on log scale, where neither the v1 default
             #  prior nor a parameterScaleUniform prior are proper.
-            if int(row[v1.C.ESTIMATE]) and (
-                reparametrize == "all" or prior_type is not None
-            ):
+            if reparametrize == "all" or prior_type is not None:
                 zero_bound.append(par_id)
             continue
 
@@ -834,7 +835,7 @@ def _reparametrize_log_scaled(
         warnings.warn(
             f"Log-scaled parameters {', '.join(zero_bound)} were not "
             "reparametrized, because their bounds are not positive. "
-            "They are estimated on linear scale, and their parameter-scale "
+            "They are estimated on linear scale, and any parameter-scale "
             "priors were converted to the corresponding priors of the "
             "unscaled parameters, which changes the maximum a posteriori "
             "estimate.",
@@ -847,8 +848,8 @@ def _reparametrize_log_scaled(
     #  drop selected parameters that don't have parameter-scale priors.
     #  Otherwise, `reparametrize_log` will raise.
     slots = _get_override_slots(problem).values()
+    excluded = set()
     for base, base_selected in selected.items():
-        excluded = set()
         changed = True
         while changed:
             changed = False
@@ -866,22 +867,29 @@ def _reparametrize_log_scaled(
                         base_selected -= optional
                         excluded |= optional
                         changed = True
-        if excluded:
-            warnings.warn(
-                "Log-scaled parameters "
-                f"{', '.join(sorted(excluded))} were not reparametrized, "
-                "because they are used as overrides for placeholders that "
-                "cannot be log-transformed.",
-                stacklevel=4,
-            )
+    if excluded:
+        warnings.warn(
+            "Log-scaled parameters "
+            f"{', '.join(sorted(excluded))} were not reparametrized, "
+            "because they are used as overrides for placeholders that "
+            "cannot be log-transformed.",
+            stacklevel=4,
+        )
 
     for base, base_selected in selected.items():
-        reparametrize_log(
-            problem,
-            # keep the parameter table order
-            [p for p in candidates[base] if p in base_selected],
-            base=base,
-            priors={p: candidates[base][p] for p in base_selected},
-        )
+        try:
+            reparametrize_log(
+                problem,
+                # keep the parameter table order
+                [p for p in candidates[base] if p in base_selected],
+                base=base,
+                priors={p: candidates[base][p] for p in base_selected},
+            )
+        except NotImplementedError as e:
+            raise NotImplementedError(
+                "Log-scaled parameters could not be reparametrized. "
+                "Use `reparametrize='none'` to estimate them on linear "
+                "scale.\n" + str(e)
+            ) from e
 
     return any(selected.values())

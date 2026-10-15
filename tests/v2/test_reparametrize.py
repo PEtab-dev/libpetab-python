@@ -234,6 +234,24 @@ def test_reparametrize_log_invalid():
     with pytest.raises(NotImplementedError, match="mapping table"):
         reparametrize_log(problem, ["scaling"])
 
+    problem = _problem()
+    doc = problem.model.sbml_model.getSBMLDocument()
+    assert doc.setLevelAndVersion(2, 1)
+    with pytest.raises(NotImplementedError, match="L2V2"):
+        reparametrize_log(problem, ["k1"])
+
+
+def test_reparametrize_log_fixed_nonpositive_bounds():
+    """Bounds of non-estimated parameters are irrelevant."""
+    problem = _problem()
+    problem["offset2"].lb = 0
+    problem["offset2"].ub = 10
+    reparametrize_log(problem, ["offset1", "offset2"])
+    par = problem["log10_offset2"]
+    assert par.lb is None
+    assert par.ub == 1
+    assert par.nominal_value == pytest.approx(math.log10(6))
+
 
 def test_reparametrize_log_unresolvable_override():
     # offset1 is reparametrized, offset2 is not
@@ -248,7 +266,7 @@ def test_reparametrize_log_unresolvable_override():
         "Observable placeholder `offset_A' of observable `obs_A' "
         "(overridden by `offset1') also receives:" in msg
     )
-    assert "not reparametrized: `offset2' (consider including" in msg
+    assert "not reparametrized: `offset2'\n" in msg
     assert "non-positive" not in msg
 
     # non-positive numeric overrides, in several placeholders, reported at

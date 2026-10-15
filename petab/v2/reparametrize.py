@@ -92,9 +92,9 @@ def reparametrize_log(
     :return:
         A dictionary mapping old to new parameter IDs.
     :raises ValueError:
-        If a parameter cannot be reparametrized, e.g., because its lower bound
-        is not positive, or if its prior cannot be expressed in terms of the
-        new parameter.
+        If a parameter cannot be reparametrized, e.g., because it is estimated
+        and its lower bound is not positive, or if its prior cannot be
+        expressed in terms of the new parameter.
     :raises NotImplementedError:
         If the problem has features that are not supported yet,
         e.g., multiple or non-SBML models, mapping table entries for the
@@ -152,8 +152,14 @@ def reparametrize_log(
                 raise NotImplementedError(
                     f"Model entity `{p}' is not an SBML parameter."
                 )
+            sbml_model = model.sbml_model
+            if (sbml_model.getLevel(), sbml_model.getVersion()) < (2, 2):
+                raise NotImplementedError(
+                    "Reparametrization of model parameters requires "
+                    "initial assignments (SBML L2V2 or later)."
+                )
             model_entities.append(p)
-        if any(bound is not None and bound <= 0 for bound in (par.lb, par.ub)):
+        if par.estimate and (par.lb <= 0 or par.ub <= 0):
             # (bounds are required for estimated parameters)
             raise ValueError(
                 f"Bounds of parameter `{p}' must be positive, "
@@ -199,8 +205,9 @@ def reparametrize_log(
         new_parameters[p] = Parameter(
             id=p,
             name=par.name and f"{prefix.removesuffix('_')}({par.name})",
-            lb=None if par.lb is None else log_b(par.lb),
-            ub=None if par.ub is None else log_b(par.ub),
+            # bounds of non-estimated parameters are irrelevant
+            lb=log_b(par.lb) if par.lb is not None and par.lb > 0 else None,
+            ub=log_b(par.ub) if par.ub is not None and par.ub > 0 else None,
             nominal_value=nominal_value,
             estimate=par.estimate,
             prior_distribution=prior_distribution,
@@ -380,8 +387,7 @@ def _reparametrize_overrides(
         if others:
             error += (
                 f"\n  - parameters that are not reparametrized: "
-                f"{quote(others)} (consider including them in "
-                "`parameter_ids')"
+                f"{quote(others)}"
             )
         if non_positive:
             error += "\n  - non-positive numbers: " + ", ".join(
@@ -396,8 +402,9 @@ def _reparametrize_overrides(
             "all overrides of a placeholder to be reparametrized parameters "
             "or positive numbers.\n"
             + "\n".join(errors)
-            + "\nSplitting observables is not supported. Exclude the "
-            "affected parameters or split the observables manually."
+            + "\nSplitting observables is not supported. Reparametrize "
+            "all or none of the parameters overriding a placeholder, "
+            "or split the observables manually."
         )
 
     if not slots_to_transform:
