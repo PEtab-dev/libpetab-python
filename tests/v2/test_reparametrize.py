@@ -108,6 +108,11 @@ def test_reparametrize_log_parameter_table(base):
     assert scaling.prior_distribution is None
     assert scaling.name is None
 
+    if base == 10:
+        # powers of 10 are mapped exactly
+        assert [k1.lb, k1.ub] == [-3.0, 3.0]
+        assert k2.prior_parameters == [-1.0, 1.0]
+
     assert not problem.validate().has_errors()
 
 

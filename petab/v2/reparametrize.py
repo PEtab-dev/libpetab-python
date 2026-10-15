@@ -20,13 +20,19 @@ from .models.sbml_model import SbmlModel
 __all__ = ["reparametrize_log"]
 
 #: x-space priors and the corresponding priors of log_b(x), given as
-#:  (prior type, function(prior parameters, ln(b)) -> prior parameters)
+#:  (prior type, function(prior parameters, log_b, ln(b)) -> prior parameters)
 _LOG_PRIOR_TO_THETA = {
-    C.LOG_NORMAL: (C.NORMAL, lambda pars, ln_b: [p / ln_b for p in pars]),
-    C.LOG_LAPLACE: (C.LAPLACE, lambda pars, ln_b: [p / ln_b for p in pars]),
+    C.LOG_NORMAL: (
+        C.NORMAL,
+        lambda pars, log_b, ln_b: [p / ln_b for p in pars],
+    ),
+    C.LOG_LAPLACE: (
+        C.LAPLACE,
+        lambda pars, log_b, ln_b: [p / ln_b for p in pars],
+    ),
     C.LOG_UNIFORM: (
         C.UNIFORM,
-        lambda pars, ln_b: [math.log(p) / ln_b for p in pars],
+        lambda pars, log_b, ln_b: [log_b(p) for p in pars],
     ),
 }
 
@@ -98,10 +104,13 @@ def reparametrize_log(
     priors = priors or {}
     if base == 10:
         ln_b = math.log(10)
+        # not `math.log(x) / ln_b`, which is inexact for powers of 10
+        log_b = math.log10
         b_expr = sp.Integer(10)
         prefix = "log10_"
     elif base == "e":
         ln_b = 1.0
+        log_b = math.log
         b_expr = sp.E
         prefix = "log_"
     else:
@@ -123,9 +132,6 @@ def reparametrize_log(
             "Reparametrization of multi-model problems is not supported."
         )
     model = problem.model
-
-    def log_b(x: float) -> float:
-        return math.log(x) / ln_b
 
     new_parameters = {}
     model_entities = []
@@ -181,7 +187,7 @@ def reparametrize_log(
             prior_distribution, prior_parameters = None, []
         elif par.prior_distribution in _LOG_PRIOR_TO_THETA:
             prior_distribution, f = _LOG_PRIOR_TO_THETA[par.prior_distribution]
-            prior_parameters = f(par.prior_parameters, ln_b)
+            prior_parameters = f(par.prior_parameters, log_b, ln_b)
         else:
             raise ValueError(
                 f"Prior `{par.prior_distribution}' of parameter `{p}' "
