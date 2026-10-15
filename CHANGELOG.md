@@ -34,6 +34,9 @@
   `pi`/`e`, and prints floats without loss of precision. PEtab v2 condition
   and measurement tables now write expressions in PEtab syntax
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/545)
+* `petab.v2.ProblemConfig.to_yaml` no longer writes empty optional entries
+  (`condition_files`, `experiment_files`, `mapping_files`, `extensions`)
+  (by @dweindl)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`

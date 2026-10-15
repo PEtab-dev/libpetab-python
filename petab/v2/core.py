@@ -2820,6 +2820,16 @@ class ProblemConfig(BaseModel):
             if ext_id == C.EXT_ID_SCIML:
                 data[C.EXTENSIONS][ext_id] = self.extensions[ext_id].to_yaml()
 
+        # Omit empty optional entries. Required ones are kept even if empty.
+        for key in (
+            C.CONDITION_FILES,
+            C.EXPERIMENT_FILES,
+            C.MAPPING_FILES,
+            C.EXTENSIONS,
+        ):
+            if not data[key]:
+                del data[key]
+
         write_yaml(data, filename)
 
     @property
