@@ -363,6 +363,70 @@ def test_petab1to2_reparametrize_priors(
     np.testing.assert_allclose(v2_pdf, v1_pdf, rtol=1e-12)
 
 
+@pytest.mark.filterwarnings(
+    "ignore:.*Parameter scales are not supported in PEtab v2.*:UserWarning",
+    "ignore:Initialisation priors.*:UserWarning",
+)
+@pytest.mark.parametrize(
+    "prior_type,prior_parameters,reparametrize",
+    [
+        (v1.C.PARAMETER_SCALE_NORMAL, "-1;0.5", "priors"),
+        (v1.C.PARAMETER_SCALE_NORMAL, "-1;0.5", "all"),
+        (np.nan, np.nan, "all"),
+    ],
+)
+def test_petab1to2_reparametrize_zero_lower_bound(
+    tmp_path, prior_type, prior_parameters, reparametrize
+):
+    """Parameters with a lower bound of 0 are skipped."""
+    # v1 allows a lower bound of 0 for log-scaled parameters
+    #  if there is an initialization prior
+    k1 = _K1 | {
+        v1.C.PARAMETER_SCALE: v1.C.LOG10,
+        v1.C.LOWER_BOUND: 0.0,
+        v1.C.INITIALIZATION_PRIOR_TYPE: v1.C.PARAMETER_SCALE_UNIFORM,
+        v1.C.INITIALIZATION_PRIOR_PARAMETERS: "-3;2",
+        v1.C.OBJECTIVE_PRIOR_TYPE: prior_type,
+        v1.C.OBJECTIVE_PRIOR_PARAMETERS: prior_parameters,
+    }
+    yaml_file = _write_v1_problem(
+        tmp_path,
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "B",
+                v1.C.NOISE_FORMULA: "0.1",
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: 1.0,
+                v1.C.MEASUREMENT: 0.3,
+            }
+        ],
+        parameters=[k1],
+    )
+    assert not v1.lint_problem(v1.Problem.from_yaml(yaml_file))
+
+    with pytest.warns(UserWarning, match=r"k1 were not reparametrized"):
+        problem = petab1to2(yaml_file, reparametrize=reparametrize)
+
+    assert [p.id for p in problem.parameters] == ["k1"]
+    par = problem["k1"]
+    assert (par.lb, par.ub) == (0.0, _K1[v1.C.UPPER_BOUND])
+    if pd.isna(prior_type):
+        # as with reparametrize="none"
+        assert par.prior_distribution == v2.C.UNIFORM
+        assert par.prior_parameters == [0.0, _K1[v1.C.UPPER_BOUND]]
+    else:
+        assert par.prior_distribution == v2.C.LOG_NORMAL
+    sbml_model = problem.model.sbml_model
+    assert sbml_model.getInitialAssignmentBySymbol("k1") is None
+    assert sbml_model.getAssignmentRuleByVariable("k1") is None
+
+
 def _write_v1_problem_with_overrides(
     tmp_path, parameters: list[dict], overrides: list[str]
 ) -> str:

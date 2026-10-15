@@ -88,6 +88,7 @@ def petab1to2(
 
         Further log-scaled parameters are reparametrized if they share
         a placeholder with reparametrized parameters in the measurement table.
+        Parameters with a lower bound of ``0`` are not reparametrized.
 
     :raises ValueError:
         If the input is invalid or, if ``validate`` is ``True``, if the input
@@ -763,6 +764,8 @@ def _reparametrize_log_scaled(
     # parameters with parameter-scale priors
     required = {10: set(), "e": set()}
     selected = {10: set(), "e": set()}
+    # selected parameters that cannot be reparametrized due to their bounds
+    zero_bound = []
     for par_id, row in df.iterrows():
         pscale = row.get(v1.C.PARAMETER_SCALE, v1.C.LIN)
         if pscale not in (v1.C.LOG, v1.C.LOG10):
@@ -775,6 +778,18 @@ def _reparametrize_log_scaled(
         elif prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES:
             # A prior over the unscaled parameter. Its conversion already
             #  preserves the objective function.
+            continue
+        if (
+            row.get(v1.C.LOWER_BOUND, 1) <= 0
+            or row.get(v1.C.UPPER_BOUND, 1) <= 0
+        ):
+            # v1 allows a lower bound of 0 for log-scaled parameters.
+            #  This would be -inf on log scale, where neither the v1 default
+            #  prior nor a parameterScaleUniform prior are proper.
+            if int(row[v1.C.ESTIMATE]) and (
+                reparametrize == "all" or prior_type is not None
+            ):
+                zero_bound.append(par_id)
             continue
 
         prior = None
@@ -814,6 +829,17 @@ def _reparametrize_log_scaled(
             reparametrize == "all" or prior_type is not None
         ):
             selected[base].add(par_id)
+
+    if zero_bound:
+        warnings.warn(
+            f"Log-scaled parameters {', '.join(zero_bound)} were not "
+            "reparametrized, because their bounds are not positive. "
+            "They are estimated on linear scale, and their parameter-scale "
+            "priors were converted to the corresponding priors of the "
+            "unscaled parameters, which changes the maximum a posteriori "
+            "estimate.",
+            stacklevel=4,
+        )
 
     # Placeholders can only be transformed if all their overrides are
     #  reparametrized or positive numbers. Add log-scaled parameters that
