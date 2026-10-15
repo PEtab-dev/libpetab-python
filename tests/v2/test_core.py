@@ -29,7 +29,7 @@ from petab.v2.C import (
     UPPER_BOUND,
 )
 from petab.v2.core import *
-from petab.v2.core import ExtensionConfig
+from petab.v2.core import ExtensionConfig, ModelFile
 from petab.v2.lint import CheckUnusedConditions, ValidationIssueSeverity
 from petab.v2.models.sbml_model import SbmlModel
 from petab.v2.petab1to2 import petab1to2
@@ -778,6 +778,62 @@ def test_problem_config_extensions_rejects_non_dict():
             observable_files=["observables.tsv"],
             extensions=[{"version": "1.0.0", "required": False}],
         )
+
+
+def test_problem_config_keys_match_schema():
+    """The required/optional YAML keys in `C` match the PEtab v2 schema."""
+    from petab.v1.yaml import SCHEMAS, load_yaml
+
+    schema = load_yaml(SCHEMAS[(2, 0)])
+    assert set(C.PROBLEM_CONFIG_REQUIRED_KEYS) == set(schema["required"])
+    assert set(C.PROBLEM_CONFIG_OPTIONAL_KEYS) == set(
+        schema["properties"]
+    ) - set(schema["required"])
+
+
+def test_problem_config_to_yaml_omits_empty_optional(tmp_path):
+    """Empty optional entries are not written; empty required ones are."""
+    from petab.v1.yaml import load_yaml, validate_yaml_syntax
+
+    pc = ProblemConfig(
+        parameter_files=["parameters.tsv"],
+        model_files={
+            "model": ModelFile(location="model.xml", language="sbml")
+        },
+        measurement_files=["measurements.tsv"],
+    )
+    yaml_path = tmp_path / "problem.yaml"
+    pc.to_yaml(yaml_path)
+
+    yaml_config = load_yaml(yaml_path)
+    assert set(yaml_config) == {
+        C.FORMAT_VERSION,
+        C.PARAMETER_FILES,
+        C.MODEL_FILES,
+        C.MEASUREMENT_FILES,
+        C.OBSERVABLE_FILES,
+    }
+    assert yaml_config[C.OBSERVABLE_FILES] == []
+    validate_yaml_syntax(yaml_config)
+    reloaded = ProblemConfig(**yaml_config, base_path=tmp_path)
+    assert reloaded.model_dump() == pc.model_dump()
+
+    # non-empty optional entries are kept
+    pc.condition_files = ["conditions.tsv"]
+    pc.experiment_files = ["experiments.tsv"]
+    pc.mapping_files = ["mapping.tsv"]
+    pc.extensions = {"my_ext": {"version": "1.0.0", "required": False}}
+    pc.to_yaml(yaml_path)
+
+    yaml_config = load_yaml(yaml_path)
+    assert yaml_config[C.CONDITION_FILES] == ["conditions.tsv"]
+    assert yaml_config[C.EXPERIMENT_FILES] == ["experiments.tsv"]
+    assert yaml_config[C.MAPPING_FILES] == ["mapping.tsv"]
+    assert yaml_config[C.EXTENSIONS] == {
+        "my_ext": {"version": "1.0.0", "required": False}
+    }
+    reloaded = ProblemConfig(**yaml_config, base_path=tmp_path)
+    assert reloaded.model_dump() == pc.model_dump()
 
 
 def test_validate_unsupported_extension_severity():
