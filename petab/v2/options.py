@@ -33,7 +33,8 @@ __all__ = [
 class TableColumns(StrEnum):
     """Columns to include when converting PEtab tables to DataFrames.
 
-    Required columns are always included.
+    Required columns, and any columns containing any
+    non-default values, are always included.
     """
 
     #: All standard columns and all additional columns.
