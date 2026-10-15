@@ -37,3 +37,4 @@ from .experiments import (  # noqa: F401
 )
 from .lint import lint_problem  # noqa: F401
 from .models import MODEL_TYPE_PYSB, MODEL_TYPE_SBML, Model  # noqa: F401
+from .options import *

@@ -12,6 +12,10 @@
   Use `petab.v1.<name>` instead, e.g., `import petab.v1 as petab`.
   `import petab` no longer imports `petab.v1`.
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/538)
+* `petab.v2.Parameter` has a new `name` field for the `parameterName` column,
+  which was previously stored as an extra attribute `parameterName`.
+  `BaseTable` subclasses now implement `_to_df` instead of `to_df`.
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
 
 **Fixes**
 * `get_model_for_condition` no longer turns rate-rule targets that are
@@ -37,6 +41,9 @@
 * `petab.v2.ProblemConfig.to_yaml` no longer writes empty optional entries
   (`condition_files`, `experiment_files`, `mapping_files`, `extensions`)
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+* `to_df` no longer fails for empty v2 parameter, observable and measurement
+  tables
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
@@ -44,6 +51,11 @@
 * Added `petab.v2.C.PROBLEM_CONFIG_REQUIRED_KEYS` and
   `petab.v2.C.PROBLEM_CONFIG_OPTIONAL_KEYS`
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+* PEtab v2 tables can omit empty columns or columns at their default values
+  via `to_df(columns=...)`, `to_tsv(columns=...)` and
+  `Problem.to_files(columns=...)`, or globally via `petab.v2.set_options` and
+  `petab.v2.option_context`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
 
 ## 0.9 series
 
