@@ -461,6 +461,50 @@ def test_condition_table():
     ).free_symbols == {x, y}
 
 
+def test_to_df_math_expressions():
+    """Expressions are written in PEtab syntax and without precision loss.
+
+    Previously, floats were written with only 15 significant digits.
+    """
+    conditions = ConditionTable(
+        [
+            Condition(
+                id="c1",
+                changes=[
+                    Change(target_id="k1", target_value="k2 ^ 2"),
+                    Change(
+                        target_id="k3",
+                        target_value="piecewise(1, k2 > 0 && k2 < 2, 0)",
+                    ),
+                ],
+            )
+        ]
+    )
+    df = conditions.to_df()
+    assert df[TARGET_VALUE].tolist() == [
+        "k2 ^ 2",
+        "piecewise(1, (k2 < 2) && (k2 > 0), 0)",
+    ]
+    assert_frame_equal(ConditionTable.from_df(df).to_df(), df)
+
+    measurements = MeasurementTable(
+        [
+            Measurement(
+                observable_id="obs1",
+                time=1,
+                experiment_id="exp1",
+                measurement=1,
+                observable_parameters="x ^ y;p1",
+                noise_parameters=2 / 3,
+            )
+        ]
+    )
+    df = measurements.to_df()
+    assert df[C.OBSERVABLE_PARAMETERS].tolist() == ["x ^ y;p1"]
+    # full double precision, not str(sp.Float(2 / 3)) == "0.666666666666667"
+    assert df[C.NOISE_PARAMETERS].tolist() == ["0.6666666666666666"]
+
+
 def test_load_remote():
     """Test loading remote files"""
     from jsonschema.exceptions import ValidationError

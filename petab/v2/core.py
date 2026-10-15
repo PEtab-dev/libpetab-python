@@ -561,7 +561,7 @@ class ConditionTable(BaseTable[Condition]):
             record[C.TARGET_VALUE] = (
                 float(record[C.TARGET_VALUE])
                 if record[C.TARGET_VALUE].is_number
-                else str(record[C.TARGET_VALUE])
+                else petab_math_str(record[C.TARGET_VALUE])
             )
         return (
             pd.DataFrame(records)
@@ -840,10 +840,10 @@ class MeasurementTable(BaseTable[Measurement]):
         records = self.model_dump(by_alias=True)["elements"]
         for record in records:
             record[C.OBSERVABLE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
-                map(str, record[C.OBSERVABLE_PARAMETERS])
+                map(petab_math_str, record[C.OBSERVABLE_PARAMETERS])
             )
             record[C.NOISE_PARAMETERS] = C.PARAMETER_SEPARATOR.join(
-                map(str, record[C.NOISE_PARAMETERS])
+                map(petab_math_str, record[C.NOISE_PARAMETERS])
             )
 
         return pd.DataFrame(records)
