@@ -885,9 +885,8 @@ def test_assignments_to_experiments_preequilibration():
 @pytest.mark.parametrize(
     "assignment, match",
     [
-        ("piecewise(0, time < 10, 1) + piecewise(0, time < 20, 1)", "single"),
-        ("piecewise(0, time < 10, 1, time < 20, 2)", "single"),
         ("piecewise(0, time == 10, 1)", "single"),
+        ("piecewise(0, time < 10 && time > 5, 1)", "single"),
         ("piecewise(0, time^2 < 10, 1)", "single"),
         ("piecewise(time, time < 10, 1)", "single"),
         ("piecewise(0, time < t_dose, 1)", "evaluate to a real number"),
@@ -919,6 +918,122 @@ def test_assignments_to_experiments_unsupported(assignment, match):
 
     with pytest.raises(NotImplementedError, match=match):
         assignments_to_experiments(problem)
+
+
+@pytest.mark.parametrize(
+    "assignment, default, switches",
+    [
+        # a sum of doses given at different times
+        (
+            "piecewise(0, time < 10, 1) + 2 * piecewise(0, time < 20, 1)",
+            0.0,
+            [(10.0, 1.0), (20.0, 3.0)],
+        ),
+        # phases one after another, as several pieces
+        (
+            "piecewise(1, time < 10, 2, time < 20, 3)",
+            1.0,
+            [(10.0, 2.0), (20.0, 3.0)],
+        ),
+        # and as nested piecewise functions
+        (
+            "piecewise(1, time < 10, piecewise(2, time < 20, 3))",
+            1.0,
+            [(10.0, 2.0), (20.0, 3.0)],
+        ),
+        # a switch that does not change the value is no period
+        (
+            "piecewise(1, time < 10, piecewise(1, time < 20, 3))",
+            1.0,
+            [(20.0, 3.0)],
+        ),
+    ],
+)
+def test_assignments_to_experiments_several_switches(
+    assignment, default, switches
+):
+    """Test conversion of assignments that switch more than once."""
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 := {assignment};
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=30.0, measurement=5.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    assert converted.model.sbml_model.getParameter("k1").getValue() == default
+    experiments = converted.experiment_df
+    conditions = converted.condition_df.set_index(v2.C.CONDITION_ID)
+    assert [
+        (
+            row[v2.C.TIME],
+            float(conditions.loc[row[v2.C.CONDITION_ID], v2.C.TARGET_VALUE]),
+        )
+        for _, row in experiments.iterrows()
+    ] == switches
+
+
+def test_assignments_to_experiments_condition_specific_doses():
+    """Test conversion of two doses whose times and amounts are set by the
+    condition table, as in Brannmark_JBC2010."""
+    problem = Problem()
+    doses = (
+        "d1 * piecewise(0, time - t1 < 0, 1)"
+        " + d2 * piecewise(0, time - t2 < 0, 1)"
+    )
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        d1 = 0; t1 = 0; d2 = 0; t2 = 0;
+        k1 := {doses};
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_condition("c1", d1=2.0, t1=0.0, d2=0.0, t2=0.0)
+    problem.add_condition("c2", d1=1.0, t1=0.0, d2=3.0, t2=5.0)
+    problem.add_experiment("experiment____c1", 0, "c1")
+    problem.add_experiment("experiment____c2", 0, "c2")
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    for experiment_id in ("experiment____c1", "experiment____c2"):
+        problem.add_measurement(
+            "obs_a", experiment_id=experiment_id, time=30.0, measurement=5.0
+        )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    conditions = converted.condition_df.set_index(v2.C.CONDITION_ID)
+    got = {
+        (row[v2.C.EXPERIMENT_ID], row[v2.C.TIME]): float(
+            conditions.loc[row[v2.C.CONDITION_ID], v2.C.TARGET_VALUE]
+        )
+        for _, row in converted.experiment_df.iterrows()
+    }
+    # c1: the dose is there from the start; c2: the first dose from the
+    #  start, the second added at t = 5
+    assert got == {
+        ("experiment____c1", 0.0): 2.0,
+        ("experiment____c2", 0.0): 1.0,
+        ("experiment____c2", 5.0): 4.0,
+    }
 
 
 @pytest.mark.parametrize("t_switch", [0, 10])
