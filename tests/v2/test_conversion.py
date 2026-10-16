@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import libsbml
 import numpy as np
 import pandas as pd
 import pytest
@@ -888,7 +889,8 @@ def test_assignments_to_experiments_preequilibration():
         ("piecewise(0, time == 10, 1)", "single"),
         ("piecewise(0, time < 10 && time > 5, 1)", "single"),
         ("piecewise(0, time^2 < 10, 1)", "single"),
-        ("piecewise(time, time < 10, 1)", "single"),
+        ("piecewise(time^2, time < 10, 1)", "linearly"),
+        ("piecewise(exp(time), time < 10, 1)", "linearly"),
         ("piecewise(0, time < t_dose, 1)", "evaluate to a real number"),
         ("piecewise(0, time < A, 1)", "constant model parameters"),
         ("A * piecewise(0, time < 10, 1)", "constant model parameters"),
@@ -1033,6 +1035,147 @@ def test_assignments_to_experiments_condition_specific_doses():
         ("experiment____c1", 0.0): 2.0,
         ("experiment____c2", 0.0): 1.0,
         ("experiment____c2", 5.0): 4.0,
+    }
+
+
+def _rate_rule(problem, target_id):
+    rule = problem.model.sbml_model.getRateRuleByVariable(target_id)
+    return None if rule is None else libsbml.formulaToL3String(rule.getMath())
+
+
+def _changes_by_period(problem):
+    """{(experiment ID, time): {target ID: target value}}"""
+    conditions = problem.condition_df.set_index(v2.C.CONDITION_ID)
+    out = {}
+    for _, row in problem.experiment_df.iterrows():
+        change = conditions.loc[[row[v2.C.CONDITION_ID]]]
+        out.setdefault((row[v2.C.EXPERIMENT_ID], row[v2.C.TIME]), {}).update(
+            {
+                r[v2.C.TARGET_ID]: float(r[v2.C.TARGET_VALUE])
+                for _, r in change.iterrows()
+            }
+        )
+    return out
+
+
+def test_assignments_to_experiments_ramp():
+    """Test that a value changing linearly with time becomes a rate rule
+    whose slope each period sets."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        r = 0.5; a = 1;
+        k1 := piecewise(r * time + a, time <= 10, 0);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    sbml = converted.model.sbml_model
+    # the ramp's start and slope are the model's own initial values
+    assert _rate_rule(converted, "k1") == "k1_slope"
+    assert sbml.getParameter("k1").getValue() == 1.0
+    assert sbml.getParameter("k1_slope").getValue() == 0.5
+    # at the switch, the target and its slope drop to zero
+    assert _changes_by_period(converted) == {
+        (DEFAULT_EXPERIMENT_ID, 10.0): {"k1": 0.0, "k1_slope": 0.0}
+    }
+
+
+def test_assignments_to_experiments_condition_specific_ramps():
+    """Test pulses and ramps whose start, rate and end are set by the
+    condition table, as in Fujita_SciSignal2010."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        EGF_0 = 0; EGF_rate = 0; EGF_end = 0;
+        k1 := piecewise(EGF_rate * time + EGF_0, time <= EGF_end, 0);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    # a pulse: a constant dose withdrawn at t = 60
+    problem.add_condition("pulse", EGF_0=1.0, EGF_rate=0.0, EGF_end=60.0)
+    # a ramp: growing from zero at 0.01 per unit time until t = 3600
+    problem.add_condition("ramp", EGF_0=0.0, EGF_rate=0.01, EGF_end=3600.0)
+    for c in ("pulse", "ramp"):
+        problem.add_experiment(f"experiment____{c}", 0, c)
+        problem.add_measurement(
+            "obs_a",
+            experiment_id=f"experiment____{c}",
+            time=30.0,
+            measurement=5.0,
+        )
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    assert _rate_rule(converted, "k1") == "k1_slope"
+    assert _changes_by_period(converted) == {
+        ("experiment____pulse", 0.0): {"k1": 1.0, "k1_slope": 0.0},
+        ("experiment____pulse", 60.0): {"k1": 0.0, "k1_slope": 0.0},
+        ("experiment____ramp", 0.0): {"k1": 0.0, "k1_slope": 0.01},
+        ("experiment____ramp", 3600.0): {"k1": 0.0, "k1_slope": 0.0},
+    }
+
+
+def test_assignments_to_experiments_ramp_preequilibration():
+    """Test that a ramp is held at its value at time 0 during
+    preequilibration and starts at time 0."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        r = 0;
+        k1 := piecewise(r * time + 1, time <= 10, 0);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_condition("pre", r=0.0)
+    problem.add_condition("main", r=2.0)
+    problem.add_experiment(
+        "experiment__pre___main", v2.C.TIME_PREEQUILIBRATION, "pre", 0, "main"
+    )
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a",
+        experiment_id="experiment__pre___main",
+        time=20.0,
+        measurement=5.0,
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    with pytest.warns(UserWarning, match="during preequilibration"):
+        converted = assignments_to_experiments(problem)
+
+    assert _changes_by_period(converted) == {
+        ("experiment__pre___main", v2.C.TIME_PREEQUILIBRATION): {
+            "k1": 1.0,
+            "k1_slope": 0.0,
+        },
+        ("experiment__pre___main", 0.0): {"k1": 1.0, "k1_slope": 2.0},
+        ("experiment__pre___main", 10.0): {"k1": 0.0, "k1_slope": 0.0},
     }
 
 
