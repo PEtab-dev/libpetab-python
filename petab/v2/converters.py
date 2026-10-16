@@ -795,8 +795,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         target = sbml_model.getParameter(target_id)
         # A value that changes with time within a period (a ramp) cannot be a
         #  condition change on a constant target, which is applied once at
-        #  the start of its period. The target becomes a differential entity
-        #  instead, `d target/dt = <target>_slope`, and each period sets both.
+        #  the start of its period. The model only makes the target a
+        #  differential entity, `d target/dt = <target>_slope`; the slope's
+        #  value, like the target's, is set by every period that starts one.
         ramps = expr.xreplace({c: sp.Dummy() for c in switches}).has(time)
         slope_id = None
         if ramps:
@@ -806,7 +807,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             slope = sbml_model.createParameter()
             slope.setId(slope_id)
             slope.setConstant(False)
-            slope.setValue(float(sp.diff(default, time).subs(model_values)))
+            slope.setValue(0.0)
             rate_rule = sbml_model.createRateRule()
             rate_rule.setVariable(target_id)
             rate_rule.setMath(libsbml.parseL3Formula(slope_id))
@@ -870,9 +871,11 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                 #  the first period, unless that value refers to parameter
                 #  table symbols, for which the model only has a number. The
                 #  switches can become the first periods if they only refer
-                #  to parameter table symbols.
+                #  to parameter table symbols. A ramp's start and slope are
+                #  always set by the tables.
                 redundant = (
-                    i == 0
+                    not ramps
+                    and i == 0
                     and (start_value - default).is_zero
                     and not {str(s) for s in default.free_symbols}
                     & parameter_ids
@@ -890,6 +893,17 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                     # preequilibration held the slope at zero
                     or (ramps and after_preequilibration)
                 ):
+                    if i == 0:
+                        # at the start of an experiment, a change may only
+                        #  refer to parameter table symbols; other symbols
+                        #  are constant model parameters, at their values
+                        start_value = start_value.subs(
+                            {
+                                s: sbml_model.getParameter(str(s)).getValue()
+                                for s in start_value.free_symbols - {time}
+                                if str(s) not in parameter_ids
+                            }
+                        )
                     additions += _changes(
                         experiment,
                         period.time,
