@@ -1242,13 +1242,15 @@ def test_assignments_to_experiments_ramp():
     converted = assignments_to_experiments(problem)
 
     sbml = converted.model.sbml_model
-    # the ramp's start and slope are the model's own initial values
+    # the model only makes the target differential; the slope is a
+    #  placeholder until the tables set it
     assert _rate_rule(converted, "k1") == "k1_slope"
-    assert sbml.getParameter("k1").getValue() == 1.0
-    assert sbml.getParameter("k1_slope").getValue() == 0.5
-    # at the switch, the target and its slope drop to zero
+    assert sbml.getParameter("k1_slope").getValue() == 0.0
+    # the ramp starts at time 0, and at the switch, the target and its slope
+    #  drop to zero
     assert _changes_by_period(converted) == {
-        (DEFAULT_EXPERIMENT_ID, 10.0): {"k1": 0.0, "k1_slope": 0.0}
+        (DEFAULT_EXPERIMENT_ID, 0.0): {"k1": 1.0, "k1_slope": 0.5},
+        (DEFAULT_EXPERIMENT_ID, 10.0): {"k1": 0.0, "k1_slope": 0.0},
     }
 
 
