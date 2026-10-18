@@ -671,7 +671,10 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     .. note::
 
         Measurements without an experiment ID are assigned to a new experiment
-        :data:`DEFAULT_EXPERIMENT_ID`, if needed.
+        :data:`DEFAULT_EXPERIMENT_ID`, if needed, which starts at time 0.
+        Every experiment keeps the period that starts it, without conditions
+        if all of them were replaced, since a period's time overrides the
+        model's initial time.
 
     **Scope:** conversion is supported for SBML assignment rules that depend
     on time through the conditions of piecewise functions, and at most
@@ -735,13 +738,22 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     else:
         default_experiment = None
     # periods that are dropped if all their conditions were replaced
-    droppable = {
-        id(p) for e in experiments for p in e.periods if p.condition_ids
-    }
+    droppable = set()
     for experiment in experiments:
         if all(p.is_preequilibration for p in experiment.periods):
-            experiment += (period := ExperimentPeriod(time=0))
-            droppable.add(id(period))
+            experiment += ExperimentPeriod(time=0)
+        # The period that starts the experiment stays, even without
+        #  conditions: its time overrides the model's initial time, so the
+        #  experiment would start at its first switch instead.
+        start = min(
+            (p for p in experiment.periods if not p.is_preequilibration),
+            key=lambda p: p.time,
+        )
+        droppable |= {
+            id(p)
+            for p in experiment.periods
+            if p.condition_ids and p is not start
+        }
 
     # (experiment, period start time, target ID, target value)
     additions = []
@@ -872,21 +884,16 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                         switch_values.append((t, value))
                     previous = value
                 # The model already has the pre-switch value at the start of
-                #  the first period, unless that value refers to parameter
-                #  table symbols, for which the model only has a number. The
-                #  switches can become the first periods if they only refer
-                #  to parameter table symbols. A ramp's start and slope are
-                #  always set by the tables.
+                #  the first period, which stays even without conditions,
+                #  unless that value refers to parameter table symbols, for
+                #  which the model only has a number. A ramp's start and slope
+                #  are always set by the tables.
                 redundant = (
                     not ramps
                     and i_period == 0
                     and (start_value - default).is_zero
                     and not {str(s) for s in default.free_symbols}
                     & parameter_ids
-                    and all(
-                        {str(s) for s in value.free_symbols} <= parameter_ids
-                        for _, value in switch_values
-                    )
                 )
                 after_preequilibration = (
                     i_period > 0 and periods[i_period - 1].is_preequilibration
@@ -973,7 +980,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             p
             for p in experiment.periods
             if p.condition_ids or id(p) not in droppable
-        ] or experiment.periods[:1]
+        ]
 
     if default_experiment and any(
         p.condition_ids for p in default_experiment.periods
