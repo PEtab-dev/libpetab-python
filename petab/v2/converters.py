@@ -838,11 +838,15 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                         switch_values.append((t, value))
                     previous = value
                 # The model already has the pre-switch value at the start of
-                #  the first period, and the switches can become the first
-                #  periods if they only refer to parameter table symbols.
+                #  the first period, unless that value refers to parameter
+                #  table symbols, for which the model only has a number. The
+                #  switches can become the first periods if they only refer
+                #  to parameter table symbols.
                 redundant = (
                     i == 0
                     and (start_value - default).is_zero
+                    and not {str(s) for s in default.free_symbols}
+                    & parameter_ids
                     and all(
                         {str(s) for s in value.free_symbols} <= parameter_ids
                         for _, value in switch_values

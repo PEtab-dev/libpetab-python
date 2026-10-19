@@ -760,6 +760,57 @@ def test_assignments_to_experiments_nested():
     assert converted.condition_df.equals(conditions_expected)
 
 
+def test_assignments_to_experiments_parameter_table_default():
+    """Test that a pre-switch value that refers to parameter table symbols is
+    set at the start, since the model only has a number for it."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        d1 = 1;
+        d2 = 2;
+        k1 := piecewise(d1, time < 10, d2);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter(
+        "d1", estimate=True, lb=1e-3, ub=1e3, nominal_value=3
+    )
+    problem.add_parameter(
+        "d2", estimate=True, lb=1e-3, ub=1e3, nominal_value=4
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID] * 2,
+            v2.C.TIME: [0.0, 10.0],
+            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+        }
+    )
+
+    conditions_expected = pd.DataFrame(
+        data={
+            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+            v2.C.TARGET_ID: ["k1", "k1"],
+            v2.C.TARGET_VALUE: ["d1", "d2"],
+        }
+    )
+
+    assert converted.experiment_df.equals(experiments_expected)
+    assert converted.condition_df.equals(conditions_expected)
+
+
 def test_assignments_to_experiments_condition_specific():
     """Test conversion of piecewise assignments whose switching times and
     values are set by the condition table."""
