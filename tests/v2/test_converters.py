@@ -1,6 +1,7 @@
 from math import inf
 
 import pandas as pd
+import pytest
 import sympy as sp
 from sbmlmath import sbml_math_to_sympy
 
@@ -286,3 +287,124 @@ def test_simulate_experiment_to_events():
 
     for col in df_expected.columns:
         assert (df_expected[col] == df_actual[col]).all()
+
+
+def _event_priorities(sbml_model) -> dict[str, float | None]:
+    """Get the numeric priorities of all events in the given model."""
+    return {
+        ev.getId(): float(sbml_math_to_sympy(ev.getPriority()))
+        if ev.isSetPriority() and ev.getPriority().getMath() is not None
+        else None
+        for ev in sbml_model.getListOfEvents()
+    }
+
+
+def _problem_0030(model_events: str) -> Problem:
+    """PEtab test suite case 0030 with the given model events."""
+    ant_model = f"""
+    compartment C = 4
+    species S in C = 3
+    p = 1
+    S' = p
+    {model_events}
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_condition("condition1", S=2)
+    problem.add_condition("condition2", S="S + C", C=8)
+    problem.add_experiment("experiment1", 0, "condition1", 10, "condition2")
+    return problem
+
+
+E0 = "E0: at time >= 10, fromTrigger=false: C = C * 2"
+E0_PRIO = "E0: at time >= 10, priority=-2, fromTrigger=false: C = C * 2"
+E1 = "E1: at time >= 20, fromTrigger=false: C = C"
+E1_PRIO = "E1: at time >= 20, priority=5, fromTrigger=false: C = C"
+E1_PRIO_NEG_INF = "E1: at time >= 20, priority=-inf, fromTrigger=false: C = C"
+E1_PRIO_INF = "E1: at time >= 20, priority=inf, fromTrigger=false: C = C"
+E2_PRIO = "E2: at time >= 30, priority=5, fromTrigger=false: C = C"
+PETAB_EVENT = "_petab_event_experiment1_1"
+
+
+@pytest.mark.parametrize(
+    "model_events,expected",
+    [
+        # single unprioritized event
+        (E0, {"E0": 0, PETAB_EVENT: 1}),
+        # one unprioritized event, others prioritized
+        (f"{E0}\n{E1_PRIO}", {"E0": 4, "E1": 5, PETAB_EVENT: 6}),
+        # no distinct lower priority available: no automatic assignment for
+        #  the unprioritized event
+        (
+            f"{E0}\n{E1_PRIO_NEG_INF}",
+            {"E0": None, "E1": -inf, PETAB_EVENT: 1},
+        ),
+        # all events prioritized: unchanged
+        (f"{E0_PRIO}\n{E1_PRIO}", {"E0": -2, "E1": 5, PETAB_EVENT: 6}),
+        # multiple unprioritized events: no automatic assignment
+        (f"{E0}\n{E1}", {"E0": None, "E1": None, PETAB_EVENT: None}),
+        # no model events
+        ("", {PETAB_EVENT: None}),
+    ],
+)
+def test_auto_event_priority(model_events, expected):
+    """Test automatic priority assignment for pre-existing events."""
+    problem = _problem_0030(model_events)
+    orig_priorities = _event_priorities(problem.model.sbml_model)
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+
+    assert _event_priorities(converted.model.sbml_model) == expected
+    # the original problem is not modified
+    assert _event_priorities(problem.model.sbml_model) == orig_priorities
+
+
+def test_auto_event_priority_empty_priority():
+    """A priority without math is treated as unset."""
+    problem = _problem_0030(E0)
+    problem.model.sbml_model.getEvent("E0").createPriority()
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+
+    assert _event_priorities(converted.model.sbml_model) == {
+        "E0": 0,
+        PETAB_EVENT: 1,
+    }
+    # the original problem is not modified
+    assert _event_priorities(problem.model.sbml_model) == {"E0": None}
+
+
+def test_explicit_default_priority():
+    """An explicit default priority takes precedence.
+
+    It only applies to events without priority."""
+    problem = _problem_0030(f"{E0}\n{E1}\n{E2_PRIO}")
+
+    converted = ExperimentsToSbmlConverter(
+        problem, default_priority=3
+    ).convert()
+
+    assert _event_priorities(converted.model.sbml_model) == {
+        "E0": 3,
+        "E1": 3,
+        "E2": 5,
+        PETAB_EVENT: 6,
+    }
+
+
+def test_infinite_priority():
+    """Test handling of a pre-existing event with priority +inf.
+
+    The condition-change events cannot get a higher priority, but a lower
+    priority can still be assigned to an unprioritized event."""
+    problem = _problem_0030(f"{E0}\n{E1_PRIO_INF}\n{E2_PRIO}")
+
+    with pytest.warns(UserWarning, match="Event `E1` has priority inf"):
+        converted = ExperimentsToSbmlConverter(problem).convert()
+
+    assert _event_priorities(converted.model.sbml_model) == {
+        "E0": 4,
+        "E1": inf,
+        "E2": 5,
+        PETAB_EVENT: inf,
+    }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import math
 import warnings
 from copy import deepcopy
 
@@ -22,6 +24,8 @@ from .models.sbml_model import SbmlModel
 
 __all__ = ["ExperimentsToSbmlConverter", "assignments_to_experiments"]
 
+logger = logging.getLogger(__name__)
+
 
 class ExperimentsToSbmlConverter:
     """Convert PEtab experiments to SBML.
@@ -29,11 +33,17 @@ class ExperimentsToSbmlConverter:
     For an SBML-model-based PEtab problem, this class converts the PEtab
     experiments to initial assignments and events as far as possible.
 
-    If the model already contains events, PEtab events are added with a higher
-    priority than the existing events to guarantee that PEtab condition changes
-    are applied before any pre-existing assignments.
+    If the model already contains events, the events implementing the PEtab
+    condition changes are added with a higher priority than the pre-existing
+    events, so that these changes are applied before any pre-existing
+    assignments.
     This requires that all event priorities in the original model are numeric
     constants.
+    If exactly one pre-existing event has no priority, it is assigned a
+    priority lower than all other priorities in the model.
+    If multiple events have no priority, their order relative to the
+    condition-change events is undefined, unless ``default_priority`` is
+    provided.
 
     The PEtab problem must not contain any identifiers starting with
     ``_petab``.
@@ -71,10 +81,15 @@ class ExperimentsToSbmlConverter:
             In SBML, for event assignments that are to be applied at the same
             simulation time, the order of event execution is determined by the
             priority of the respective events.
-            If no priority is set, the order is undefined.
+            For events without priority, the order is undefined.
             See SBML specs for details.
-            To ensure that the PEtab condition-start-events are executed before
+            To ensure that the condition-change events are executed before
             any other events, all events should have a priority set.
+            Note that, according to the SBML specs, events with equal
+            priorities that are executed simultaneously must be executed in
+            random order.
+            If ``None``, a priority is only assigned automatically if exactly
+            one pre-existing event has no priority.
         """
         if len(problem.models) > 1:
             #  https://github.com/PEtab-dev/libpetab-python/issues/392
@@ -97,7 +112,7 @@ class ExperimentsToSbmlConverter:
 
         # The maximum event priority that was found in the unprocessed model.
         self._max_event_priority = None
-        # The priority that will be used for the PEtab events.
+        # The priority that will be used for the condition-change events.
         self._petab_event_priority = None
         self._default_priority = default_priority
         self._preprocess()
@@ -125,35 +140,30 @@ class ExperimentsToSbmlConverter:
         # Apply default priority to all events that do not have a priority
         if self._default_priority is not None:
             for event in model.getListOfEvents():
-                if (
-                    not event.getPriority()
-                    or event.getPriority().getMath() is None
-                ):
+                if not self._has_priority(event):
                     priority = event.createPriority()
                     priority.setMath(
                         libsbml.parseL3Formula(str(self._default_priority))
                     )
+        else:
+            self._auto_assign_priority(self._get_event_priorities())
 
-        # Collect event priorities
-        event_priorities = {
-            ev.getId() or str(ev): sbml_math_to_sympy(ev.getPriority())
-            for ev in model.getListOfEvents()
-            if ev.getPriority() and ev.getPriority().getMath() is not None
-        }
-
-        # Check for non-constant event priorities and track the maximum
-        #  priority used so far.
-        for e, priority in event_priorities.items():
-            if priority.free_symbols:
-                # We'd need to find the maximum priority of all events,
-                #  which is challenging/impossible to do in general.
-                raise NotImplementedError(
-                    f"Event `{e}` has a non-constant priority: {priority}. "
-                    "This is currently not supported."
+        # Track the maximum priority used so far
+        event_priorities = self._get_event_priorities()
+        for event_id, priority in event_priorities.items():
+            if math.isnan(priority) or priority == math.inf:
+                warnings.warn(
+                    f"Event `{event_id}` has priority {priority}. "
+                    "The condition-change events cannot be assigned a "
+                    "higher priority. Make sure that this event cannot "
+                    "trigger at the time of a PEtab condition change, "
+                    "otherwise simulation results may be incorrect.",
+                    stacklevel=1,
                 )
-            self._max_event_priority = max(
-                self._max_event_priority or 0, float(priority)
-            )
+        if non_nan := [
+            p for p in event_priorities.values() if not math.isnan(p)
+        ]:
+            self._max_event_priority = max(0, *non_nan)
 
         self._petab_event_priority = (
             self._max_event_priority + 1
@@ -189,6 +199,80 @@ class ExperimentsToSbmlConverter:
                     "simulation results may be incorrect.",
                     stacklevel=1,
                 )
+
+    @staticmethod
+    def _has_priority(event: libsbml.Event) -> bool:
+        """Check whether the given event has a priority expression."""
+        return (
+            event.isSetPriority() and event.getPriority().getMath() is not None
+        )
+
+    def _get_event_priorities(self) -> dict[str, float]:
+        """Get the priorities of all events that have a priority.
+
+        :return: Mapping of event IDs to priorities.
+        :raises NotImplementedError: If any priority is not constant.
+        """
+        event_priorities = {}
+        for ev in self._model.getListOfEvents():
+            if not self._has_priority(ev):
+                continue
+            event_id = ev.getId() or str(ev)
+            priority = sbml_math_to_sympy(ev.getPriority())
+            if priority.free_symbols:
+                # We'd need to find the maximum priority of all events,
+                #  which is challenging/impossible to do in general.
+                raise NotImplementedError(
+                    f"Event `{event_id}` has a non-constant priority: "
+                    f"{priority}. This is currently not supported."
+                )
+            event_priorities[event_id] = float(priority)
+        return event_priorities
+
+    def _auto_assign_priority(
+        self, event_priorities: dict[str, float]
+    ) -> None:
+        """Assign a priority to a single unprioritized pre-existing event.
+
+        If exactly one pre-existing event has no priority, and no other
+        event has priority ``-inf`` or ``NaN``, the unprioritized event is
+        assigned a priority lower than any other finite priority in the
+        model.
+        Without priority, the order of this event with respect to all other
+        events is undefined, so assigning a priority only selects one of the
+        admissible orders. A distinct priority cannot create ties, which
+        would require random execution order (SBML L3V2 §4.12.3). This allows
+        executing the condition-change events before this event.
+
+        If more than one event has no priority, no priority is assigned,
+        since this would impose an arbitrary order on them if they are
+        executed simultaneously.
+
+        :param event_priorities: The priorities of all prioritized events.
+        """
+        unprioritized = [
+            ev
+            for ev in self._model.getListOfEvents()
+            if not self._has_priority(ev)
+        ]
+        if len(unprioritized) != 1:
+            return
+
+        priorities = event_priorities.values()
+        if any(math.isnan(p) or p == -math.inf for p in priorities):
+            # no distinct lower priority available
+            return
+
+        value = min((p for p in priorities if p != math.inf), default=1) - 1
+        event = unprioritized[0]
+        priority = event.createPriority()
+        set_math(priority, value)
+        logger.debug(
+            "Assigned priority %s to event `%s` to ensure that the "
+            "condition-change events are executed before this event.",
+            value,
+            event.getId(),
+        )
 
     def convert(self) -> Problem:
         """Convert the PEtab experiments to SBML events.
