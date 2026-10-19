@@ -8,7 +8,7 @@ import os
 import tempfile
 import traceback
 from abc import abstractmethod
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from enum import StrEnum
 from itertools import chain
 from math import nan
@@ -1799,6 +1799,72 @@ class Problem:
         if self.config is None:
             self.config = ProblemConfig(format_version="2.0.0")
         self.config.id = value
+
+    def get_unused_id(
+        self, base: str, *, exclude: Collection[str] = ()
+    ) -> str:
+        """Get an identifier that is not used in the problem yet.
+
+        Returns `base` if it is unused, otherwise the first unused
+        `base_1`, `base_2`, ....
+        An identifier is used if it is a PEtab entity ID, a condition target,
+        a model entity ID, or a symbol in any expression or override.
+
+        :param base: The preferred identifier.
+        :param exclude: Additional identifiers to treat as used, e.g., IDs
+            already chosen for entities that are not added to the problem yet.
+        :return: The unused identifier.
+        """
+        if not is_valid_identifier(base):
+            raise ValueError(f"`{base}' is not a valid identifier.")
+
+        used_ids = self._get_used_ids()
+
+        def is_used(id_: str) -> bool:
+            return (
+                id_ in used_ids
+                or id_ in exclude
+                or any(m.has_entity_with_id(id_) for m in self.models)
+            )
+
+        id_ = base
+        i = 0
+        while is_used(id_):
+            i += 1
+            id_ = f"{base}_{i}"
+        return id_
+
+    def _get_used_ids(self) -> set[str]:
+        """Get all IDs and symbols used in the PEtab tables."""
+        ids = {p.id for p in self.parameters}
+        ids |= {o.id for o in self.observables}
+        ids |= {c.id for c in self.conditions}
+        ids |= {e.id for e in self.experiments}
+        ids |= {m.petab_id for m in self.mappings}
+        ids |= {ch.target_id for c in self.conditions for ch in c.changes}
+        expressions = chain(
+            chain.from_iterable(
+                (
+                    *o.observable_placeholders,
+                    *o.noise_placeholders,
+                    o.formula,
+                    o.noise_formula,
+                )
+                for o in self.observables
+            ),
+            (ch.target_value for c in self.conditions for ch in c.changes),
+            chain.from_iterable(
+                chain(m.observable_parameters, m.noise_parameters)
+                for m in self.measurements
+            ),
+        )
+        ids |= {
+            str(s)
+            for expr in expressions
+            if expr is not None
+            for s in expr.free_symbols
+        }
+        return ids
 
     def get_optimization_parameters(self) -> list[str]:
         """
