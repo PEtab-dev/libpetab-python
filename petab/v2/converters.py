@@ -902,7 +902,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         for experiment in experiments:
             periods = experiment.sorted_periods
             overrides = {}
-            for i, period in enumerate(periods):
+            for i_period, period in enumerate(periods):
                 changes = problem.get_changes_for_period(period)
                 overrides |= {c.target_id: c.target_value for c in changes}
                 subs = fixed_values | {
@@ -936,7 +936,11 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                         )
                     continue
 
-                t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
+                t_end = (
+                    periods[i_period + 1].time
+                    if i_period + 1 < len(periods)
+                    else sp.oo
+                )
                 start_value = _value_from(
                     expr, switches, time, subs, times, period.time
                 )
@@ -956,7 +960,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                 #  always set by the tables.
                 redundant = (
                     not ramps
-                    and i == 0
+                    and i_period == 0
                     and (start_value - default).is_zero
                     and not {str(s) for s in default.free_symbols}
                     & parameter_ids
@@ -966,15 +970,15 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                     )
                 )
                 after_preequilibration = (
-                    i > 0 and periods[i - 1].is_preequilibration
+                    i_period > 0 and periods[i_period - 1].is_preequilibration
                 )
                 if not redundant and (
-                    i == 0
+                    i_period == 0
                     or {c.target_id for c in changes} & symbol_ids
                     # preequilibration held the slope at zero
                     or (ramps and after_preequilibration)
                 ):
-                    if i == 0:
+                    if i_period == 0:
                         # at the start of an experiment, a change may only
                         #  refer to parameter table symbols; other symbols
                         #  are constant model parameters, at their values
