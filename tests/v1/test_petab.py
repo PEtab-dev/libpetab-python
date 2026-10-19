@@ -9,13 +9,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from petab.C import *
-from petab.models.sbml_model import SbmlModel
 from yaml import safe_load
 
-import petab
-import petab.v1
+import petab.v1 as petab
 from petab.v1 import Problem
+from petab.v1.C import *
+from petab.v1.models.sbml_model import SbmlModel
 
 
 @pytest.fixture
@@ -312,7 +311,7 @@ def test_create_parameter_df(
     # Test old API with passing libsbml.Model directly
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        parameter_df = petab.v1.create_parameter_df(
+        parameter_df = petab.create_parameter_df(
             sbml_model=model.sbml_model,
             condition_df=condition_df_2_conditions,
             observable_df=observable_df,
@@ -885,7 +884,7 @@ def test_problem_from_yaml_v1_multiple_files():
         petab_problem1 = petab.Problem.from_yaml(yaml_path)
 
         # test that we can load the problem from a dict with a custom base path
-        yaml_config = petab.v1.load_yaml(yaml_path)
+        yaml_config = petab.load_yaml(yaml_path)
         petab_problem2 = petab.Problem.from_yaml(yaml_config, base_path=tmpdir)
 
     for petab_problem in (petab_problem1, petab_problem2):

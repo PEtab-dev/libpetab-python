@@ -144,10 +144,16 @@ def petab_files_1to2(
         v2.write_observable_df(observable_df, get_dest_path(observable_file))
 
     # Update condition table
+    #  (tables without any condition-specific changes are omitted)
+    condition_files = []
     for condition_file in new_yaml_config.condition_files:
         condition_df = v1.get_condition_df(get_src_path(condition_file))
         condition_df = v1v2_condition_df(condition_df, petab_problem.model)
+        if condition_df.empty:
+            continue
         v2.write_condition_df(condition_df, get_dest_path(condition_file))
+        condition_files.append(condition_file)
+    new_yaml_config.condition_files = condition_files
 
     # records for the experiment table to be created
     experiments = []

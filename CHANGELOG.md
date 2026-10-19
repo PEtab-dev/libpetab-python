@@ -1,5 +1,69 @@
 # PEtab changelog
 
+## 0.10 series
+
+### 0.10.0 (unreleased)
+
+**Breaking changes**
+* Removed the deprecated top-level aliases for `petab.v1` (deprecated since
+  0.4.0). Accessing `petab.<name>` or importing `petab.<module>` for anything
+  other than `petab.v1`, `petab.v2`, `petab.ENV_NUM_THREADS` and
+  `petab.__version__` now raises `AttributeError` / `ModuleNotFoundError`.
+  Use `petab.v1.<name>` instead, e.g., `import petab.v1 as petab`.
+  `import petab` no longer imports `petab.v1`.
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/538)
+* `petab.v2.Parameter` has a new `name` field for the `parameterName` column,
+  which was previously stored as an extra attribute `parameterName`.
+  `BaseTable` subclasses now implement `_to_df` instead of `to_df`.
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+
+**Fixes**
+* `get_model_for_condition` no longer turns rate-rule targets that are
+  overridden in the condition table into constants
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/520)
+* Raise a clear error for a PEtab YAML file with an empty `problems` section
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/521)
+* Several fixes to the v1-to-v2 converter (`petab1to2`): keep
+  pre-equilibration for conditions that set nothing, order placeholders by
+  index instead of lexicographically, rescale noise and priors when
+  converting `log10` to `log`, and fix the conversion of `logNormal`,
+  `logLaplace` and `parameterScaleUniform` priors
+  (by @FFroehlich in
+  https://github.com/PEtab-dev/libpetab-python/pull/532,
+  https://github.com/PEtab-dev/libpetab-python/pull/533,
+  https://github.com/PEtab-dev/libpetab-python/pull/535, and
+  https://github.com/PEtab-dev/libpetab-python/pull/536)
+* `petab_math_str` now produces valid PEtab math expressions for boolean
+  operators, (in)equality, `min`/`max`, powers with negative bases, and
+  `pi`/`e`, and prints floats without loss of precision. PEtab v2 condition
+  and measurement tables now write expressions in PEtab syntax
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/545)
+* `petab.v2.ProblemConfig.to_yaml` no longer writes empty optional entries
+  (`condition_files`, `experiment_files`, `mapping_files`, `extensions`)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+* `to_df` no longer fails for empty v2 parameter, observable and measurement
+  tables
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+* `petab1to2` no longer writes condition tables without any
+  condition-specific changes
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/554)
+* `petab.v2.ConditionTable.from_df` no longer stores the condition ID on
+  each `Change`, which caused renamed conditions to be written with their
+  old ID
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/551)
+
+**Features**
+* `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
+  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/534)
+* Added `petab.v2.C.PROBLEM_CONFIG_REQUIRED_KEYS` and
+  `petab.v2.C.PROBLEM_CONFIG_OPTIONAL_KEYS`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+* PEtab v2 tables can omit empty columns or columns at their default values
+  via `to_df(columns=...)`, `to_tsv(columns=...)` and
+  `Problem.to_files(columns=...)`, or globally via `petab.v2.set_options` and
+  `petab.v2.option_context`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+
 ## 0.9 series
 
 ### 0.9.0

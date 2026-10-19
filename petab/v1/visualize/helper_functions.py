@@ -1,7 +1,7 @@
 """
 This file should contain the functions, which PEtab internally needs for
 plotting, but which are not meant to be used by non-developers and should
-hence not be directly visible/usable when using `import petab.visualize`.
+hence not be directly visible/usable when using `import petab.v1.visualize`.
 """
 
 import pandas as pd

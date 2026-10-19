@@ -8,7 +8,7 @@ import pytest
 from petab.v1.models.sbml_model import SbmlModel, sympify_sbml
 
 sys.path.append(os.getcwd())
-import petab
+import petab.v1 as petab
 
 
 def create_test_data():

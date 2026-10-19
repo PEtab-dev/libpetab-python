@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import petab
+if TYPE_CHECKING:
+    import petab
 
 __all__ = [
     "get_major_version",
     "parse_version",
 ]
-from . import v1
 
 # version regex pattern
 _version_pattern = (
@@ -43,6 +44,8 @@ def get_major_version(
     problem: str | dict | Path | petab.v1.Problem | petab.v2.Problem,
 ) -> int:
     """Get the major version number of the given problem."""
+    from . import v1
+
     version = None
 
     if isinstance(problem, str | Path):
@@ -57,7 +60,7 @@ def get_major_version(
         version = str(version)
         return int(version.split(".")[0])
 
-    if isinstance(problem, petab.v1.Problem):
+    if isinstance(problem, v1.Problem):
         return 1
 
     from . import v2

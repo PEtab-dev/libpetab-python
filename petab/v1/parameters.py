@@ -193,7 +193,7 @@ def create_parameter_df(
     if sbml_model:
         warnings.warn(
             "Passing a model via the `sbml_model` argument is "
-            "deprecated, use `model=petab.models.sbml_model."
+            "deprecated, use `model=petab.v1.models.sbml_model."
             "SbmlModel(...)` instead.",
             DeprecationWarning,
             stacklevel=2,

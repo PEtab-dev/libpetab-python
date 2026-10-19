@@ -185,7 +185,7 @@ def get_hyperparameter_replacement_id(
 
 
 def get_flattened_id_mappings(
-    petab_problem: "petab.problem.Problem",
+    petab_problem: "petab.v1.problem.Problem",
 ) -> dict[str, dict[str, str]]:
     """Get mapping from unflattened to flattened observable IDs.
 
@@ -240,7 +240,7 @@ def get_flattened_id_mappings(
 
 
 def flatten_timepoint_specific_output_overrides(
-    petab_problem: "petab.problem.Problem",
+    petab_problem: "petab.v1.problem.Problem",
 ) -> None:
     """Flatten timepoint-specific output parameter overrides.
 
@@ -322,7 +322,7 @@ def flatten_timepoint_specific_output_overrides(
 
 def unflatten_simulation_df(
     simulation_df: pd.DataFrame,
-    petab_problem: "petab.problem.Problem",
+    petab_problem: "petab.v1.problem.Problem",
 ) -> pd.DataFrame:
     """Unflatten simulations from a flattened PEtab problem.
 

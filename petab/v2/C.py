@@ -45,8 +45,8 @@ MODEL_ID = "modelId"
 MEASUREMENT_DF_REQUIRED_COLS = [
     OBSERVABLE_ID,
     EXPERIMENT_ID,
-    MEASUREMENT,
     TIME,
+    MEASUREMENT,
 ]
 
 #: Optional columns of measurement table
@@ -91,13 +91,13 @@ PARAMETER_DF_REQUIRED_COLS = [
     PARAMETER_ID,
     LOWER_BOUND,
     UPPER_BOUND,
+    NOMINAL_VALUE,
     ESTIMATE,
 ]
 
 #: Optional columns of parameter table
 PARAMETER_DF_OPTIONAL_COLS = [
     PARAMETER_NAME,
-    NOMINAL_VALUE,
     PRIOR_DISTRIBUTION,
     PRIOR_PARAMETERS,
 ]
@@ -234,6 +234,8 @@ NOISE_DISTRIBUTIONS = [NORMAL, LAPLACE, LOG_NORMAL, LOG_LAPLACE]
 # YAML
 #: PEtab version key in the YAML file
 FORMAT_VERSION = "format_version"
+#: Problem ID key in the YAML file
+PROBLEM_ID = "id"
 #: Parameter files key in the YAML file
 PARAMETER_FILES = "parameter_files"
 #: Problems key in the YAML file
@@ -260,6 +262,23 @@ MAPPING_FILES = "mapping_files"
 EXTENSIONS = "extensions"
 #: PEtab SciML extension
 EXT_ID_SCIML = "sciml"
+
+#: Required top-level keys in the problem YAML file
+PROBLEM_CONFIG_REQUIRED_KEYS = [
+    FORMAT_VERSION,
+    PARAMETER_FILES,
+    MODEL_FILES,
+    OBSERVABLE_FILES,
+    MEASUREMENT_FILES,
+]
+#: Optional top-level keys in the problem YAML file
+PROBLEM_CONFIG_OPTIONAL_KEYS = [
+    PROBLEM_ID,
+    CONDITION_FILES,
+    EXPERIMENT_FILES,
+    MAPPING_FILES,
+    EXTENSIONS,
+]
 
 
 # MAPPING

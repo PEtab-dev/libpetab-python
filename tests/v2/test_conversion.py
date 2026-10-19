@@ -11,6 +11,10 @@ from petab.v1.models.sbml_model import SbmlModel
 from petab.v1.priors import Prior
 from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
+from petab.v2.converters import (
+    DEFAULT_EXPERIMENT_ID,
+    assignments_to_experiments,
+)
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 
 
@@ -379,12 +383,16 @@ def test_petab1to2_remote():
 
 
 def _petab1to2_with_conditions(
-    tmp_path, condition_df: pd.DataFrame, conditions: list[tuple[str, str]]
+    tmp_path,
+    condition_df: pd.DataFrame,
+    conditions: list[tuple[str, str]],
+    output_dir: Path | None = None,
 ) -> Problem:
     """Convert a minimal PEtab v1 problem with the given condition table.
 
     ``conditions`` are (preequilibrationConditionId, simulationConditionId)
-    pairs, one measurement per pair.
+    pairs, one measurement per pair. If ``output_dir`` is given, the
+    converted problem is written there.
     """
     problem = v1.Problem(
         model=SbmlModel.from_antimony(
@@ -428,7 +436,11 @@ def _petab1to2_with_conditions(
             )
         ),
     )
-    return petab1to2(problem.to_files_generic(tmp_path))
+    yaml_file = problem.to_files_generic(tmp_path)
+    if output_dir is None:
+        return petab1to2(yaml_file)
+    petab1to2(yaml_file, output_dir)
+    return Problem.from_yaml(output_dir / Path(yaml_file).name)
 
 
 def _measured_periods(
@@ -504,6 +516,37 @@ def test_petab1to2_empty_conditions_no_preequilibration(tmp_path):
 
     assert problem.experiments == []
     assert _measured_periods(problem) == [None]
+
+
+@pytest.mark.parametrize("has_changes", [False, True])
+def test_petab1to2_empty_condition_table_omitted(tmp_path, has_changes):
+    """A condition table without any changes is not written."""
+    from petab.v1.yaml import load_yaml
+
+    output_dir = tmp_path / "v2"
+    problem = _petab1to2_with_conditions(
+        tmp_path,
+        pd.DataFrame(
+            {
+                v1.C.CONDITION_ID: ["c0", "steady"],
+                "A": [2.0 if has_changes else None, None],
+            }
+        ),
+        [("steady", "c0")],
+        output_dir=output_dir,
+    )
+
+    yaml_config = load_yaml(output_dir / "problem.yaml")
+    condition_file = output_dir / "conditions.tsv"
+    if has_changes:
+        assert yaml_config[v2.C.CONDITION_FILES] == ["conditions.tsv"]
+        assert condition_file.exists()
+        assert [c.id for c in problem.conditions] == ["c0"]
+    else:
+        assert v2.C.CONDITION_FILES not in yaml_config
+        assert not condition_file.exists()
+        assert problem.conditions == []
+    assert problem.validate() == []
 
 
 def test_petab1to2_validate(tmp_path):
@@ -611,3 +654,347 @@ def test_benchmark_collection(problem_id):
         pytest.skip(str(e))
     assert isinstance(problem, Problem)
     assert len(problem.measurements)
+
+
+@pytest.mark.parametrize(
+    "condition, before, after",
+    [("time < 10", 1.0, 2.0), ("10 < time", 2.0, 1.0)],
+)
+def test_assignments_to_experiments(condition, before, after):
+    """Test that switches in either direction are converted."""
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 = piecewise(1, {condition}, 2);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=0.0, measurement=10.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    # the value before the switch is kept in the model, so that only the
+    #  switch itself needs a condition
+    assert converted.model.sbml_model.getParameter("k1").getValue() == before
+
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID],
+            v2.C.TIME: [10.0],
+            v2.C.CONDITION_ID: ["cond_0"],
+        }
+    )
+
+    conditions_expected = pd.DataFrame(
+        data={
+            v2.C.CONDITION_ID: ["cond_0"],
+            v2.C.TARGET_ID: ["k1"],
+            v2.C.TARGET_VALUE: [after],
+        }
+    )
+
+    assert converted.experiment_df.equals(experiments_expected)
+    assert converted.condition_df.equals(conditions_expected)
+    assert converted.measurement_df[v2.C.EXPERIMENT_ID].tolist() == [
+        DEFAULT_EXPERIMENT_ID,
+        DEFAULT_EXPERIMENT_ID,
+    ]
+
+
+def test_assignments_to_experiments_nested():
+    """Test conversion of piecewise assignments that are nested inside a
+    larger expression and switch at a time given by some expression."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        level = 3;
+        k1 := level * piecewise(0, time - 10 < 0, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=0.0, measurement=10.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    assert converted.model.sbml_model.getParameter("k1").getValue() == 0.0
+
+    # `level` is not a parameter table entry, so it must not appear in the
+    #  first period -- the pre-dose value is kept as a condition here
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID] * 2,
+            v2.C.TIME: [0.0, 10.0],
+            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+        }
+    )
+
+    # the factor outside the piecewise expression is preserved
+    conditions_expected = pd.DataFrame(
+        data={
+            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+            v2.C.TARGET_ID: ["k1", "k1"],
+            v2.C.TARGET_VALUE: [0.0, "level"],
+        }
+    )
+
+    assert converted.experiment_df.equals(experiments_expected)
+    assert converted.condition_df.equals(conditions_expected)
+
+
+def test_assignments_to_experiments_condition_specific():
+    """Test conversion of piecewise assignments whose switching times and
+    values are set by the condition table."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        dose = 0;
+        dose_time = 0;
+        k1 := dose * piecewise(0, time - dose_time < 0, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_condition("c1", dose=2.0, dose_time=10.0)
+    problem.add_condition("c2", dose=3.0, dose_time=20.0)
+    problem.add_experiment("experiment____c1", 0, "c1")
+    problem.add_experiment("experiment____c2", 0, "c2")
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="experiment____c1", time=30.0, measurement=10.0
+    )
+    problem.add_measurement(
+        "obs_a", experiment_id="experiment____c2", time=30.0, measurement=5.0
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    # the pre-dose value is the same for both conditions and is kept in the
+    #  model; each condition gets its own experiment and switching time
+    assert converted.model.sbml_model.getParameter("k1").getValue() == 0.0
+
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: ["experiment____c1", "experiment____c2"],
+            v2.C.TIME: [10.0, 20.0],
+            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+        }
+    )
+
+    # `dose` and `dose_time` are covered by the new conditions
+    conditions_expected = pd.DataFrame(
+        data={
+            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+            v2.C.TARGET_ID: ["k1", "k1"],
+            v2.C.TARGET_VALUE: [2.0, 3.0],
+        }
+    )
+
+    assert converted.experiment_df.equals(experiments_expected)
+    assert converted.condition_df.equals(conditions_expected)
+    assert converted.measurement_df[v2.C.EXPERIMENT_ID].tolist() == [
+        "experiment____c1",
+        "experiment____c2",
+    ]
+
+
+def test_assignments_to_experiments_preequilibration():
+    """Test that the converted assignments are applied during
+    preequilibration, using the preequilibration condition's values."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        dose = 0;
+        dose_time = 0;
+        k1 := dose * piecewise(0, time - dose_time < 0, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_condition("c1", dose=2.0, dose_time=10.0)
+    # the dose is present from the start, i.e. also during preequilibration
+    problem.add_condition("c2", dose=3.0, dose_time=0.0)
+    problem.add_experiment(
+        "experiment__c2___c1", v2.C.TIME_PREEQUILIBRATION, "c2", 0, "c1"
+    )
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a",
+        experiment_id="experiment__c2___c1",
+        time=30.0,
+        measurement=10.0,
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    with pytest.warns(UserWarning, match="during preequilibration"):
+        converted = assignments_to_experiments(problem)
+
+    # the dose is applied during preequilibration, so the reset to the
+    #  pre-dose value at t=0 is not redundant here and must be kept
+    experiments_expected = pd.DataFrame(
+        data={
+            v2.C.EXPERIMENT_ID: ["experiment__c2___c1"] * 3,
+            v2.C.TIME: [v2.C.TIME_PREEQUILIBRATION, 0.0, 10.0],
+            v2.C.CONDITION_ID: ["cond_0", "cond_1", "cond_2"],
+        }
+    )
+
+    conditions_expected = pd.DataFrame(
+        data={
+            v2.C.CONDITION_ID: ["cond_0", "cond_1", "cond_2"],
+            v2.C.TARGET_ID: ["k1", "k1", "k1"],
+            v2.C.TARGET_VALUE: [3.0, 0.0, 2.0],
+        }
+    )
+
+    assert converted.experiment_df.equals(experiments_expected)
+    assert converted.condition_df.equals(conditions_expected)
+
+
+@pytest.mark.parametrize(
+    "assignment, match",
+    [
+        ("piecewise(0, time < 10, 1) + piecewise(0, time < 20, 1)", "single"),
+        ("piecewise(0, time < 10, 1, time < 20, 2)", "single"),
+        ("piecewise(0, time == 10, 1)", "single"),
+        ("piecewise(0, time^2 < 10, 1)", "single"),
+        ("piecewise(time, time < 10, 1)", "single"),
+        ("piecewise(0, time < t_dose, 1)", "evaluate to a real number"),
+        ("piecewise(0, time < A, 1)", "constant model parameters"),
+        ("A * piecewise(0, time < 10, 1)", "constant model parameters"),
+    ],
+)
+def test_assignments_to_experiments_unsupported(assignment, match):
+    """Test that assignments outside the supported scope are rejected."""
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        t_dose = 5;
+        k1 := {assignment};
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=0.0, measurement=10.0)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+    problem.add_parameter("t_dose", estimate=True, lb=0, ub=10)
+
+    with pytest.raises(NotImplementedError, match=match):
+        assignments_to_experiments(problem)
+
+
+@pytest.mark.parametrize("t_switch", [0, 10])
+@pytest.mark.parametrize(
+    "condition, holds_at_switch, holds_before",
+    [
+        ("time < {t}", False, True),
+        ("time <= {t}", True, True),
+        ("time > {t}", False, False),
+        ("time >= {t}", True, False),
+        ("{t} >= time", True, True),
+    ],
+)
+def test_assignments_to_experiments_preequilibration_boundary(
+    t_switch, condition, holds_at_switch, holds_before
+):
+    """Test that preequilibration uses the assignment's value at time 0,
+    including whether the condition holds for a switch at time 0."""
+    condition = condition.format(t=t_switch)
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 := piecewise(0, {condition}, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_experiment("e1", v2.C.TIME_PREEQUILIBRATION, [], 0, [])
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="e1", time=20.0, measurement=5.0
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    with pytest.warns(UserWarning, match="during preequilibration"):
+        converted = assignments_to_experiments(problem)
+
+    holds_at_0 = holds_at_switch if t_switch == 0 else holds_before
+    (preeq_period,) = (
+        p for p in converted.experiments[0].periods if p.is_preequilibration
+    )
+    assert [
+        (c.target_id, float(c.target_value))
+        for c in converted.get_changes_for_period(preeq_period)
+    ] == [("k1", 0.0 if holds_at_0 else 1.0)]
+
+
+def test_assignments_to_experiments_validate():
+    """Test that the converted problem is linted.
+
+    Here, the input problem is valid, but the conversion makes the estimated
+    parameter `k1` a condition table target.
+    """
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 = piecewise(0, time < 10, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("k1", estimate=True, lb=1e-3, ub=1e3)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+    assert not problem.validate().has_errors()
+
+    with pytest.raises(ValueError, match="did not pass linting"):
+        assignments_to_experiments(problem)

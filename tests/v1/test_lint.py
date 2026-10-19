@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from petab.C import *
 
-import petab
-from petab import lint
+import petab.v1 as petab
+from petab.v1 import lint
+from petab.v1.C import *
 
 # import fixtures
 pytest_plugins = [
@@ -256,7 +256,7 @@ def test_assert_no_leading_trailing_whitespace():
 
 
 def test_assert_model_parameters_in_condition_or_parameter_table():
-    from petab.models.sbml_model import SbmlModel
+    from petab.v1.models.sbml_model import SbmlModel
 
     ant_model = """
     parameter1 = 0.0
@@ -501,7 +501,7 @@ def test_assert_measurement_conditions_present_in_condition_table():
 def test_check_condition_df():
     """Check that we correctly detect errors in condition table"""
 
-    from petab.models.sbml_model import SbmlModel
+    from petab.v1.models.sbml_model import SbmlModel
 
     model = SbmlModel.from_antimony("")
 

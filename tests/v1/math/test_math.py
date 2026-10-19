@@ -47,6 +47,65 @@ def test_printer():
     # re-parses as (a^1)/2 (i.e. sqrt(a) would round-trip to a/2).
     assert petab_math_str(sp.sqrt(a)) == "a ^ (1/2)"
     assert petab_math_str(a ** sp.Rational(2, 3)) == "a ^ (2/3)"
+    # negative or non-integer rational bases must be parenthesized
+    assert petab_math_str(sp.Float(-2) ** a) == "(-2) ^ a"
+    assert petab_math_str(sp.Rational(2, 3) ** a) == "(2/3) ^ a"
+    # boolean and relational operators
+    assert petab_math_str(sp.And(a > 0, b < 1)) == "(a > 0) && (b < 1)"
+    assert petab_math_str(sp.Or(a > 0, b < 1)) == "(a > 0) || (b < 1)"
+    assert petab_math_str(sp.Not(sp.And(a > 0, b < 1))) == (
+        "!((a > 0) && (b < 1))"
+    )
+    assert petab_math_str(sp.Eq(a, 1)) == "a == 1"
+    assert petab_math_str(sp.Ne(a, 1)) == "a != 1"
+    # min/max are binary in PEtab
+    assert petab_math_str(sp.Min(a, b, c)) == "min(min(a, b), c)"
+    assert petab_math_str(sp.Max(a, b, c)) == "max(max(a, b), c)"
+    # no pi / e constants in PEtab
+    assert petab_math_str(sp.pi) == "3.141592653589793"
+    assert petab_math_str(sp.E) == "exp(1)"
+    assert petab_math_str(sp.E * a) == "exp(1)*a"
+    # floats round-trip exactly; integer-valued floats are printed as integers
+    assert petab_math_str(sp.Float(2.0) * a) == "2*a"
+    assert petab_math_str(sp.Float(2 / 3) * a) == "0.6666666666666666*a"
+    assert petab_math_str(sp.Float(1e-300)) == "1e-300"
+    assert petab_math_str(sympify_petab("1.2345678901234567 * a")) == (
+        "1.2345678901234567*a"
+    )
+
+    with pytest.raises(ValueError, match="default"):
+        petab_math_str(sp.Piecewise((1, a > 0)))
+
+
+@pytest.mark.parametrize(
+    "expr_str",
+    [
+        "100 * x",
+        "x ^ 2",
+        "2 * x / 3",
+        "log(x, 10)",
+        "1.2345678901234567 * x",
+        "(-2) ^ x",
+        "(1 / 3) ^ x",
+        "x ^ -0.5 * y",
+        "piecewise(1, x > 0 && y < 2 || x == y, 0)",
+        "piecewise(1, !(x > 0 && y < 2), 0)",
+        "piecewise(1, x != y, 0)",
+        "min(min(x, y), 3) + max(x, max(y, 2))",
+        "2 * arccos(0) + exp(1)",
+    ],
+)
+@pytest.mark.parametrize("evaluate", [True, False])
+def test_print_parse_round_trip(expr_str, evaluate):
+    """Parsing, printing, and parsing again gives the same value."""
+    expr = sympify_petab(expr_str, evaluate=evaluate)
+    printed = petab_math_str(expr)
+    reparsed = sympify_petab(printed, evaluate=evaluate)
+    x, y = sp.symbols("x y", real=True)
+    values = {x: 0.7, y: -1.3}
+    expected = complex(expr.subs(values))
+    actual = complex(reparsed.subs(values))
+    assert np.isclose(actual, expected, rtol=1e-15, atol=0), printed
 
 
 def read_cases():
