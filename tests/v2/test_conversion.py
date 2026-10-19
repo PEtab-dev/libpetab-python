@@ -889,7 +889,10 @@ def test_assignments_to_experiments_preequilibration():
         ("piecewise(0, time < 10 && time > 5, 1)", "single"),
         ("piecewise(0, time^2 < 10, 1)", "single"),
         ("piecewise(time, time < 10, 1)", "single"),
-        ("piecewise(0, time < t_dose, 1)", "evaluate to a real number"),
+        (
+            "piecewise(0, time < t_dose, 1)",
+            r"estimated parameters \['t_dose'\]",
+        ),
         ("piecewise(0, time < A, 1)", "constant model parameters"),
         ("A * piecewise(0, time < 10, 1)", "constant model parameters"),
     ],
@@ -917,6 +920,94 @@ def test_assignments_to_experiments_unsupported(assignment, match):
     problem.add_parameter("t_dose", estimate=True, lb=0, ub=10)
 
     with pytest.raises(NotImplementedError, match=match):
+        assignments_to_experiments(problem)
+
+
+@pytest.mark.parametrize(
+    "condition_value, parameter, t_switch",
+    [
+        # a constant model parameter
+        (None, None, 5.0),
+        # a parameter fixed by the parameter table
+        (None, {"estimate": False, "nominal_value": 7.0}, 7.0),
+        # set by the condition table
+        (8.0, None, 8.0),
+    ],
+)
+def test_assignments_to_experiments_fixed_switching_time(
+    condition_value, parameter, t_switch
+):
+    """Test that switching times may depend on parameters that are fixed or
+    set by the condition table."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        t_dose = 5;
+        k1 := piecewise(0, time < t_dose, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    experiment_id = None
+    if condition_value is not None:
+        experiment_id = "e1"
+        problem.add_condition("c1", t_dose=condition_value)
+        problem.add_experiment(experiment_id, 0, "c1")
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id=experiment_id, time=20.0, measurement=5.0
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+    if parameter is not None:
+        problem.add_parameter("t_dose", **parameter)
+
+    converted = assignments_to_experiments(problem)
+
+    conditions = converted.condition_df.set_index(v2.C.CONDITION_ID)
+    assert [
+        (
+            row[v2.C.TIME],
+            float(conditions.loc[row[v2.C.CONDITION_ID], v2.C.TARGET_VALUE]),
+        )
+        for _, row in converted.experiment_df.iterrows()
+    ] == [(t_switch, 1.0)]
+
+
+def test_assignments_to_experiments_estimated_switching_time_condition():
+    """Test that a switching time that the condition table sets to an
+    estimated parameter is rejected."""
+    problem = Problem()
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        t_dose = 5;
+        t_est = 5;
+        k1 := piecewise(0, time < t_dose, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+
+    problem.add_condition("c1", t_dose="t_est")
+    problem.add_experiment("e1", 0, "c1")
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="e1", time=20.0, measurement=5.0
+    )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+    problem.add_parameter("t_est", estimate=True, lb=0, ub=10)
+
+    with pytest.raises(NotImplementedError, match="evaluate to a real number"):
         assignments_to_experiments(problem)
 
 

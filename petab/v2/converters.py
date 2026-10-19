@@ -681,7 +681,8 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     * every piecewise function that depends on time has an explicit
       "otherwise" piece,
     * every switching time evaluates to a real number in every experiment
-      (it may be set by the condition table, but not estimated),
+      (it may depend on parameters that are fixed or set by the condition
+      table, but not on estimated ones),
     * and all other symbols are truly constant model parameters.
 
     Within that, the piecewise functions may be combined: a sum of doses
@@ -715,6 +716,10 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     problem = deepcopy(problem)
     sbml_model = problem.model.sbml_model
     parameter_ids = {p.id for p in problem.parameters}
+    estimated_ids = {p.id for p in problem.parameters if p.estimate}
+    nominal_values = {
+        p.id: p.nominal_value for p in problem.parameters if not p.estimate
+    }
 
     experiments = list(problem.experiments)
     if any(m.experiment_id is None for m in problem.measurements):
@@ -745,7 +750,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             continue
         target_id = assignment.getId()
         (time,) = expr.atoms(TimeSymbol)
-        switches = _supported_time_switches(expr, time, target_id)
+        switches = _supported_time_switches(
+            expr, time, target_id, estimated_ids
+        )
         if non_constant := sorted(
             str(s)
             for s in expr.free_symbols - {time}
@@ -769,6 +776,15 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             s: sbml_model.getParameter(str(s)).getValue()
             for s in default.free_symbols
         }
+        # unless a condition sets them, the switching times' symbols keep
+        #  their value from the parameter table or else from the model
+        fixed_values = {
+            s: nominal_values.get(
+                str(s), sbml_model.getParameter(str(s)).getValue()
+            )
+            for t_switch, _ in switches.values()
+            for s in t_switch.free_symbols
+        }
         target = sbml_model.getParameter(target_id)
         target.setValue(float(default.subs(model_values)))
         target.setConstant(False)
@@ -783,7 +799,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             for i, period in enumerate(periods):
                 changes = problem.get_changes_for_period(period)
                 overrides |= {c.target_id: c.target_value for c in changes}
-                subs = {
+                subs = fixed_values | {
                     s: overrides[str(s)]
                     for s in expr.free_symbols
                     if str(s) in overrides
@@ -930,7 +946,7 @@ def _value_from(
 
 
 def _supported_time_switches(
-    expr: sp.Expr, time: sp.Symbol, target_id: str
+    expr: sp.Expr, time: sp.Symbol, target_id: str, estimated_ids: set[str]
 ) -> dict[sp.Rel, tuple[sp.Expr, sp.Expr]]:
     """Check that ``expr`` depends on ``time`` only in the supported way, and
     return the conditions through which it does, each with the time at which
@@ -939,8 +955,9 @@ def _supported_time_switches(
     ``expr`` may combine several piecewise functions, each with several
     pieces and nested in one another (a sum of doses, phases one after
     another), as long as time enters only through their conditions, each a
-    single inequality linear in time, and each piecewise function has an
-    explicit "otherwise" piece. Anything else raises
+    single inequality linear in time, each piecewise function has an
+    explicit "otherwise" piece, and no switching time depends on the
+    parameters ``estimated_ids``. Anything else raises
     :class:`NotImplementedError`.
     """
     unsupported = NotImplementedError(
@@ -975,4 +992,18 @@ def _supported_time_switches(
     # time enters only through the conditions
     if expr.xreplace({c: sp.Dummy() for c in switches}).has(time):
         raise unsupported
+    # no period can start at an estimated time
+    if estimated := sorted(
+        {
+            str(s)
+            for t_switch, _ in switches.values()
+            for s in t_switch.free_symbols
+            if str(s) in estimated_ids
+        }
+    ):
+        raise NotImplementedError(
+            "Only switching times that are not estimated are supported, but "
+            f"the switching times of the assignment to `{target_id}` depend "
+            f"on the estimated parameters {estimated}."
+        )
     return switches
