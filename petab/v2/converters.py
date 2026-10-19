@@ -19,7 +19,11 @@ from .core import (
     ExperimentPeriod,
     Problem,
 )
-from .models._sbml_utils import add_sbml_parameter, check
+from .models._sbml_utils import (
+    add_sbml_parameter,
+    check,
+    set_initial_assignment,
+)
 from .models.sbml_model import SbmlModel
 
 __all__ = ["ExperimentsToSbmlConverter", "assignments_to_experiments"]
@@ -435,13 +439,7 @@ class ExperimentsToSbmlConverter:
                     (default, True),
                 )
 
-                # Create a new initial assignment if necessary, otherwise
-                #  overwrite the existing one.
-                if ia is None:
-                    ia = model.createInitialAssignment()
-                    ia.setSymbol(target_id)
-
-                set_math(ia, expr)
+                set_initial_assignment(model, target_id, expr)
                 free_symbols_in_assignments |= expr.free_symbols
 
         # the target value may depend on parameters that are only

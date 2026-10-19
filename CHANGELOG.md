@@ -77,6 +77,9 @@
 * `petab.v1.math.petab_symbol` (also in `petab.v2.math`) creates sympy
   symbols with the same assumptions as `sympify_petab`
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/563)
+* `petab.v2.reparametrize_log` estimates parameters on log scale by replacing
+  them with new log-transformed parameters
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/560)
 
 ## 0.9 series
 
