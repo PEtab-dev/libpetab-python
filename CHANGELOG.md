@@ -33,6 +33,9 @@
   https://github.com/PEtab-dev/libpetab-python/pull/533,
   https://github.com/PEtab-dev/libpetab-python/pull/535, and
   https://github.com/PEtab-dev/libpetab-python/pull/536)
+* `petab1to2` no longer adds default `uniform` priors to non-estimated
+  parameters, or if no estimated parameter has an objective prior
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/539)
 * `petab_math_str` now produces valid PEtab math expressions for boolean
   operators, (in)equality, `min`/`max`, powers with negative bases, and
   `pi`/`e`, and prints floats without loss of precision. PEtab v2 condition
@@ -98,6 +101,10 @@
 * `petab.v2.reparametrize_log` estimates parameters on log scale by replacing
   them with new log-transformed parameters
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/560)
+* `petab1to2` and `petab_files_1to2` can preserve the objective function of
+  log-scaled parameters with `parameterScale*` priors via
+  `reparametrize="priors"` or `reparametrize="all"`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/539)
 
 ## 0.9 series
 
