@@ -673,12 +673,24 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         Measurements without an experiment ID are assigned to a new experiment
         :data:`DEFAULT_EXPERIMENT_ID`, if needed.
 
-    **Scope:** conversion is supported for SBML assignment rules that contain
-    a single piecewise function with exactly 3 arguments, where the 2nd
-    argument is an inequality that can be
-    re-arranged explicitly into `t </<=/>/>= ...`, and whose other symbols
-    are all truly constant model parameters. Anything else raises a
-    :class:`NotImplementedError`.
+    **Scope:** conversion is supported for SBML assignment rules that depend
+    on time only through the conditions of piecewise functions, where
+
+    * every such condition is an inequality that can be re-arranged
+      explicitly into `t </<=/>/>= ...`,
+    * every piecewise function that depends on time has an explicit
+      "otherwise" piece,
+    * every switching time evaluates to a real number in every experiment
+      (it may depend on parameters that are fixed or set by the condition
+      table, but not on estimated ones),
+    * and all other symbols are truly constant model parameters.
+
+    Within that, the piecewise functions may be combined: a sum of doses
+    given at different times (`d1 * piecewise(0, t < t1, 1) + d2 *
+    piecewise(0, t < t2, 1)`), phases one after another as several pieces or
+    nested piecewise functions (`piecewise(b0, t < t1, piecewise(b1, t < t2,
+    b2))`). Each switch that changes the value becomes a period. Anything else
+    raises a :class:`NotImplementedError`.
 
     .. warning::
 
@@ -704,6 +716,10 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     problem = deepcopy(problem)
     sbml_model = problem.model.sbml_model
     parameter_ids = {p.id for p in problem.parameters}
+    estimated_ids = {p.id for p in problem.parameters if p.estimate}
+    nominal_values = {
+        p.id: p.nominal_value for p in problem.parameters if not p.estimate
+    }
 
     experiments = list(problem.experiments)
     if any(m.experiment_id is None for m in problem.measurements):
@@ -730,34 +746,13 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         *sbml_model.getListOfInitialAssignments(),
     ]:
         expr = sbml_math_to_sympy(assignment)
-        pws = [pw for pw in expr.atoms(sp.Piecewise) if pw.has(TimeSymbol)]
-        if not pws:
+        if not any(pw.has(TimeSymbol) for pw in expr.atoms(sp.Piecewise)):
             continue
         target_id = assignment.getId()
-        pw = pws[0]
-        (time,) = pw.atoms(TimeSymbol)
-        switch = pw.args[0].cond
-        if not (
-            # A single piecewise
-            len(pws) == 1
-            # with "conditional" and "otherwise" pieces
-            and len(pw.args) == 2
-            # and explicitly an "otherwise" piece,
-            and pw.args[1].cond == sp.true
-            # with a supported inequality condition
-            and isinstance(switch, (sp.Gt, sp.Ge, sp.Lt, sp.Le))
-            # that involves the time variable,
-            and not expr.subs(switch, sp.Dummy()).has(time)
-            # and that changes value at maximally a single time point
-            and (slope := sp.diff(switch.gts - switch.lts, time)).is_number
-            # and this time point is identifiable.
-            and slope.is_nonzero
-        ):
-            raise NotImplementedError(
-                "Only time dependence via a single 3-argument piecewise "
-                "function with a condition linear in time is supported, but "
-                f"the assignment to `{target_id}` is `{expr}`."
-            )
+        (time,) = expr.atoms(TimeSymbol)
+        switches = _supported_time_switches(
+            expr, time, target_id, estimated_ids
+        )
         if non_constant := sorted(
             str(s)
             for s in expr.free_symbols - {time}
@@ -769,15 +764,29 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                 f"the assignment to `{target_id}`, but it refers to "
                 f"{non_constant}."
             )
-        # `switch` holds after the switch iff `gts - lts` increases with time
-        value, otherwise = (piece.expr for piece in pw.args)
-        before, after = (otherwise, value) if slope > 0 else (value, otherwise)
-        t_switch = sp.solve(switch.gts - switch.lts, time)[0]
-
-        default = expr.subs(pw, before)
-        after_expr = expr.subs(pw, after)
+        # the value before every switch: a condition whose two sides grow
+        #  apart with time holds only after its switch
+        default = expr.xreplace(
+            {
+                c: sp.false if slope > 0 else sp.true
+                for c, (_, slope) in switches.items()
+            }
+        )
+        model_values = {
+            s: sbml_model.getParameter(str(s)).getValue()
+            for s in default.free_symbols
+        }
+        # unless a condition sets them, the switching times' symbols keep
+        #  their value from the parameter table or else from the model
+        fixed_values = {
+            s: nominal_values.get(
+                str(s), sbml_model.getParameter(str(s)).getValue()
+            )
+            for t_switch, _ in switches.values()
+            for s in t_switch.free_symbols
+        }
         target = sbml_model.getParameter(target_id)
-        target.setValue(float(default))
+        target.setValue(float(default.subs(model_values)))
         target.setConstant(False)
         assignment.removeFromParentAndDelete()
         symbol_ids = {str(s) for s in expr.free_symbols}
@@ -790,24 +799,26 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             for i, period in enumerate(periods):
                 changes = problem.get_changes_for_period(period)
                 overrides |= {c.target_id: c.target_value for c in changes}
-                subs = {
+                subs = fixed_values | {
                     s: overrides[str(s)]
                     for s in expr.free_symbols
                     if str(s) in overrides
                 }
-                t = t_switch.subs(subs)
-                if not (t.is_number and t.is_real and t.is_finite):
-                    raise NotImplementedError(
-                        "Only switching times that evaluate to a real number "
-                        "are supported, but the switching time of the "
-                        f"assignment to `{target_id}` in experiment "
-                        f"`{experiment.id}` is `{t}`."
-                    )
-                t = float(t)
+                times = []
+                for t_switch, _ in switches.values():
+                    t = t_switch.subs(subs)
+                    if not (t.is_number and t.is_real and t.is_finite):
+                        raise NotImplementedError(
+                            "Only switching times that evaluate to a real "
+                            "number are supported, but a switching time of "
+                            f"the assignment to `{target_id}` in experiment "
+                            f"`{experiment.id}` is `{t}`."
+                        )
+                    times.append(float(t))
 
                 if period.is_preequilibration:
-                    # the value at time 0, which respects whether the
-                    #  condition holds at a switch at time 0
+                    # the value at time 0, which respects whether a
+                    #  condition holds for a switch at time 0
                     value = expr.subs(subs).subs(time, 0)
                     additions.append(
                         (experiment, period.time, target_id, value)
@@ -815,22 +826,30 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                     continue
 
                 t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
-                switch_value = (
-                    after_expr.subs(subs) if period.time < t < t_end else None
+                start_value = _value_from(
+                    expr, switches, time, subs, times, period.time
                 )
-                start_value = (
-                    default if period.time < t else after_expr
-                ).subs(subs)
+                # each switch within the period that changes the value
+                switch_values = []
+                previous = start_value
+                for t in sorted({t for t in times if period.time < t < t_end}):
+                    value = _value_from(expr, switches, time, subs, times, t)
+                    if not (value - previous).is_zero:
+                        switch_values.append((t, value))
+                    previous = value
                 # The model already has the pre-switch value at the start of
-                #  the first period, and the switch can become the first
-                #  period if it only refers to parameter table symbols.
+                #  the first period, unless that value refers to parameter
+                #  table symbols, for which the model only has a number. The
+                #  switches can become the first periods if they only refer
+                #  to parameter table symbols.
                 redundant = (
                     i == 0
                     and (start_value - default).is_zero
-                    and (
-                        switch_value is None
-                        or {str(s) for s in switch_value.free_symbols}
-                        <= parameter_ids
+                    and not {str(s) for s in default.free_symbols}
+                    & parameter_ids
+                    and all(
+                        {str(s) for s in value.free_symbols} <= parameter_ids
+                        for _, value in switch_values
                     )
                 )
                 if not redundant and (
@@ -839,8 +858,8 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                     additions.append(
                         (experiment, period.time, target_id, start_value)
                     )
-                if switch_value is not None:
-                    additions.append((experiment, t, target_id, switch_value))
+                for t, value in switch_values:
+                    additions.append((experiment, t, target_id, value))
 
     if converted_ids and any(e.has_preequilibration for e in experiments):
         warnings.warn(
@@ -912,3 +931,83 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         )
 
     return problem
+
+
+def _value_from(
+    expr: sp.Expr,
+    switches: dict,
+    time: sp.Symbol,
+    subs: dict,
+    times: list[float],
+    t0: float,
+) -> sp.Expr:
+    """The value of ``expr`` from ``t0`` up to its next switch, every
+    condition replaced by whether it holds in between."""
+    later = [t for t in times if t > t0]
+    probe = (t0 + min(later)) / 2 if later else t0 + 1
+    truth = {c: c.subs(subs).subs(time, probe) for c in switches}
+    return expr.xreplace(truth).subs(subs)
+
+
+def _supported_time_switches(
+    expr: sp.Expr, time: sp.Symbol, target_id: str, estimated_ids: set[str]
+) -> dict[sp.Rel, tuple[sp.Expr, sp.Expr]]:
+    """Check that ``expr`` depends on ``time`` only in the supported way, and
+    return the conditions through which it does, each with the time at which
+    it switches and the slope of its two sides' difference.
+
+    ``expr`` may combine several piecewise functions, each with several
+    pieces and nested in one another (a sum of doses, phases one after
+    another), as long as time enters only through their conditions, each a
+    single inequality linear in time, each piecewise function has an
+    explicit "otherwise" piece, and no switching time depends on the
+    parameters ``estimated_ids``. Anything else raises
+    :class:`NotImplementedError`.
+    """
+    unsupported = NotImplementedError(
+        "Only time dependence through piecewise conditions, each a single "
+        "inequality linear in time, with an explicit otherwise piece, is "
+        f"supported, but the assignment to `{target_id}` is `{expr}`."
+    )
+    switches = {}
+    for pw in expr.atoms(sp.Piecewise):
+        if not pw.has(time):
+            continue
+        # an explicit "otherwise" piece
+        if pw.args[-1].cond != sp.true:
+            raise unsupported
+        for piece in pw.args[:-1]:
+            condition = piece.cond
+            if not condition.has(time):
+                continue
+            if not (
+                # a supported inequality
+                isinstance(condition, (sp.Gt, sp.Ge, sp.Lt, sp.Le))
+                # that changes value at maximally a single time point
+                and (
+                    slope := sp.diff(condition.gts - condition.lts, time)
+                ).is_number
+                # and this time point is identifiable
+                and slope.is_nonzero
+            ):
+                raise unsupported
+            t_switch = sp.solve(condition.gts - condition.lts, time)[0]
+            switches[condition] = (t_switch, slope)
+    # time enters only through the conditions
+    if expr.xreplace({c: sp.Dummy() for c in switches}).has(time):
+        raise unsupported
+    # no period can start at an estimated time
+    if estimated := sorted(
+        {
+            str(s)
+            for t_switch, _ in switches.values()
+            for s in t_switch.free_symbols
+            if str(s) in estimated_ids
+        }
+    ):
+        raise NotImplementedError(
+            "Only switching times that are not estimated are supported, but "
+            f"the switching times of the assignment to `{target_id}` depend "
+            f"on the estimated parameters {estimated}."
+        )
+    return switches
