@@ -806,11 +806,6 @@ def assignments_to_experiments(problem: Problem) -> Problem:
 
     problem = deepcopy(problem)
     sbml_model = problem.model.sbml_model
-    parameter_ids = {p.id for p in problem.parameters}
-    estimated_ids = {p.id for p in problem.parameters if p.estimate}
-    nominal_values = {
-        p.id: p.nominal_value for p in problem.parameters if not p.estimate
-    }
 
     experiments = list(problem.experiments)
     if any(m.experiment_id is None for m in problem.measurements):
@@ -818,193 +813,28 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         experiments.append(default_experiment)
     else:
         default_experiment = None
-    # periods that are dropped if all their conditions were replaced
-    droppable = set()
-    for experiment in experiments:
-        if all(p.is_preequilibration for p in experiment.periods):
-            experiment += ExperimentPeriod(time=0)
-        # The period that starts the experiment stays, even without
-        #  conditions: its time overrides the model's initial time, so the
-        #  experiment would start at its first switch instead.
-        start = min(
-            (p for p in experiment.periods if not p.is_preequilibration),
-            key=lambda p: p.time,
-        )
-        droppable |= {
-            id(p)
-            for p in experiment.periods
-            if p.condition_ids and p is not start
-        }
+    droppable = _add_start_periods(experiments)
 
     # (experiment, period start time, target ID, target value)
     additions = []
     replaced_symbols = set()
     converted_ids = []
-
-    for assignment in [
+    for rule in [
         *(r for r in sbml_model.getListOfRules() if r.isAssignment()),
         *sbml_model.getListOfInitialAssignments(),
     ]:
-        expr = sbml_math_to_sympy(assignment)
+        expr = sbml_math_to_sympy(rule)
         if not any(pw.has(TimeSymbol) for pw in expr.atoms(sp.Piecewise)):
             continue
-        target_id = assignment.getId()
-        (time,) = expr.atoms(TimeSymbol)
-        switches = _supported_time_switches(
-            expr, time, target_id, estimated_ids
-        )
-        if non_constant := sorted(
-            str(s)
-            for s in expr.free_symbols - {time}
-            if not (p := sbml_model.getParameter(str(s)))
-            or not p.getConstant()
-        ):
-            raise NotImplementedError(
-                "Only constant model parameters are supported as symbols in "
-                f"the assignment to `{target_id}`, but it refers to "
-                f"{non_constant}."
-            )
-        # the value before every switch: a condition whose two sides grow
-        #  apart with time holds only after its switch
-        default = expr.xreplace(
-            {
-                c: sp.false if slope > 0 else sp.true
-                for c, (_, slope) in switches.items()
-            }
-        )
-        model_values = {
-            s: sbml_model.getParameter(str(s)).getValue()
-            for s in default.free_symbols - {time}
-        }
-        # unless a condition sets them, the switching times' symbols keep
-        #  their value from the parameter table or else from the model
-        fixed_values = {
-            s: nominal_values.get(
-                str(s), sbml_model.getParameter(str(s)).getValue()
-            )
-            for t_switch, _ in switches.values()
-            for s in t_switch.free_symbols
-        }
-        target = sbml_model.getParameter(target_id)
-        # A value that changes with time within a period (a ramp) cannot be a
-        #  condition change on a constant target, which is applied once at
-        #  the start of its period. The model only makes the target a
-        #  differential entity, `d target/dt = <target>_slope`; the slope's
-        #  value, like the target's, is set by every period that starts one.
-        ramps = expr.xreplace({c: sp.Dummy() for c in switches}).has(time)
-        slope_id = None
-        if ramps:
-            slope_id = f"{target_id}_slope"
-            while sbml_model.getElementBySId(slope_id) is not None:
-                slope_id += "_"
-            add_sbml_parameter(sbml_model, slope_id, value=0.0, constant=False)
-            rate_rule = sbml_model.createRateRule()
-            rate_rule.setVariable(target_id)
-            rate_rule.setMath(libsbml.parseL3Formula(slope_id))
-        target.setValue(float(default.subs(time, 0).subs(model_values)))
-        target.setConstant(False)
-        assignment.removeFromParentAndDelete()
-        symbol_ids = {str(s) for s in expr.free_symbols}
-        replaced_symbols |= symbol_ids
-        converted_ids.append(target_id)
-
+        assignment = _PiecewiseAssignment(rule, expr, problem)
+        assignment.replace_in_model()
         for experiment in experiments:
-            periods = experiment.sorted_periods
-            overrides = {}
-            for i_period, period in enumerate(periods):
-                changes = problem.get_changes_for_period(period)
-                overrides |= {c.target_id: c.target_value for c in changes}
-                subs = fixed_values | {
-                    s: overrides[str(s)]
-                    for s in expr.free_symbols
-                    if str(s) in overrides
-                }
-                times = []
-                for t_switch, _ in switches.values():
-                    t = t_switch.subs(subs)
-                    if not (t.is_number and t.is_real and t.is_finite):
-                        raise NotImplementedError(
-                            "Only switching times that evaluate to a real "
-                            "number are supported, but a switching time of "
-                            f"the assignment to `{target_id}` in experiment "
-                            f"`{experiment.id}` is `{t}`."
-                        )
-                    times.append(float(t))
-
-                if period.is_preequilibration:
-                    # the value at time 0, which respects whether a
-                    #  condition holds for a switch at time 0, held there:
-                    #  a ramp does not run during preequilibration
-                    value = expr.subs(subs).subs(time, 0)
-                    additions.append(
-                        (experiment, period.time, target_id, value)
-                    )
-                    if ramps:
-                        additions.append(
-                            (experiment, period.time, slope_id, sp.S.Zero)
-                        )
-                    continue
-
-                t_end = (
-                    periods[i_period + 1].time
-                    if i_period + 1 < len(periods)
-                    else sp.oo
-                )
-                start_value = _value_from(
-                    expr, switches, time, subs, times, period.time
-                )
-                # each switch within the period that changes the value
-                switch_values = []
-                previous = start_value
-                for t in sorted({t for t in times if period.time < t < t_end}):
-                    value = _value_from(expr, switches, time, subs, times, t)
-                    if not (value - previous).is_zero:
-                        switch_values.append((t, value))
-                    previous = value
-                # The model already has the pre-switch value at the start of
-                #  the first period, which stays even without conditions,
-                #  unless that value refers to parameter table symbols, for
-                #  which the model only has a number. A ramp's start and slope
-                #  are always set by the tables.
-                redundant = (
-                    not ramps
-                    and i_period == 0
-                    and (start_value - default).is_zero
-                    and not {str(s) for s in default.free_symbols}
-                    & parameter_ids
-                )
-                after_preequilibration = (
-                    i_period > 0 and periods[i_period - 1].is_preequilibration
-                )
-                if not redundant and (
-                    i_period == 0
-                    or {c.target_id for c in changes} & symbol_ids
-                    # preequilibration held the slope at zero
-                    or (ramps and after_preequilibration)
-                ):
-                    if i_period == 0:
-                        # at the start of an experiment, a change may only
-                        #  refer to parameter table symbols; other symbols
-                        #  are constant model parameters, at their values
-                        start_value = start_value.subs(
-                            {
-                                s: sbml_model.getParameter(str(s)).getValue()
-                                for s in start_value.free_symbols - {time}
-                                if str(s) not in parameter_ids
-                            }
-                        )
-                    additions += _changes(
-                        experiment,
-                        period.time,
-                        target_id,
-                        start_value,
-                        time,
-                        slope_id,
-                    )
-                for t, value in switch_values:
-                    additions += _changes(
-                        experiment, t, target_id, value, time, slope_id
-                    )
+            additions += [
+                (experiment, *change)
+                for change in assignment.changes(experiment)
+            ]
+        replaced_symbols |= assignment.symbol_ids
+        converted_ids.append(assignment.target_id)
 
     if converted_ids and any(e.has_preequilibration for e in experiments):
         warnings.warn(
@@ -1016,39 +846,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             stacklevel=2,
         )
 
-    # drop changes that are covered by the new conditions
-    condition_ids = {c.id for c in problem.conditions}
-    for table in problem.condition_tables:
-        for condition in table.conditions:
-            condition.changes = [
-                c
-                for c in condition.changes
-                if c.target_id not in replaced_symbols
-            ]
-        table.elements = [c for c in table.conditions if c.changes]
-    removed_condition_ids = condition_ids - {c.id for c in problem.conditions}
-    for experiment in experiments:
-        for period in experiment.periods:
-            period.condition_ids = [
-                cid
-                for cid in period.condition_ids
-                if cid not in removed_condition_ids
-            ]
-
-    # add the new conditions to new or existing periods
-    new_conditions = {}
-    for experiment, t, target_id, value in additions:
-        if (cond_id := new_conditions.get((target_id, value))) is None:
-            cond_id = problem.get_unused_id(f"cond_{len(new_conditions)}")
-            new_conditions[target_id, value] = cond_id
-            problem += Condition(
-                id=cond_id,
-                changes=[Change(target_id=target_id, target_value=value)],
-            )
-        period = next((p for p in experiment.periods if p.time == t), None)
-        if period is None:
-            experiment += (period := ExperimentPeriod(time=t))
-        period.condition_ids.append(cond_id)
+    # replace the changes that are covered by the new conditions
+    _drop_changes(problem, experiments, replaced_symbols)
+    _add_conditions(problem, additions)
 
     for experiment in experiments:
         experiment.sort_periods()
@@ -1076,30 +876,282 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     return problem
 
 
-def _changes(experiment, t, target_id, value, time, slope_id):
-    """The changes that start ``value`` at time ``t``: the target set to the
-    value at ``t``, and, for a target that ramps, its slope set to the
-    value's rate of change."""
-    changes = [(experiment, t, target_id, value.subs(time, t))]
-    if slope_id is not None:
-        changes.append((experiment, t, slope_id, sp.diff(value, time)))
-    return changes
+class _PiecewiseAssignment:
+    """A time-dependent piecewise assignment to a model parameter, and the
+    condition changes that replace it, see :func:`assignments_to_experiments`.
+    """
+
+    def __init__(
+        self,
+        rule: libsbml.Rule | libsbml.InitialAssignment,
+        expr: sp.Expr,
+        problem: Problem,
+    ):
+        """Check that the assignment ``rule``, with the value ``expr``, is
+        supported."""
+        self.rule = rule
+        self.problem = problem
+        self.sbml_model = problem.model.sbml_model
+        self.target_id = rule.getId()
+        self.expr = expr
+        (self.time,) = expr.atoms(TimeSymbol)
+        self.symbol_ids = {str(s) for s in expr.free_symbols}
+        self.parameter_ids = {p.id for p in problem.parameters}
+        self.switches = _supported_time_switches(
+            expr,
+            self.time,
+            self.target_id,
+            {p.id for p in problem.parameters if p.estimate},
+        )
+        if non_constant := sorted(
+            str(s)
+            for s in expr.free_symbols - {self.time}
+            if not (p := self.sbml_model.getParameter(str(s)))
+            or not p.getConstant()
+        ):
+            raise NotImplementedError(
+                "Only constant model parameters are supported as symbols in "
+                f"the assignment to `{self.target_id}`, but it refers to "
+                f"{non_constant}."
+            )
+        # the value before every switch: a condition whose two sides grow
+        #  apart with time holds only after its switch
+        self.default = expr.xreplace(
+            {
+                c: sp.false if slope > 0 else sp.true
+                for c, (_, slope) in self.switches.items()
+            }
+        )
+        # unless a condition sets them, the switching times' symbols keep
+        #  their value from the parameter table or else from the model
+        nominal_values = {
+            p.id: p.nominal_value for p in problem.parameters if not p.estimate
+        }
+        self.fixed_values = {
+            s: nominal_values.get(str(s), self._model_value(s))
+            for t_switch, _ in self.switches.values()
+            for s in t_switch.free_symbols
+        }
+        # whether the value changes with time within a period
+        self.ramps = expr.xreplace({c: sp.Dummy() for c in self.switches}).has(
+            self.time
+        )
+        self.slope_id = None
+
+    def replace_in_model(self) -> None:
+        """Replace the assignment in the model by a target that the
+        condition table sets.
+
+        A value that changes with time within a period (a ramp) cannot be a
+        condition change on a constant target, which is applied once at the
+        start of its period. The model only makes the target a differential
+        entity, `d target/dt = <target>_slope`; the slope's value, like the
+        target's, is set by every period that starts one.
+        """
+        if self.ramps:
+            self.slope_id = f"{self.target_id}_slope"
+            while self.sbml_model.getElementBySId(self.slope_id) is not None:
+                self.slope_id += "_"
+            add_sbml_parameter(
+                self.sbml_model, self.slope_id, value=0.0, constant=False
+            )
+            rate_rule = self.sbml_model.createRateRule()
+            rate_rule.setVariable(self.target_id)
+            rate_rule.setMath(libsbml.parseL3Formula(self.slope_id))
+        model_values = {
+            s: self._model_value(s)
+            for s in self.default.free_symbols - {self.time}
+        }
+        target = self.sbml_model.getParameter(self.target_id)
+        target.setValue(
+            float(self.default.subs(self.time, 0).subs(model_values))
+        )
+        target.setConstant(False)
+        self.rule.removeFromParentAndDelete()
+
+    def changes(
+        self, experiment: Experiment
+    ) -> list[tuple[float, str, sp.Expr]]:
+        """The changes that replace the assignment in ``experiment``, each as
+        ``(period start time, target ID, target value)``."""
+        changes = []
+        periods = experiment.sorted_periods
+        overrides = {}
+        for i_period, period in enumerate(periods):
+            period_changes = self.problem.get_changes_for_period(period)
+            overrides |= {c.target_id: c.target_value for c in period_changes}
+            subs = self.fixed_values | {
+                s: overrides[str(s)]
+                for s in self.expr.free_symbols
+                if str(s) in overrides
+            }
+            times = self._switching_times(subs, experiment.id)
+
+            if period.is_preequilibration:
+                # the value at time 0, which respects whether a condition
+                #  holds for a switch at time 0, held there: a ramp does not
+                #  run during preequilibration
+                value = self.expr.subs(subs).subs(self.time, 0)
+                changes.append((period.time, self.target_id, value))
+                if self.ramps:
+                    changes.append((period.time, self.slope_id, sp.S.Zero))
+                continue
+
+            start_value = self._value_from(subs, times, period.time)
+            # each switch within the period that changes the value
+            t_end = (
+                periods[i_period + 1].time
+                if i_period + 1 < len(periods)
+                else sp.oo
+            )
+            switch_values = []
+            previous = start_value
+            for t in sorted({t for t in times if period.time < t < t_end}):
+                value = self._value_from(subs, times, t)
+                if not (value - previous).is_zero:
+                    switch_values.append((t, value))
+                previous = value
+
+            if i_period == 0:
+                # The model already has the pre-switch value at the start of
+                #  the first period, which stays even without conditions,
+                #  unless that value refers to parameter table symbols, for
+                #  which the model only has a number. A ramp's start and
+                #  slope are always set by the tables.
+                if (
+                    self.ramps
+                    or not (start_value - self.default).is_zero
+                    or {str(s) for s in self.default.free_symbols}
+                    & self.parameter_ids
+                ):
+                    # at the start of an experiment, a change may only refer
+                    #  to parameter table symbols; other symbols are
+                    #  constant model parameters, at their values
+                    start_value = start_value.subs(
+                        {
+                            s: self._model_value(s)
+                            for s in start_value.free_symbols - {self.time}
+                            if str(s) not in self.parameter_ids
+                        }
+                    )
+                    changes += self._start(period.time, start_value)
+            elif (
+                {c.target_id for c in period_changes} & self.symbol_ids
+                # preequilibration held the slope at zero
+                or (self.ramps and periods[i_period - 1].is_preequilibration)
+            ):
+                changes += self._start(period.time, start_value)
+            for t, value in switch_values:
+                changes += self._start(t, value)
+        return changes
+
+    def _model_value(self, symbol: sp.Symbol) -> float:
+        """The value of the model parameter ``symbol``."""
+        return self.sbml_model.getParameter(str(symbol)).getValue()
+
+    def _switching_times(self, subs: dict, experiment_id: str) -> list[float]:
+        """The switching times, for the symbol values ``subs``."""
+        times = []
+        for t_switch, _ in self.switches.values():
+            t = t_switch.subs(subs)
+            if not (t.is_number and t.is_real and t.is_finite):
+                raise NotImplementedError(
+                    "Only switching times that evaluate to a real number are "
+                    "supported, but a switching time of the assignment to "
+                    f"`{self.target_id}` in experiment `{experiment_id}` is "
+                    f"`{t}`."
+                )
+            times.append(float(t))
+        return times
+
+    def _value_from(self, subs: dict, times: list[float], t0: float):
+        """The value from ``t0`` up to its next switch, for the symbol values
+        ``subs``, every condition replaced by whether it holds in between."""
+        later = [t for t in times if t > t0]
+        probe = (t0 + min(later)) / 2 if later else t0 + 1
+        truth = {c: c.subs(subs).subs(self.time, probe) for c in self.switches}
+        return self.expr.xreplace(truth).subs(subs)
+
+    def _start(
+        self, t: float, value: sp.Expr
+    ) -> list[tuple[float, str, sp.Expr]]:
+        """The changes that start ``value`` at time ``t``: the target set to
+        the value at ``t``, and, for a target that ramps, its slope set to
+        the value's rate of change."""
+        changes = [(t, self.target_id, value.subs(self.time, t))]
+        if self.ramps:
+            changes.append((t, self.slope_id, sp.diff(value, self.time)))
+        return changes
 
 
-def _value_from(
-    expr: sp.Expr,
-    switches: dict,
-    time: sp.Symbol,
-    subs: dict,
-    times: list[float],
-    t0: float,
-) -> sp.Expr:
-    """The value of ``expr`` from ``t0`` up to its next switch, every
-    condition replaced by whether it holds in between."""
-    later = [t for t in times if t > t0]
-    probe = (t0 + min(later)) / 2 if later else t0 + 1
-    truth = {c: c.subs(subs).subs(time, probe) for c in switches}
-    return expr.xreplace(truth).subs(subs)
+def _add_start_periods(experiments: list[Experiment]) -> set[int]:
+    """Give every experiment a period that starts it, and return the
+    :func:`id` of the periods that are dropped if all their conditions are
+    replaced.
+
+    The period that starts an experiment stays, even without conditions: its
+    time overrides the model's initial time, so the experiment would start at
+    its first switch instead.
+    """
+    droppable = set()
+    for experiment in experiments:
+        if all(p.is_preequilibration for p in experiment.periods):
+            experiment += ExperimentPeriod(time=0)
+        start = min(
+            (p for p in experiment.periods if not p.is_preequilibration),
+            key=lambda p: p.time,
+        )
+        droppable |= {
+            id(p)
+            for p in experiment.periods
+            if p.condition_ids and p is not start
+        }
+    return droppable
+
+
+def _drop_changes(
+    problem: Problem, experiments: list[Experiment], target_ids: set[str]
+) -> None:
+    """Drop the changes of ``target_ids`` from the condition tables, and the
+    conditions left without changes from the periods of ``experiments``."""
+    condition_ids = {c.id for c in problem.conditions}
+    for table in problem.condition_tables:
+        for condition in table.conditions:
+            condition.changes = [
+                c for c in condition.changes if c.target_id not in target_ids
+            ]
+        table.elements = [c for c in table.conditions if c.changes]
+    removed_ids = condition_ids - {c.id for c in problem.conditions}
+    for experiment in experiments:
+        for period in experiment.periods:
+            period.condition_ids = [
+                cid for cid in period.condition_ids if cid not in removed_ids
+            ]
+
+
+def _add_conditions(
+    problem: Problem,
+    additions: list[tuple[Experiment, float, str, sp.Expr]],
+) -> None:
+    """For each ``(experiment, time, target ID, value)`` in ``additions``,
+    add a condition with that change to the period of ``experiment`` that
+    starts at ``time``, which is added if needed.
+
+    Equal changes share a condition.
+    """
+    new_conditions = {}
+    for experiment, t, target_id, value in additions:
+        if (cond_id := new_conditions.get((target_id, value))) is None:
+            cond_id = problem.get_unused_id(f"cond_{len(new_conditions)}")
+            new_conditions[target_id, value] = cond_id
+            problem += Condition(
+                id=cond_id,
+                changes=[Change(target_id=target_id, target_value=value)],
+            )
+        period = next((p for p in experiment.periods if p.time == t), None)
+        if period is None:
+            experiment += (period := ExperimentPeriod(time=t))
+        period.condition_ids.append(cond_id)
 
 
 def _supported_time_switches(
