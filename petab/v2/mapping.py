@@ -1,13 +1,12 @@
 """Functionality related to the PEtab entity mapping table"""
 
-# TODO: Move to petab.v2.mapping
 from pathlib import Path
 
 import pandas as pd
 
-from . import lint
+from ..v1 import lint
+from ..v1.models import Model
 from .C import *
-from .models import Model
 
 __all__ = [
     "check_mapping_df",

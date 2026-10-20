@@ -12,7 +12,6 @@ from .conditions import *
 from .core import *
 from .format_version import __format_version__  # noqa: F401
 from .lint import *
-from .mapping import *
 from .measurements import *
 from .models import Model  # noqa: F401
 from .observables import *
