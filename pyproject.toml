@@ -33,47 +33,25 @@ maintainers = [
 ]
 
 [project.optional-dependencies]
-tests = [
-    "antimony>=3.1.0",
-    "copasi-basico>=0.85",
-    "petab_sciml",
-    "pysb",
-    "pytest",
-    "pytest-cov",
-    "scipy",
-]
-quality = [
-    "pre-commit",
-]
-reports = [
-    # https://github.com/spatialaudio/nbsphinx/issues/641
-    "Jinja2==3.1.6",
-]
 antimony = [
     "antimony>=2.14.0",
 ]
 combine = [
     "python-libcombine>=0.2.6",
 ]
-doc = [
-    "sphinx>=3.5.3, !=5.1.0",
-    "sphinxcontrib-napoleon>=0.7",
-    "sphinx-markdown-tables>=0.0.15",
-    "sphinx-rtd-theme>=0.5.1",
-    "m2r2",
-    "myst-nb>=0.14.0",
-    # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
-    "ipython>=7.21.0, !=8.7.0",
-    "pysb",
-    "antimony>=2.14.0",
-]
 vis = [
     "matplotlib>=3.6.0",
     "seaborn",
     "scipy"
 ]
+reports = [
+    "Jinja2",
+]
 sciml = [
     "petab_sciml",
+]
+all = [
+    "petab[antimony,combine,reports,sciml,vis]",
 ]
 
 [project.scripts]
@@ -85,18 +63,43 @@ Repository = "https://github.com/PEtab-dev/libpetab-python"
 Documentation = "https://petab.readthedocs.io/projects/libpetab-python/"
 
 [dependency-groups]
-ci = [
-    "petab[tests,reports,combine,vis]",
+test = [
+    "petab[all]",
+    "antimony>=3.1.0",
+    "copasi-basico>=0.85",
+    "pysb",
+    "pytest",
+    "pytest-cov",
+    "scipy",
     "petabtests @ git+https://github.com/PEtab-dev/petab_test_suite@main",
     "benchmark_models_petab @ git+https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab.git@master#subdirectory=src/python",
 ]
+doc = [
+    "petab[antimony,vis]",
+    "sphinx>=3.5.3, !=5.1.0",
+    "sphinx-markdown-tables>=0.0.15",
+    "sphinx-rtd-theme>=0.5.1",
+    "m2r2",
+    "myst-nb>=0.14.0",
+    # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
+    "ipython>=7.21.0, !=8.7.0",
+    "pysb",
+]
+dev = [
+    {include-group = "test"},
+    "pre-commit",
+]
 
 [tool.uv]
+default-groups = ["dev"]
 # pysb<1.17 fails to build: its legacy `ez_setup.py` bootstrap downloads
 # setuptools from a defunct pypi.python.org URL.
 constraint-dependencies = ["pysb>=1.17.0"]
 # pysb pins an older sympy than we need; force a newer one.
 override-dependencies = ["sympy>=1.12.1"]
+
+[tool.uv.sources]
+pysb = { git = "https://github.com/pysb/pysb", branch = "master" }
 
 [tool.setuptools.packages.find]
 include = ["petab", "petab.*"]
