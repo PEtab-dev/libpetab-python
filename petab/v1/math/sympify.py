@@ -34,7 +34,7 @@ def sympify_petab(
         .. note::
 
           All symbols in the returned expression will have the ``real=True``
-          assumption.
+          assumption, as created by :func:`petab_symbol`.
 
     :example:
     >>> from petab.v1.math import sympify_petab

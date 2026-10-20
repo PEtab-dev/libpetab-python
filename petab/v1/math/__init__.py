@@ -2,3 +2,4 @@
 
 from .printer import PetabStrPrinter, petab_math_str  # noqa: F401
 from .sympify import sympify_petab  # noqa: F401
+from .SympyVisitor import petab_symbol  # noqa: F401

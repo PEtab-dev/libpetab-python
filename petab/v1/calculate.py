@@ -11,7 +11,7 @@ import sympy as sp
 import petab.v1 as petab
 
 from .C import *
-from .math import sympify_petab
+from .math import petab_symbol, sympify_petab
 
 __all__ = [
     "calculate_chi2",
@@ -202,18 +202,16 @@ def evaluate_noise_formula(
     )
     # fill in measurement specific parameters
     overrides = {
-        sp.Symbol(
-            f"noiseParameter{i_obs_par + 1}_{observable_id}", real=True
-        ): obs_par
+        petab_symbol(f"noiseParameter{i_obs_par + 1}_{observable_id}"): obs_par
         for i_obs_par, obs_par in enumerate(observable_parameter_overrides)
     }
 
     # fill in observables
-    overrides[sp.Symbol(observable_id, real=True)] = simulation
+    overrides[petab_symbol(observable_id)] = simulation
 
     # fill in general parameters
     for row in parameter_df.itertuples():
-        overrides[sp.Symbol(row.Index, real=True)] = row.nominalValue
+        overrides[petab_symbol(row.Index)] = row.nominalValue
 
     # replace parametric measurement specific parameters
     for key, value in overrides.items():

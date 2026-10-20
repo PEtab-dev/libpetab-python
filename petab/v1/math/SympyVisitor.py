@@ -6,7 +6,7 @@ from sympy.logic.boolalg import Boolean, BooleanFalse, BooleanTrue
 from ._generated.PetabMathExprParser import PetabMathExprParser
 from ._generated.PetabMathExprParserVisitor import PetabMathExprParserVisitor
 
-__all__ = ["MathVisitorSympy"]
+__all__ = ["MathVisitorSympy", "petab_symbol"]
 
 # Mappings of PEtab math functions to sympy functions
 
@@ -65,6 +65,18 @@ _reserved_names = {
 }
 
 
+def petab_symbol(name: str) -> sp.Symbol:
+    """Create a sympy symbol for a PEtab identifier.
+
+    The symbol has the same assumptions as the symbols created by
+    :func:`sympify_petab`.
+
+    :param name: The identifier.
+    :return: The symbol.
+    """
+    return sp.Symbol(name, real=True)
+
+
 class MathVisitorSympy(PetabMathExprParserVisitor):
     """
     ANTLR4 visitor for PEtab-math-to-sympy conversion.
@@ -101,7 +113,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         """Convert identifier to sympy Symbol."""
         if ctx.getText().lower() in _reserved_names:
             raise ValueError(f"Use of reserved name {ctx.getText()!r}")
-        return sp.Symbol(ctx.getText(), real=True)
+        return petab_symbol(ctx.getText())
 
     def visitMultExpr(
         self, ctx: PetabMathExprParser.MultExprContext
