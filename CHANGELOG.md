@@ -69,6 +69,9 @@
 * `petab.v2.Problem.get_unused_id` returns an identifier that is not yet
   used in the problem or its model
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
+* `petab.v1.math.petab_symbol` (also in `petab.v2.math`) creates sympy
+  symbols with the same assumptions as `sympify_petab`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/563)
 
 ## 0.9 series
 

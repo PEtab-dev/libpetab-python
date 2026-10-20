@@ -8,7 +8,7 @@ import yaml
 from sympy.abc import _clash
 from sympy.logic.boolalg import Boolean, BooleanFalse, BooleanTrue
 
-from petab.v1.math import petab_math_str, sympify_petab
+from petab.v1.math import petab_math_str, petab_symbol, sympify_petab
 
 
 def test_sympify_numpy():
@@ -35,6 +35,10 @@ def test_assumptions():
 
     # non-real symbols are changed to real
     assert sympify_petab(sp.Symbol("x", real=False)).is_real
+
+    # `petab_symbol` creates the same symbols as the parser
+    assert petab_symbol("x") == sympify_petab("x")
+    assert petab_symbol("x") != sp.Symbol("x")
 
 
 def test_printer():
