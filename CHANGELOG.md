@@ -54,6 +54,11 @@
 * `assignments_to_experiments` no longer creates condition IDs that clash
   with other IDs in the problem
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
+* `petab.v2.converters.ExperimentsToSbmlConverter` now assigns a priority to
+  a pre-existing event without priority if it is the only such event, so
+  that PEtab condition changes are applied before its assignments.
+  Previously, their order was undefined
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/562)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
