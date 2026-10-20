@@ -85,7 +85,7 @@ To build the documentation, run:
 
 .. code-block:: bash
 
-    uv sync --extra doc --extra vis
+    uv sync --group doc
     cd doc
     make html
     # then open `build/html/index.html` in a browser
