@@ -1550,3 +1550,66 @@ def test_problem_to_files_columns(tmp_path):
         C.OBSERVABLE_FORMULA,
         C.NOISE_FORMULA,
     ]
+
+
+def _add_override_x(problem: Problem):
+    problem.add_observable(
+        "o",
+        "observableParameter1_o",
+        noise_formula=1,
+        observable_placeholders=["observableParameter1_o"],
+    )
+    problem.add_measurement(
+        "o", time=1, measurement=1, observable_parameters=["x"]
+    )
+
+
+def _add_model_x(problem: Problem):
+    problem.model = SbmlModel.from_antimony("species x = 1")
+
+
+@pytest.mark.parametrize(
+    "add_x",
+    [
+        pytest.param(
+            lambda p: p.add_parameter("x", False, nominal_value=1),
+            id="parameter",
+        ),
+        pytest.param(
+            lambda p: p.add_observable("x", "1", noise_formula=1),
+            id="observable",
+        ),
+        pytest.param(lambda p: p.add_condition("x", k=1), id="condition"),
+        pytest.param(lambda p: p.add_experiment("x", 0, ""), id="experiment"),
+        pytest.param(lambda p: p.add_mapping("x", "k.1"), id="mapping"),
+        pytest.param(lambda p: p.add_condition("c", x=1), id="target_id"),
+        pytest.param(
+            lambda p: p.add_condition("c", k="2 * x"), id="target_value"
+        ),
+        pytest.param(
+            lambda p: p.add_observable("o", "2 * x", noise_formula=1),
+            id="observable_formula",
+        ),
+        pytest.param(
+            lambda p: p.add_observable("o", "1", noise_formula="x"),
+            id="noise_formula",
+        ),
+        pytest.param(_add_override_x, id="override"),
+        pytest.param(_add_model_x, id="model_entity"),
+    ],
+)
+def test_get_unused_id(add_x):
+    """Test that IDs used anywhere in the problem are avoided."""
+    problem = Problem()
+    assert problem.get_unused_id("x") == "x"
+
+    add_x(problem)
+    assert problem.get_unused_id("x") == "x_1"
+    assert problem.get_unused_id("x", exclude={"x_1"}) == "x_2"
+    assert problem.get_unused_id("y") == "y"
+
+
+def test_get_unused_id_invalid():
+    """Test that invalid base IDs are rejected."""
+    with pytest.raises(ValueError, match="not a valid identifier"):
+        Problem().get_unused_id("1x")

@@ -51,6 +51,9 @@
   each `Change`, which caused renamed conditions to be written with their
   old ID
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/551)
+* `assignments_to_experiments` no longer creates condition IDs that clash
+  with other IDs in the problem
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
@@ -63,6 +66,12 @@
   `Problem.to_files(columns=...)`, or globally via `petab.v2.set_options` and
   `petab.v2.option_context`
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+* `petab.v2.Problem.get_unused_id` returns an identifier that is not yet
+  used in the problem or its model
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
+* `petab.v1.math.petab_symbol` (also in `petab.v2.math`) creates sympy
+  symbols with the same assumptions as `sympify_petab`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/563)
 
 ## 0.9 series
 
