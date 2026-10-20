@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from itertools import count
 
 import libsbml
 import sympy as sp
@@ -892,11 +891,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
 
     # add the new conditions to new or existing periods
     new_conditions = {}
-    cond_counter = count()
     for experiment, t, target_id, value in additions:
         if (cond_id := new_conditions.get((target_id, value))) is None:
-            while (cond_id := f"cond_{next(cond_counter)}") in condition_ids:
-                pass
+            cond_id = problem.get_unused_id(f"cond_{len(new_conditions)}")
             new_conditions[target_id, value] = cond_id
             problem += Condition(
                 id=cond_id,

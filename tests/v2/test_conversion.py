@@ -711,6 +711,24 @@ def test_assignments_to_experiments(condition, before, after):
     ]
 
 
+def test_assignments_to_experiments_unused_condition_id():
+    """Test that new condition IDs don't clash with other IDs."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("""
+        species A = 10;
+        k1 = piecewise(1, time < 10, 2);
+        R1: A -> ; k1 * A;
+        """)
+    problem.add_observable("obs_a", formula="A", noise_formula="cond_0")
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("cond_0", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    assert [c.id for c in converted.conditions] == ["cond_0_1"]
+    assert converted.experiments[0].periods[0].condition_ids == ["cond_0_1"]
+
+
 def test_assignments_to_experiments_nested():
     """Test conversion of piecewise assignments that are nested inside a
     larger expression and switch at a time given by some expression."""
