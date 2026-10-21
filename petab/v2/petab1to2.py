@@ -8,10 +8,12 @@ import warnings
 from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Literal, get_args
 from urllib.parse import urlparse
 from uuid import uuid4
 
 import pandas as pd
+import sympy as sp
 from pandas.io.common import get_handle, is_url
 
 from .. import v1, v2
@@ -20,8 +22,12 @@ from ..v1.yaml import get_path_prefix, load_yaml
 from ..v1.yaml import validate as validate_yaml
 from ..versions import get_major_version
 from .models import MODEL_TYPE_SBML
+from .reparametrize import _get_override_slots, reparametrize_log
 
 __all__ = ["petab1to2"]
+
+#: Options for reparametrizing log-scaled parameters
+Reparametrize = Literal["none", "priors", "all"]
 
 
 def petab1to2(
@@ -29,6 +35,7 @@ def petab1to2(
     output_dir: Path | str | None = None,
     *,
     validate: bool = True,
+    reparametrize: Reparametrize = "none",
 ) -> v2.Problem | None:
     """Convert from PEtab 1.0 to PEtab 2.0 format.
 
@@ -56,16 +63,51 @@ def petab1to2(
         If ``True`` (default), both problems are validated.
         If ``False``, neither problem is validated.
         The ``yaml_config`` content is validated regardless.
+    :param reparametrize:
+        Which ``log``/``log10``-scaled parameters to estimate as
+        ``log10_<id>``/``log_<id>`` (see :func:`petab.v2.reparametrize_log`).
+        PEtab v2 has no ``parameterScale``, so without reparametrization,
+        ``parameterScale*`` priors are converted to densities over the
+        unscaled parameter, which changes the maximum a posteriori estimate.
+
+        * ``"none"`` (default): don't reparametrize.
+        * ``"priors"``: estimated parameters with ``parameterScale*`` priors.
+        * ``"all"``: all estimated log-scaled parameters, except those with
+          priors over the unscaled parameter (e.g., ``logNormal``).
+          This also preserves the v1 default prior (uniform on parameter
+          scale). Parameters without ``parameterScale*`` priors are not
+          reparametrized (with a warning) if they override a placeholder
+          that cannot be log-transformed.
+
+        Parameters with a lower bound of ``0`` get a lower bound of ``-inf``.
+        They are not reparametrized if their prior on log scale would be
+        an improper uniform prior.
+        Further log-scaled parameters are reparametrized if they share a
+        placeholder with reparametrized ones in the measurement table.
 
     :raises ValueError:
         If the input is invalid or, if ``validate`` is ``True``, if the input
         does not pass linting or if the generated files do not pass linting.
+    :raises NotImplementedError:
+        If a parameter with a ``parameterScale*`` prior cannot be
+        reparametrized, e.g., because it overrides a placeholder that
+        cannot be log-transformed.
     """
     if output_dir is not None:
-        return petab_files_1to2(yaml_config, output_dir, validate=validate)
+        return petab_files_1to2(
+            yaml_config,
+            output_dir,
+            validate=validate,
+            reparametrize=reparametrize,
+        )
 
     with TemporaryDirectory() as tmp_dir:
-        petab_files_1to2(yaml_config, tmp_dir, validate=validate)
+        petab_files_1to2(
+            yaml_config,
+            tmp_dir,
+            validate=validate,
+            reparametrize=reparametrize,
+        )
         return v2.Problem.from_yaml(Path(tmp_dir, Path(yaml_config).name))
 
 
@@ -74,6 +116,7 @@ def petab_files_1to2(
     output_dir: Path | str,
     *,
     validate: bool = True,
+    reparametrize: Reparametrize = "none",
 ):
     """Convert PEtab files from PEtab 1.0 to PEtab 2.0.
 
@@ -85,6 +128,9 @@ def petab_files_1to2(
     :param validate:
         Whether to lint the PEtab v1 problem before and the generated
         PEtab v2 problem after the conversion. See :func:`petab1to2`.
+    :param reparametrize:
+        Which log-scaled parameters to reparametrize.
+        See :func:`petab1to2`.
 
     :raises ValueError:
         If the input is invalid or, if ``validate`` is ``True``, if the input
@@ -101,6 +147,12 @@ def petab_files_1to2(
         get_src_path = lambda filename: filename  # noqa: E731
 
     get_dest_path = lambda filename: f"{output_dir}/{filename}"  # noqa: E731
+
+    if reparametrize not in get_args(Reparametrize):
+        raise ValueError(
+            f"Invalid value for `reparametrize': {reparametrize}. "
+            f"Must be one of {get_args(Reparametrize)}."
+        )
 
     # Validate the original PEtab problem
     validate_yaml(yaml_config, path_prefix=path_prefix)
@@ -124,7 +176,9 @@ def petab_files_1to2(
     # Update tables
 
     # parameter table
-    parameter_df = v1v2_parameter_df(petab_problem.parameter_df.copy())
+    parameter_df = v1v2_parameter_df(
+        petab_problem.parameter_df.copy(), reparametrize=reparametrize
+    )
     v2.write_parameter_df(
         parameter_df, get_dest_path(new_yaml_config.parameter_files[0])
     )
@@ -265,6 +319,15 @@ def petab_files_1to2(
     # Write the new YAML file
     new_yaml_file = output_dir / Path(yaml_file).name
     new_yaml_config.to_yaml(new_yaml_file)
+
+    if reparametrize != "none" and (
+        problem := _reparametrize_log_scaled(
+            v2.Problem.from_yaml(new_yaml_file),
+            petab_problem.parameter_df,
+            reparametrize,
+        )
+    ):
+        problem.to_files(output_dir)
 
     if not validate:
         return
@@ -496,13 +559,32 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _has_objective_priors(parameter_df: pd.DataFrame) -> bool:
+    """Whether any estimated parameter of a v1 parameter table has an
+    objective prior."""
+    if v1.C.OBJECTIVE_PRIOR_TYPE not in parameter_df:
+        return False
+    return bool(
+        (
+            parameter_df[v1.C.OBJECTIVE_PRIOR_TYPE].notna()
+            & (parameter_df[v1.C.ESTIMATE].astype(int) == 1)
+        ).any()
+    )
+
+
 def v1v2_parameter_df(
     parameter_df: pd.DataFrame,
+    reparametrize: Reparametrize = "none",
 ) -> pd.DataFrame:
     """Convert parameter table from petab v1 to v2.
 
     Do all the necessary conversions to the parameter table that can
     be done with the parameter table alone.
+
+    :param parameter_df: The PEtab v1 parameter table.
+    :param reparametrize:
+        The reparametrization option passed to :func:`petab1to2`.
+        Only used for warnings, the reparametrization itself is done later.
     """
     df = parameter_df.copy().reset_index()
 
@@ -511,10 +593,16 @@ def v1v2_parameter_df(
         lambda x: str(bool(int(x))).lower()
     )
 
-    def update_prior(row) -> tuple[str, str | None]:
+    has_priors = _has_objective_priors(parameter_df)
+
+    def update_prior(row) -> tuple[str | None, str | None]:
         """Convert prior type and prior parameters to v2 format."""
         prior_type = row.get(v1.C.OBJECTIVE_PRIOR_TYPE)
         if pd.isna(prior_type):
+            if not has_priors or row[v2.C.ESTIMATE] != "true":
+                # no prior
+                return None, None
+            # the v2 default if other parameters have priors
             prior_type = v1.C.UNIFORM
         prior_pars = row.get(v1.C.OBJECTIVE_PRIOR_PARAMETERS)
 
@@ -606,10 +694,35 @@ def v1v2_parameter_df(
             stacklevel=9,
         )
     if not (df[v1.C.PARAMETER_SCALE] == v1.C.LIN).all():
-        warnings.warn(
-            "Parameter scales are not supported in PEtab v2.",
-            stacklevel=9,
+        msg = "Parameter scales are not supported in PEtab v2."
+        reparametrizable = (
+            parameter_df[v1.C.PARAMETER_SCALE].isin([v1.C.LOG, v1.C.LOG10])
+            & (parameter_df[v1.C.ESTIMATE].astype(int) == 1)
+            & (parameter_df[v1.C.LOWER_BOUND] >= 0)
         )
+        if reparametrize == "none" and reparametrizable.any():
+            prior_types = parameter_df.get(v1.C.OBJECTIVE_PRIOR_TYPE)
+            scale_priors = (
+                []
+                if prior_types is None
+                else parameter_df.index[
+                    reparametrizable
+                    & prior_types.isin(v1.C.PARAMETER_SCALE_PRIOR_TYPES)
+                ]
+            )
+            msg += " Log-scaled parameters are estimated on linear scale."
+            if len(scale_priors):
+                msg += (
+                    f" Parameter-scale priors of {', '.join(scale_priors)} "
+                    "were converted to the corresponding priors of the "
+                    "unscaled parameters, which changes the maximum a "
+                    "posteriori estimate."
+                )
+            msg += (
+                " Use `reparametrize='priors'` or `'all'` to estimate them "
+                "on log scale."
+            )
+        warnings.warn(msg, stacklevel=9)
     df.drop(
         columns=[
             v1.C.INITIALIZATION_PRIOR_TYPE,
@@ -638,3 +751,160 @@ def v1v2_parameter_df(
     df[v2.C.PRIOR_PARAMETERS] = df.apply(update_prior_pars, axis=1)
 
     return df
+
+
+def _reparametrize_log_scaled(
+    problem: v2.Problem,
+    v1_parameter_df: pd.DataFrame,
+    reparametrize: Reparametrize,
+) -> v2.Problem | None:
+    """Reparametrize log-scaled parameters of a converted problem.
+
+    See :func:`petab1to2`.
+
+    :param problem: The converted problem.
+    :param v1_parameter_df: The original PEtab v1 parameter table.
+    :param reparametrize: The parameters to reparametrize.
+    :return:
+        The reparametrized problem, or ``None`` if no parameter was
+        reparametrized.
+    """
+    df = v1_parameter_df
+    has_priors = _has_objective_priors(df)
+    # for each base: candidates and their priors over the scaled parameter
+    candidates = {10: {}, "e": {}}
+    # parameters with parameter-scale priors
+    required = {10: set(), "e": set()}
+    selected = {10: set(), "e": set()}
+    # selected parameters that cannot be reparametrized due to their bounds
+    #  and priors
+    zero_bound = []
+    for par_id, row in df.iterrows():
+        pscale = row[v1.C.PARAMETER_SCALE]
+        if pscale not in (v1.C.LOG, v1.C.LOG10):
+            continue
+        base = 10 if pscale == v1.C.LOG10 else "e"
+        prior_type = row.get(v1.C.OBJECTIVE_PRIOR_TYPE)
+        if pd.isna(prior_type):
+            # v1 default
+            prior_type = None
+        elif prior_type not in v1.C.PARAMETER_SCALE_PRIOR_TYPES:
+            # A prior over the unscaled parameter. Its conversion already
+            #  preserves the objective function.
+            continue
+        estimate = int(row[v1.C.ESTIMATE])
+        is_selected = estimate and (
+            reparametrize == "all" or prior_type is not None
+        )
+        if estimate and (
+            row[v1.C.LOWER_BOUND] < 0 or row[v1.C.UPPER_BOUND] <= 0
+        ):
+            # invalid on log scale (and in v1)
+            continue
+
+        # The prior over the scaled parameter. Derived from the v1 table
+        #  rather than from the converted v2 prior to avoid rounding errors.
+        #  Without a prior type, but with other estimated parameters having
+        #  priors, the v1 default is made explicit, as in
+        #  `v1v2_parameter_df`.
+        prior = None
+        if estimate and (prior_type is not None or has_priors):
+            # v1 allows a lower bound of 0 for log-scaled parameters
+            lb = (
+                scale(row[v1.C.LOWER_BOUND], pscale)
+                if row[v1.C.LOWER_BOUND] > 0
+                else -math.inf
+            )
+            ub = scale(row[v1.C.UPPER_BOUND], pscale)
+            pars = row.get(v1.C.OBJECTIVE_PRIOR_PARAMETERS)
+            if prior_type is None or pd.isna(pars):
+                pars = [lb, ub]
+            else:
+                pars = [
+                    float(x) for x in str(pars).split(v1.C.PARAMETER_SEPARATOR)
+                ]
+            if prior_type in (None, v1.C.PARAMETER_SCALE_UNIFORM):
+                prior = (v2.C.UNIFORM, [max(pars[0], lb), min(pars[1], ub)])
+            else:
+                name = prior_type.removeprefix("parameterScale").lower()
+                prior = (name, pars)
+            if prior[0] == v2.C.UNIFORM and math.isinf(prior[1][0]):
+                # improper prior for a lower bound of 0
+                if is_selected:
+                    zero_bound.append(par_id)
+                continue
+
+        candidates[base][par_id] = prior
+        if estimate and prior_type is not None:
+            required[base].add(par_id)
+        if is_selected:
+            selected[base].add(par_id)
+
+    if zero_bound:
+        warnings.warn(
+            f"Log-scaled parameters {', '.join(zero_bound)} were not "
+            "reparametrized, because their lower bound of 0 would result in "
+            "an improper prior on log scale. "
+            "They are estimated on linear scale, and any parameter-scale "
+            "priors were converted to the corresponding priors of the "
+            "unscaled parameters, which changes the maximum a posteriori "
+            "estimate.",
+            stacklevel=4,
+        )
+
+    # Placeholders can only be transformed if all their overrides are
+    #  reparametrized or positive numbers. Add log-scaled parameters that
+    #  share a placeholder with selected parameters. If that is not possible,
+    #  drop selected parameters that don't have parameter-scale priors.
+    #  Otherwise, `reparametrize_log` will raise.
+    slots = _get_override_slots(problem).values()
+    excluded = set()
+    for base, base_selected in selected.items():
+        changed = True
+        while changed:
+            changed = False
+            for values in slots:
+                ids = {str(v) for v in values if isinstance(v, sp.Symbol)}
+                if not ids & base_selected:
+                    continue
+                other = ids - base_selected
+                if other and other <= candidates[base].keys() - excluded:
+                    base_selected |= other
+                    changed = True
+                elif other or any(v.is_number and not v > 0 for v in values):
+                    optional = (ids & base_selected) - required[base]
+                    if optional:
+                        base_selected -= optional
+                        excluded |= optional
+                        changed = True
+    if excluded:
+        warnings.warn(
+            "Log-scaled parameters "
+            f"{', '.join(sorted(excluded))} were not reparametrized, "
+            "because they are used as overrides for placeholders that "
+            "cannot be log-transformed.",
+            stacklevel=4,
+        )
+
+    if not any(selected.values()):
+        return None
+
+    for base, base_selected in selected.items():
+        if not base_selected:
+            continue
+        try:
+            problem, _ = reparametrize_log(
+                problem,
+                # keep the parameter table order
+                [p for p in candidates[base] if p in base_selected],
+                base=base,
+                priors={p: candidates[base][p] for p in base_selected},
+            )
+        except NotImplementedError as e:
+            raise NotImplementedError(
+                "Log-scaled parameters could not be reparametrized. "
+                "Use `reparametrize='none'` to estimate them on linear "
+                "scale.\n" + str(e)
+            ) from e
+
+    return problem
