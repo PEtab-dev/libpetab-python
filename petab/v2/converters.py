@@ -755,7 +755,8 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         :data:`DEFAULT_EXPERIMENT_ID`, if needed.
 
     **Scope:** conversion is supported for SBML assignment rules that depend
-    on time only through the conditions of piecewise functions, where
+    on time through the conditions of piecewise functions, and at most
+    linearly through their values, where
 
     * every such condition is an inequality that can be re-arranged
       explicitly into `t </<=/>/>= ...`,
@@ -770,7 +771,13 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     given at different times (`d1 * piecewise(0, t < t1, 1) + d2 *
     piecewise(0, t < t2, 1)`), phases one after another as several pieces or
     nested piecewise functions (`piecewise(b0, t < t1, piecewise(b1, t < t2,
-    b2))`). Each switch that changes the value becomes a period. Anything else
+    b2))`). Each switch that changes the value becomes a period. A value may
+    also change linearly with time within a period (a ramp: `piecewise(r * t
+    + a, t <= t_end, 0)`). A condition change is applied once at the start of
+    its period, so the target of such an assignment becomes a differential
+    entity instead, with the rate rule `d target/dt = <target>_slope`, and
+    each period sets both the target and its slope; an assignment that only
+    switches between constant values stays a constant parameter. Anything else
     raises a :class:`NotImplementedError`.
 
     .. warning::
@@ -855,7 +862,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         )
         model_values = {
             s: sbml_model.getParameter(str(s)).getValue()
-            for s in default.free_symbols
+            for s in default.free_symbols - {time}
         }
         # unless a condition sets them, the switching times' symbols keep
         #  their value from the parameter table or else from the model
@@ -867,7 +874,25 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             for s in t_switch.free_symbols
         }
         target = sbml_model.getParameter(target_id)
-        target.setValue(float(default.subs(model_values)))
+        # A value that changes with time within a period (a ramp) cannot be a
+        #  condition change on a constant target, which is applied once at
+        #  the start of its period. The model only makes the target a
+        #  differential entity, `d target/dt = <target>_slope`; the slope's
+        #  value, like the target's, is set by every period that starts one.
+        ramps = expr.xreplace({c: sp.Dummy() for c in switches}).has(time)
+        slope_id = None
+        if ramps:
+            slope_id = f"{target_id}_slope"
+            while sbml_model.getElementBySId(slope_id) is not None:
+                slope_id += "_"
+            slope = sbml_model.createParameter()
+            slope.setId(slope_id)
+            slope.setConstant(False)
+            slope.setValue(0.0)
+            rate_rule = sbml_model.createRateRule()
+            rate_rule.setVariable(target_id)
+            rate_rule.setMath(libsbml.parseL3Formula(slope_id))
+        target.setValue(float(default.subs(time, 0).subs(model_values)))
         target.setConstant(False)
         assignment.removeFromParentAndDelete()
         symbol_ids = {str(s) for s in expr.free_symbols}
@@ -877,7 +902,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         for experiment in experiments:
             periods = experiment.sorted_periods
             overrides = {}
-            for i, period in enumerate(periods):
+            for i_period, period in enumerate(periods):
                 changes = problem.get_changes_for_period(period)
                 overrides |= {c.target_id: c.target_value for c in changes}
                 subs = fixed_values | {
@@ -899,14 +924,23 @@ def assignments_to_experiments(problem: Problem) -> Problem:
 
                 if period.is_preequilibration:
                     # the value at time 0, which respects whether a
-                    #  condition holds for a switch at time 0
+                    #  condition holds for a switch at time 0, held there:
+                    #  a ramp does not run during preequilibration
                     value = expr.subs(subs).subs(time, 0)
                     additions.append(
                         (experiment, period.time, target_id, value)
                     )
+                    if ramps:
+                        additions.append(
+                            (experiment, period.time, slope_id, sp.S.Zero)
+                        )
                     continue
 
-                t_end = periods[i + 1].time if i + 1 < len(periods) else sp.oo
+                t_end = (
+                    periods[i_period + 1].time
+                    if i_period + 1 < len(periods)
+                    else sp.oo
+                )
                 start_value = _value_from(
                     expr, switches, time, subs, times, period.time
                 )
@@ -922,9 +956,11 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                 #  the first period, unless that value refers to parameter
                 #  table symbols, for which the model only has a number. The
                 #  switches can become the first periods if they only refer
-                #  to parameter table symbols.
+                #  to parameter table symbols. A ramp's start and slope are
+                #  always set by the tables.
                 redundant = (
-                    i == 0
+                    not ramps
+                    and i_period == 0
                     and (start_value - default).is_zero
                     and not {str(s) for s in default.free_symbols}
                     & parameter_ids
@@ -933,14 +969,38 @@ def assignments_to_experiments(problem: Problem) -> Problem:
                         for _, value in switch_values
                     )
                 )
+                after_preequilibration = (
+                    i_period > 0 and periods[i_period - 1].is_preequilibration
+                )
                 if not redundant and (
-                    i == 0 or {c.target_id for c in changes} & symbol_ids
+                    i_period == 0
+                    or {c.target_id for c in changes} & symbol_ids
+                    # preequilibration held the slope at zero
+                    or (ramps and after_preequilibration)
                 ):
-                    additions.append(
-                        (experiment, period.time, target_id, start_value)
+                    if i_period == 0:
+                        # at the start of an experiment, a change may only
+                        #  refer to parameter table symbols; other symbols
+                        #  are constant model parameters, at their values
+                        start_value = start_value.subs(
+                            {
+                                s: sbml_model.getParameter(str(s)).getValue()
+                                for s in start_value.free_symbols - {time}
+                                if str(s) not in parameter_ids
+                            }
+                        )
+                    additions += _changes(
+                        experiment,
+                        period.time,
+                        target_id,
+                        start_value,
+                        time,
+                        slope_id,
                     )
                 for t, value in switch_values:
-                    additions.append((experiment, t, target_id, value))
+                    additions += _changes(
+                        experiment, t, target_id, value, time, slope_id
+                    )
 
     if converted_ids and any(e.has_preequilibration for e in experiments):
         warnings.warn(
@@ -1012,6 +1072,16 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     return problem
 
 
+def _changes(experiment, t, target_id, value, time, slope_id):
+    """The changes that start ``value`` at time ``t``: the target set to the
+    value at ``t``, and, for a target that ramps, its slope set to the
+    value's rate of change."""
+    changes = [(experiment, t, target_id, value.subs(time, t))]
+    if slope_id is not None:
+        changes.append((experiment, t, slope_id, sp.diff(value, time)))
+    return changes
+
+
 def _value_from(
     expr: sp.Expr,
     switches: dict,
@@ -1072,9 +1142,14 @@ def _supported_time_switches(
                 raise unsupported
             t_switch = sp.solve(condition.gts - condition.lts, time)[0]
             switches[condition] = (t_switch, slope)
-    # time enters only through the conditions
-    if expr.xreplace({c: sp.Dummy() for c in switches}).has(time):
-        raise unsupported
+    # outside the conditions, time enters at most linearly: the value may
+    #  ramp, at a rate that does not itself change with time
+    rest = expr.xreplace({c: sp.Dummy() for c in switches})
+    if rest.has(time) and sp.diff(rest, time).has(time):
+        raise NotImplementedError(
+            "Only values that change at most linearly with time are "
+            f"supported, but the assignment to `{target_id}` is `{expr}`."
+        )
     # no period can start at an estimated time
     if estimated := sorted(
         {
