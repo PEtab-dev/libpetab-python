@@ -1,6 +1,8 @@
 """Private utility functions for SBML handling."""
 
 import libsbml
+import sympy as sp
+from sbmlmath.mathml_printer import SBMLMathMLPrinter
 
 retval_to_str = {
     getattr(libsbml, attr): attr
@@ -49,3 +51,32 @@ def add_sbml_parameter(
         check(param.setConstant(constant))
 
     return param
+
+
+def set_initial_assignment(
+    model: libsbml.Model,
+    symbol_id: str,
+    expr: sp.Expr,
+    literals_dimensionless: bool = True,
+) -> libsbml.InitialAssignment:
+    """Set the initial assignment for the given symbol.
+
+    Overwrites any existing initial assignment for that symbol.
+
+    :param literals_dimensionless:
+        Whether to annotate numeric literals as dimensionless.
+        (`sbmlmath` can't read back, e.g., ``10^x`` with a dimensionless
+        base.)
+    """
+    if (ia := model.getInitialAssignmentBySymbol(symbol_id)) is None:
+        ia = model.createInitialAssignment()
+        check(ia.setSymbol(symbol_id))
+    mathml = SBMLMathMLPrinter(
+        sbml_level=model.getLevel(),
+        sbml_version=model.getVersion(),
+        literals_dimensionless=literals_dimensionless,
+    ).doprint(expr)
+    if (ast := libsbml.readMathMLFromString(mathml)) is None:
+        raise ValueError(f"Failed to convert `{expr}' to MathML.")
+    check(ia.setMath(ast))
+    return ia
