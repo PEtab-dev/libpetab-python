@@ -14,6 +14,7 @@ from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
 from petab.v2.converters import (
     DEFAULT_EXPERIMENT_ID,
+    ExperimentsToSbmlConverter,
     assignments_to_experiments,
 )
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
@@ -685,14 +686,15 @@ def test_assignments_to_experiments(condition, before, after):
     converted = assignments_to_experiments(problem)
 
     # the value before the switch is kept in the model, so that only the
-    #  switch itself needs a condition
+    #  switch itself needs a condition; the experiment still starts at 0,
+    #  where the first measurement is
     assert converted.model.sbml_model.getParameter("k1").getValue() == before
 
     experiments_expected = pd.DataFrame(
         data={
-            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID],
-            v2.C.TIME: [10.0],
-            v2.C.CONDITION_ID: ["cond_0"],
+            v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID] * 2,
+            v2.C.TIME: [0.0, 10.0],
+            v2.C.CONDITION_ID: ["", "cond_0"],
         }
     )
 
@@ -757,21 +759,22 @@ def test_assignments_to_experiments_nested():
     assert converted.model.sbml_model.getParameter("k1").getValue() == 0.0
 
     # `level` is not a parameter table entry, so it must not appear in the
-    #  first period -- the pre-dose value is kept as a condition here
+    #  first period -- the switch may refer to it, since the experiment
+    #  starts with an empty period at 0
     experiments_expected = pd.DataFrame(
         data={
             v2.C.EXPERIMENT_ID: [DEFAULT_EXPERIMENT_ID] * 2,
             v2.C.TIME: [0.0, 10.0],
-            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+            v2.C.CONDITION_ID: ["", "cond_0"],
         }
     )
 
     # the factor outside the piecewise expression is preserved
     conditions_expected = pd.DataFrame(
         data={
-            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
-            v2.C.TARGET_ID: ["k1", "k1"],
-            v2.C.TARGET_VALUE: [0.0, "level"],
+            v2.C.CONDITION_ID: ["cond_0"],
+            v2.C.TARGET_ID: ["k1"],
+            v2.C.TARGET_VALUE: ["level"],
         }
     )
 
@@ -865,14 +868,16 @@ def test_assignments_to_experiments_condition_specific():
     converted = assignments_to_experiments(problem)
 
     # the pre-dose value is the same for both conditions and is kept in the
-    #  model; each condition gets its own experiment and switching time
+    #  model; each condition gets its own experiment and switching time, and
+    #  each experiment still starts at 0, where its condition is now empty
     assert converted.model.sbml_model.getParameter("k1").getValue() == 0.0
 
     experiments_expected = pd.DataFrame(
         data={
-            v2.C.EXPERIMENT_ID: ["experiment____c1", "experiment____c2"],
-            v2.C.TIME: [10.0, 20.0],
-            v2.C.CONDITION_ID: ["cond_0", "cond_1"],
+            v2.C.EXPERIMENT_ID: ["experiment____c1"] * 2
+            + ["experiment____c2"] * 2,
+            v2.C.TIME: [0.0, 10.0, 0.0, 20.0],
+            v2.C.CONDITION_ID: ["", "cond_0", "", "cond_1"],
         }
     )
 
@@ -890,6 +895,76 @@ def test_assignments_to_experiments_condition_specific():
     assert converted.measurement_df[v2.C.EXPERIMENT_ID].tolist() == [
         "experiment____c1",
         "experiment____c2",
+    ]
+
+
+def _simulate(problem, experiment_id, timepoints):
+    """Simulate an experiment in BasiCO, after converting the experiments
+    to SBML events, and return the trajectory of `A`."""
+    import basico
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    indicator = converted.model.sbml_model.getParameter(
+        ExperimentsToSbmlConverter.get_experiment_indicator(experiment_id)
+    )
+    if indicator is not None:
+        indicator.setValue(1)
+    basico.load_model(converted.model.to_sbml_str())
+    result = basico.run_time_course(
+        values=timepoints, r_tol=1e-10, a_tol=1e-12
+    )
+    return result["A"].to_numpy()
+
+
+@pytest.mark.parametrize("by_condition", [False, True])
+def test_assignments_to_experiments_simulate_before_switch(by_condition):
+    """Test that a converted experiment starts at 0, not at its first switch,
+    if nothing changes at 0: without an experiment, or if the condition at
+    0 only sets symbols of the converted assignment. Simulations before and
+    after the switch match the original problem's."""
+    problem = Problem()
+    ant_model = f"""
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        t_switch = 0;
+        k1 := piecewise(1, time < {"t_switch" if by_condition else 5}, 2);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
+    if by_condition:
+        experiment_id = "experiment____c1"
+        problem.add_condition("c1", t_switch=3.0)
+        problem.add_experiment(experiment_id, 0, "c1")
+    else:
+        experiment_id = DEFAULT_EXPERIMENT_ID
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    timepoints = [0.0, 1.0, 2.0, 4.0, 6.0, 10.0]
+    for t in timepoints:
+        problem.add_measurement(
+            "obs_a",
+            experiment_id=experiment_id if by_condition else None,
+            time=t,
+            measurement=5.0,
+        )
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
+
+    converted = assignments_to_experiments(problem)
+
+    np.testing.assert_allclose(
+        _simulate(converted, experiment_id, timepoints),
+        _simulate(problem, experiment_id, timepoints),
+        rtol=1e-6,
+    )
+    (experiment,) = converted.experiments
+    assert experiment.id == experiment_id
+    assert [(p.time, p.condition_ids) for p in experiment.periods] == [
+        (0.0, []),
+        (3.0 if by_condition else 5.0, ["cond_0"]),
     ]
 
 
@@ -1040,13 +1115,16 @@ def test_assignments_to_experiments_fixed_switching_time(
 
     converted = assignments_to_experiments(problem)
 
+    periods = [
+        (row[v2.C.TIME], row[v2.C.CONDITION_ID])
+        for _, row in converted.experiment_df.iterrows()
+    ]
+    # the experiment starts at 0, where nothing changes
+    assert periods[0] == (0.0, "")
     conditions = converted.condition_df.set_index(v2.C.CONDITION_ID)
     assert [
-        (
-            row[v2.C.TIME],
-            float(conditions.loc[row[v2.C.CONDITION_ID], v2.C.TARGET_VALUE]),
-        )
-        for _, row in converted.experiment_df.iterrows()
+        (t, float(conditions.loc[condition_id, v2.C.TARGET_VALUE]))
+        for t, condition_id in periods[1:]
     ] == [(t_switch, 1.0)]
 
 
@@ -1136,14 +1214,16 @@ def test_assignments_to_experiments_several_switches(
     converted = assignments_to_experiments(problem)
 
     assert converted.model.sbml_model.getParameter("k1").getValue() == default
-    experiments = converted.experiment_df
+    periods = [
+        (row[v2.C.TIME], row[v2.C.CONDITION_ID])
+        for _, row in converted.experiment_df.iterrows()
+    ]
+    # the experiment starts at 0, where nothing changes
+    assert periods[0] == (0.0, "")
     conditions = converted.condition_df.set_index(v2.C.CONDITION_ID)
     assert [
-        (
-            row[v2.C.TIME],
-            float(conditions.loc[row[v2.C.CONDITION_ID], v2.C.TARGET_VALUE]),
-        )
-        for _, row in experiments.iterrows()
+        (t, float(conditions.loc[condition_id, v2.C.TARGET_VALUE]))
+        for t, condition_id in periods[1:]
     ] == switches
 
 
