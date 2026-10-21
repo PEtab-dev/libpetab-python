@@ -59,6 +59,9 @@
   that PEtab condition changes are applied before its assignments.
   Previously, their order was undefined
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/562)
+* `petablint` no longer fails for PEtab v2 problems with only warnings,
+  consistent with PEtab v1. Warnings are still reported
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/569)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
