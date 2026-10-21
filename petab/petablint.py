@@ -198,9 +198,9 @@ def main():
 
                 try:
                     validation_issues = lint_problem(args.yaml_file_name)
-                    if validation_issues:
-                        # Handle petab.v2.lint.ValidationTask issues
-                        validation_issues.log(logger=logger)
+                    # Handle petab.v2.lint.ValidationTask issues
+                    validation_issues.log(logger=logger)
+                    if validation_issues.has_errors():
                         sys.exit(1)
                     logger.info("PEtab format check completed successfully.")
                     sys.exit(0)
