@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from . import core, lint
 from .C import *
 
@@ -32,7 +33,7 @@ def get_condition_df(
 
     if isinstance(condition_file, str | Path):
         condition_file = pd.read_csv(
-            condition_file, sep="\t", float_precision="round_trip"
+            condition_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
 
     lint.assert_no_leading_trailing_whitespace(
@@ -40,13 +41,12 @@ def get_condition_df(
     )
 
     if not isinstance(condition_file.index, pd.RangeIndex):
-        condition_file.reset_index(
+        condition_file = condition_file.reset_index(
             drop=condition_file.index.name != CONDITION_ID,
-            inplace=True,
         )
 
     try:
-        condition_file.set_index([CONDITION_ID], inplace=True)
+        condition_file = condition_file.set_index([CONDITION_ID])
     except KeyError:
         raise KeyError(
             f"Condition table missing mandatory field {CONDITION_ID}."
@@ -90,7 +90,7 @@ def create_condition_df(
             raise ValueError("Invalid parameter ID: " + p)
         df[p] = np.nan
 
-    df.set_index(CONDITION_ID, inplace=True)
+    df = df.set_index(CONDITION_ID)
 
     return df
 

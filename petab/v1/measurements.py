@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from . import core, lint, observables
 from .C import *
 
@@ -42,7 +43,7 @@ def get_measurement_df(
 
     if isinstance(measurement_file, str | Path):
         measurement_file = pd.read_csv(
-            measurement_file, sep="\t", float_precision="round_trip"
+            measurement_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
 
     lint.assert_no_leading_trailing_whitespace(
@@ -94,7 +95,8 @@ def get_simulation_conditions(measurement_df: pd.DataFrame) -> pd.DataFrame:
     # We require NaN-containing rows, but they are ignored by `groupby`,
     # therefore replace them before
     simulation_conditions = (
-        measurement_df.fillna("")
+        measurement_df[grouping_cols]
+        .fillna("")
         .groupby(grouping_cols)
         .size()
         .reset_index()[grouping_cols]
@@ -129,7 +131,9 @@ def get_rows_for_condition(
     # check for equality in all grouping cols
     if PREEQUILIBRATION_CONDITION_ID in condition:
         row_filter = (
-            measurement_df[PREEQUILIBRATION_CONDITION_ID].fillna("")
+            measurement_df[PREEQUILIBRATION_CONDITION_ID]
+            .astype("object")
+            .fillna("")
             == condition[PREEQUILIBRATION_CONDITION_ID]
         ) & row_filter
     if SIMULATION_CONDITION_ID in condition:
@@ -251,7 +255,7 @@ def measurements_have_replicates(measurement_df: pd.DataFrame) -> bool:
         ],
     )
     return np.any(
-        measurement_df.fillna("").groupby(grouping_cols).size().values - 1
+        measurement_df.groupby(grouping_cols, dropna=False).size().values - 1
     )
 
 

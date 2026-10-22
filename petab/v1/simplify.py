@@ -23,8 +23,7 @@ def remove_nan_measurements(problem: Problem):
     """Drop any measurements that are NaN"""
     problem.measurement_df = problem.measurement_df[
         ~problem.measurement_df[MEASUREMENT].isna()
-    ]
-    problem.measurement_df.reset_index(inplace=True, drop=True)
+    ].reset_index(drop=True)
 
 
 def remove_unused_observables(problem: Problem):
@@ -103,8 +102,7 @@ def condition_parameters_to_parameter_table(problem: Problem):
         }
         for parameter_id, value in replacements.items()
     ]
-    rows = pd.DataFrame(rows)
-    rows.set_index(PARAMETER_ID, inplace=True)
+    rows = pd.DataFrame(rows).set_index(PARAMETER_ID)
 
     if problem.parameter_df is None:
         problem.parameter_df = rows

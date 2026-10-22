@@ -26,7 +26,7 @@ def condition_df_2_conditions():
             "fixedParameter1": [1.0, 2.0],
         }
     )
-    condition_df.set_index("conditionId", inplace=True)
+    condition_df = condition_df.set_index("conditionId")
     condition_df.fixedParameter1 = condition_df.fixedParameter1.astype(
         "object"
     )
@@ -377,7 +377,7 @@ def test_flatten_timepoint_specific_output_overrides():
             ],
         }
     )
-    observable_df.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df = observable_df.set_index(OBSERVABLE_ID)
 
     # new observable IDs
     #  (obs${i_obs}_${i_obsParOverride}_${i_noiseParOverride}_${i_condition})
@@ -427,7 +427,7 @@ def test_flatten_timepoint_specific_output_overrides():
             ],
         }
     )
-    observable_df_expected.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df_expected = observable_df_expected.set_index(OBSERVABLE_ID)
 
     # Measurement table with timepoint-specific overrides
     measurement_df = pd.DataFrame(
@@ -558,7 +558,7 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
             NOISE_FORMULA: ["noiseParameter1_obs1"],
         }
     )
-    observable_df.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df = observable_df.set_index(OBSERVABLE_ID)
 
     observable_df_expected = pd.DataFrame(
         data={
@@ -573,7 +573,7 @@ def test_flatten_timepoint_specific_output_overrides_special_cases():
             ],
         }
     )
-    observable_df_expected.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df_expected = observable_df_expected.set_index(OBSERVABLE_ID)
 
     # Measurement table with timepoint-specific overrides
     measurement_df = pd.DataFrame(

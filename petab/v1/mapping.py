@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from . import lint
 from .C import *
 from .models import Model
@@ -34,13 +35,12 @@ def get_mapping_df(
 
     if isinstance(mapping_file, str | Path):
         mapping_file = pd.read_csv(
-            mapping_file, sep="\t", float_precision="round_trip"
+            mapping_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
 
     if not isinstance(mapping_file.index, pd.RangeIndex):
-        mapping_file.reset_index(
+        mapping_file = mapping_file.reset_index(
             drop=mapping_file.index.name != PETAB_ENTITY_ID,
-            inplace=True,
         )
 
     for col in MAPPING_DF_REQUIRED_COLS:
@@ -51,7 +51,7 @@ def get_mapping_df(
             mapping_file.reset_index()[col].values, col
         )
 
-    mapping_file.set_index([PETAB_ENTITY_ID], inplace=True)
+    mapping_file = mapping_file.set_index([PETAB_ENTITY_ID])
 
     return mapping_file
 

@@ -61,8 +61,7 @@ class DataSeries:
         conditions_: np.ndarray | pd.Series | None,
         data_to_plot: pd.DataFrame | None = None,
     ):
-        self.data_to_plot = data_to_plot
-        self.data_to_plot.sort_index(inplace=True)
+        self.data_to_plot = data_to_plot.sort_index()
 
         self.conditions = conditions_
         if self.conditions is not None:
@@ -76,7 +75,7 @@ class DataSeries:
         if isinstance(self.conditions, np.ndarray):
             self.conditions.sort()
         elif isinstance(self.conditions, pd.Series):
-            self.conditions.sort_index(inplace=True)
+            self.conditions = self.conditions.sort_index()
 
     def add_x_offset(self, offset) -> None:
         """

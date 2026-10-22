@@ -76,7 +76,10 @@ def test_get_condition_df():
     os.remove(file_name)
 
     # test other arguments
-    assert (petab.get_condition_df(condition_df) == condition_df).all().all()
+    pd.testing.assert_frame_equal(
+        petab.get_condition_df(condition_df),
+        condition_df.set_index(CONDITION_ID),
+    )
     assert petab.get_condition_df(None) is None
 
 
