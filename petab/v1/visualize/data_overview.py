@@ -83,7 +83,10 @@ def get_data_per_observable(measurement_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Add row and column sums
-    data_per_observable.loc["SUM", :] = data_per_observable.sum(axis=0).values
+    sum_row = "SUM" if len(index) == 1 else ("SUM", "")
+    data_per_observable.loc[sum_row, :] = data_per_observable.sum(
+        axis=0
+    ).values
     data_per_observable["SUM"] = data_per_observable.sum(axis=1).values
 
     data_per_observable = data_per_observable.astype(int)

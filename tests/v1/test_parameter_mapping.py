@@ -100,7 +100,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 PARAMETER_SCALE: [LOG, LOG10, LIN],
             }
         )
-        parameter_df.set_index(PARAMETER_ID, inplace=True)
+        parameter_df = parameter_df.set_index(PARAMETER_ID)
 
         expected = [
             (
@@ -282,7 +282,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 ESTIMATE: [1] * 7,
             }
         )
-        parameter_df.set_index(PARAMETER_ID, inplace=True)
+        parameter_df = parameter_df.set_index(PARAMETER_ID)
 
         expected = [
             (
@@ -357,7 +357,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 "fixedParameter2": [nan, 2.5],
             }
         )
-        condition_df.set_index("conditionId", inplace=True)
+        condition_df = condition_df.set_index("conditionId")
 
         model = SbmlModel.from_antimony(
             """
@@ -402,7 +402,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 ESTIMATE: [1, 1, 1, 1, 1],
             }
         )
-        parameter_df.set_index(PARAMETER_ID, inplace=True)
+        parameter_df = parameter_df.set_index(PARAMETER_ID)
 
         expected = [
             (
@@ -476,7 +476,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 ],
             }
         )
-        condition_df.set_index(CONDITION_ID, inplace=True)
+        condition_df = condition_df.set_index(CONDITION_ID)
 
         measurement_df = pd.DataFrame(
             data={
@@ -498,7 +498,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 ESTIMATE: [1, 1],
             }
         )
-        parameter_df.set_index(PARAMETER_ID, inplace=True)
+        parameter_df = parameter_df.set_index(PARAMETER_ID)
 
         model = SbmlModel.from_antimony("dynamicParameter1 = 1.0")
 
@@ -566,7 +566,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 ],
             }
         )
-        condition_df.set_index("conditionId", inplace=True)
+        condition_df = condition_df.set_index("conditionId")
 
         # set up measurement table
         measurement_df = pd.DataFrame(
@@ -596,7 +596,7 @@ class TestGetSimulationToOptimizationParameterMapping:
                 PARAMETER_SCALE: [LOG10, LIN, LOG10],
             }
         )
-        parameter_df.set_index(PARAMETER_ID, inplace=True)
+        parameter_df = parameter_df.set_index(PARAMETER_ID)
 
         # test without preequilibration condition; unscaled known parameters
 
@@ -701,7 +701,7 @@ def test_fill_in_nominal_values():
             ESTIMATE: [1, 0],
         }
     )
-    parameter_df.set_index([PARAMETER_ID], inplace=True)
+    parameter_df = parameter_df.set_index([PARAMETER_ID])
 
     par_mapping = {"estimated": "estimated", "not_estimated": "not_estimated"}
     scale_mapping = {"estimated": LIN, "not_estimated": LIN}

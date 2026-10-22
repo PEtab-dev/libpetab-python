@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from ..v1.lint import assert_no_leading_trailing_whitespace
 
 __all__ = [
@@ -27,7 +28,7 @@ def get_condition_df(
 
     if isinstance(condition_file, str | Path):
         condition_file = pd.read_csv(
-            condition_file, sep="\t", float_precision="round_trip"
+            condition_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
 
     assert_no_leading_trailing_whitespace(
