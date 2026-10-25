@@ -729,7 +729,10 @@ def test_assignments_to_experiments_unused_condition_id():
     converted = assignments_to_experiments(problem)
 
     assert [c.id for c in converted.conditions] == ["cond_0_1"]
-    assert converted.experiments[0].periods[0].condition_ids == ["cond_0_1"]
+    # the experiment starts at 0, where nothing changes
+    assert [
+        (p.time, p.condition_ids) for p in converted.experiments[0].periods
+    ] == [(0.0, []), (10.0, ["cond_0_1"])]
 
 
 def test_assignments_to_experiments_nested():
