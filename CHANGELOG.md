@@ -64,8 +64,9 @@
   still uses elsewhere, evaluate a condition change once at the start of its
   period, leave time-dependent initial assignments in the model, reject
   assignments to species or compartments, leave problems without
-  time-dependent assignments unchanged, and give a ramp's slope parameter an
-  unused ID
+  time-dependent assignments unchanged, give a ramp's slope parameter an
+  unused ID, and accept switching times that conditions set from parameters
+  fixed by the parameter table
   (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/574)
 
 **Features**
