@@ -9,7 +9,6 @@ from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
-from uuid import uuid4
 
 import pandas as pd
 from pandas.io.common import get_handle, is_url
@@ -227,12 +226,35 @@ def petab_files_1to2(
             v2.get_experiment_df(pd.DataFrame(experiments)), exp_table_path
         )
 
-    for measurement_file in new_yaml_config.measurement_files:
-        measurement_df = v1.get_measurement_df(get_src_path(measurement_file))
-        # if there is already an experiment ID column, we rename it
+    measurement_dfs = {
+        measurement_file: v1.get_measurement_df(get_src_path(measurement_file))
+        for measurement_file in new_yaml_config.measurement_files
+    }
+    # if there is already an experiment ID column, we rename it,
+    #  consistently across all measurement tables
+    if any(
+        v2.C.EXPERIMENT_ID in df.columns for df in measurement_dfs.values()
+    ):
+        all_columns = set().union(
+            *(df.columns for df in measurement_dfs.values())
+        )
+        renamed_experiment_id = f"{v2.C.EXPERIMENT_ID}_v1"
+        i = 1
+        while renamed_experiment_id in all_columns:
+            i += 1
+            renamed_experiment_id = f"{v2.C.EXPERIMENT_ID}_v1_{i}"
+        warnings.warn(
+            f"The measurement table has a column `{v2.C.EXPERIMENT_ID}`, "
+            "which is reserved in PEtab v2. "
+            f"It was renamed to `{renamed_experiment_id}`.",
+            # call to `petab1to2`
+            stacklevel=3,
+        )
+
+    for measurement_file, measurement_df in measurement_dfs.items():
         if v2.C.EXPERIMENT_ID in measurement_df.columns:
             measurement_df = measurement_df.rename(
-                columns={v2.C.EXPERIMENT_ID: f"experiment_id_{uuid4()}"},
+                columns={v2.C.EXPERIMENT_ID: renamed_experiment_id}
             )
         # add pre-eq condition id if not present or convert to string
         #  for simplicity

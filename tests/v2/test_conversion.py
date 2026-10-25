@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from petab import v1, v2
 from petab.v1.calculate import calculate_llh as calculate_llh_v1
@@ -612,6 +613,66 @@ def test_petab1to2_validate(tmp_path):
     assert len(problem.measurements) == 2
 
 
+@pytest.mark.parametrize("clash", [False, True])
+def test_petab1to2_existing_experiment_id_column(tmp_path, clash):
+    """Test that a pre-existing `experimentId` column is renamed
+    deterministically and consistently across measurement files."""
+    yaml_file = _write_v1_problem(
+        tmp_path / "v1",
+        observables=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.OBSERVABLE_FORMULA: "B",
+                v1.C.NOISE_FORMULA: 0.1,
+            }
+        ],
+        measurements=[
+            {
+                v1.C.OBSERVABLE_ID: "obs_B",
+                v1.C.SIMULATION_CONDITION_ID: "c0",
+                v1.C.TIME: 1.0,
+                v1.C.MEASUREMENT: 0.5,
+                v2.C.EXPERIMENT_ID: "dose_response",
+            }
+        ],
+        parameters=[_K1],
+    )
+    # second measurement file, which may have a clashing column
+    yaml_path = tmp_path / "v1" / yaml_file
+    yaml_config = yaml.safe_load(yaml_path.read_text())
+    measurement_df = pd.DataFrame(
+        {
+            v1.C.OBSERVABLE_ID: ["obs_B"],
+            v1.C.SIMULATION_CONDITION_ID: ["c0"],
+            v1.C.TIME: [2.0],
+            v1.C.MEASUREMENT: [0.5],
+            v2.C.EXPERIMENT_ID: ["time_course"],
+        }
+    )
+    if clash:
+        measurement_df[f"{v2.C.EXPERIMENT_ID}_v1"] = "taken"
+    v1.write_measurement_df(measurement_df, tmp_path / "v1" / "meas2.tsv")
+    yaml_config["problems"][0]["measurement_files"].append("meas2.tsv")
+    yaml_path.write_text(yaml.safe_dump(yaml_config))
+
+    expected_name = f"{v2.C.EXPERIMENT_ID}_v1" + ("_2" if clash else "")
+    with pytest.warns(UserWarning, match=f"renamed to `{expected_name}`"):
+        problem = petab1to2(yaml_path)
+
+    measurement_df = problem.measurement_df
+    assert measurement_df[expected_name].tolist() == [
+        "dose_response",
+        "time_course",
+    ]
+    assert (
+        measurement_df[v2.C.EXPERIMENT_ID].tolist() == ["experiment____c0"] * 2
+    )
+    if clash:
+        taken = measurement_df[f"{v2.C.EXPERIMENT_ID}_v1"]
+        assert pd.isna(taken.iloc[0])
+        assert taken.iloc[1] == "taken"
+
+
 try:
     import benchmark_models_petab
 
@@ -633,6 +694,9 @@ except ImportError:
 )
 @pytest.mark.filterwarnings(
     "ignore:.*does not support log10-transformed observables.*:UserWarning"
+)
+@pytest.mark.filterwarnings(
+    "ignore:.*which is reserved in PEtab v2.*:UserWarning"
 )
 @parametrize_or_skip
 def test_benchmark_collection(problem_id):
