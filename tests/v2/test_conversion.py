@@ -17,6 +17,7 @@ from petab.v2.converters import (
     ExperimentsToSbmlConverter,
     assignments_to_experiments,
 )
+from petab.v2.math import sympify_petab
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 
 
@@ -1791,3 +1792,59 @@ def test_assignments_to_experiments_change_refers_to_species():
 
     with pytest.raises(NotImplementedError, match=r"refer to \['A'\]"):
         assignments_to_experiments(problem)
+
+
+def test_assignments_to_experiments_petab_symbols():
+    """Test that the values of new condition changes use PEtab's symbols, so
+    that they equal the same expressions parsed by PEtab."""
+    problem = Problem()
+    problem.model = _switch_model(
+        "piecewise(0, time < 5, d1)", extra="d1 = 1;"
+    )
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=1.0)
+    problem.add_parameter(
+        "d1", estimate=True, nominal_value=2.0, lb=0.1, ub=10
+    )
+
+    converted = assignments_to_experiments(problem)
+
+    assert [
+        change.target_value
+        for condition in converted.conditions
+        for change in condition.changes
+    ] == [sympify_petab("d1")]
+
+
+@pytest.mark.parametrize("estimate", [False, True])
+def test_assignments_to_experiments_switching_time_from_fixed_parameter(
+    estimate,
+):
+    """Test that a condition may set a switching time to an expression in a
+    parameter that the parameter table fixes, which takes its nominal value,
+    but not in an estimated one."""
+    problem = Problem()
+    problem.model = _switch_model(
+        "piecewise(0, time < t1, 1)", extra="t1 = 0; p = 1;"
+    )
+    problem.add_condition("c1", t1="p + 1")
+    problem.add_experiment("e1", 0, "c1")
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
+    )
+    if estimate:
+        problem.add_parameter(
+            "p", estimate=True, nominal_value=4.0, lb=0.1, ub=10
+        )
+        with pytest.raises(
+            NotImplementedError, match="evaluate to a real number"
+        ):
+            assignments_to_experiments(problem)
+        return
+    problem.add_parameter("p", estimate=False, nominal_value=4.0)
+
+    converted = assignments_to_experiments(problem)
+
+    # the switch is at the nominal value 4 + 1, not the model value 1 + 1
+    assert _changes_by_time(converted, "e1") == {0.0: {}, 5.0: {"k1": 1.0}}

@@ -19,6 +19,7 @@ from .core import (
     ExperimentPeriod,
     Problem,
 )
+from .math import petab_symbol
 from .models._sbml_utils import (
     add_sbml_parameter,
     check,
@@ -947,11 +948,11 @@ class _PiecewiseAssignment:
         )
         # unless a condition sets them, the switching times' symbols keep
         #  their value from the parameter table or else from the model
-        nominal_values = {
+        self.nominal_values = {
             p.id: p.nominal_value for p in problem.parameters if not p.estimate
         }
         self.fixed_values = {
-            s: nominal_values.get(str(s), self._model_value(s))
+            s: self.nominal_values.get(str(s), self._model_value(s))
             for t_switch, _ in self.switches.values()
             for s in t_switch.free_symbols
         }
@@ -1099,10 +1100,10 @@ class _PiecewiseAssignment:
         """The ``value`` of a change, evaluated at the start of its period.
 
         Symbols that a condition set before take that value (``overrides``),
-        and the other constant model parameters outside the parameter table
-        their model values. Parameter table symbols stay, since no condition
-        sets them; any other symbol stays as well, since its value is not
-        known here.
+        parameters fixed by the parameter table their nominal values, and the
+        other constant model parameters outside the parameter table their
+        model values. Estimated parameters stay, since no condition sets them;
+        any other symbol stays as well, since its value is not known here.
         """
         if value is None:
             return value
@@ -1110,6 +1111,8 @@ class _PiecewiseAssignment:
         for s in value.free_symbols:
             if str(s) in overrides:
                 known[s] = overrides[str(s)]
+            elif str(s) in self.nominal_values:
+                known[s] = sp.Float(self.nominal_values[str(s)])
             elif (
                 str(s) not in self.parameter_ids
                 and (p := self.sbml_model.getParameter(str(s))) is not None
@@ -1260,10 +1263,18 @@ def _add_conditions(
     add a condition with that change to the period of ``experiment`` that
     starts at ``time``, which is added if needed.
 
-    Equal changes share a condition.
+    Equal changes share a condition. Their values use the symbols that PEtab
+    uses for the condition table, rather than those parsed from SBML.
     """
     new_conditions = {}
     for experiment, t, target_id, value in additions:
+        value = value.xreplace(
+            {
+                s: petab_symbol(s.name)
+                for s in value.free_symbols
+                if not isinstance(s, TimeSymbol)
+            }
+        )
         if (cond_id := new_conditions.get((target_id, value))) is None:
             cond_id = problem.get_unused_id(f"cond_{len(new_conditions)}")
             new_conditions[target_id, value] = cond_id
