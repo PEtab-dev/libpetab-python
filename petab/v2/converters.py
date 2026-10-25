@@ -885,10 +885,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             slope_id = f"{target_id}_slope"
             while sbml_model.getElementBySId(slope_id) is not None:
                 slope_id += "_"
-            slope = sbml_model.createParameter()
-            slope.setId(slope_id)
-            slope.setConstant(False)
-            slope.setValue(0.0)
+            add_sbml_parameter(sbml_model, slope_id, value=0.0, constant=False)
             rate_rule = sbml_model.createRateRule()
             rate_rule.setVariable(target_id)
             rate_rule.setMath(libsbml.parseL3Formula(slope_id))
