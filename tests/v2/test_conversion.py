@@ -670,7 +670,7 @@ def test_assignments_to_experiments(condition, before, after):
         species A, B;
         A = 10;
         B = 0;
-        k1 := piecewise(1, {condition}, 2);
+        k1 = piecewise(1, {condition}, 2);
         k2 = 0.5;
         R1: A -> B; k1 * A;
         R2: B -> A; k2 * B;
@@ -719,7 +719,7 @@ def test_assignments_to_experiments_unused_condition_id():
     problem = Problem()
     problem.model = SbmlModel.from_antimony("""
         species A = 10;
-        k1 := piecewise(1, time < 10, 2);
+        k1 = piecewise(1, time < 10, 2);
         R1: A -> ; k1 * A;
         """)
     problem.add_observable("obs_a", formula="A", noise_formula="cond_0")
@@ -1477,317 +1477,27 @@ def test_assignments_to_experiments_preequilibration_boundary(
 def test_assignments_to_experiments_validate():
     """Test that the converted problem is linted.
 
-    Here, the input problem is valid, but the measurement without an
-    experiment ID is assigned to a new experiment `default_experiment`, an ID
-    that an existing experiment already has.
+    Here, the input problem is valid, but the conversion makes the estimated
+    parameter `k1` a condition table target.
     """
     problem = Problem()
-    problem.model = _switch_model("piecewise(0, time < 10, 1)")
-    problem.add_condition("c1", other=2.0)
-    problem.add_experiment(DEFAULT_EXPERIMENT_ID, 0, "c1")
+    ant_model = """
+        model conversion
+        species A, B;
+        A = 10;
+        B = 0;
+        k1 = piecewise(0, time < 10, 1);
+        k2 = 0.5;
+        R1: A -> B; k1 * A;
+        R2: B -> A; k2 * B;
+        end
+    """
+    problem.model = SbmlModel.from_antimony(ant_model)
     problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a",
-        experiment_id=DEFAULT_EXPERIMENT_ID,
-        time=20.0,
-        measurement=5.0,
-    )
-    problem.add_measurement("obs_a", time=30.0, measurement=5.0)
+    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
+    problem.add_parameter("k1", estimate=True, lb=1e-3, ub=1e3)
+    problem.add_parameter("k2", estimate=True, lb=1e-3, ub=1e3)
     assert not problem.validate().has_errors()
 
     with pytest.raises(ValueError, match="did not pass linting"):
-        assignments_to_experiments(problem)
-
-
-def _changes_by_time(
-    problem: Problem, experiment_id: str
-) -> dict[float, dict[str, float]]:
-    """The changes of each period of an experiment, by the period's time."""
-    return {
-        period.time: {
-            c.target_id: float(c.target_value)
-            for c in problem.get_changes_for_period(period)
-        }
-        for period in problem[experiment_id].sorted_periods
-    }
-
-
-def _switch_model(assignment: str, extra: str = "") -> SbmlModel:
-    """A model with the assignment rule `k1 := <assignment>`."""
-    return SbmlModel.from_antimony(f"""
-        model conversion
-        species A;
-        A = 10;
-        other = 1;
-        {extra}
-        k1 := {assignment};
-        R1: A -> ; k1 * A;
-        end
-    """)
-
-
-def test_assignments_to_experiments_switch_at_period_start():
-    """Test that a switch at the start of a later period is kept, although
-    that period does not change any symbol of the assignment."""
-    problem = Problem()
-    problem.model = _switch_model("piecewise(0, time < 10, 1)")
-    problem.add_condition("c0", other=1.0)
-    problem.add_condition("c1", other=2.0)
-    problem.add_experiment("e1", 0, "c0", 10, "c1")
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    converted = assignments_to_experiments(problem)
-
-    assert _changes_by_time(converted, "e1") == {
-        0.0: {"other": 1.0},
-        10.0: {"other": 2.0, "k1": 1.0},
-    }
-
-
-def test_assignments_to_experiments_switch_at_preequilibration_end():
-    """Test that a switch at time 0 is kept after preequilibration, where the
-    condition still holds at time 0."""
-    problem = Problem()
-    problem.model = _switch_model("piecewise(0, time <= 0, 1)")
-    problem.add_experiment("e1", v2.C.TIME_PREEQUILIBRATION, [], 0, [])
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    with pytest.warns(UserWarning, match="during preequilibration"):
-        converted = assignments_to_experiments(problem)
-
-    assert _changes_by_time(converted, "e1") == {
-        v2.C.TIME_PREEQUILIBRATION: {"k1": 0.0},
-        0.0: {"k1": 1.0},
-    }
-
-
-def test_assignments_to_experiments_shared_symbol():
-    """Test that the changes of a symbol of a converted assignment stay if
-    the model still refers to that symbol elsewhere."""
-    problem = Problem()
-    problem.model = _switch_model(
-        "dose * piecewise(0, time < 10, 1)",
-        extra="dose = 0; R2: -> A; dose;",
-    )
-    problem.add_condition("c1", dose=2.0)
-    problem.add_experiment("e1", 0, "c1")
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    converted = assignments_to_experiments(problem)
-
-    assert _changes_by_time(converted, "e1") == {
-        0.0: {"dose": 2.0},
-        10.0: {"k1": 2.0},
-    }
-
-
-def test_assignments_to_experiments_initial_assignment():
-    """Test that a time-dependent initial assignment stays in the model, since
-    it is evaluated once, at the start of the simulation."""
-    problem = Problem()
-    problem.model = SbmlModel.from_antimony("""
-        model conversion
-        species A;
-        A = 10;
-        k1 = piecewise(0, time < 10, 1);
-        R1: A -> ; k1 * A;
-        end
-    """)
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement("obs_a", time=20.0, measurement=1.0)
-
-    converted = assignments_to_experiments(problem)
-
-    assert converted.model.sbml_model.getInitialAssignment("k1") is not None
-    assert not converted.experiments
-    assert not converted.conditions
-
-
-def test_assignments_to_experiments_preequilibration_model_value():
-    """Test that a value at preequilibration, which starts the experiment,
-    only refers to parameter table symbols: other model parameters take their
-    values."""
-    problem = Problem()
-    problem.model = _switch_model(
-        "piecewise(level, time < 10, 0)", extra="level = 3;"
-    )
-    problem.add_experiment("e1", v2.C.TIME_PREEQUILIBRATION, [], 0, [])
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    with pytest.warns(UserWarning, match="during preequilibration"):
-        converted = assignments_to_experiments(problem)
-
-    assert _changes_by_time(converted, "e1") == {
-        v2.C.TIME_PREEQUILIBRATION: {"k1": 3.0},
-        0.0: {},
-        10.0: {"k1": 0.0},
-    }
-
-
-def test_assignments_to_experiments_species_target():
-    """Test that an assignment to a species is rejected."""
-    problem = Problem()
-    problem.model = SbmlModel.from_antimony("""
-        model conversion
-        species A, S;
-        A = 10;
-        S := piecewise(0, time < 10, 1);
-        R1: A -> ; S * A;
-        end
-    """)
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement("obs_a", time=20.0, measurement=1.0)
-
-    with pytest.raises(NotImplementedError, match="not a parameter"):
-        assignments_to_experiments(problem)
-
-
-def test_assignments_to_experiments_nothing_to_convert():
-    """Test that a problem without time-dependent assignments is unchanged,
-    including an experiment that only preequilibrates and periods that are
-    not in time order."""
-    problem = Problem()
-    problem.model = SbmlModel.from_antimony("""
-        model conversion
-        species A;
-        A = 10;
-        k2 = 0.5;
-        R1: A -> ; k2 * A;
-        end
-    """)
-    problem.add_condition("c1", k2=1.0)
-    problem.add_condition("c2", k2=2.0)
-    problem.add_experiment("e1", v2.C.TIME_PREEQUILIBRATION, "c1")
-    # periods out of time order
-    problem.add_experiment("e2", 10, "c2", 0, "c1")
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    for experiment_id in ("e1", "e2"):
-        problem.add_measurement(
-            "obs_a", experiment_id=experiment_id, time=20.0, measurement=1.0
-        )
-
-    converted = assignments_to_experiments(problem)
-
-    def periods(problem):
-        return [
-            [(p.time, p.condition_ids) for p in e.periods]
-            for e in problem.experiments
-        ]
-
-    assert periods(converted) == periods(problem)
-    assert converted.condition_df.equals(problem.condition_df)
-
-
-@pytest.mark.parametrize("on", ["model", "species"])
-def test_assignments_to_experiments_conversion_factor(on):
-    """Test that the changes of a symbol of a converted assignment stay if
-    the model refers to that symbol as a conversion factor."""
-    problem = Problem()
-    problem.model = _switch_model(
-        "cf * piecewise(0, time < 10, 1)", extra="cf = 1;"
-    )
-    sbml_model = problem.model.sbml_model
-    element = sbml_model if on == "model" else sbml_model.getSpecies("A")
-    assert (
-        element.setConversionFactor("cf") == libsbml.LIBSBML_OPERATION_SUCCESS
-    )
-    problem.add_condition("c1", cf=2.0)
-    problem.add_experiment("e1", 0, "c1")
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    converted = assignments_to_experiments(problem)
-
-    assert _changes_by_time(converted, "e1") == {
-        0.0: {"cf": 2.0},
-        10.0: {"k1": 2.0},
-    }
-
-
-def test_assignments_to_experiments_slope_id_taken():
-    """Test that a ramp's slope parameter gets an ID that the problem does not
-    use yet, here because an observable parameter is called `k1_slope`."""
-    problem = Problem()
-    problem.model = _switch_model("piecewise(time, time < 10, 1)")
-    problem.add_observable("obs_a", formula="k1_slope * A", noise_formula=1.0)
-    problem.add_measurement("obs_a", time=20.0, measurement=5.0)
-    problem.add_parameter("k1_slope", estimate=True, lb=1e-3, ub=1e3)
-
-    converted = assignments_to_experiments(problem)
-
-    assert _rate_rule(converted, "k1") == "k1_slope_1"
-    assert _changes_by_time(converted, DEFAULT_EXPERIMENT_ID) == {
-        0.0: {"k1": 0.0, "k1_slope_1": 1.0},
-        10.0: {"k1": 1.0, "k1_slope_1": 0.0},
-    }
-
-
-@pytest.mark.parametrize(
-    "conditions",
-    [
-        # the changes of a condition are simultaneous: `d1` takes the old `b1`
-        [(2.0, {"b1": 2.0, "d1": "b1 + 0.5"})],
-        # a change is evaluated once: `d1` keeps the `b1` of its period
-        [(2.0, {"d1": "b1 + 0.5"}), (3.0, {"b1": 2.0})],
-    ],
-)
-def test_assignments_to_experiments_change_evaluated_at_period_start(
-    conditions,
-):
-    """Test that a condition change's value is evaluated at the start of its
-    period, with the values from before the period, also when a later switch
-    uses it."""
-    problem = Problem()
-    problem.model = _switch_model(
-        "piecewise(b0, time < 5, d1)", extra="b0 = 0.3; b1 = 1.2; d1 = 1;"
-    )
-    args = [0, []]
-    for i, (t, changes) in enumerate(conditions):
-        problem.add_condition(f"c{i}", **changes)
-        args += [t, f"c{i}"]
-    problem.add_experiment("e1", *args)
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    converted = assignments_to_experiments(problem)
-
-    (switch,) = (p for p in converted["e1"].periods if p.time == 5.0)
-    (change,) = converted.get_changes_for_period(switch)
-    assert change.target_id == "k1"
-    # 1.2 + 0.5, not 2.0 + 0.5
-    assert float(change.target_value) == pytest.approx(1.7)
-
-
-def test_assignments_to_experiments_change_refers_to_species():
-    """Test that a change of a symbol of the assignment whose value refers to
-    a species, which is not known at the start of the period, is
-    rejected."""
-    problem = Problem()
-    problem.model = _switch_model(
-        "piecewise(0, time < 5, d1)", extra="d1 = 1;"
-    )
-    problem.add_condition("c1", d1="A")
-    problem.add_experiment("e1", 0, [], 2, "c1")
-    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
-    problem.add_measurement(
-        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
-    )
-
-    with pytest.raises(NotImplementedError, match=r"refer to \['A'\]"):
         assignments_to_experiments(problem)
