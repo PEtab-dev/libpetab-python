@@ -60,7 +60,9 @@
   Previously, their order was undefined
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/562)
 * `petablint` no longer fails for PEtab v2 problems with only warnings,
-  consistent with PEtab v1. Warnings are still reported
+  consistent with PEtab v1. Warnings are still reported.
+  The previous behavior can be restored via `--fail-on-warnings`
+  (currently only effective for PEtab v2)
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/569)
 
 **Features**

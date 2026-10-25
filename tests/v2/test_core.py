@@ -1060,6 +1060,19 @@ def test_petablint_v2(tmpdir):
     assert result.returncode == 0
     assert "CheckUnusedConditions" in result.stdout + result.stderr
 
+    # ... unless requested
+    result = subprocess.run(  # noqa S607
+        [  # noqa: S607
+            "petablint",
+            "--fail-on-warnings",
+            str(Path(tmpdir, "problem.yaml")),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "CheckUnusedConditions" in result.stdout + result.stderr
+
     # errors make petablint fail
     problem.add_measurement(
         "obs_undefined", time=10, measurement=2.5, experiment_id=""

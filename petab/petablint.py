@@ -53,6 +53,14 @@ def parse_cli_args():
         action="store_true",
         help="More verbose output",
     )
+    parser.add_argument(
+        "--fail-on-warnings",
+        dest="fail_on_warnings",
+        action="store_true",
+        help="Exit with a non-zero status also if there are only warnings. "
+        "Currently only supported for PEtab v2 problems; "
+        "has no effect for PEtab v1.",
+    )
 
     # Call with set of files
     group = parser.add_argument_group(
@@ -194,13 +202,24 @@ def main():
                 ret = petab.lint.lint_problem(problem)
                 sys.exit(ret)
             case 2:
-                from petab.v2.lint import lint_problem
+                from petab.v2.lint import (
+                    ValidationIssueSeverity,
+                    lint_problem,
+                )
 
+                fail_level = (
+                    ValidationIssueSeverity.WARNING
+                    if args.fail_on_warnings
+                    else ValidationIssueSeverity.ERROR
+                )
                 try:
                     validation_issues = lint_problem(args.yaml_file_name)
                     # Handle petab.v2.lint.ValidationTask issues
                     validation_issues.log(logger=logger)
-                    if validation_issues.has_errors():
+                    if any(
+                        issue.level >= fail_level
+                        for issue in validation_issues
+                    ):
                         sys.exit(1)
                     logger.info("PEtab format check completed successfully.")
                     sys.exit(0)
