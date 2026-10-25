@@ -820,6 +820,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         expr = sbml_math_to_sympy(rule)
         if any(pw.has(TimeSymbol) for pw in expr.atoms(sp.Piecewise)):
             time_dependent.append((rule, expr))
+    if not time_dependent:
+        _check_lint(problem)
+        return problem
 
     experiments = list(problem.experiments)
     if any(m.experiment_id is None for m in problem.measurements):
@@ -827,7 +830,7 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         experiments.append(default_experiment)
     else:
         default_experiment = None
-    droppable = _add_start_periods(experiments) if time_dependent else set()
+    droppable = _add_start_periods(experiments)
 
     # (experiment, period start time, target ID, target value)
     additions = []
@@ -876,14 +879,19 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             if measurement.experiment_id is None:
                 measurement.experiment_id = DEFAULT_EXPERIMENT_ID
 
+    _check_lint(problem)
+    return problem
+
+
+def _check_lint(problem: Problem) -> None:
+    """Raise a :class:`ValueError` if the converted ``problem`` does not
+    pass linting."""
     validation_issues = problem.validate()
     if validation_issues.has_errors():
         messages = "\n".join(f"{issue.message}" for issue in validation_issues)
         raise ValueError(
             f"The converted PEtab problem did not pass linting:\n{messages}"
         )
-
-    return problem
 
 
 class _PiecewiseAssignment:
@@ -964,9 +972,9 @@ class _PiecewiseAssignment:
         target's, is set by every period that starts one.
         """
         if self.ramps:
-            self.slope_id = f"{self.target_id}_slope"
-            while self.sbml_model.getElementBySId(self.slope_id) is not None:
-                self.slope_id += "_"
+            self.slope_id = self.problem.get_unused_id(
+                f"{self.target_id}_slope"
+            )
             add_sbml_parameter(
                 self.sbml_model, self.slope_id, value=0.0, constant=False
             )
@@ -1143,10 +1151,11 @@ def _referenced_ids(
     problem: Problem,
     additions: list[tuple[Experiment, float, str, sp.Expr]],
 ) -> set[str]:
-    """The IDs that the math of the model, the observables, or the condition
-    changes, including those in ``additions``, refer to."""
+    """The IDs that the model, the observables, or the condition changes,
+    including those in ``additions``, refer to."""
+    sbml_model = problem.model.sbml_model
     ids = set()
-    for element in problem.model.sbml_model.getListOfAllElements():
+    for element in sbml_model.getListOfAllElements():
         if not (hasattr(element, "isSetMath") and element.isSetMath()):
             continue
         nodes = [element.getMath()]
@@ -1155,6 +1164,12 @@ def _referenced_ids(
             if node.getType() == libsbml.AST_NAME:
                 ids.add(node.getName())
             nodes += [node.getChild(i) for i in range(node.getNumChildren())]
+    # conversion factors refer to parameters by attribute, not in math
+    ids |= {
+        element.getConversionFactor()
+        for element in [sbml_model, *sbml_model.getListOfSpecies()]
+        if element.isSetConversionFactor()
+    }
     expressions = [
         *(o.formula for o in problem.observables),
         *(o.noise_formula for o in problem.observables),
