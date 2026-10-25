@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_string_dtype
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from . import yaml
 from .C import *
 
@@ -52,7 +53,7 @@ def get_simulation_df(simulation_file: str | Path) -> pd.DataFrame:
         Simulation DataFrame
     """
     return pd.read_csv(
-        simulation_file, sep="\t", index_col=None, float_precision="round_trip"
+        simulation_file, sep="\t", index_col=None, **READ_CSV_FLOAT_KWARGS
     )
 
 
@@ -94,7 +95,7 @@ def get_visualization_df(
             sep="\t",
             index_col=None,
             converters=types,
-            float_precision="round_trip",
+            **READ_CSV_FLOAT_KWARGS,
         )
     except pd.errors.EmptyDataError:
         warn(

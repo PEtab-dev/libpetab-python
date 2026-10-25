@@ -2,9 +2,19 @@
 
 from pathlib import Path
 
+import pandas as pd
 from pydantic import AnyUrl, TypeAdapter
 
 PathOrUrlAdapter = TypeAdapter(AnyUrl | Path)
+
+#: Extra keyword arguments for :func:`pandas.read_csv` to ensure lossless
+#: float parsing. ``float_precision`` is deprecated in pandas>=3.1,
+#: where round-trip parsing is the default.
+READ_CSV_FLOAT_KWARGS = (
+    {"float_precision": "round_trip"}
+    if tuple(map(int, pd.__version__.split(".")[:2])) < (3, 1)
+    else {}
+)
 
 
 def _generate_path(

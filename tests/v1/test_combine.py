@@ -35,7 +35,7 @@ def test_combine_archive():
             "fixedParameter1": [1.0, 2.0],
         }
     )
-    condition_df.set_index(CONDITION_ID, inplace=True)
+    condition_df = condition_df.set_index(CONDITION_ID)
 
     parameter_df = pd.DataFrame(
         data={
@@ -43,7 +43,7 @@ def test_combine_archive():
             PARAMETER_NAME: ["", "..."],
         }
     )
-    parameter_df.set_index(PARAMETER_ID, inplace=True)
+    parameter_df = parameter_df.set_index(PARAMETER_ID)
 
     observable_df = pd.DataFrame(
         data={
@@ -52,7 +52,7 @@ def test_combine_archive():
             NOISE_FORMULA: [1],
         }
     )
-    observable_df.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df = observable_df.set_index(OBSERVABLE_ID)
 
     sbml_file_name = "model.xml"
     measurement_file_name = "measurements.tsv"

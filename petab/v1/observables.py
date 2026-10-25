@@ -7,6 +7,7 @@ from typing import Literal
 
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from . import core, lint
 from .C import *
 from .math import sympify_petab
@@ -39,7 +40,7 @@ def get_observable_df(
 
     if isinstance(observable_file, str | Path):
         observable_file = pd.read_csv(
-            observable_file, sep="\t", float_precision="round_trip"
+            observable_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
 
     lint.assert_no_leading_trailing_whitespace(
@@ -47,13 +48,12 @@ def get_observable_df(
     )
 
     if not isinstance(observable_file.index, pd.RangeIndex):
-        observable_file.reset_index(
+        observable_file = observable_file.reset_index(
             drop=observable_file.index.name != OBSERVABLE_ID,
-            inplace=True,
         )
 
     try:
-        observable_file.set_index([OBSERVABLE_ID], inplace=True)
+        observable_file = observable_file.set_index([OBSERVABLE_ID])
     except KeyError:
         raise KeyError(
             f"Observable table missing mandatory field {OBSERVABLE_ID}."

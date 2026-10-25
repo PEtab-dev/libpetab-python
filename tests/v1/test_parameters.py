@@ -20,7 +20,7 @@ def test_get_optimization_parameter_scaling():
             PARAMETER_SCALE: [LIN, LOG, LOG10],
         }
     )
-    df.set_index(PARAMETER_ID, inplace=True)
+    df = df.set_index(PARAMETER_ID)
 
     # parameter and scale
     expected = {"p1": LIN, "p3": LOG10}
@@ -38,7 +38,7 @@ def test_get_optimization_parameters():
             ESTIMATE: [1, 0, 1],
         }
     )
-    df.set_index(PARAMETER_ID, inplace=True)
+    df = df.set_index(PARAMETER_ID)
 
     expected = ["p1", "p3"]
 

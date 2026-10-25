@@ -231,15 +231,16 @@ def petab_files_1to2(
         measurement_df = v1.get_measurement_df(get_src_path(measurement_file))
         # if there is already an experiment ID column, we rename it
         if v2.C.EXPERIMENT_ID in measurement_df.columns:
-            measurement_df.rename(
+            measurement_df = measurement_df.rename(
                 columns={v2.C.EXPERIMENT_ID: f"experiment_id_{uuid4()}"},
-                inplace=True,
             )
         # add pre-eq condition id if not present or convert to string
         #  for simplicity
         if v1.C.PREEQUILIBRATION_CONDITION_ID in measurement_df.columns:
-            measurement_df.fillna(
-                {v1.C.PREEQUILIBRATION_CONDITION_ID: ""}, inplace=True
+            measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = (
+                measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID]
+                .astype("object")
+                .fillna("")
             )
         else:
             measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID] = ""
@@ -362,7 +363,7 @@ def v1v2_condition_df(
     condition_df = condition_df.copy().reset_index()
     with suppress(KeyError):
         # conditionName was dropped in PEtab v2
-        condition_df.drop(columns=[v1.C.CONDITION_NAME], inplace=True)
+        condition_df = condition_df.drop(columns=[v1.C.CONDITION_NAME])
 
     condition_df = condition_df.melt(
         id_vars=[v1.C.CONDITION_ID],
@@ -458,7 +459,7 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
                 stacklevel=4,
             )
 
-        df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION], inplace=True)
+        df = df.drop(columns=[v1.C.OBSERVABLE_TRANSFORMATION])
 
     def extract_placeholders(row: pd.Series, type_: str) -> str:
         """Extract placeholders from observable formula."""
@@ -588,12 +589,11 @@ def v1v2_parameter_df(
         )
 
     # rename objectivePrior* to prior*
-    df.rename(
+    df = df.rename(
         columns={
             v1.C.OBJECTIVE_PRIOR_TYPE: v2.C.PRIOR_DISTRIBUTION,
             v1.C.OBJECTIVE_PRIOR_PARAMETERS: v2.C.PRIOR_PARAMETERS,
         },
-        inplace=True,
         errors="ignore",
     )
     # some columns were dropped in PEtab v2
@@ -610,13 +610,12 @@ def v1v2_parameter_df(
             "Parameter scales are not supported in PEtab v2.",
             stacklevel=9,
         )
-    df.drop(
+    df = df.drop(
         columns=[
             v1.C.INITIALIZATION_PRIOR_TYPE,
             v1.C.INITIALIZATION_PRIOR_PARAMETERS,
             v1.C.PARAMETER_SCALE,
         ],
-        inplace=True,
         errors="ignore",
     )
 

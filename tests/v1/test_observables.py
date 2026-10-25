@@ -44,8 +44,9 @@ def test_get_observable_df():
     assert (df == observable_df.set_index(OBSERVABLE_ID)).all().all()
 
     # test other arguments
-    assert (
-        (petab.get_observable_df(observable_df) == observable_df).all().all()
+    pd.testing.assert_frame_equal(
+        petab.get_observable_df(observable_df),
+        observable_df.set_index(OBSERVABLE_ID),
     )
     assert petab.get_observable_df(None) is None
 

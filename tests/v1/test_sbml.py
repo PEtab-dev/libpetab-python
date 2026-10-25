@@ -37,7 +37,7 @@ def create_test_data():
             "compartment_1": [2],
         }
     )
-    condition_df.set_index([petab.CONDITION_ID], inplace=True)
+    condition_df = condition_df.set_index([petab.CONDITION_ID])
 
     observable_df = pd.DataFrame(
         {
@@ -45,7 +45,7 @@ def create_test_data():
             petab.OBSERVABLE_FORMULA: ["2 * species_1"],
         }
     )
-    observable_df.set_index([petab.OBSERVABLE_ID], inplace=True)
+    observable_df = observable_df.set_index([petab.OBSERVABLE_ID])
 
     measurement_df = pd.DataFrame(
         {
@@ -67,7 +67,7 @@ def create_test_data():
             petab.ESTIMATE: [0, 1, 0],
         }
     )
-    parameter_df.set_index([petab.PARAMETER_ID], inplace=True)
+    parameter_df = parameter_df.set_index([petab.PARAMETER_ID])
 
     return model, condition_df, observable_df, measurement_df, parameter_df
 
