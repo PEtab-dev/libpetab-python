@@ -29,7 +29,7 @@ def test_assert_measured_observables_present():
             OBSERVABLE_ID: ["obs1"],
         }
     )
-    observable_df.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df = observable_df.set_index(OBSERVABLE_ID)
 
     with pytest.raises(AssertionError):
         lint.assert_measured_observables_defined(measurement_df, observable_df)
@@ -144,7 +144,7 @@ def test_assert_overrides_match_parameter_count():
             NOISE_FORMULA: ["noiseParameter1_0obsPar1noisePar", "1.0"],
         }
     )
-    observable_df.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df = observable_df.set_index(OBSERVABLE_ID)
 
     measurement_df_orig = pd.DataFrame(
         data={
@@ -302,7 +302,7 @@ def test_assert_noise_distributions_valid():
             NOISE_DISTRIBUTION: ["", ""],
         }
     )
-    observable_df.set_index([OBSERVABLE_ID], inplace=True)
+    observable_df = observable_df.set_index([OBSERVABLE_ID])
 
     lint.assert_noise_distributions_valid(observable_df)
 
@@ -314,7 +314,7 @@ def test_assert_noise_distributions_valid():
     with pytest.raises(ValueError):
         lint.assert_noise_distributions_valid(observable_df)
 
-    observable_df.drop(columns=NOISE_DISTRIBUTION, inplace=True)
+    observable_df = observable_df.drop(columns=NOISE_DISTRIBUTION)
     lint.assert_noise_distributions_valid(observable_df)
 
 
@@ -328,7 +328,7 @@ def test_check_measurement_df():
             NOISE_DISTRIBUTION: ["", ""],
         }
     )
-    observable_df.set_index([OBSERVABLE_ID], inplace=True)
+    observable_df = observable_df.set_index([OBSERVABLE_ID])
 
     measurement_df = pd.DataFrame(
         data={
@@ -459,7 +459,7 @@ def test_assert_measurement_conditions_present_in_condition_table():
             "fixedParameter1": [1.0, 2.0],
         }
     )
-    condition_df.set_index(CONDITION_ID, inplace=True)
+    condition_df = condition_df.set_index(CONDITION_ID)
 
     measurement_df = pd.DataFrame(
         data={
@@ -511,7 +511,7 @@ def test_check_condition_df():
             "p1": [nan],
         }
     )
-    condition_df.set_index(CONDITION_ID, inplace=True)
+    condition_df = condition_df.set_index(CONDITION_ID)
 
     # parameter missing in model
     with pytest.raises(AssertionError):
@@ -617,7 +617,7 @@ def test_condition_ids_are_unique():
             "parameter1": [1.0, 2.0],
         }
     )
-    condition_df.set_index(CONDITION_ID, inplace=True)
+    condition_df = condition_df.set_index(CONDITION_ID)
 
     with pytest.raises(AssertionError):
         lint.check_condition_df(condition_df)

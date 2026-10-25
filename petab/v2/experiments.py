@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
+
 __all__ = ["get_experiment_df", "write_experiment_df"]
 
 
@@ -22,7 +24,7 @@ def get_experiment_df(
 
     if isinstance(experiments_file, str | Path):
         experiments_file = pd.read_csv(
-            experiments_file, sep="\t", float_precision="round_trip"
+            experiments_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
 
     return experiments_file

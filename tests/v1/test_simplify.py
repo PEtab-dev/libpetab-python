@@ -25,7 +25,7 @@ def problem() -> Problem:
             NOISE_FORMULA: [1.0, 2.0, 3.0],
         }
     )
-    observable_df.set_index(OBSERVABLE_ID, inplace=True)
+    observable_df = observable_df.set_index(OBSERVABLE_ID)
 
     conditions_df = pd.DataFrame(
         {
@@ -38,7 +38,7 @@ def problem() -> Problem:
             "same_value_for_all_conditions": [4.0] * 3,
         }
     )
-    conditions_df.set_index(CONDITION_ID, inplace=True)
+    conditions_df = conditions_df.set_index(CONDITION_ID)
 
     measurement_df = pd.DataFrame(
         {
@@ -97,7 +97,7 @@ def test_remove_unused_observables(problem):
             NOISE_FORMULA: [1.0, 3.0],
         }
     )
-    expected.set_index(OBSERVABLE_ID, inplace=True)
+    expected = expected.set_index(OBSERVABLE_ID)
     assert not problem.observable_df.equals(expected)
 
     remove_unused_observables(problem)
@@ -113,7 +113,7 @@ def test_remove_unused_conditions(problem):
             "same_value_for_all_conditions": [4.0] * 2,
         }
     )
-    expected.set_index(CONDITION_ID, inplace=True)
+    expected = expected.set_index(CONDITION_ID)
     assert not problem.condition_df.equals(expected)
 
     remove_unused_conditions(problem)
@@ -132,7 +132,7 @@ def test_condition_parameters_to_parameter_table(problem):
             "some_parameter": [1.0, 2.0, 3.0],
         }
     )
-    expected_conditions.set_index(CONDITION_ID, inplace=True)
+    expected_conditions = expected_conditions.set_index(CONDITION_ID)
     assert not problem.condition_df.equals(expected_conditions)
 
     expected_parameters = pd.DataFrame(
@@ -145,7 +145,7 @@ def test_condition_parameters_to_parameter_table(problem):
             ESTIMATE: [0],
         }
     )
-    expected_parameters.set_index(PARAMETER_ID, inplace=True)
+    expected_parameters = expected_parameters.set_index(PARAMETER_ID)
     assert problem.parameter_df is None
 
     condition_parameters_to_parameter_table(problem)

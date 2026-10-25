@@ -14,6 +14,7 @@ import libsbml
 import numpy as np
 import pandas as pd
 
+from .._utils import READ_CSV_FLOAT_KWARGS
 from . import conditions, core, lint, measurements, observables
 from .C import *
 from .models import Model
@@ -59,7 +60,7 @@ def get_parameter_df(
         parameter_df = parameter_file
     elif isinstance(parameter_file, str | Path):
         parameter_df = pd.read_csv(
-            parameter_file, sep="\t", float_precision="round_trip"
+            parameter_file, sep="\t", **READ_CSV_FLOAT_KWARGS
         )
     elif isinstance(parameter_file, Iterable):
         dfs = [get_parameter_df(x) for x in parameter_file if x]
@@ -78,13 +79,12 @@ def get_parameter_df(
     )
 
     if not isinstance(parameter_df.index, pd.RangeIndex):
-        parameter_df.reset_index(
+        parameter_df = parameter_df.reset_index(
             drop=parameter_file.index.name != PARAMETER_ID,
-            inplace=True,
         )
 
     try:
-        parameter_df.set_index([PARAMETER_ID], inplace=True)
+        parameter_df = parameter_df.set_index([PARAMETER_ID])
     except KeyError as e:
         raise KeyError(
             f"Parameter table missing mandatory field {PARAMETER_ID}."
@@ -240,7 +240,7 @@ def create_parameter_df(
             OBJECTIVE_PRIOR_PARAMETERS: "",
         }
     )
-    df.set_index([PARAMETER_ID], inplace=True)
+    df = df.set_index([PARAMETER_ID])
 
     # For model parameters, set nominal values as defined in the model
     for parameter_id in df.index:
