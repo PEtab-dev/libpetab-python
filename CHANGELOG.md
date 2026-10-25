@@ -71,7 +71,7 @@
 * `petab1to2` now renames a pre-existing `experimentId` column in the
   measurement table to `experimentId_v1` instead of a random name, and
   warns about it
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/issues/568)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/572)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
