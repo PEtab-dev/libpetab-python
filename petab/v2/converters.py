@@ -757,9 +757,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
         if all of them were replaced, since a period's time overrides the
         model's initial time.
 
-    **Scope:** conversion is supported for SBML assignment rules that depend
-    on time through the conditions of piecewise functions, and at most
-    linearly through their values, where
+    **Scope:** conversion is supported for SBML assignment rules to
+    parameters that depend on time through the conditions of piecewise
+    functions, and at most linearly through their values, where
 
     * every such condition is an inequality that can be re-arranged
       explicitly into `t </<=/>/>= ...`,
@@ -781,7 +781,11 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     entity instead, with the rate rule `d target/dt = <target>_slope`, and
     each period sets both the target and its slope; an assignment that only
     switches between constant values stays a constant parameter. Anything else
-    raises a :class:`NotImplementedError`.
+    raises a :class:`NotImplementedError`. Initial assignments stay in the
+    model, since they are evaluated once, at the start of the simulation.
+
+    Condition changes of the replaced assignments' symbols are dropped, unless
+    the model, an observable or another change still refers to them.
 
     .. warning::
 
@@ -807,25 +811,29 @@ def assignments_to_experiments(problem: Problem) -> Problem:
     problem = deepcopy(problem)
     sbml_model = problem.model.sbml_model
 
+    # Initial assignments are evaluated once, at the start of the
+    #  simulation, so they never switch and stay in the model.
+    time_dependent = []
+    for rule in sbml_model.getListOfRules():
+        if not rule.isAssignment():
+            continue
+        expr = sbml_math_to_sympy(rule)
+        if any(pw.has(TimeSymbol) for pw in expr.atoms(sp.Piecewise)):
+            time_dependent.append((rule, expr))
+
     experiments = list(problem.experiments)
     if any(m.experiment_id is None for m in problem.measurements):
         default_experiment = Experiment(id=DEFAULT_EXPERIMENT_ID)
         experiments.append(default_experiment)
     else:
         default_experiment = None
-    droppable = _add_start_periods(experiments)
+    droppable = _add_start_periods(experiments) if time_dependent else set()
 
     # (experiment, period start time, target ID, target value)
     additions = []
     replaced_symbols = set()
     converted_ids = []
-    for rule in [
-        *(r for r in sbml_model.getListOfRules() if r.isAssignment()),
-        *sbml_model.getListOfInitialAssignments(),
-    ]:
-        expr = sbml_math_to_sympy(rule)
-        if not any(pw.has(TimeSymbol) for pw in expr.atoms(sp.Piecewise)):
-            continue
+    for rule, expr in time_dependent:
         assignment = _PiecewiseAssignment(rule, expr, problem)
         assignment.replace_in_model()
         for experiment in experiments:
@@ -846,7 +854,9 @@ def assignments_to_experiments(problem: Problem) -> Problem:
             stacklevel=2,
         )
 
-    # replace the changes that are covered by the new conditions
+    # replace the changes that are covered by the new conditions, unless
+    #  something else still refers to their targets
+    replaced_symbols -= _referenced_ids(problem, additions)
     _drop_changes(problem, experiments, replaced_symbols)
     _add_conditions(problem, additions)
 
@@ -893,6 +903,11 @@ class _PiecewiseAssignment:
         self.problem = problem
         self.sbml_model = problem.model.sbml_model
         self.target_id = rule.getId()
+        if self.sbml_model.getParameter(self.target_id) is None:
+            raise NotImplementedError(
+                "Only assignments to parameters are supported, but "
+                f"`{self.target_id}` is not a parameter."
+            )
         self.expr = expr
         (self.time,) = expr.atoms(TimeSymbol)
         self.symbol_ids = {str(s) for s in expr.free_symbols}
@@ -977,6 +992,8 @@ class _PiecewiseAssignment:
         changes = []
         periods = experiment.sorted_periods
         overrides = {}
+        # the value at the end of the previous period
+        held = None
         for i_period, period in enumerate(periods):
             period_changes = self.problem.get_changes_for_period(period)
             overrides |= {c.target_id: c.target_value for c in period_changes}
@@ -991,8 +1008,14 @@ class _PiecewiseAssignment:
                 # the value at time 0, which respects whether a condition
                 #  holds for a switch at time 0, held there: a ramp does not
                 #  run during preequilibration
-                value = self.expr.subs(subs).subs(self.time, 0)
-                changes.append((period.time, self.target_id, value))
+                held = self.expr.subs(subs).subs(self.time, 0)
+                changes.append(
+                    (
+                        period.time,
+                        self.target_id,
+                        self._with_model_values(held),
+                    )
+                )
                 if self.ramps:
                     changes.append((period.time, self.slope_id, sp.S.Zero))
                 continue
@@ -1024,30 +1047,37 @@ class _PiecewiseAssignment:
                     or {str(s) for s in self.default.free_symbols}
                     & self.parameter_ids
                 ):
-                    # at the start of an experiment, a change may only refer
-                    #  to parameter table symbols; other symbols are
-                    #  constant model parameters, at their values
-                    start_value = start_value.subs(
-                        {
-                            s: self._model_value(s)
-                            for s in start_value.free_symbols - {self.time}
-                            if str(s) not in self.parameter_ids
-                        }
+                    changes += self._start(
+                        period.time, self._with_model_values(start_value)
                     )
-                    changes += self._start(period.time, start_value)
             elif (
                 {c.target_id for c in period_changes} & self.symbol_ids
                 # preequilibration held the slope at zero
                 or (self.ramps and periods[i_period - 1].is_preequilibration)
+                # a switch at the start of the period
+                or not (start_value - held).is_zero
             ):
                 changes += self._start(period.time, start_value)
             for t, value in switch_values:
                 changes += self._start(t, value)
+            held = previous
         return changes
 
     def _model_value(self, symbol: sp.Symbol) -> float:
         """The value of the model parameter ``symbol``."""
         return self.sbml_model.getParameter(str(symbol)).getValue()
+
+    def _with_model_values(self, value: sp.Expr) -> sp.Expr:
+        """``value`` for a change at the start of an experiment, which may
+        only refer to parameter table symbols: the other symbols are constant
+        model parameters, at their values."""
+        return value.subs(
+            {
+                s: self._model_value(s)
+                for s in value.free_symbols - {self.time}
+                if str(s) not in self.parameter_ids
+            }
+        )
 
     def _switching_times(self, subs: dict, experiment_id: str) -> list[float]:
         """The switching times, for the symbol values ``subs``."""
@@ -1107,6 +1137,41 @@ def _add_start_periods(experiments: list[Experiment]) -> set[int]:
             if p.condition_ids and p is not start
         }
     return droppable
+
+
+def _referenced_ids(
+    problem: Problem,
+    additions: list[tuple[Experiment, float, str, sp.Expr]],
+) -> set[str]:
+    """The IDs that the math of the model, the observables, or the condition
+    changes, including those in ``additions``, refer to."""
+    ids = set()
+    for element in problem.model.sbml_model.getListOfAllElements():
+        if not (hasattr(element, "isSetMath") and element.isSetMath()):
+            continue
+        nodes = [element.getMath()]
+        while nodes:
+            node = nodes.pop()
+            if node.getType() == libsbml.AST_NAME:
+                ids.add(node.getName())
+            nodes += [node.getChild(i) for i in range(node.getNumChildren())]
+    expressions = [
+        *(o.formula for o in problem.observables),
+        *(o.noise_formula for o in problem.observables),
+        *(value for *_, value in additions),
+    ]
+    ids |= {
+        str(s)
+        for expression in expressions
+        if expression is not None
+        for s in expression.free_symbols
+    }
+    ids |= {
+        str(s)
+        for table in problem.condition_tables
+        for s in table.free_symbols
+    }
+    return ids
 
 
 def _drop_changes(
