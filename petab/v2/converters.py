@@ -1004,12 +1004,32 @@ class _PiecewiseAssignment:
         held = None
         for i_period, period in enumerate(periods):
             period_changes = self.problem.get_changes_for_period(period)
-            overrides |= {c.target_id: c.target_value for c in period_changes}
+            # a condition's changes are evaluated once, at the start of their
+            #  period, all with the values from before the period
+            overrides |= {
+                c.target_id: self._at_period_start(c.target_value, overrides)
+                for c in period_changes
+            }
             subs = self.fixed_values | {
                 s: overrides[str(s)]
                 for s in self.expr.free_symbols
                 if str(s) in overrides
             }
+            if unknown := sorted(
+                {
+                    str(x)
+                    for s in self.expr.free_symbols
+                    if str(s) in overrides
+                    for x in overrides[str(s)].free_symbols
+                }
+                - self.parameter_ids
+            ):
+                raise NotImplementedError(
+                    "Only condition changes whose values are known at the "
+                    "start of their period are supported, but in experiment "
+                    f"`{experiment.id}`, the changes of the symbols of the "
+                    f"assignment to `{self.target_id}` refer to {unknown}."
+                )
             times = self._switching_times(subs, experiment.id)
 
             if period.is_preequilibration:
@@ -1074,6 +1094,29 @@ class _PiecewiseAssignment:
     def _model_value(self, symbol: sp.Symbol) -> float:
         """The value of the model parameter ``symbol``."""
         return self.sbml_model.getParameter(str(symbol)).getValue()
+
+    def _at_period_start(self, value: sp.Expr, overrides: dict) -> sp.Expr:
+        """The ``value`` of a change, evaluated at the start of its period.
+
+        Symbols that a condition set before take that value (``overrides``),
+        and the other constant model parameters outside the parameter table
+        their model values. Parameter table symbols stay, since no condition
+        sets them; any other symbol stays as well, since its value is not
+        known here.
+        """
+        if value is None:
+            return value
+        known = {}
+        for s in value.free_symbols:
+            if str(s) in overrides:
+                known[s] = overrides[str(s)]
+            elif (
+                str(s) not in self.parameter_ids
+                and (p := self.sbml_model.getParameter(str(s))) is not None
+                and p.getConstant()
+            ):
+                known[s] = sp.Float(p.getValue())
+        return value.xreplace(known)
 
     def _with_model_values(self, value: sp.Expr) -> sp.Expr:
         """``value`` for a change at the start of an experiment, which may
