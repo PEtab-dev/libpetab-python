@@ -1734,3 +1734,60 @@ def test_assignments_to_experiments_slope_id_taken():
         0.0: {"k1": 0.0, "k1_slope_1": 1.0},
         10.0: {"k1": 1.0, "k1_slope_1": 0.0},
     }
+
+
+@pytest.mark.parametrize(
+    "conditions",
+    [
+        # the changes of a condition are simultaneous: `d1` takes the old `b1`
+        [(2.0, {"b1": 2.0, "d1": "b1 + 0.5"})],
+        # a change is evaluated once: `d1` keeps the `b1` of its period
+        [(2.0, {"d1": "b1 + 0.5"}), (3.0, {"b1": 2.0})],
+    ],
+)
+def test_assignments_to_experiments_change_evaluated_at_period_start(
+    conditions,
+):
+    """Test that a condition change's value is evaluated at the start of its
+    period, with the values from before the period, also when a later switch
+    uses it."""
+    problem = Problem()
+    problem.model = _switch_model(
+        "piecewise(b0, time < 5, d1)", extra="b0 = 0.3; b1 = 1.2; d1 = 1;"
+    )
+    args = [0, []]
+    for i, (t, changes) in enumerate(conditions):
+        problem.add_condition(f"c{i}", **changes)
+        args += [t, f"c{i}"]
+    problem.add_experiment("e1", *args)
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
+    )
+
+    converted = assignments_to_experiments(problem)
+
+    (switch,) = (p for p in converted["e1"].periods if p.time == 5.0)
+    (change,) = converted.get_changes_for_period(switch)
+    assert change.target_id == "k1"
+    # 1.2 + 0.5, not 2.0 + 0.5
+    assert float(change.target_value) == pytest.approx(1.7)
+
+
+def test_assignments_to_experiments_change_refers_to_species():
+    """Test that a change of a symbol of the assignment whose value refers to
+    a species, which is not known at the start of the period, is
+    rejected."""
+    problem = Problem()
+    problem.model = _switch_model(
+        "piecewise(0, time < 5, d1)", extra="d1 = 1;"
+    )
+    problem.add_condition("c1", d1="A")
+    problem.add_experiment("e1", 0, [], 2, "c1")
+    problem.add_observable("obs_a", formula="A", noise_formula=1.0)
+    problem.add_measurement(
+        "obs_a", experiment_id="e1", time=20.0, measurement=1.0
+    )
+
+    with pytest.raises(NotImplementedError, match=r"refer to \['A'\]"):
+        assignments_to_experiments(problem)
