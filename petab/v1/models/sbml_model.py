@@ -262,6 +262,37 @@ class SbmlModel(Model):
     def symbol_allowed_in_observable_formula(self, id_: str) -> bool:
         return self.sbml_model.getElementBySId(id_) or id_ == "time"
 
+    def get_referenced_ids(self) -> set[str]:
+        """Get the IDs that the model refers to.
+
+        These are the IDs in the math of any model element (e.g., kinetic
+        laws, rules, initial assignments, events), and those referred to as
+        conversion factors. IDs that are only defined, but not referred to,
+        are not included.
+        """
+        ids = set()
+        for element in self.sbml_model.getListOfAllElements():
+            if not (hasattr(element, "isSetMath") and element.isSetMath()):
+                continue
+            nodes = [element.getMath()]
+            while nodes:
+                node = nodes.pop()
+                if node.getType() == libsbml.AST_NAME:
+                    ids.add(node.getName())
+                nodes += [
+                    node.getChild(i) for i in range(node.getNumChildren())
+                ]
+        # conversion factors refer to parameters by attribute, not in math
+        ids |= {
+            element.getConversionFactor()
+            for element in [
+                self.sbml_model,
+                *self.sbml_model.getListOfSpecies(),
+            ]
+            if element.isSetConversionFactor()
+        }
+        return ids
+
     def is_valid(self) -> bool:
         return is_sbml_consistent(self.sbml_model.getSBMLDocument())
 
