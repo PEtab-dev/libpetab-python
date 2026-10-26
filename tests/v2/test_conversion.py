@@ -12,6 +12,7 @@ from petab.v1.models.sbml_model import SbmlModel
 from petab.v1.priors import Prior
 from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
+from petab.v2.math import petab_symbol
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 
 
@@ -689,7 +690,7 @@ def test_petab1to2_reparametrize_overrides(tmp_path):
                 v1.C.OBJECTIVE_PRIOR_TYPE: v1.C.PARAMETER_SCALE_UNIFORM,
             },
         ],
-        overrides=["s1", "s2", "100", "s3", "s4"],
+        overrides=["s1", "s2", "100", "s3", "s4", "0"],
     )
     assert not v1.lint_problem(v1.Problem.from_yaml(yaml_file))
     # s2-s4 aren't selected, but share the placeholder with s1
@@ -701,6 +702,12 @@ def test_petab1to2_reparametrize_overrides(tmp_path):
         "log10_s2",
         "log10_s3",
         "log10_s4",
+        # replaces the override `0`
+        "negative_infinity",
+    ]
+    assert problem["negative_infinity"].nominal_value == -np.inf
+    assert problem.measurements[-1].observable_parameters == [
+        petab_symbol("negative_infinity")
     ]
     assert problem["log10_s1"].prior_distribution == v2.C.NORMAL
     assert problem["log10_s1"].prior_parameters == [0, 1]
@@ -730,7 +737,7 @@ def test_petab1to2_reparametrize_all_skips_unresolvable(tmp_path):
             _LOG10_PAR | {v1.C.PARAMETER_ID: "s1"},
             _LOG10_PAR | {v1.C.PARAMETER_ID: "s2"},
         ],
-        overrides=["s1", "s2", "0"],
+        overrides=["s1", "s2", "-1"],
     )
     with pytest.warns(UserWarning, match="s1, s2 were not reparametrized"):
         problem = petab1to2(yaml_file, reparametrize="all")
@@ -747,7 +754,7 @@ def test_petab1to2_reparametrize_all_skips_unresolvable(tmp_path):
             },
             _LOG10_PAR | {v1.C.PARAMETER_ID: "s2"},
         ],
-        overrides=["s1", "s2", "0"],
+        overrides=["s1", "s2", "-1"],
     )
     # s1 has a prior, so it must be reparametrized
     with (
@@ -759,7 +766,7 @@ def test_petab1to2_reparametrize_all_skips_unresolvable(tmp_path):
     assert "Use `reparametrize='none'`" in msg
     assert "(overridden by `s1')" in msg
     assert "not reparametrized: `s2'" in msg
-    assert "non-positive numbers: 0" in msg
+    assert "negative numbers: -1" in msg
 
 
 @pytest.mark.filterwarnings(

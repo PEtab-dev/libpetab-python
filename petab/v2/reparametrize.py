@@ -84,8 +84,10 @@ def reparametrize_log(
     * Measurement table: Overrides ``p`` are replaced by ``q``. The respective
       placeholder ``ph`` is substituted by ``base^ph`` in the observable
       (and noise) formula. This requires that all overrides for that
-      placeholder are reparametrized parameters or positive numbers.
-      Numbers are log-transformed.
+      placeholder are reparametrized parameters or non-negative numbers.
+      Numbers are log-transformed. Since overrides must be finite, ``0`` is
+      replaced by a new non-estimated parameter ``negative_infinity`` with
+      nominal value ``-inf``.
 
     The new ID is ``log10_<p>`` for base 10 and ``log_<p>`` for base e,
     with a numeric suffix if necessary to make it unique.
@@ -356,8 +358,10 @@ def _reparametrize_overrides(
     A placeholder ``ph`` is substituted by ``b^ph`` if any of its overrides
     is a reparametrized parameter. This requires all its overrides
     (across all measurements of the observable) to be reparametrized
-    parameters or positive numbers. Otherwise, the observable would have to
-    be split, which is not supported.
+    parameters or non-negative numbers. Otherwise, the observable would have
+    to be split, which is not supported.
+    Numeric overrides are log-transformed. Since overrides must be finite,
+    ``0`` is replaced by a new fixed parameter with nominal value ``-inf``.
     """
     observables = {o.id: o for o in problem.observables}
 
@@ -380,16 +384,14 @@ def _reparametrize_overrides(
         )
         if not reparametrized:
             continue
-        non_positive = sorted(
-            float(v) for v in values if v.is_number and not v > 0
-        )
+        negative = sorted(float(v) for v in values if v.is_number and v < 0)
         others = sorted(
             str(v)
             for v in values
             if not v.is_number
             and not (isinstance(v, sp.Symbol) and v.name in id_map)
         )
-        if not non_positive and not others:
+        if not negative and not others:
             slots_to_transform.append(slot)
             continue
 
@@ -404,9 +406,9 @@ def _reparametrize_overrides(
                 f"\n  - parameters that are not reparametrized: "
                 f"{quote(others)}"
             )
-        if non_positive:
-            error += "\n  - non-positive numbers: " + ", ".join(
-                f"{v:g}" for v in non_positive
+        if negative:
+            error += "\n  - negative numbers: " + ", ".join(
+                f"{v:g}" for v in negative
             )
         errors.append(error)
 
@@ -415,7 +417,7 @@ def _reparametrize_overrides(
             "Cannot log-transform the following placeholders, which are "
             "overridden by parameters to be reparametrized. This requires "
             "all overrides of a placeholder to be reparametrized parameters "
-            "or positive numbers.\n"
+            "or non-negative numbers.\n"
             + "\n".join(errors)
             + "\nSplitting observables is not supported. Reparametrize "
             "all or none of the parameters overriding a placeholder, "
@@ -439,9 +441,21 @@ def _reparametrize_overrides(
         )
 
     # update override values
+    neg_inf_id = None
+
     def transform(value: sp.Basic) -> sp.Basic:
+        nonlocal neg_inf_id
         if isinstance(value, sp.Symbol):
             return petab_symbol(id_map[value.name])
+        if value.is_zero:
+            if neg_inf_id is None:
+                neg_inf_id = problem.get_unused_id(
+                    "negative_infinity", exclude=id_map.values()
+                )
+                problem.add_parameter(
+                    neg_inf_id, estimate=False, nominal_value=-math.inf
+                )
+            return petab_symbol(neg_inf_id)
         return sp.Float(log_function(float(value)))
 
     slots_to_transform = set(slots_to_transform)

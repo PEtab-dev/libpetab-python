@@ -888,7 +888,7 @@ def _reparametrize_log_scaled(
         )
 
     # Placeholders can only be transformed if all their overrides are
-    #  reparametrized or positive numbers. Add log-scaled parameters that
+    #  reparametrized or non-negative numbers. Add log-scaled parameters that
     #  share a placeholder with selected parameters. If that is not possible,
     #  drop selected parameters that don't have parameter-scale priors.
     #  Otherwise, `reparametrize_log` will raise.
@@ -906,7 +906,7 @@ def _reparametrize_log_scaled(
                 if other and other <= candidates[base].keys() - excluded:
                     base_selected |= other
                     changed = True
-                elif other or any(v.is_number and not v > 0 for v in values):
+                elif other or any(v.is_number and v < 0 for v in values):
                     optional = (ids & base_selected) - required[base]
                     if optional:
                         base_selected -= optional
