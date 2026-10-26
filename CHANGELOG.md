@@ -2,7 +2,7 @@
 
 ## 0.10 series
 
-### 0.10.0 (unreleased)
+### 0.10.0
 
 **Breaking changes**
 * Removed the deprecated top-level aliases for `petab.v1` (deprecated since
@@ -12,20 +12,50 @@
   Use `petab.v1.<name>` instead, e.g., `import petab.v1 as petab`.
   `import petab` no longer imports `petab.v1`.
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/538)
+* Require `pandas>=2.3`. `get_{condition,observable,parameter,mapping}_df`
+  no longer modify DataFrames passed by the caller
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/571)
+* Removed the `tests`, `doc` and `quality` extras. Development dependencies
+  are now dependency groups. New `all` extra for all optional features
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/564)
 * `petab.v2.Parameter` has a new `name` field for the `parameterName` column,
   which was previously stored as an extra attribute `parameterName`.
   `BaseTable` subclasses now implement `_to_df` instead of `to_df`.
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
 
 **Fixes**
-* `get_model_for_condition` no longer turns rate-rule targets that are
-  overridden in the condition table into constants
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/520)
+
+`petablint`:
+* `petablint` no longer fails for PEtab v2 problems with only warnings,
+  consistent with PEtab v1. Warnings are still reported.
+  The previous behavior can be restored via `--fail-on-warnings`
+  (currently only effective for PEtab v2)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/569)
+
+v1:
 * Raise a clear error for a PEtab YAML file with an empty `problems` section
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/521)
-* Several fixes to the v1-to-v2 converter (`petab1to2`): keep
-  pre-equilibration for conditions that set nothing, order placeholders by
-  index instead of lexicographically, rescale noise and priors when
+* `petab.v1.sbml.get_model_for_condition` no longer turns rate-rule targets
+  that are overridden in the condition table into constants
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/520)
+
+v2 tables and files:
+* Loading and saving v2 tables no longer adds a spurious `index` column
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/542)
+* `to_df` no longer fails for empty v2 parameter, observable and measurement
+  tables
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
+* `petab.v2.ConditionTable.from_df` no longer stores the condition ID on
+  each `Change`, which caused renamed conditions to be written with their
+  old ID
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/551)
+* `petab.v2.ProblemConfig.to_yaml` no longer writes empty optional entries
+  (`condition_files`, `experiment_files`, `mapping_files`, `extensions`)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+
+v1-to-v2 conversion (`petab1to2`):
+* Keep pre-equilibration for conditions that set nothing, order placeholders
+  by index instead of lexicographically, rescale noise and priors when
   converting `log10` to `log`, and fix the conversion of `logNormal`,
   `logLaplace` and `parameterScaleUniform` priors
   (by @FFroehlich in
@@ -33,78 +63,83 @@
   https://github.com/PEtab-dev/libpetab-python/pull/533,
   https://github.com/PEtab-dev/libpetab-python/pull/535, and
   https://github.com/PEtab-dev/libpetab-python/pull/536)
-* `petab1to2` no longer adds default `uniform` priors to non-estimated
-  parameters, or if no estimated parameter has an objective prior
+* No longer add default `uniform` priors to non-estimated parameters, or if
+  no estimated parameter has an objective prior
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/539)
-* `petab_math_str` now produces valid PEtab math expressions for boolean
-  operators, (in)equality, `min`/`max`, powers with negative bases, and
-  `pi`/`e`, and prints floats without loss of precision. PEtab v2 condition
-  and measurement tables now write expressions in PEtab syntax
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/545)
-* `petab.v2.ProblemConfig.to_yaml` no longer writes empty optional entries
-  (`condition_files`, `experiment_files`, `mapping_files`, `extensions`)
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
-* `to_df` no longer fails for empty v2 parameter, observable and measurement
-  tables
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
-* `petab1to2` no longer writes condition tables without any
-  condition-specific changes
+* No longer write condition tables without any condition-specific changes
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/554)
-* `petab.v2.ConditionTable.from_df` no longer stores the condition ID on
-  each `Change`, which caused renamed conditions to be written with their
-  old ID
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/551)
-* `assignments_to_experiments` no longer creates condition IDs that clash
-  with other IDs in the problem
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
+* Rename a pre-existing `experimentId` column in the measurement table to
+  `experimentId_v1*` instead of a random name, and warn about it
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/572)
+
+v2 converters:
+* `petab.v2.converters.ExperimentsToSbmlConverter` now creates flat initial
+  assignments, which previously were nested once per experiment and failed
+  for problems with many experiments
+  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/546)
 * `petab.v2.converters.ExperimentsToSbmlConverter` now assigns a priority to
   a pre-existing event without priority if it is the only such event, so
   that PEtab condition changes are applied before its assignments.
   Previously, their order was undefined
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/562)
-* `petablint` no longer fails for PEtab v2 problems with only warnings,
-  consistent with PEtab v1. Warnings are still reported.
-  The previous behavior can be restored via `--fail-on-warnings`
-  (currently only effective for PEtab v2)
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/569)
-* Several fixes to `assignments_to_experiments`: keep a switch at the start
-  of a later period, keep the condition changes of symbols that the model
-  still uses elsewhere, evaluate a condition change once at the start of its
-  period, leave time-dependent initial assignments in the model, reject
-  assignments to species or compartments, leave problems without
-  time-dependent assignments unchanged, give a ramp's slope parameter an
-  unused ID, and accept switching times that conditions set from parameters
-  fixed by the parameter table
-  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/574)
-* `petab1to2` now renames a pre-existing `experimentId` column in the
-  measurement table to `experimentId_v1*` instead of a random name, and
-  warns about it
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/572)
+
+Math:
+* `petab_math_str` now produces valid PEtab math expressions for boolean
+  operators, (in)equality, `min`/`max`, powers with negative bases, and
+  `pi`/`e`, and prints floats without loss of precision. PEtab v2 condition
+  and measurement tables now write expressions in PEtab syntax
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/545)
 
 **Features**
-* `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
-  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/534)
-* Added `petab.v2.C.PROBLEM_CONFIG_REQUIRED_KEYS` and
-  `petab.v2.C.PROBLEM_CONFIG_OPTIONAL_KEYS`
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+
+v2 problems and tables:
+* `petab.v2.Problem.split_by_model` splits a multi-model problem into
+  single-model problems. `petab.v2.Problem.validate` now supports
+  multi-model problems
+  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/537)
+* `petab.v2.Problem.get_unused_id` returns an identifier that is not yet
+  used in the problem or its model
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
 * PEtab v2 tables can omit empty columns or columns at their default values
   via `to_df(columns=...)`, `to_tsv(columns=...)` and
   `Problem.to_files(columns=...)`, or globally via `petab.v2.set_options` and
   `petab.v2.option_context`
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/543)
-* `petab.v2.Problem.get_unused_id` returns an identifier that is not yet
-  used in the problem or its model
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/561)
-* `petab.v1.math.petab_symbol` (also in `petab.v2.math`) creates sympy
-  symbols with the same assumptions as `sympify_petab`
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/563)
-* `petab.v2.reparametrize_log` estimates parameters on log scale by replacing
-  them with new log-transformed parameters
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/560)
+* Added `petab.v2.C.PROBLEM_CONFIG_REQUIRED_KEYS` and
+  `petab.v2.C.PROBLEM_CONFIG_OPTIONAL_KEYS`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/547)
+
+v1-to-v2 conversion (`petab1to2`):
+* `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`
+  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/534)
 * `petab1to2` and `petab_files_1to2` can preserve the objective function of
   log-scaled parameters with `parameterScale*` priors via
   `reparametrize="priors"` or `reparametrize="all"`
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/539)
+
+v2 converters:
+* `petab.v2.reparametrize_log` estimates parameters on log scale by replacing
+  them with new log-transformed parameters
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/560)
+* `petab.v2.converters.assignments_to_experiments` converts time-dependent
+  piecewise assignment rules in the model to experiment periods. Supported
+  are step changes at fixed switching times, including sums and nested
+  piecewise functions, and values that change linearly with time, which
+  are implemented via a rate rule
+  (by @BSnelling and @FFroehlich in
+  https://github.com/PEtab-dev/libpetab-python/pull/527,
+  https://github.com/PEtab-dev/libpetab-python/pull/556,
+  https://github.com/PEtab-dev/libpetab-python/pull/557,
+  https://github.com/PEtab-dev/libpetab-python/pull/559,
+  https://github.com/PEtab-dev/libpetab-python/pull/573, and
+  https://github.com/PEtab-dev/libpetab-python/pull/574)
+
+Math:
+* `petab.v1.math.petab_symbol` (also in `petab.v2.math`) creates sympy
+  symbols with the same assumptions as `sympify_petab`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/563)
+
+**Full Changelog**: https://github.com/PEtab-dev/libpetab-python/compare/v0.9.0...v0.10.0
 
 ## 0.9 series
 
