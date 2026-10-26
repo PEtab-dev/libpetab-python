@@ -134,6 +134,25 @@ def test_get_condition_specific_models():
     check_model(condition_model)
 
 
+def test_sbml_model_get_referenced_ids():
+    """Test that IDs referred to in any math or as a conversion factor are
+    found, and IDs that are only defined are not."""
+    model = SbmlModel.from_antimony("""
+        species S1, S2;
+        S1 = 1; S2 = 0;
+        k1 = 1; k2 = 2; k3 = 3; cf = 1; unused = 4;
+        R1: S1 -> S2; k1 * S1;
+        k4 := k2 * time;
+        E1: at time > k3: S1 = 0;
+    """)
+    model.sbml_model.getSpecies("S2").setConversionFactor("cf")
+
+    ids = model.get_referenced_ids()
+
+    assert {"S1", "k1", "k2", "k3", "cf"} <= ids
+    assert not {"unused", "k4", "S2"} & ids
+
+
 def test_sbml_model_repr():
     sbml_document = libsbml.SBMLDocument()
     sbml_model = sbml_document.createModel()

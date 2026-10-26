@@ -484,6 +484,22 @@ class ObservableTable(BaseTable[Observable]):
         """List of observables."""
         return self.elements
 
+    @property
+    def free_symbols(self) -> set[sp.Symbol]:
+        """Get all free symbols in the observable table.
+
+        This includes all free symbols in the observable and noise formulas,
+        including the placeholders.
+        """
+        return set(
+            chain.from_iterable(
+                formula.free_symbols
+                for observable in self.observables
+                for formula in (observable.formula, observable.noise_formula)
+                if formula is not None
+            )
+        )
+
     @classmethod
     def from_df(cls, df: pd.DataFrame, **kwargs) -> ObservableTable:
         """Create an ObservableTable from a DataFrame."""

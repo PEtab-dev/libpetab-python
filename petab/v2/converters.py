@@ -1199,39 +1199,13 @@ def _referenced_ids(
 ) -> set[str]:
     """The IDs that the model, the observables, or the condition changes,
     including those in ``additions``, refer to."""
-    sbml_model = problem.model.sbml_model
-    ids = set()
-    for element in sbml_model.getListOfAllElements():
-        if not (hasattr(element, "isSetMath") and element.isSetMath()):
-            continue
-        nodes = [element.getMath()]
-        while nodes:
-            node = nodes.pop()
-            if node.getType() == libsbml.AST_NAME:
-                ids.add(node.getName())
-            nodes += [node.getChild(i) for i in range(node.getNumChildren())]
-    # conversion factors refer to parameters by attribute, not in math
-    ids |= {
-        element.getConversionFactor()
-        for element in [sbml_model, *sbml_model.getListOfSpecies()]
-        if element.isSetConversionFactor()
-    }
-    expressions = [
-        *(o.formula for o in problem.observables),
-        *(o.noise_formula for o in problem.observables),
-        *(value for *_, value in additions),
-    ]
+    ids = problem.model.get_referenced_ids()
     ids |= {
         str(s)
-        for expression in expressions
-        if expression is not None
-        for s in expression.free_symbols
-    }
-    ids |= {
-        str(s)
-        for table in problem.condition_tables
+        for table in [*problem.observable_tables, *problem.condition_tables]
         for s in table.free_symbols
     }
+    ids |= {str(s) for *_, value in additions for s in value.free_symbols}
     return ids
 
 
