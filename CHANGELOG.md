@@ -64,6 +64,15 @@
   The previous behavior can be restored via `--fail-on-warnings`
   (currently only effective for PEtab v2)
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/569)
+* Several fixes to `assignments_to_experiments`: keep a switch at the start
+  of a later period, keep the condition changes of symbols that the model
+  still uses elsewhere, evaluate a condition change once at the start of its
+  period, leave time-dependent initial assignments in the model, reject
+  assignments to species or compartments, leave problems without
+  time-dependent assignments unchanged, give a ramp's slope parameter an
+  unused ID, and accept switching times that conditions set from parameters
+  fixed by the parameter table
+  (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/574)
 
 **Features**
 * `petab1to2` and `petab_files_1to2` can skip validation via `validate=False`

@@ -482,6 +482,14 @@ def test_condition_table():
     ).free_symbols == {x, y}
 
 
+def test_observable_table_free_symbols():
+    assert ObservableTable().free_symbols == set()
+
+    assert ObservableTable(
+        [Observable(id="obs1", formula=x, noise_formula=y)]
+    ).free_symbols == {x, y}
+
+
 def test_to_df_math_expressions():
     """Expressions are written in PEtab syntax and without precision loss.
 
