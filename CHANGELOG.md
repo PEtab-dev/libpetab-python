@@ -69,7 +69,7 @@
   fixed by the parameter table
   (by @FFroehlich in https://github.com/PEtab-dev/libpetab-python/pull/574)
 * `petab1to2` now renames a pre-existing `experimentId` column in the
-  measurement table to `experimentId_v1` instead of a random name, and
+  measurement table to `experimentId_v1*` instead of a random name, and
   warns about it
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/572)
 

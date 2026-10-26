@@ -247,7 +247,7 @@ def petab_files_1to2(
             f"The measurement table has a column `{v2.C.EXPERIMENT_ID}`, "
             "which is reserved in PEtab v2. "
             f"It was renamed to `{renamed_experiment_id}`.",
-            # call to `petab1to2`
+            # point to the caller of `petab1to2`
             stacklevel=3,
         )
 
