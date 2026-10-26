@@ -59,6 +59,11 @@
   that PEtab condition changes are applied before its assignments.
   Previously, their order was undefined
   (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/562)
+* `petablint` no longer fails for PEtab v2 problems with only warnings,
+  consistent with PEtab v1. Warnings are still reported.
+  The previous behavior can be restored via `--fail-on-warnings`
+  (currently only effective for PEtab v2)
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/569)
 * Several fixes to `assignments_to_experiments`: keep a switch at the start
   of a later period, keep the condition changes of symbols that the model
   still uses elsewhere, evaluate a condition change once at the start of its
