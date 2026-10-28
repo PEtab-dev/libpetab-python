@@ -31,12 +31,10 @@ Release process
 1. Update the version number in ``petab/version.py``.
 
 2. Update the changelog in ``doc/CHANGELOG.md``.
-   The update content can be generated automatically:
-   draft a new dummy GitHub release with a dummy tag and the ``develop``
-   branch, then click :guilabel:`Generate release notes`.
+   Optionally, draft a dummy GitHub release targeting ``main`` and click
+   :guilabel:`Generate release notes` to get a starting point.
 
-3. Create a pull request with the to-be-released changes to the main branch
-   (usually from ``develop``).
+3. Create a pull request with these changes to ``main``.
 
 4. Once the pull request is merged, create a new release on GitHub.
    Make sure to set the tag to the version number prefixed with 'v'
@@ -47,7 +45,21 @@ Release process
    The upload to PyPI is performed automatically by a GitHub Actions workflow,
    which may take a few minutes to complete.
 
-6. Merge the main branch back into the `develop` branch.
+Testing
+-------
+
+To run the unit tests, run:
+
+.. code-block:: bash
+
+    uv run pytest tests
+
+Tests for the BNGL import are skipped unless the respective test models
+have been downloaded via:
+
+.. code-block:: bash
+
+    uv run --no-project python -P tests/v1/fetch_bngl_corpus.py
 
 Style guide
 -----------
@@ -55,19 +67,20 @@ Style guide
 Code style
 ~~~~~~~~~~
 
-We use pre-commit with ruff to enforce code style. To install pre-commit and
-the pre-commit hooks, run:
+We use pre-commit with ruff to enforce code style.
+pre-commit is part of the default ``dev`` dependency group.
+To install it and the pre-commit hooks, run:
 
 .. code-block:: bash
 
-    uv tool install pre-commit
-    pre-commit install
+    uv sync
+    uv run pre-commit install
 
 To run the pre-commit checks manually on all, not just the modified files, run:
 
 .. code-block:: bash
 
-    pre-commit run --all-files
+    uv run pre-commit run --all-files
 
 Documentation style
 ~~~~~~~~~~~~~~~~~~~
