@@ -26,7 +26,8 @@ Python compatibility
 We follow `SPEC 0 <https://scientific-python.org/specs/spec-0000/>`_
 for the minimum supported versions of Python and core dependencies
 (NumPy, SciPy, Matplotlib, pandas, ...),
-but may keep supporting a Python version until NumPy drops it.
+but may keep supporting a Python version
+as long as current NumPy releases support it.
 
 Release process
 ---------------

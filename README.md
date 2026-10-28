@@ -25,7 +25,8 @@ and the easiest way to install it is running
 `petab` requires Python>=3.12. We are following
 [SPEC 0](https://scientific-python.org/specs/spec-0000/)
 for the minimum supported versions of Python and core dependencies,
-but may keep supporting a Python version until NumPy drops it.
+but may keep supporting a Python version
+as long as current NumPy releases support it.
 
 Development versions of the PEtab library can be installed using
 
