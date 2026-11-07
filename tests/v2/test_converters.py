@@ -134,6 +134,130 @@ def test_initial_assignments_many_experiments():
             )
 
 
+def _kept_changes(problem: Problem) -> dict[str, list[dict[str, float]]]:
+    """Per experiment and kept period, the changes left in the condition
+    table, without the pre-equilibration indicator."""
+    return {
+        experiment.id: [
+            {
+                change.target_id: float(change.target_value)
+                for change in problem.get_changes_for_period(period)
+                if change.target_id
+                != ExperimentsToSbmlConverter.PREEQ_INDICATOR
+            }
+            for period in experiment.periods
+        ]
+        for experiment in problem.experiments
+    }
+
+
+def test_condition_parameters_stay_in_conditions():
+    """Numeric first-period changes of a constant parameter that nothing else
+    assigns stay in the condition table, instead of becoming a piecewise
+    initial assignment with a branch per experiment. Only experiments with
+    changes encoded in the model get an indicator."""
+    n_experiments = 300
+    ant_model = """
+    species A = 1
+    k = 3
+    R1: A -> ; k * A
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    for i in range(n_experiments):
+        problem.add_condition(f"c{i}", k=i + 1)
+        problem.add_experiment(f"e{i}", 0, f"c{i}")
+    # also changes a species, which has to be encoded in the model
+    problem.add_condition("c_species", k=7, A=5)
+    problem.add_experiment("e_species", 0, "c_species")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    assert converted.validate().has_errors() is False
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getInitialAssignmentBySymbol("k") is None
+    assert sbml_model.getParameter("k").getConstant() is True
+    assert [
+        p.getId()
+        for p in sbml_model.getListOfParameters()
+        if p.getId().startswith("_petab_experiment_indicator_")
+    ] == ["_petab_experiment_indicator_e_species"]
+    # one branch for e_species, and the default
+    expr = sbml_math_to_sympy(
+        sbml_model.getInitialAssignmentBySymbol("A").getMath()
+    )
+    assert len(expr.args) == 2
+
+    kept = _kept_changes(converted)
+    assert kept["e0"] == [{"k": 1.0}]
+    assert kept[f"e{n_experiments - 1}"] == [{"k": float(n_experiments)}]
+    assert kept["e_species"] == [
+        {"_petab_experiment_indicator_e_species": 1.0, "k": 7.0}
+    ]
+
+
+@pytest.mark.parametrize(
+    "case", ["estimated", "later_period", "expression", "initial_assignment"]
+)
+def test_condition_parameters_encoded_otherwise(case):
+    """A parameter change that is not constant per experiment, or a parameter
+    that something else assigns, is still encoded in the model."""
+    ant_model = """
+    species A = 1
+    k = 3
+    p = 2
+    R1: A -> ; k * A
+    """
+    if case == "initial_assignment":
+        ant_model += "k = 2 * p\n"
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_condition("c0", k="2 * p" if case == "expression" else 1)
+    if case == "later_period":
+        problem.add_condition("c1", k=2)
+        problem.add_experiment("e0", 0, "c0", 5, "c1")
+    else:
+        problem.add_experiment("e0", 0, "c0")
+    if case == "estimated":
+        problem.add_parameter("k", estimate=True, lb=0.1, ub=10)
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getInitialAssignmentBySymbol("k") is not None
+    assert _kept_changes(converted)["e0"] == [
+        {"_petab_experiment_indicator_e0": 1.0}
+    ]
+    assert sbml_model.getNumEvents() == int(case == "later_period")
+
+
+def test_condition_parameters_preequilibration():
+    """A condition parameter set in the pre-equilibration period keeps its
+    value in the main period."""
+    ant_model = """
+    species A = 1
+    k = 3
+    R1: A -> ; k * A
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_condition("c_preeq", k=2)
+    problem.add_condition("c_main", A=5)
+    problem.add_experiment("e1", -inf, "c_preeq", 0, "c_main")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    assert converted.validate().has_errors() is False
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getInitialAssignmentBySymbol("k") is None
+    # the event that sets A needs e1's indicator; k is set in both periods
+    assert sbml_model.getNumEvents() == 1
+    assert _kept_changes(converted)["e1"] == [
+        {"_petab_experiment_indicator_e1": 1.0, "k": 2.0},
+        {"_petab_experiment_indicator_e1": 1.0, "k": 2.0},
+    ]
+
+
 def test_simulate_experiment_to_events():
     """
     Convert PEtab experiment to SBML events and compare BasiCO simulation

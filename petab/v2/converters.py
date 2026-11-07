@@ -65,7 +65,21 @@ class ExperimentsToSbmlConverter:
     Each experiment will have at most one period with a start time of ``-inf``
     and one period with a finite start time. The associated changes with
     these periods are only the pre-equilibration indicator
-    (if necessary), and the experiment indicator parameter.
+    (if necessary), the experiment indicator parameter (if the experiment
+    has any changes encoded in the model), and the changes that set
+    *condition parameters*.
+
+    A condition parameter is a constant SBML parameter that the model does
+    not assign (no rule, initial assignment or event assignment), that is
+    neither in the parameter table nor in the mapping table, nor an
+    observable or noise placeholder, and that is changed only in the first
+    period of an experiment, and only to numbers.
+    Its value is constant per experiment, like a column of a PEtab v1
+    condition table, so its changes are kept as conditions of the first
+    period (and, for an experiment with pre-equilibration, of both kept
+    periods, since the value set at the start persists).
+    Encoding them in the model would add a branch per experiment to the
+    initial assignment of every such parameter.
     """
 
     #: ID of the parameter that indicates whether the model is in
@@ -121,6 +135,13 @@ class ExperimentsToSbmlConverter:
         self._array_data_condition_ids = (
             sciml._get_array_data_condition_ids() if sciml else set()
         )
+
+        # The parameters whose changes stay in the condition table,
+        #  see the class docstring. Set by `convert`.
+        self._condition_parameters: set[str] = set()
+        # experiment ID -> the changes of its kept periods: the experiment
+        #  indicator (if needed) and the changes of condition parameters
+        self._experiment_changes: dict[str, list[Change]] = {}
 
         # The maximum event priority that was found in the unprocessed model.
         self._max_event_priority = None
@@ -291,6 +312,7 @@ class ExperimentsToSbmlConverter:
 
         :return: The converted PEtab problem.
         """
+        self._condition_parameters = self._get_condition_parameters()
 
         self._add_preequilibration_indicator()
 
@@ -311,6 +333,63 @@ class ExperimentsToSbmlConverter:
 
         return self._new_problem
 
+    def _get_condition_parameters(self) -> set[str]:
+        """IDs of the parameters whose changes stay in the condition table.
+
+        See the class docstring for the criteria.
+        """
+        model = self._model
+        problem = self._new_problem
+
+        assigned_in_model = {
+            rule.getVariable() for rule in model.getListOfRules()
+        }
+        assigned_in_model |= {
+            ia.getSymbol() for ia in model.getListOfInitialAssignments()
+        }
+        assigned_in_model |= {
+            ea.getVariable()
+            for event in model.getListOfEvents()
+            for ea in event.getListOfEventAssignments()
+        }
+        used_by_problem = {parameter.id for parameter in problem.parameters}
+        for mapping in problem.mappings:
+            used_by_problem.add(mapping.petab_id)
+            if mapping.model_id:
+                used_by_problem.add(mapping.model_id)
+        for observable in problem.observables:
+            used_by_problem |= {
+                str(placeholder)
+                for placeholder in (
+                    *observable.observable_placeholders,
+                    *observable.noise_placeholders,
+                )
+            }
+
+        candidates = (
+            {
+                parameter.getId()
+                for parameter in model.getListOfParameters()
+                if parameter.getConstant()
+            }
+            - assigned_in_model
+            - used_by_problem
+        )
+
+        for experiment in problem.experiments:
+            for i_period, period in enumerate(experiment.sorted_periods):
+                if self._array_data_condition_ids and set(
+                    period.condition_ids
+                ).issubset(self._array_data_condition_ids):
+                    # set by array data, not converted
+                    continue
+                for change in problem.get_changes_for_period(period):
+                    if change.target_id in candidates and (
+                        i_period > 0 or not change.target_value.is_number
+                    ):
+                        candidates.discard(change.target_id)
+        return candidates
+
     def _convert_experiment(
         self,
         experiment: Experiment,
@@ -330,7 +409,6 @@ class ExperimentsToSbmlConverter:
         experiment.sort_periods()
         has_preequilibration = experiment.has_preequilibration
 
-        # add experiment indicator
         exp_ind_id = self.get_experiment_indicator(experiment.id)
         if model.getElementBySId(exp_ind_id) is not None:
             raise ValueError(
@@ -339,7 +417,22 @@ class ExperimentsToSbmlConverter:
                 f"{self.__class__.__name__} and should not be used in the "
                 "model."
             )
-        add_sbml_parameter(model, id_=exp_ind_id, constant=False, value=0)
+        # the changes of the kept periods: the experiment indicator, added
+        #  to the model only once a change is encoded there, and the changes
+        #  of condition parameters
+        kept_changes: list[Change] = []
+        indicator_change: list[Change] = []
+
+        def use_indicator() -> str:
+            if not indicator_change:
+                add_sbml_parameter(
+                    model, id_=exp_ind_id, constant=False, value=0
+                )
+                indicator_change.append(
+                    Change(target_id=exp_ind_id, target_value=1)
+                )
+            return exp_ind_id
+
         kept_periods: list[ExperimentPeriod] = []
 
         for i_period, period in enumerate(experiment.sorted_periods):
@@ -371,14 +464,18 @@ class ExperimentsToSbmlConverter:
             #  the changed values.
             #  Additionally, tools that don't support events can still handle
             #  single-period experiments.
+            #  Changes of condition parameters are kept as conditions
+            #  instead (see the class docstring).
             if i_period == 0:
-                exp_ind_id = self.get_experiment_indicator(experiment.id)
-
                 for change in self._new_problem.get_changes_for_period(period):
+                    if change.target_id in self._condition_parameters:
+                        kept_changes.append(change)
+                        continue
                     period0_assignments.setdefault(
                         change.target_id, []
-                    ).append((exp_ind_id, change.target_value))
+                    ).append((use_indicator(), change.target_value))
             else:
+                use_indicator()
                 ev = self._create_period_start_event(
                     experiment=experiment,
                     i_period=i_period,
@@ -392,10 +489,19 @@ class ExperimentsToSbmlConverter:
         if len(kept_periods) > 2:
             raise AssertionError("Expected at most two periods to be kept.")
 
-        # add conditions that set the indicator parameters
+        # add conditions that set the indicator parameters and the
+        #  condition parameters
+        changes = self._experiment_changes[experiment.id] = (
+            indicator_change + kept_changes
+        )
+        experiment_condition_ids = (
+            [self._get_experiment_indicator_condition_id(experiment.id)]
+            if changes
+            else []
+        )
         for period in kept_periods:
             period.condition_ids = [
-                self._get_experiment_indicator_condition_id(experiment.id),
+                *experiment_condition_ids,
                 self.CONDITION_ID_PREEQ_ON
                 if period.is_preequilibration
                 else self.CONDITION_ID_PREEQ_OFF,
@@ -714,24 +820,20 @@ class ExperimentsToSbmlConverter:
             changes=[Change(target_id=self._preeq_indicator, target_value=0)],
         )
 
-        # add conditions for the experiment indicators
+        # add conditions for the experiment indicators and the condition
+        #  parameters
         for experiment in problem.experiments:
-            cond_id = self._get_experiment_indicator_condition_id(
-                experiment.id
-            )
-            changes = [
-                Change(
-                    target_id=self.get_experiment_indicator(experiment.id),
-                    target_value=1,
+            if changes := self._experiment_changes.get(experiment.id):
+                problem += Condition(
+                    id=self._get_experiment_indicator_condition_id(
+                        experiment.id
+                    ),
+                    changes=changes,
                 )
-            ]
-            problem += Condition(
-                id=cond_id,
-                changes=changes,
-            )
 
-        #  All changes have been encoded in event assignments and can be
-        #  removed. Only keep the conditions setting our indicators.
+        #  All other changes have been encoded in event assignments or
+        #  initial assignments and can be removed. Only keep the conditions
+        #  setting our indicators and the condition parameters.
         problem.condition_tables = [
             ConditionTable(
                 [
