@@ -80,7 +80,18 @@ class ExperimentsToSbmlConverter:
     periods, since the value set at the start persists).
     Encoding them in the model would add a branch per experiment to the
     initial assignment of every such parameter.
+
+    A species that meets the same criteria, and whose initial value in the
+    model is a number, is handled the same way through a new parameter
+    ``_petab_initial_value_<species ID>``: it holds the species' initial
+    value, the species gets the initial assignment
+    ``<species ID> = _petab_initial_value_<species ID>``, and the changes of
+    the species are kept as changes of that parameter.
     """
+
+    #: Prefix of the parameters that hold the initial value of a species
+    #: whose changes are kept in the condition table.
+    INITIAL_VALUE_PREFIX = "_petab_initial_value_"
 
     #: ID of the parameter that indicates whether the model is in
     #  the pre-equilibration phase (1) or not (0).
@@ -136,9 +147,11 @@ class ExperimentsToSbmlConverter:
             sciml._get_array_data_condition_ids() if sciml else set()
         )
 
-        # The parameters whose changes stay in the condition table,
-        #  see the class docstring. Set by `convert`.
+        # The parameters and species whose changes stay in the condition
+        #  table, see the class docstring. Set by `convert`.
         self._condition_parameters: set[str] = set()
+        # species ID -> its initial value, for the species among them
+        self._initial_values: dict[str, float] = {}
         # experiment ID -> the changes of its kept periods: the experiment
         #  indicator (if needed) and the changes of condition parameters
         self._experiment_changes: dict[str, list[Change]] = {}
@@ -313,6 +326,7 @@ class ExperimentsToSbmlConverter:
         :return: The converted PEtab problem.
         """
         self._condition_parameters = self._get_condition_parameters()
+        self._add_initial_value_parameters()
 
         self._add_preequilibration_indicator()
 
@@ -367,15 +381,19 @@ class ExperimentsToSbmlConverter:
             }
 
         candidates = (
-            {
-                parameter.getId()
-                for parameter in model.getListOfParameters()
-                if parameter.getConstant()
-            }
+            (
+                {
+                    parameter.getId()
+                    for parameter in model.getListOfParameters()
+                    if parameter.getConstant()
+                }
+                | {species.getId() for species in model.getListOfSpecies()}
+            )
             - assigned_in_model
             - used_by_problem
         )
 
+        targets = set()
         for experiment in problem.experiments:
             for i_period, period in enumerate(experiment.sorted_periods):
                 if self._array_data_condition_ids and set(
@@ -384,11 +402,61 @@ class ExperimentsToSbmlConverter:
                     # set by array data, not converted
                     continue
                 for change in problem.get_changes_for_period(period):
+                    targets.add(change.target_id)
                     if change.target_id in candidates and (
                         i_period > 0 or not change.target_value.is_number
                     ):
                         candidates.discard(change.target_id)
+
+        # only what conditions change
+        candidates &= targets
+
+        # A species needs a numeric initial value for its parameter. The
+        #  value of a concentration-based species given by an amount depends
+        #  on its compartment, which must then have a fixed size.
+        fixed_sizes = {
+            sp.Symbol(compartment.getId()): sp.Float(compartment.getSize())
+            for compartment in model.getListOfCompartments()
+            if compartment.isSetSize()
+            and compartment.getId() not in assigned_in_model
+            and compartment.getId() not in targets
+        }
+        self._initial_values = {}
+        for species_id in sorted(candidates):
+            if (species := model.getSpecies(species_id)) is None:
+                continue
+            value = self._initial_value_from_element(species).xreplace(
+                fixed_sizes
+            )
+            if value.is_number:
+                self._initial_values[species_id] = float(value)
+            else:
+                candidates.discard(species_id)
         return candidates
+
+    def _add_initial_value_parameters(self) -> None:
+        """Add the parameters that hold the initial values of the species
+        whose changes stay in the condition table, and assign them to the
+        species."""
+        model = self._model
+        for species_id, value in self._initial_values.items():
+            par_id = self._condition_target(species_id)
+            if model.getElementBySId(par_id) is not None:
+                raise ValueError(
+                    f"The model has entity with ID `{par_id}`. "
+                    "IDs starting with `petab_` are reserved for "
+                    f"{self.__class__.__name__} and should not be used in "
+                    "the model."
+                )
+            add_sbml_parameter(model, id_=par_id, constant=True, value=value)
+            set_initial_assignment(model, species_id, sp.Symbol(par_id))
+
+    def _condition_target(self, target_id: str) -> str:
+        """The ID that a kept change of `target_id` sets: the parameter
+        holding the initial value of a species, or the parameter itself."""
+        if target_id in self._initial_values:
+            return f"{self.INITIAL_VALUE_PREFIX}{target_id}"
+        return target_id
 
     def _convert_experiment(
         self,
@@ -469,7 +537,14 @@ class ExperimentsToSbmlConverter:
             if i_period == 0:
                 for change in self._new_problem.get_changes_for_period(period):
                     if change.target_id in self._condition_parameters:
-                        kept_changes.append(change)
+                        kept_changes.append(
+                            Change(
+                                target_id=self._condition_target(
+                                    change.target_id
+                                ),
+                                target_value=change.target_value,
+                            )
+                        )
                         continue
                     period0_assignments.setdefault(
                         change.target_id, []
