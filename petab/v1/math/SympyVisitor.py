@@ -213,7 +213,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             # `else` case
             args.append(sp.true)
             sp_args = (
-                (true_expr, num2bool(condition))
+                # piecewise is float-valued, also for Boolean values
+                (bool2num(true_expr), num2bool(condition))
                 for true_expr, condition in zip(
                     args[::2], args[1::2], strict=True
                 )
@@ -318,11 +319,17 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
 
 def bool2num(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
-    """Convert sympy Booleans to Floats."""
+    """Convert sympy Booleans to Floats.
+
+    True is converted to 1.0, false to 0.0.
+    """
     if isinstance(x, BooleanFalse):
         return sp.Float(0)
     if isinstance(x, BooleanTrue):
         return sp.Float(1)
+    # sp.Symbol is both Boolean and Expr; PEtab symbols are numeric
+    if isinstance(x, Boolean) and not isinstance(x, sp.Expr):
+        return sp.Piecewise((sp.Float(1), x), (sp.Float(0), True))
     return x
 
 
@@ -339,9 +346,4 @@ def num2bool(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
         return sp.false
     if x.is_zero is False:
         return sp.true
-    if isinstance(x, sp.Piecewise):
-        # Boolean-valued pieces have to be converted to numbers first
-        x = sp.Piecewise(
-            *((bool2num(expr), cond) for expr, cond in x.args),
-        )
     return sp.Ne(x, 0)
