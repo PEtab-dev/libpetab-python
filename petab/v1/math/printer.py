@@ -70,6 +70,10 @@ class PetabStrPrinter(StrPrinter):
         """Custom printing for logical NOT"""
         return f"!{self._print_bool_operand(expr.args[0])}"
 
+    def _print_ITE(self, expr):
+        """Custom printing for if-then-else (no equivalent in PEtab)"""
+        return self._print(expr.to_nnf())
+
     def _print_Pow(self, expr: sp.Pow):
         """Custom printing for the power operator"""
         base, exp = expr.as_base_exp()
