@@ -1,5 +1,15 @@
 # PEtab changelog
 
+## 0.11 series
+
+### 0.11.0 (unreleased)
+
+**Breaking changes**
+* Follow SPEC 0 instead of NEP 29 for minimum supported dependency versions.
+  Require `numpy>=2.2`, and for the `vis` extra, `matplotlib>=3.10` and
+  `scipy>=1.15`
+  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/578)
+
 ## 0.10 series
 
 ### 0.10.0
