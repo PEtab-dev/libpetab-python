@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+  merge_group:
   workflow_dispatch:
   schedule:
     - cron:  '48 4 * * *'
@@ -44,3 +47,26 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
       if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.14'
+
+  doc:
+    # Read the Docs covers PRs. Skipped jobs count as passing, so this can
+    # be a required check.
+    if: >-
+      github.event_name == 'merge_group'
+      || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v7
+
+    - name: Install uv and python
+      uses: astral-sh/setup-uv@v10.0.1
+      with:
+        enable-cache: true
+        python-version: "3.12"
+
+    - name: Build documentation
+      run: |
+        uv sync --no-default-groups --group doc
+        uv run --no-sync make -C doc html
