@@ -3,20 +3,11 @@
 from copy import deepcopy
 
 import pysb
-import pytest
 
 from petab.v2 import Problem
 from petab.v2.lint import *
 from petab.v2.models.pysb_model import PySBModel
 from petab.v2.models.sbml_model import SbmlModel
-
-
-@pytest.fixture
-def uses_pysb():
-    """Cleanup PySB auto-exported symbols before and after test"""
-    pysb.SelfExporter.cleanup()
-    yield ()
-    pysb.SelfExporter.cleanup()
 
 
 def test_check_experiments():
@@ -121,7 +112,7 @@ def test_validate_initial_change_symbols():
     assert "contains additional symbols: {'p2'}" in error.message
 
 
-def test_check_mapping_table(uses_pysb):
+def test_check_mapping_table(clean_pysb_exports):
     """Test checks related to the mapping table."""
     problem = Problem()
 
@@ -155,7 +146,7 @@ def test_check_mapping_table(uses_pysb):
     assert check.run(problem) is None
 
     # Invalid: petabEntityId is referenced in the model
-    pysb.SelfExporter.cleanup()
+    clean_pysb_exports()
     pysb_model_invalid = pysb.Model("test_model_invalid")
     pysb.Monomer("A_")
     pysb.Initial(A_() ** pysb.Compartment("C"), pysb.Parameter("A", 1))
@@ -167,3 +158,30 @@ def test_check_mapping_table(uses_pysb):
         "`A` is used in the mapping table and referenced directly"
         in error.message
     )
+
+
+def test_pysb_species_with_sites_as_condition_target(
+    clean_pysb_exports,
+):
+    """PySB species with binding sites can be used as condition targets."""
+    pysb_model = pysb.Model("test_model", _export=False)
+    pysb_model.add_component(
+        pysb.Monomer("A", ["b", "s"], {"s": ["u", "p"]}, _export=False)
+    )
+    pysb_model.add_component(pysb.Monomer("B", ["a"], _export=False))
+    problem = Problem()
+    problem.model = PySBModel(model=pysb_model, model_id="test_model")
+    problem.add_mapping("A_u", "A(b=None, s='u')")
+    problem.add_mapping("AB", "A(b=None, s=('p', 1)) % B(a=1)")
+    problem.add_condition("c1", A_u=1, AB=2)
+
+    assert problem.model.is_state_variable("A(b=None, s='u')")
+    assert problem.model.is_state_variable("A(b=None, s=('p', 1)) % B(a=1)")
+
+    check = CheckValidParameterInConditionOrParameterTable()
+    assert check.run(problem) is None
+    assert not [
+        issue
+        for issue in problem.validate()
+        if issue.level >= ValidationIssueSeverity.ERROR
+    ]

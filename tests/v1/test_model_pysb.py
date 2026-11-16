@@ -10,14 +10,6 @@ from petab.v1.models.pysb_model import (
 )
 
 
-@pytest.fixture(scope="function")
-def uses_pysb():
-    """Cleanup PySB auto-exported symbols before and after test"""
-    pysb.SelfExporter.cleanup()
-    yield ()
-    pysb.SelfExporter.cleanup()
-
-
 def test_parse_species_name():
     assert parse_species_name("cyclin(Y='U', b=None)") == [
         ("cyclin", None, {"Y": "U", "b": None})
@@ -49,7 +41,7 @@ def test_parse_species_name():
     # TODO: MultiState
 
 
-def test_pysb_model(uses_pysb):
+def test_pysb_model(clean_pysb_exports):
     model = pysb.Model()
     pysb.Compartment("c1")
     pysb.Monomer("A")
@@ -75,7 +67,88 @@ def test_pysb_model(uses_pysb):
     assert petab_model.is_state_variable("A(s='a')") is False
 
 
-def test_pattern_parsing(uses_pysb):
+def test_is_state_variable_sites(clean_pysb_exports):
+    """Species with binding sites, bonds, and multi-state sites."""
+    model = pysb.Model()
+    pysb.Compartment("c")
+    A = pysb.Monomer("A", ["b", "s"], {"s": ["u", "p"]})
+    B = pysb.Monomer("B", ["a"])
+    C = pysb.Monomer("C", ["x", "x"], {"x": ["u", "p"]})
+    pysb.Monomer("D", ["x", "x", "y"])
+    E = pysb.Monomer("E", ["b"])
+    pysb.Monomer("F", ["conditions"], {"conditions": ["u", "p"]})
+    petab_model = PySBModel(model=model, model_id="test_model")
+
+    valid = [
+        "D(x=MultiState(None, 1), y=1)",
+        "E(b=[1, 2]) % E(b=1) % E(b=2)",
+        "F(conditions='u')",
+        "A(b=None, s='u')",
+        "A(b=1, s='u') % B(a=1)",
+        "A(b=None, s=('u', 1)) % B(a=1)",
+        "C(x=MultiState('u', 'p'))",
+        "A(b=None, s='u') ** c",
+        "A(b=1, s='u') ** c % B(a=1) ** c",
+        "(A(b=1, s='u') % B(a=1)) ** c",
+    ]
+    for species in valid:
+        assert petab_model.is_state_variable(species) is True, species
+    # str(pattern) round trip
+    for pattern in (
+        A(b=1, s=("p", 2)) % B(a=1) % B(a=2),
+        (A(b=1, s="u") % B(a=1)) ** model.compartments["c"],
+        C(x=pysb.MultiState("u", "p")),
+        E(b=[1, 2]) % E(b=1) % E(b=2),
+    ):
+        pattern = pysb.as_complex_pattern(pattern)
+        assert petab_model.is_state_variable(str(pattern)) is True
+        assert str(pattern_from_string(str(pattern), model)) == str(pattern)
+
+    invalid = [
+        # dangling bond
+        "A(b=1, s='u')",
+        # bond number used three times
+        "A(b=1, s='u') % B(a=1) % B(a=1)",
+        # state for a site without states
+        "A(b='u', s='u')",
+        # unknown state
+        "A(b=None, s='x')",
+        # missing state
+        "A(b=None, s=1)",
+        # unknown site
+        "A(b=None, s='u', z=None)",
+        # duplicate site
+        "A(b=None, b=None, s='u')",
+        # missing site
+        "A(b=None)",
+        # wildcards
+        "A(b=ANY, s='u')",
+        "A(b=WILD, s='u')",
+        # incomplete multi-state site
+        "C(x=MultiState('u'))",
+        "C(x=MultiState('u', 'p', 'u'))",
+        "C(x='u')",
+        # missing site of a monomer with duplicate sites
+        "D(x=MultiState(None, None))",
+        # missing bond partner in a list of bonds
+        "E(b=[1, 2]) % E(b=1)",
+        # unknown compartment
+        "A(b=None, s='u') ** d",
+        # not a species pattern
+        "A(b=True, s='u')",
+        "A(**kwargs)",
+        "__import__('os')",
+        "A(",
+    ]
+    for species in invalid:
+        assert petab_model.is_state_variable(species) is False, species
+
+    # errors from PySB are reported with the offending string
+    with pytest.raises(ValueError, match=r"Invalid species name: 'A\(b='u'"):
+        pattern_from_string("A(b='u', s='u')", model)
+
+
+def test_pattern_parsing(clean_pysb_exports):
     model = pysb.Model()
     c1 = pysb.Compartment("c1")
     A = pysb.Monomer("A")
@@ -90,7 +163,7 @@ def test_pattern_parsing(uses_pysb):
     assert str(pattern) == str(pattern_from_string("B(s='a') ** c1", model))
 
 
-def test_pysb_model_repr(uses_pysb):
+def test_pysb_model_repr(clean_pysb_exports):
     model = pysb.Model(name="test")
     petab_model = PySBModel(model)
     assert repr(petab_model) == "<PySBModel 'test'>"
