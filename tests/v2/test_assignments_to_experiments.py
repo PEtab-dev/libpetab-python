@@ -265,11 +265,19 @@ def _simulate(problem, experiment_id, timepoints):
     import basico
 
     converted = ExperimentsToSbmlConverter(problem).convert()
-    indicator = converted.model.sbml_model.getParameter(
-        ExperimentsToSbmlConverter.get_experiment_indicator(experiment_id)
-    )
-    if indicator is not None:
-        indicator.setValue(1)
+    # apply what the converter leaves in the condition table: the experiment
+    #  indicator and the condition parameters
+    sbml_model = converted.model.sbml_model
+    for experiment in converted.experiments:
+        if experiment.id != experiment_id:
+            continue
+        (period,) = (
+            p for p in experiment.periods if not p.is_preequilibration
+        )
+        for change in converted.get_changes_for_period(period):
+            sbml_model.getParameter(change.target_id).setValue(
+                float(change.target_value)
+            )
     basico.load_model(converted.model.to_sbml_str())
     result = basico.run_time_course(
         values=timepoints, r_tol=1e-10, a_tol=1e-12

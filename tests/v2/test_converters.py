@@ -101,9 +101,12 @@ def test_initial_assignments_many_experiments():
     for i in range(n_experiments):
         problem.add_condition(f"c{i}", A=i + 2, B=i + 2)
         problem.add_experiment(f"e{i}", 0, f"c{i}")
-    # an experiment that does not change the initial values
+    # an experiment that does not change the initial values; it changes A
+    #  later, so A's changes, like B's (which has an initial assignment),
+    #  are encoded in the model rather than kept as conditions
     problem.add_condition("c_default", k=3)
-    problem.add_experiment("e_default", 0, "c_default")
+    problem.add_condition("c_late", A=7)
+    problem.add_experiment("e_default", 0, "c_default", 5, "c_late")
 
     converted = ExperimentsToSbmlConverter(problem).convert()
     sbml_model = converted.model.sbml_model
@@ -132,6 +135,179 @@ def test_initial_assignments_many_experiments():
                 expr.xreplace({ind: int(ind == active) for ind in indicators})
                 == expected
             )
+
+
+def _kept_changes(problem: Problem) -> dict[str, list[dict[str, float]]]:
+    """Per experiment and kept period, the changes left in the condition
+    table, without the pre-equilibration indicator."""
+    return {
+        experiment.id: [
+            {
+                change.target_id: float(change.target_value)
+                for change in problem.get_changes_for_period(period)
+                if change.target_id
+                != ExperimentsToSbmlConverter.PREEQ_INDICATOR
+            }
+            for period in experiment.periods
+        ]
+        for experiment in problem.experiments
+    }
+
+
+def test_condition_parameters_stay_in_conditions():
+    """Numeric first-period changes of a constant parameter that nothing else
+    assigns stay in the condition table, instead of becoming a piecewise
+    initial assignment with a branch per experiment; those of a species stay
+    there as changes of a parameter holding its initial value. Only
+    experiments with changes encoded in the model get an indicator."""
+    n_experiments = 300
+    ant_model = """
+    species A = 1
+    species B = 0
+    k = 3
+    R1: A -> B; k * A
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    for i in range(n_experiments):
+        problem.add_condition(f"c{i}", k=i + 1)
+        problem.add_experiment(f"e{i}", 0, f"c{i}")
+    problem.add_condition("c_species", k=7, A=5)
+    problem.add_experiment("e_species", 0, "c_species")
+    # a change after the start is an event, which needs the indicator
+    problem.add_condition("c_b", B=2)
+    problem.add_experiment("e_event", 0, "c0", 5, "c_b")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    assert converted.validate().has_errors() is False
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getInitialAssignmentBySymbol("k") is None
+    assert sbml_model.getParameter("k").getConstant() is True
+    initial_value_a = ExperimentsToSbmlConverter.INITIAL_VALUE_PREFIX + "A"
+    assert sbml_math_to_sympy(
+        sbml_model.getInitialAssignmentBySymbol("A").getMath()
+    ) == sp.Symbol(initial_value_a)
+    assert sbml_model.getParameter(initial_value_a).getValue() == 1
+    assert sbml_model.getParameter(initial_value_a).getConstant() is True
+    assert [
+        p.getId()
+        for p in sbml_model.getListOfParameters()
+        if p.getId().startswith("_petab_experiment_indicator_")
+    ] == ["_petab_experiment_indicator_e_event"]
+    assert sbml_model.getNumEvents() == 1
+
+    kept = _kept_changes(converted)
+    assert kept["e0"] == [{"k": 1.0}]
+    assert kept[f"e{n_experiments - 1}"] == [{"k": float(n_experiments)}]
+    assert kept["e_species"] == [{"k": 7.0, initial_value_a: 5.0}]
+    assert kept["e_event"] == [
+        {"_petab_experiment_indicator_e_event": 1.0, "k": 1.0}
+    ]
+
+
+@pytest.mark.parametrize(
+    "case", ["estimated", "later_period", "expression", "initial_assignment"]
+)
+def test_condition_parameters_encoded_otherwise(case):
+    """A parameter change that is not constant per experiment, or a parameter
+    that something else assigns, is still encoded in the model."""
+    ant_model = """
+    species A = 1
+    k = 3
+    p = 2
+    R1: A -> ; k * A
+    """
+    if case == "initial_assignment":
+        ant_model += "k = 2 * p\n"
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_condition("c0", k="2 * p" if case == "expression" else 1)
+    if case == "later_period":
+        problem.add_condition("c1", k=2)
+        problem.add_experiment("e0", 0, "c0", 5, "c1")
+    else:
+        problem.add_experiment("e0", 0, "c0")
+    if case == "estimated":
+        problem.add_parameter("k", estimate=True, lb=0.1, ub=10)
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getInitialAssignmentBySymbol("k") is not None
+    assert _kept_changes(converted)["e0"] == [
+        {"_petab_experiment_indicator_e0": 1.0}
+    ]
+    assert sbml_model.getNumEvents() == int(case == "later_period")
+    # no condition sets A: it stays as it is
+    assert sbml_model.getInitialAssignmentBySymbol("A") is None
+
+
+@pytest.mark.parametrize("case", ["initial_assignment", "compartment_target"])
+def test_condition_parameters_species_encoded_otherwise(case):
+    """A species with an initial assignment, or whose initial value depends
+    on a compartment that conditions resize, keeps its piecewise initial
+    assignment."""
+    ant_model = """
+    compartment C = 2
+    species A in C = 1
+    p = 3
+    """
+    if case == "initial_assignment":
+        ant_model += "A = 2 * p\n"
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    if case == "compartment_target":
+        # concentration-based, given as an amount: the initial
+        #  concentration depends on the size of C
+        species = problem.model.sbml_model.getSpecies("A")
+        species.unsetInitialConcentration()
+        species.setInitialAmount(4)
+        problem.add_condition("c1", C=3)
+        problem.add_experiment("e1", 0, "c1")
+    problem.add_condition("c0", A=5)
+    problem.add_experiment("e0", 0, "c0")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    sbml_model = converted.model.sbml_model
+
+    expr = sbml_math_to_sympy(
+        sbml_model.getInitialAssignmentBySymbol("A").getMath()
+    )
+    assert isinstance(expr, sp.Piecewise)
+    assert (
+        sbml_model.getParameter(
+            ExperimentsToSbmlConverter.INITIAL_VALUE_PREFIX + "A"
+        )
+        is None
+    )
+
+
+def test_condition_parameters_preequilibration():
+    """A condition parameter set in the pre-equilibration period keeps its
+    value in the main period."""
+    ant_model = """
+    species A = 1
+    k = 3
+    R1: A -> ; k * A
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    problem.add_condition("c_preeq", k=2)
+    problem.add_condition("c_main", A=5)
+    problem.add_experiment("e1", -inf, "c_preeq", 0, "c_main")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    assert converted.validate().has_errors() is False
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getInitialAssignmentBySymbol("k") is None
+    # the event that sets A needs e1's indicator; k is set in both periods
+    assert sbml_model.getNumEvents() == 1
+    assert _kept_changes(converted)["e1"] == [
+        {"_petab_experiment_indicator_e1": 1.0, "k": 2.0},
+        {"_petab_experiment_indicator_e1": 1.0, "k": 2.0},
+    ]
 
 
 def test_simulate_experiment_to_events():
