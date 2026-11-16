@@ -3,20 +3,11 @@
 from copy import deepcopy
 
 import pysb
-import pytest
 
 from petab.v2 import Problem
 from petab.v2.lint import *
 from petab.v2.models.pysb_model import PySBModel
 from petab.v2.models.sbml_model import SbmlModel
-
-
-@pytest.fixture
-def uses_pysb():
-    """Cleanup PySB auto-exported symbols before and after test"""
-    pysb.SelfExporter.cleanup()
-    yield ()
-    pysb.SelfExporter.cleanup()
 
 
 def test_check_experiments():
@@ -121,7 +112,7 @@ def test_validate_initial_change_symbols():
     assert "contains additional symbols: {'p2'}" in error.message
 
 
-def test_check_mapping_table(uses_pysb):
+def test_check_mapping_table(clean_pysb_exports):
     """Test checks related to the mapping table."""
     problem = Problem()
 
@@ -155,7 +146,7 @@ def test_check_mapping_table(uses_pysb):
     assert check.run(problem) is None
 
     # Invalid: petabEntityId is referenced in the model
-    pysb.SelfExporter.cleanup()
+    clean_pysb_exports()
     pysb_model_invalid = pysb.Model("test_model_invalid")
     pysb.Monomer("A_")
     pysb.Initial(A_() ** pysb.Compartment("C"), pysb.Parameter("A", 1))
