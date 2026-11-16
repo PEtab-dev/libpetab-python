@@ -58,12 +58,15 @@ def sympify_petab(
     1.00000000000000
     >>> sympify_petab("true", evaluate=False)
     1.00000000000000
+    >>> # non-constant Booleans are converted to piecewise functions
+    >>> sympify_petab("x > 0")
+    Piecewise((1.0, x > 0), (0.0, True))
     >>> # ... and integer values are converted to floats
     >>> sympify_petab("2", evaluate=True)
     2.00000000000000
     """
     if isinstance(expr, sp.Basic):
-        return sympify_petab(petab_math_str(expr))
+        return sympify_petab(petab_math_str(expr), evaluate=evaluate)
 
     if isinstance(expr, (int, np.integer)):
         return sp.Integer(expr)
@@ -94,7 +97,7 @@ def sympify_petab(
     # Convert to sympy expression
     visitor = MathVisitorSympy(evaluate=evaluate)
     expr = visitor.visit(tree)
-    expr = bool2num(expr)
+    expr = bool2num(expr, evaluate=evaluate)
     try:
         # check for `False`, we'll accept both `True` and `None`
         if expr.is_extended_real is False:
