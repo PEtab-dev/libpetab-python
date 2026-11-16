@@ -112,6 +112,38 @@ def test_print_parse_round_trip(expr_str, evaluate):
     assert np.isclose(actual, expected, rtol=1e-15, atol=0), printed
 
 
+@pytest.mark.parametrize(
+    "expr_str, expected",
+    [
+        # expected values for x = -1, 0, 1 (y = 3)
+        ("(x + 1) && (y > 2)", [False, True, True]),
+        ("(x + 1) || (y < 2)", [False, True, True]),
+        ("!(x + 1)", [True, False, False]),
+        ("piecewise(1, x + 1, 0)", [0.0, 1.0, 1.0]),
+        ("x && y", [True, False, True]),
+        ("!x", [False, True, False]),
+        ("piecewise(1, x > 0, 0) && true", [False, False, True]),
+        ("!piecewise(1, x < 0, 0)", [False, True, True]),
+        ("piecewise(true, x > 0, false) && true", [False, False, True]),
+        ("!piecewise(true, x < 0, false)", [False, True, True]),
+        ("piecewise(1, piecewise(true, x > 0, false), 0)", [0.0, 0.0, 1.0]),
+    ],
+)
+@pytest.mark.parametrize("evaluate", [True, False])
+def test_num2bool(expr_str, expected, evaluate):
+    """Non-constant numbers in Boolean context: 0 is false, else true."""
+    x, y = sp.symbols("x y", real=True)
+    expr = sympify_petab(expr_str, evaluate=evaluate)
+    reparsed = sympify_petab(petab_math_str(expr), evaluate=evaluate)
+    for e in (expr, reparsed):
+        assert {x, y} & e.free_symbols, e
+        actual = [
+            e.subs({x: sp.Float(x_val), y: sp.Float(3.0)})
+            for x_val in (-1.0, 0.0, 1.0)
+        ]
+        assert actual == expected, e
+
+
 def read_cases():
     """Read test cases from YAML file in the petab_test_suite package."""
     yaml_file = importlib.resources.files("petabtests.cases").joinpath(
