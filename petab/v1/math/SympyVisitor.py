@@ -99,6 +99,12 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         super().__init__()
         self.evaluate = evaluate
 
+    def _bool2num(self, x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
+        return bool2num(x, evaluate=self.evaluate)
+
+    def _num2bool(self, x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
+        return num2bool(x, evaluate=self.evaluate)
+
     def visitPetabExpression(
         self, ctx: PetabMathExprParser.PetabExpressionContext
     ) -> sp.Expr | sp.Basic:
@@ -120,8 +126,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     ) -> sp.Expr:
         """Convert multiplication and division expressions to sympy."""
         if ctx.getChildCount() == 3:
-            operand1 = bool2num(self.visit(ctx.getChild(0)))
-            operand2 = bool2num(self.visit(ctx.getChild(2)))
+            operand1 = self._bool2num(self.visit(ctx.getChild(0)))
+            operand2 = self._bool2num(self.visit(ctx.getChild(2)))
             if ctx.ASTERISK():
                 return sp.Mul(operand1, operand2, evaluate=self.evaluate)
             if ctx.SLASH():
@@ -139,8 +145,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
     def visitAddExpr(self, ctx: PetabMathExprParser.AddExprContext) -> sp.Expr:
         """Convert addition and subtraction expressions to sympy."""
-        op1 = bool2num(self.visit(ctx.getChild(0)))
-        op2 = bool2num(self.visit(ctx.getChild(2)))
+        op1 = self._bool2num(self.visit(ctx.getChild(0)))
+        op2 = self._bool2num(self.visit(ctx.getChild(2)))
         if ctx.PLUS():
             return sp.Add(op1, op2, evaluate=self.evaluate)
         if ctx.MINUS():
@@ -168,7 +174,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
 
         if func_name != "piecewise":
             # all functions except piecewise expect numerical arguments
-            args = list(map(bool2num, args))
+            args = list(map(self._bool2num, args))
 
         if func_name in _trig_funcs:
             if len(args) != 1:
@@ -213,7 +219,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             # `else` case
             args.append(sp.true)
             sp_args = (
-                (true_expr, num2bool(condition))
+                # piecewise is float-valued, also for Boolean values
+                (self._bool2num(true_expr), self._num2bool(condition))
                 for true_expr, condition in zip(
                     args[::2], args[1::2], strict=True
                 )
@@ -235,8 +242,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
                 f"Unexpected number of children: {ctx.getChildCount()} "
                 f"in {ctx.getText()}"
             )
-        operand1 = bool2num(self.visit(ctx.getChild(0)))
-        operand2 = bool2num(self.visit(ctx.getChild(2)))
+        operand1 = self._bool2num(self.visit(ctx.getChild(0)))
+        operand2 = self._bool2num(self.visit(ctx.getChild(2)))
         return sp.Pow(operand1, operand2, evaluate=self.evaluate)
 
     def visitUnaryExpr(
@@ -244,7 +251,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     ) -> sp.Basic | sp.Expr:
         """Convert unary expressions to sympy."""
         if ctx.getChildCount() == 2:
-            operand = bool2num(self.visit(ctx.getChild(1)))
+            operand = self._bool2num(self.visit(ctx.getChild(1)))
             match ctx.getChild(0).getText():
                 case "-":
                     return -operand
@@ -272,8 +279,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
             ">=": sp.GreaterThan,
         }
         if op in ops:
-            lhs = bool2num(lhs)
-            rhs = bool2num(rhs)
+            lhs = self._bool2num(lhs)
+            rhs = self._bool2num(rhs)
             return ops[op](lhs, rhs, evaluate=self.evaluate)
 
         raise AssertionError(f"Unexpected operator: {op}")
@@ -283,7 +290,7 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
     ) -> sp.Basic | sp.Expr:
         """Convert boolean NOT expressions to sympy."""
         if ctx.getChildCount() == 2:
-            return ~num2bool(self.visit(ctx.getChild(1)))
+            return ~self._num2bool(self.visit(ctx.getChild(1)))
 
         raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
@@ -294,8 +301,8 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         if ctx.getChildCount() != 3:
             raise AssertionError(f"Unexpected expression: {ctx.getText()}")
 
-        operand1 = num2bool(self.visit(ctx.getChild(0)))
-        operand2 = num2bool(self.visit(ctx.getChild(2)))
+        operand1 = self._num2bool(self.visit(ctx.getChild(0)))
+        operand2 = self._num2bool(self.visit(ctx.getChild(2)))
 
         if ctx.BOOLEAN_AND():
             return operand1 & operand2
@@ -317,19 +324,38 @@ class MathVisitorSympy(PetabMathExprParserVisitor):
         raise AssertionError(f"Unexpected boolean literal: {ctx.getText()}")
 
 
-def bool2num(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
-    """Convert sympy Booleans to Floats."""
+def bool2num(
+    x: sp.Basic | sp.Expr, evaluate: bool = True
+) -> sp.Basic | sp.Expr:
+    """Convert sympy Booleans to numeric expressions.
+
+    True is converted to 1.0, false to 0.0. Non-constant Booleans ``b`` are
+    converted to ``Piecewise((1.0, b), (0.0, True))``.
+
+    :param x: The expression to convert.
+    :param evaluate: Whether to evaluate the resulting expression.
+    """
     if isinstance(x, BooleanFalse):
         return sp.Float(0)
     if isinstance(x, BooleanTrue):
         return sp.Float(1)
+    # sp.Symbol is both Boolean and Expr; PEtab symbols are numeric
+    if isinstance(x, Boolean) and not isinstance(x, sp.Expr):
+        return sp.Piecewise(
+            (sp.Float(1), x), (sp.Float(0), True), evaluate=evaluate
+        )
     return x
 
 
-def num2bool(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
+def num2bool(
+    x: sp.Basic | sp.Expr, evaluate: bool = True
+) -> sp.Basic | sp.Expr:
     """Convert sympy numeric expressions to booleans.
 
     Zero is converted to false, any other value to true.
+
+    :param x: The expression to convert.
+    :param evaluate: Whether to evaluate the resulting expression.
     """
     # sp.Symbol is both Boolean and Expr; PEtab symbols are numeric
     if isinstance(x, Boolean) and not isinstance(x, sp.Expr):
@@ -337,6 +363,16 @@ def num2bool(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
     if isinstance(x, sp.Piecewise):
         # Boolean-valued pieces have to be converted to numbers first
         x = sp.Piecewise(
-            *((bool2num(expr), cond) for expr, cond in x.args),
+            *((bool2num(expr, evaluate), cond) for expr, cond in x.args),
+            evaluate=evaluate,
         )
-    return sp.Ne(x, 0)
+        # Invert `bool2num`: Piecewise((a, c), (0, True)) with a != 0 -> c
+        if (
+            isinstance(x, sp.Piecewise)
+            and len(x.args) == 2
+            and x.args[0].expr.is_zero is False
+            and x.args[1].expr.is_zero is True
+            and x.args[1].cond == sp.true
+        ):
+            return x.args[0].cond
+    return sp.Ne(x, 0, evaluate=evaluate)
