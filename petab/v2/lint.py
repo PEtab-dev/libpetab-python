@@ -1052,7 +1052,8 @@ def get_valid_parameters_for_parameter_table(
     # Append parameter overrides from condition table
     for ct in problem.condition_tables:
         for p in ct.free_symbols:
-            parameter_ids[str(p)] = None
+            if (str_p := str(p)) != TIME_SYMBOL:
+                parameter_ids[str_p] = None
 
     return set(parameter_ids.keys())
 
@@ -1120,7 +1121,8 @@ def get_required_parameters_for_parameter_table(
         str(p)
         for ct in problem.condition_tables
         for p in ct.free_symbols
-        if not problem.model.has_entity_with_id(str(p))
+        if str(p) != TIME_SYMBOL
+        and not problem.model.has_entity_with_id(str(p))
     )
 
     # Parameters that are overridden via the condition table are not allowed

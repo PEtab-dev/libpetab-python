@@ -2878,6 +2878,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         # filter out symbols that are defined in the model or mapped to
         #  such symbols
         for candidate in sorted(candidates):
+            if candidate == C.TIME_SYMBOL:
+                continue
+
             if self.model and self.model.symbol_allowed_in_observable_formula(
                 candidate
             ):
