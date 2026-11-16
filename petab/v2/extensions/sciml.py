@@ -12,7 +12,7 @@ import sympy as sp
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_validator
 
 from petab._utils import _generate_path
-from petab.v1.math import sympify_petab
+from petab.v1.math import petab_math_str, sympify_petab
 
 try:
     from petab_sciml import (
@@ -100,6 +100,9 @@ class HybridizationTable:
     def to_df(self) -> pd.DataFrame:
         """Convert the HybridizationTable to a DataFrame."""
         records = [h.model_dump(by_alias=True) for h in self.hybridizations]
+        for record in records:
+            if record[C.TARGET_VALUE] is not None:
+                record[C.TARGET_VALUE] = petab_math_str(record[C.TARGET_VALUE])
         return pd.DataFrame(records)
 
     def to_tsv(self, file_path: str | Path | None = None) -> None:
