@@ -41,7 +41,11 @@ logger = logging.getLogger(__name__)
 
 
 def _petab_to_sbml_math(expr: sp.Basic) -> sp.Basic:
-    """Replace the PEtab ``time`` symbol by the SBML time csymbol."""
+    """Convert a PEtab math expression for SBML math export via `sbmlmath`.
+
+    Currently, this only replaces the PEtab ``time`` symbol by the SBML
+    time csymbol.
+    """
     return expr.subs(
         {
             s: TimeSymbol(TIME_SYMBOL)
