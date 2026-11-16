@@ -17,6 +17,10 @@ jobs:
         platform: [windows-latest, macos-latest, ubuntu-latest]
         python-version: ["3.12", "3.14"]
     runs-on: ${{ matrix.platform }}
+    env:
+      # Coverage is only uploaded from one job. Elsewhere, it would only slow
+      # down the tests (substantially on Python < 3.14).
+      COVERAGE_ARGS: ${{ matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.14' && '--cov=petab --cov-report=xml' || '' }}
 
     steps:
     - name: Check out repository
@@ -39,14 +43,14 @@ jobs:
       run: |
         uv sync --no-default-groups --group test
         uv pip list
-        uv run pytest --cov=petab --cov-report=xml --cov-append --durations=10 tests
+        uv run pytest ${{ env.COVERAGE_ARGS }} --durations=10 tests
 
     - name: Coverage
       uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.14'
+      if: env.COVERAGE_ARGS != ''
 
   doc:
     # Read the Docs covers PRs. Skipped jobs count as passing, so this can
