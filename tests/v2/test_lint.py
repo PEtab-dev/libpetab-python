@@ -5,7 +5,12 @@ from copy import deepcopy
 import pysb
 
 from petab.v2 import Problem
+from petab.v2.C import TIME_SYMBOL
 from petab.v2.lint import *
+from petab.v2.lint import (
+    get_required_parameters_for_parameter_table,
+    get_valid_parameters_for_parameter_table,
+)
 from petab.v2.models.pysb_model import PySBModel
 from petab.v2.models.sbml_model import SbmlModel
 
@@ -185,3 +190,31 @@ def test_pysb_species_with_sites_as_condition_target(
         for issue in problem.validate()
         if issue.level >= ValidationIssueSeverity.ERROR
     ]
+
+
+def test_time_in_condition_target_value_not_a_parameter():
+    """`time` in condition target values is not a parameter."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("species A = 1")
+    problem.add_experiment("e1", 0, "c1")
+    problem.add_condition("c1", A="time + 3")
+
+    assert TIME_SYMBOL not in get_required_parameters_for_parameter_table(
+        problem
+    )
+    assert TIME_SYMBOL not in get_valid_parameters_for_parameter_table(problem)
+    check = CheckAllParametersPresentInParameterTable()
+    assert (error := check.run(problem)) is None, error
+
+
+def test_time_in_observable_formula_not_a_parameter(clean_pysb_exports):
+    """`time` in observable formulas is not a parameter, for any model type."""
+    problem = Problem()
+    pysb_model = pysb.Model("time_model")
+    pysb.Parameter("k", 1)
+    problem.model = PySBModel(model=pysb_model, model_id="time_model")
+    problem.add_observable("obs1", "k * time", "time")
+
+    assert TIME_SYMBOL not in problem.get_output_parameters()
+    check = CheckAllParametersPresentInParameterTable()
+    assert (error := check.run(problem)) is None, error
