@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest, macos-latest, ubuntu-latest]
-        python-version: ["3.12", "3.14"]
+        python-version: ["3.12", "3.15"]
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -46,7 +46,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.14'
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.15'
 
   doc:
     # Read the Docs covers PRs. Skipped jobs count as passing, so this can
