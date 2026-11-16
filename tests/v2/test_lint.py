@@ -158,3 +158,30 @@ def test_check_mapping_table(clean_pysb_exports):
         "`A` is used in the mapping table and referenced directly"
         in error.message
     )
+
+
+def test_pysb_species_with_sites_as_condition_target(
+    clean_pysb_exports,
+):
+    """PySB species with binding sites can be used as condition targets."""
+    pysb_model = pysb.Model("test_model", _export=False)
+    pysb_model.add_component(
+        pysb.Monomer("A", ["b", "s"], {"s": ["u", "p"]}, _export=False)
+    )
+    pysb_model.add_component(pysb.Monomer("B", ["a"], _export=False))
+    problem = Problem()
+    problem.model = PySBModel(model=pysb_model, model_id="test_model")
+    problem.add_mapping("A_u", "A(b=None, s='u')")
+    problem.add_mapping("AB", "A(b=None, s=('p', 1)) % B(a=1)")
+    problem.add_condition("c1", A_u=1, AB=2)
+
+    assert problem.model.is_state_variable("A(b=None, s='u')")
+    assert problem.model.is_state_variable("A(b=None, s=('p', 1)) % B(a=1)")
+
+    check = CheckValidParameterInConditionOrParameterTable()
+    assert check.run(problem) is None
+    assert not [
+        issue
+        for issue in problem.validate()
+        if issue.level >= ValidationIssueSeverity.ERROR
+    ]
