@@ -334,11 +334,6 @@ def num2bool(x: sp.Basic | sp.Expr) -> sp.Basic | sp.Expr:
     # sp.Symbol is both Boolean and Expr; PEtab symbols are numeric
     if isinstance(x, Boolean) and not isinstance(x, sp.Expr):
         return x
-    # Note: sp.Float(0) == 0 is False in sympy>=1.13
-    if x.is_zero is True:
-        return sp.false
-    if x.is_zero is False:
-        return sp.true
     if isinstance(x, sp.Piecewise):
         # Boolean-valued pieces have to be converted to numbers first
         x = sp.Piecewise(
