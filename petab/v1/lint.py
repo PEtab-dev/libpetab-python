@@ -4,7 +4,7 @@ import copy
 import logging
 import numbers
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from typing import Any
 
@@ -35,7 +35,7 @@ __all__ = [
     "assert_parameter_prior_parameters_are_valid",
     "assert_parameter_prior_type_is_valid",
     "assert_parameter_scale_is_valid",
-    "assert_placeholders_not_in_model",
+    "assert_placeholders_only_used_in_own_observable",
     "assert_unique_observable_ids",
     "assert_unique_parameter_ids",
     "check_condition_df",
@@ -350,30 +350,108 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
             ) from e
 
 
-def assert_placeholders_not_in_model(
-    observable_df: pd.DataFrame, model: Model
+def assert_placeholders_only_used_in_own_observable(
+    problem: "petab.Problem",
 ) -> None:
-    """Check that no placeholder parameter is a model entity.
+    """Check that placeholders are not defined or used elsewhere.
 
-    Placeholders are overridden per measurement. A model entity with the
-    same ID would be a second, conflicting definition.
+    Placeholder parameters are overridden per measurement. A model entity,
+    a condition table column, a mapping table entry, or an observable with
+    the same ID conflicts with that, as does the use of the placeholder in
+    another observable, the condition table, or the measurement table.
+    Noise placeholders must not be used in the observable formula.
+    Missing tables or a missing model are skipped.
 
     Arguments:
-        observable_df: PEtab observable DataFrame
-        model: The model
+        problem: PEtab problem to check
 
     Raises:
         AssertionError: in case of problems
     """
-    from .observables import get_placeholders
+    from .observables import get_formula_placeholders
 
-    if clashes := [
-        placeholder
-        for placeholder in get_placeholders(observable_df)
-        if model.has_entity_with_id(placeholder)
-    ]:
+    if (observable_df := problem.observable_df) is None:
+        return
+    model = problem.model
+    condition_df = problem.condition_df
+    mapping_df = problem.mapping_df
+    measurement_df = problem.measurement_df
+
+    def symbols(expression) -> set[str]:
+        if not isinstance(expression, str):
+            return set()
+        return {str(s) for s in sympify_petab(expression).free_symbols}
+
+    # placeholder -> ID of the observable that declares it
+    placeholders: dict[str, str] = {}
+    # ID -> (where it is used or defined, observable ID or None)
+    uses: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
+
+    for observable_id, row in observable_df.iterrows():
+        uses[observable_id].append(("observable ID", None))
+        formula = row.get(OBSERVABLE_FORMULA)
+        noise_formula = row.get(NOISE_FORMULA)
+        formula_symbols = symbols(formula)
+        for symbol in formula_symbols | symbols(noise_formula):
+            uses[symbol].append(
+                (f"used in observable `{observable_id}`", observable_id)
+            )
+        noise_placeholders = get_formula_placeholders(
+            noise_formula, observable_id, "noise"
+        )
+        for placeholder in (
+            get_formula_placeholders(formula, observable_id, "observable")
+            + noise_placeholders
+        ):
+            placeholders[placeholder] = observable_id
+        for placeholder in formula_symbols.intersection(noise_placeholders):
+            uses[placeholder].append(("used in the observable formula", None))
+
+    if condition_df is not None:
+        for column in condition_df.columns.drop(
+            CONDITION_NAME, errors="ignore"
+        ):
+            uses[column].append(("condition table column", None))
+            for value in condition_df[column].unique():
+                for symbol in symbols(value):
+                    uses[symbol].append(("used in the condition table", None))
+
+    if mapping_df is not None:
+        for petab_id in mapping_df.index:
+            uses[petab_id].append(("mapping table petabEntityId", None))
+
+    if measurement_df is not None:
+        for column in (OBSERVABLE_PARAMETERS, NOISE_PARAMETERS):
+            if column not in measurement_df:
+                continue
+            for value in measurement_df[column].unique():
+                for override in measurements.split_parameter_replacement_list(
+                    value
+                ):
+                    if isinstance(override, str):
+                        uses[override].append(
+                            ("used in the measurement table", None)
+                        )
+
+    clashes = []
+    for placeholder, observable_id in placeholders.items():
+        where = [
+            use
+            for use, owner in dict.fromkeys(uses.get(placeholder, []))
+            if owner != observable_id
+        ]
+        if model is not None and model.has_entity_with_id(placeholder):
+            where.append("model entity")
+        if where:
+            clashes.append(
+                f"`{placeholder}` of observable `{observable_id}` "
+                f"({', '.join(where)})"
+            )
+
+    if clashes:
         raise AssertionError(
-            f"Placeholder parameters must not be model entities: {clashes}"
+            "Placeholder parameters must only be used in their own "
+            "observable: " + "; ".join(clashes)
         )
 
 
@@ -957,6 +1035,11 @@ def lint_problem(problem: "petab.Problem") -> bool:
         except AssertionError as e:
             logger.error(e)
             errors_occurred = True
+        try:
+            assert_placeholders_only_used_in_own_observable(problem)
+        except AssertionError as e:
+            logger.error(e)
+            errors_occurred = True
         if problem.model is not None:
             for obs_id in problem.observable_df.index:
                 if problem.model.has_entity_with_id(obs_id):
@@ -964,13 +1047,6 @@ def lint_problem(problem: "petab.Problem") -> bool:
                         f"Observable ID {obs_id} shadows model entity."
                     )
                     errors_occurred = True
-            try:
-                assert_placeholders_not_in_model(
-                    problem.observable_df, problem.model
-                )
-            except AssertionError as e:
-                logger.error(e)
-                errors_occurred = True
     else:
         logger.warning("Observable table not available. Skipping.")
 

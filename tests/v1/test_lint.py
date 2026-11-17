@@ -610,26 +610,164 @@ def test_check_observable_df():
         lint.check_observable_df(bad_observable_df)
 
 
-@pytest.mark.parametrize(
-    "model_entity", ["observableParameter1_obs1", "noiseParameter1_obs1"]
-)
-def test_assert_placeholders_not_in_model(model_entity):
+def _placeholder_problem(
+    model: str = "species x = 1; k = 1; p = 1",
+) -> petab.Problem:
+    """A valid problem with placeholders of observable `obs1`."""
     from petab.v1.models.sbml_model import SbmlModel
 
-    observable_df = pd.DataFrame(
-        data={
-            OBSERVABLE_ID: ["obs1"],
-            OBSERVABLE_FORMULA: ["observableParameter1_obs1 * x1"],
-            NOISE_FORMULA: ["noiseParameter1_obs1"],
-        }
-    ).set_index(OBSERVABLE_ID)
+    return petab.Problem(
+        model=SbmlModel.from_antimony(model),
+        condition_df=pd.DataFrame(
+            {CONDITION_ID: ["c1"], "k": [1.0]}
+        ).set_index(CONDITION_ID),
+        observable_df=pd.DataFrame(
+            {
+                OBSERVABLE_ID: ["obs1"],
+                OBSERVABLE_FORMULA: ["observableParameter1_obs1 * x"],
+                NOISE_FORMULA: ["noiseParameter1_obs1"],
+            }
+        ).set_index(OBSERVABLE_ID),
+        measurement_df=pd.DataFrame(
+            {
+                OBSERVABLE_ID: ["obs1"],
+                SIMULATION_CONDITION_ID: ["c1"],
+                TIME: [1.0],
+                MEASUREMENT: [1.0],
+                OBSERVABLE_PARAMETERS: ["2"],
+                NOISE_PARAMETERS: ["1"],
+            }
+        ),
+        parameter_df=pd.DataFrame(
+            {
+                PARAMETER_ID: ["p"],
+                PARAMETER_SCALE: [LIN],
+                LOWER_BOUND: [0.0],
+                UPPER_BOUND: [10.0],
+                NOMINAL_VALUE: [1.0],
+                ESTIMATE: [1],
+            }
+        ).set_index(PARAMETER_ID),
+    )
 
-    model = SbmlModel.from_antimony("species x1 = 1")
-    lint.assert_placeholders_not_in_model(observable_df, model)
 
-    model = SbmlModel.from_antimony(f"species x1 = 1; {model_entity} = 1")
-    with pytest.raises(AssertionError, match=model_entity):
-        lint.assert_placeholders_not_in_model(observable_df, model)
+def _set_column(table: str, column: str, value):
+    """Get a function that sets a column of a table of a problem."""
+
+    def modify(problem):
+        getattr(problem, table)[column] = value
+
+    return modify
+
+
+def _add_observable(problem, observable_id, formula):
+    problem.observable_df.loc[observable_id] = [formula, "1"]
+
+
+@pytest.mark.parametrize(
+    "modify, expected",
+    [
+        (
+            lambda p: setattr(
+                p,
+                "model",
+                _placeholder_problem(
+                    "species x = 1; k = 1; p = 1; noiseParameter1_obs1 = 1"
+                ).model,
+            ),
+            "`noiseParameter1_obs1` of observable `obs1` (model entity)",
+        ),
+        (
+            _set_column("condition_df", "observableParameter1_obs1", 1.0),
+            (
+                "`observableParameter1_obs1` of observable `obs1` "
+                "(condition table column)"
+            ),
+        ),
+        (
+            lambda p: setattr(
+                p,
+                "mapping_df",
+                pd.DataFrame(
+                    {
+                        PETAB_ENTITY_ID: ["observableParameter1_obs1"],
+                        MODEL_ENTITY_ID: ["k"],
+                    }
+                ).set_index(PETAB_ENTITY_ID),
+            ),
+            (
+                "`observableParameter1_obs1` of observable `obs1` "
+                "(mapping table petabEntityId)"
+            ),
+        ),
+        (
+            lambda p: _add_observable(p, "observableParameter1_obs1", "x"),
+            "`observableParameter1_obs1` of observable `obs1` (observable ID)",
+        ),
+        (
+            lambda p: _add_observable(p, "obs2", "noiseParameter1_obs1 * x"),
+            (
+                "`noiseParameter1_obs1` of observable `obs1` "
+                "(used in observable `obs2`)"
+            ),
+        ),
+        (
+            _set_column("condition_df", "k", "observableParameter1_obs1 + 1"),
+            (
+                "`observableParameter1_obs1` of observable `obs1` "
+                "(used in the condition table)"
+            ),
+        ),
+        (
+            _set_column(
+                "measurement_df", NOISE_PARAMETERS, "observableParameter1_obs1"
+            ),
+            (
+                "`observableParameter1_obs1` of observable `obs1` "
+                "(used in the measurement table)"
+            ),
+        ),
+        (
+            _set_column(
+                "observable_df",
+                OBSERVABLE_FORMULA,
+                "observableParameter1_obs1 * x * noiseParameter1_obs1",
+            ),
+            (
+                "`noiseParameter1_obs1` of observable `obs1` "
+                "(used in the observable formula)"
+            ),
+        ),
+    ],
+)
+def test_assert_placeholders_only_used_in_own_observable(modify, expected):
+    problem = _placeholder_problem()
+    lint.assert_placeholders_only_used_in_own_observable(problem)
+
+    modify(problem)
+    with pytest.raises(AssertionError) as excinfo:
+        lint.assert_placeholders_only_used_in_own_observable(problem)
+    assert str(excinfo.value).endswith(expected)
+
+
+def test_assert_placeholders_only_used_in_own_observable_missing_column():
+    problem = _placeholder_problem()
+    problem.observable_df = problem.observable_df.drop(columns=NOISE_FORMULA)
+    lint.assert_placeholders_only_used_in_own_observable(problem)
+
+
+def test_lint_problem_placeholders_only_used_in_own_observable():
+    assert lint.lint_problem(_placeholder_problem()) is False
+    problem = _placeholder_problem(
+        "species x = 1; k = 1; p = 1; observableParameter1_obs1 = 1"
+    )
+    with patch.object(lint.logger, "error") as error:
+        assert lint.lint_problem(problem) is True
+    assert any(
+        "`observableParameter1_obs1` of observable `obs1` (model entity)"
+        in str(call.args[0])
+        for call in error.call_args_list
+    )
 
 
 def test_condition_ids_are_unique():

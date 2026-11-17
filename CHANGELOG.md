@@ -7,13 +7,6 @@ Changes that are not released yet are collected in
 
 <!-- towncrier release notes start -->
 
-**Fixes**
-
-v1:
-* `lint_problem` now reports an error for placeholder parameters that are
-  also model entities (new `assert_placeholders_not_in_model`)
-  (by @dweindl in https://github.com/PEtab-dev/libpetab-python/pull/605)
-
 ## 0.10 series
 
 ### 0.10.0
