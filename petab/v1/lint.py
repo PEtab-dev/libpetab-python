@@ -35,6 +35,7 @@ __all__ = [
     "assert_parameter_prior_parameters_are_valid",
     "assert_parameter_prior_type_is_valid",
     "assert_parameter_scale_is_valid",
+    "assert_placeholders_not_in_model",
     "assert_unique_observable_ids",
     "assert_unique_parameter_ids",
     "check_condition_df",
@@ -347,6 +348,33 @@ def check_observable_df(observable_df: pd.DataFrame) -> None:
                 f"for noise model for observable "
                 f"{row.Index}: {e}"
             ) from e
+
+
+def assert_placeholders_not_in_model(
+    observable_df: pd.DataFrame, model: Model
+) -> None:
+    """Check that no placeholder parameter is a model entity.
+
+    Placeholders are overridden per measurement. A model entity with the
+    same ID would be a second, conflicting definition.
+
+    Arguments:
+        observable_df: PEtab observable DataFrame
+        model: The model
+
+    Raises:
+        AssertionError: in case of problems
+    """
+    from .observables import get_placeholders
+
+    if clashes := [
+        placeholder
+        for placeholder in get_placeholders(observable_df)
+        if model.has_entity_with_id(placeholder)
+    ]:
+        raise AssertionError(
+            f"Placeholder parameters must not be model entities: {clashes}"
+        )
 
 
 def assert_all_parameters_present_in_parameter_df(
@@ -936,6 +964,13 @@ def lint_problem(problem: "petab.Problem") -> bool:
                         f"Observable ID {obs_id} shadows model entity."
                     )
                     errors_occurred = True
+            try:
+                assert_placeholders_not_in_model(
+                    problem.observable_df, problem.model
+                )
+            except AssertionError as e:
+                logger.error(e)
+                errors_occurred = True
     else:
         logger.warning("Observable table not available. Skipping.")
 

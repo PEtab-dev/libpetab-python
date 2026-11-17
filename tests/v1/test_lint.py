@@ -610,6 +610,28 @@ def test_check_observable_df():
         lint.check_observable_df(bad_observable_df)
 
 
+@pytest.mark.parametrize(
+    "model_entity", ["observableParameter1_obs1", "noiseParameter1_obs1"]
+)
+def test_assert_placeholders_not_in_model(model_entity):
+    from petab.v1.models.sbml_model import SbmlModel
+
+    observable_df = pd.DataFrame(
+        data={
+            OBSERVABLE_ID: ["obs1"],
+            OBSERVABLE_FORMULA: ["observableParameter1_obs1 * x1"],
+            NOISE_FORMULA: ["noiseParameter1_obs1"],
+        }
+    ).set_index(OBSERVABLE_ID)
+
+    model = SbmlModel.from_antimony("species x1 = 1")
+    lint.assert_placeholders_not_in_model(observable_df, model)
+
+    model = SbmlModel.from_antimony(f"species x1 = 1; {model_entity} = 1")
+    with pytest.raises(AssertionError, match=model_entity):
+        lint.assert_placeholders_not_in_model(observable_df, model)
+
+
 def test_condition_ids_are_unique():
     condition_df = pd.DataFrame(
         data={
