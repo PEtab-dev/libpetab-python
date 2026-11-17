@@ -132,3 +132,19 @@ def test_log_uniform():
     assert dist.pdf(1) > 0
     assert dist.pdf(2) > 0
     assert dist.pdf(3) == 0
+
+
+@pytest.mark.parametrize("trunc", [(-np.inf, np.inf), [-np.inf, np.inf]])
+def test_infinite_truncation_is_no_truncation(trunc):
+    """Truncation at (-inf, inf) is equivalent to no truncation."""
+    d = Normal(0, 1, trunc=trunc)
+    assert d._trunc is None
+    assert repr(d) == repr(Normal(0, 1))
+
+
+def test_trunc_sequence():
+    """Truncation limits may be given as any sequence."""
+    d = Normal(0, 1, trunc=[-1, 1])
+    assert d._trunc == (-1, 1)
+    assert d.trunc_low == -1
+    assert d.trunc_high == 1
