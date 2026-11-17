@@ -3,10 +3,7 @@
 # default owners
 * @PEtab-dev/libpetab-python-maintainers
 
-/petab/visualize/ @m-philipps
-/tests/test_vis* @m-philipps
 /petab/simulate.py @dilpath
 /tests/test_simulate.py @dilpath
 /doc/ @dweindl
-/doc/example @m-philipps
 /doc/example/example_petablint.ipynb @dweindl
