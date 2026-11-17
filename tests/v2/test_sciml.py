@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 from petab_sciml import Input, Node
 from pydantic import ConfigDict
@@ -325,6 +326,21 @@ def test_hybridization_table_to_df_petab_math():
         ]
     )
     assert table.to_df()[C.TARGET_VALUE].tolist() == ["x ^ 2", "abs(y)"]
+
+
+def test_hybridization_table_missing_required_columns():
+    """Missing required columns are reported."""
+    df = pd.DataFrame({C.TARGET_ID: ["a"], C.TARGET_VALUE: ["x"]})
+    assert len(HybridizationTable.from_df(df).elements) == 1
+    assert (
+        len(HybridizationTable.from_df(df.set_index(C.TARGET_ID)).elements)
+        == 1
+    )
+    for column in df.columns:
+        with pytest.raises(
+            MissingColumnsError, match=f"column.*: {column}\\.$"
+        ):
+            HybridizationTable.from_df(df.drop(columns=column))
 
 
 def test_hybridization_pre_initialization_not_evaluable():
