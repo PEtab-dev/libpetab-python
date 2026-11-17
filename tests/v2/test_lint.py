@@ -218,3 +218,49 @@ def test_time_in_observable_formula_not_a_parameter(clean_pysb_exports):
     assert TIME_SYMBOL not in problem.get_output_parameters()
     check = CheckAllParametersPresentInParameterTable()
     assert (error := check.run(problem)) is None, error
+
+
+def test_check_unused_placeholders():
+    """Test detection of declared placeholders that occur in no formula."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("xa = 1; xa' = -0.1*xa;")
+    check = CheckUnusedPlaceholders()
+
+    # observable placeholder used only in the noise formula is fine
+    problem.add_observable(
+        "obs_a",
+        formula="xa + offset",
+        noise_formula="sigma * scale",
+        observable_placeholders=["offset", "scale"],
+        noise_placeholders=["sigma"],
+    )
+    assert check.run(problem) is None
+
+    problem.add_observable(
+        "obs_b",
+        formula="xa + offset",
+        noise_formula="1",
+        observable_placeholders=["unused_obs", "offset"],
+        noise_placeholders=["unused_noise"],
+    )
+    # noise placeholder occurring only in the observable formula is unused
+    problem.add_observable(
+        "obs_c",
+        formula="xa * sigma",
+        noise_formula="1",
+        noise_placeholders=["sigma"],
+    )
+    issue = check.run(problem)
+    assert issue.level == ValidationIssueSeverity.WARNING
+    assert "obs_a" not in issue.message
+    assert (
+        "`obs_b`: observable placeholders `unused_obs` are not used"
+        in issue.message
+    )
+    assert (
+        "`obs_b`: noise placeholders `unused_noise` are not used"
+        in issue.message
+    )
+    assert "`obs_c`: noise placeholders `sigma` are not used" in issue.message
+    assert "offset" not in issue.message
+    assert "Consider removing them." in issue.message
