@@ -172,6 +172,7 @@ class Distribution(abc.ABC):
         if self._trunc is None:
             return self._pdf_untruncated(x)
 
+        x = np.asarray(x)
         return np.where(
             (x >= self.trunc_low) & (x <= self.trunc_high),
             self._pdf_untruncated(x) * self._truncation_normalizer,
@@ -232,9 +233,18 @@ class Distribution(abc.ABC):
         """
         if self._trunc is None:
             return self._cdf_transformed_untruncated(x)
-        return (
-            self._cdf_transformed_untruncated(x) - self._cd_low
-        ) * self._truncation_normalizer
+
+        x = np.asarray(x)
+        return np.where(
+            x < self.trunc_low,
+            0,
+            np.where(
+                x >= self.trunc_high,
+                1,
+                (self._cdf_transformed_untruncated(x) - self._cd_low)
+                * self._truncation_normalizer,
+            ),
+        )
 
     def _cdf_transformed_untruncated(self, x) -> np.ndarray | float:
         """Cumulative distribution function of the transformed, but untruncated
@@ -288,8 +298,13 @@ class Distribution(abc.ABC):
             return self._ppf_transformed_untruncated(q)
 
         # Adjust quantiles to account for truncation
+        q = np.asarray(q)
         adjusted_q = self._cd_low + q * (self._cd_high - self._cd_low)
-        return self._ppf_transformed_untruncated(adjusted_q)
+        return np.where(
+            (q >= 0) & (q <= 1),
+            self._ppf_transformed_untruncated(adjusted_q),
+            np.nan,
+        )
 
     def _inverse_transform_sample(self, shape) -> np.ndarray | float:
         """Generate an inverse transform sample from the transformed and
