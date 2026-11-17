@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import pysb
+import pytest
 
 from petab.v2 import Problem
 from petab.v2.C import TIME_SYMBOL
@@ -264,3 +265,28 @@ def test_check_unused_placeholders():
     assert "`obs_c`: noise placeholders `sigma` are not used" in issue.message
     assert "offset" not in issue.message
     assert "Consider removing them." in issue.message
+
+
+@pytest.mark.parametrize(
+    "prior_parameters, lb, ub, hint",
+    [
+        ([0, float("inf")], 0, float("inf"), "finite limits"),
+        ([0, 1], 2, 3, "do not define a non-empty interval"),
+    ],
+)
+def test_check_prior_distribution_invalid_uniform(
+    prior_parameters, lb, ub, hint
+):
+    """Invalid uniform priors are reported with an informative hint."""
+    problem = Problem()
+    problem.add_parameter(
+        "p1",
+        estimate=True,
+        lb=lb,
+        ub=ub,
+        prior_dist="uniform",
+        prior_pars=prior_parameters,
+    )
+    assert (error := CheckPriorDistribution().run(problem)) is not None
+    assert "`p1` are invalid" in error.message
+    assert hint in error.message
