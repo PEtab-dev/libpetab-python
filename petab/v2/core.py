@@ -2320,14 +2320,17 @@ class Problem:
 
         Runs the validation tasks on each part of
         :meth:`Problem.split_by_model`. Checks of the shared tables
-        (model IDs of measurements, unique IDs, the mapping table, unused
-        experiments, conditions and parameters) run on the full problem.
+        (model IDs of measurements, unique IDs, placeholder use, the mapping
+        table, unused experiments, conditions and parameters) run on the
+        full problem.
         See https://github.com/PEtab-dev/libpetab-python/issues/392.
         """
         from ..v2.lint import (
             CheckAllParametersPresentInParameterTable,
+            CheckGloballyUniqueIds,
             CheckMappingTable,
             CheckMeasurementModelId,
+            CheckPlaceholdersOnlyUsedInOwnObservable,
             CheckUniquePrimaryKeys,
             CheckUnusedConditions,
             CheckUnusedExperiments,
@@ -2354,6 +2357,8 @@ class Problem:
         # the split drops unused or other models' table entries,
         #  so checks of the shared tables have to run on the full problem
         full_problem_task_types = (
+            CheckGloballyUniqueIds,
+            CheckPlaceholdersOnlyUsedInOwnObservable,
             CheckUniquePrimaryKeys,
             CheckMappingTable,
             CheckUnusedExperiments,

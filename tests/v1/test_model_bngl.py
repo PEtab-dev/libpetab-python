@@ -259,7 +259,7 @@ def test_model_factory_routes_bngl():
 def test_full_petab_validation_is_clean(tmp_path):
     """A ``language: bngl`` problem loads via ``Problem.from_yaml`` and passes
     every default validation task -- including the model-cross checks that
-    read the BnglModel (CheckModel, CheckObservablesDoNotShadowModelEntities,
+    read the BnglModel (CheckModel, CheckGloballyUniqueIds,
     CheckAllParametersPresentInParameterTable, CheckValidConditionTargets,
     CheckInitialChangeSymbols).
     """
