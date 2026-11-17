@@ -898,6 +898,18 @@ class CheckPriorDistribution(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
+
+        # The default uniform(lowerBound, upperBound) prior is improper for
+        #  infinite bounds
+        if problem.has_map_objective and (
+            unbounded := problem._get_unbounded_ids_without_prior()
+        ):
+            messages.append(
+                "If any estimated parameter has a prior, all estimated "
+                "parameters with infinite bounds require an explicit proper "
+                f"prior, but the following parameters have none: {unbounded}."
+            )
+
         for parameter in problem.parameters:
             if parameter.prior_distribution is None:
                 continue

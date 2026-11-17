@@ -87,18 +87,30 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
-    if not np.isfinite(v) and v != -np.inf:
+def _field_to_column(info: ValidationInfo) -> str:
+    """The PEtab column name for the validated field."""
+    return {"lb": C.LOWER_BOUND, "ub": C.UPPER_BOUND}.get(
+        info.field_name, info.field_name
+    )
+
+
+def _is_finite_or_neg_inf(
+    v: float | None, info: ValidationInfo
+) -> float | None:
+    if v is not None and not np.isfinite(v) and v != -np.inf:
         raise ValueError(
-            f"{info.field_name} value must be finite or -inf but got {v}"
+            f"{_field_to_column(info)} value must be finite or -inf "
+            f"but got {v}"
         )
     return v
 
 
-def _is_finite_or_pos_inf(v: float, info: ValidationInfo) -> float:
-    if not np.isfinite(v) and v != np.inf:
+def _is_finite_or_pos_inf(
+    v: float | None, info: ValidationInfo
+) -> float | None:
+    if v is not None and not np.isfinite(v) and v != np.inf:
         raise ValueError(
-            f"{info.field_name} value must be finite or inf but got {v}"
+            f"{_field_to_column(info)} value must be finite or inf but got {v}"
         )
     return v
 
@@ -1061,13 +1073,17 @@ class Parameter(BaseModel):
         alias=C.PARAMETER_NAME, default=None
     )
     #: Lower bound.
-    lb: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
-        alias=C.LOWER_BOUND, default=None
-    )
+    lb: Annotated[
+        float | None,
+        BeforeValidator(_convert_nan_to_none),
+        AfterValidator(_is_finite_or_neg_inf),
+    ] = Field(alias=C.LOWER_BOUND, default=None)
     #: Upper bound.
-    ub: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
-        alias=C.UPPER_BOUND, default=None
-    )
+    ub: Annotated[
+        float | None,
+        BeforeValidator(_convert_nan_to_none),
+        AfterValidator(_is_finite_or_pos_inf),
+    ] = Field(alias=C.UPPER_BOUND, default=None)
     #: Nominal value.
     nominal_value: Annotated[
         # PEtab SciML supports arrays via "array" nominal values
@@ -2102,6 +2118,17 @@ class Problem:
         """
         return not self.has_map_objective
 
+    def _get_unbounded_ids_without_prior(self) -> list[str]:
+        """IDs of estimated parameters with infinite or missing bounds and
+        no prior."""
+        return [
+            p.id
+            for p in self.parameters
+            if p.estimate
+            and p.prior_distribution is None
+            and any(b is None or np.isinf(b) for b in (p.lb, p.ub))
+        ]
+
     def get_priors(self) -> dict[str, Distribution]:
         """Get prior distributions.
 
@@ -2110,15 +2137,13 @@ class Problem:
 
         :returns: The prior distributions for the estimated parameters in case
             the problem has a MAP objective, an empty dictionary otherwise.
+        :raises ValueError: If an estimated parameter without prior has an
+            infinite or missing bound.
         """
         if not self.has_map_objective:
             return {}
 
-        return {
-            p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
-            for p in self.parameters
-            if p.estimate
-        }
+        return self.get_startpoint_distributions()
 
     def get_startpoint_distributions(self) -> dict[str, Distribution]:
         """Get distributions for sampling startpoints.
@@ -2130,17 +2155,42 @@ class Problem:
 
         :returns: Mapping of parameter IDs to distributions for sampling
             startpoints.
+        :raises ValueError: If an estimated parameter without prior has an
+            infinite or missing bound.
         """
+        if unbounded := self._get_unbounded_ids_without_prior():
+            if self.has_map_objective:
+                raise ValueError(
+                    "Proper priors are required for estimated parameters "
+                    "with infinite or missing bounds. Affected parameters: "
+                    f"{unbounded}."
+                )
+            raise ValueError(
+                "The default uniform distribution is undefined for estimated "
+                "parameters with infinite or missing bounds and no prior: "
+                f"{unbounded}."
+            )
+
         return {
             p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
             for p in self.parameters
             if p.estimate
         }
 
-    def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
-        """Create 2D array with starting points for optimization"""
-        priors = self.get_priors()
-        return np.vstack([p.sample(n_starts) for p in priors.values()]).T
+    def sample_parameter_startpoints(self, n_starts: int = 100) -> np.ndarray:
+        """Create 2D array with starting points for optimization.
+
+        :param n_starts: Number of starting points.
+        :returns: Array of shape ``(n_starts, n_estimated)`` with columns
+            ordered as :attr:`x_free_ids`.
+        :raises ValueError: See :meth:`get_startpoint_distributions`.
+        """
+        distributions = self.get_startpoint_distributions()
+        if not distributions:
+            return np.empty((n_starts, 0))
+        return np.vstack(
+            [d.sample(n_starts) for d in distributions.values()]
+        ).T
 
     def sample_parameter_startpoints_dict(
         self, n_starts: int = 100

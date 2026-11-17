@@ -11,6 +11,7 @@ from pydantic import AnyUrl, ValidationError
 from sympy.abc import x, y
 
 import petab.v2 as petab
+from petab.v1.distributions import Normal
 from petab.v2 import C
 from petab.v2.C import (
     CONDITION_ID,
@@ -379,6 +380,17 @@ def test_parameter():
     with pytest.raises(ValidationError, match="less than"):
         Parameter(id="k1", lb=2, ub=1)
 
+    # infinite bounds
+    Parameter(id="k1", lb=-np.inf, ub=np.inf)
+    Parameter(id="k1", lb="-inf", ub="inf")
+    with pytest.raises(ValidationError, match="lowerBound .* finite or -inf"):
+        Parameter(id="k1", lb=np.inf, ub=np.inf)
+    with pytest.raises(ValidationError, match="upperBound .* finite or inf"):
+        Parameter(id="k1", lb=-np.inf, ub=-np.inf)
+    p = Parameter(id="k1", lb=0, ub=1)
+    with pytest.raises(ValidationError, match="finite or inf"):
+        p.ub = -np.inf
+
     assert Parameter(
         id="k1", estimate=True, lb=1, ub=2, prior_parameters=[1, 2]
     ).model_dump() == {
@@ -739,6 +751,142 @@ def test_sample_startpoint_shape():
     n_starts = 10
     sp = problem.sample_parameter_startpoints(n_starts=n_starts)
     assert sp.shape == (n_starts, 2)
+
+
+def test_sample_startpoints_ml():
+    """Test startpoint sampling for maximum likelihood problems."""
+    problem = Problem()
+    problem += Parameter(id="p1", estimate=True, lb=1, ub=2)
+    problem += Parameter(id="p2", estimate=True, lb=3, ub=4)
+    assert problem.has_ml_objective
+
+    sp = problem.sample_parameter_startpoints(n_starts=10)
+    assert sp.shape == (10, 2)
+    assert np.all((sp[:, 0] >= 1) & (sp[:, 0] <= 2))
+    assert np.all((sp[:, 1] >= 3) & (sp[:, 1] <= 4))
+
+    # infinite bounds require a prior for sampling startpoints
+    problem += Parameter(id="p3", estimate=True, lb=0, ub=np.inf)
+    with pytest.raises(ValueError, match=r"default uniform.*\['p3'\]"):
+        problem.get_startpoint_distributions()
+    with pytest.raises(ValueError, match=r"missing bounds.*\['p3'\]"):
+        problem.sample_parameter_startpoints()
+    # ML problem: no priors
+    assert problem.get_priors() == {}
+
+    problem["p3"].prior_distribution = C.LOG_NORMAL
+    problem["p3"].prior_parameters = [0, 1]
+    sp = problem.sample_parameter_startpoints(n_starts=10)
+    assert sp.shape == (10, 3)
+    assert np.all(sp[:, 2] > 0)
+
+    # missing bounds (bypassing validation) are reported like infinite ones
+    problem += Parameter.model_construct(id="p4", estimate=True)
+    with pytest.raises(ValueError, match=r"missing bounds.*\['p4'\]"):
+        problem.get_startpoint_distributions()
+
+
+def test_sample_startpoints_no_estimated_parameters():
+    """Test startpoint sampling without estimated parameters."""
+    problem = Problem()
+    problem += Parameter(id="p1", estimate=False, nominal_value=1)
+    assert problem.sample_parameter_startpoints(n_starts=5).shape == (5, 0)
+
+
+def test_get_priors_infinite_bounds():
+    """Test that infinite bounds without prior are rejected for MAP
+    problems."""
+    problem = Problem()
+    problem += Parameter(id="p1", estimate=True, lb=-np.inf, ub=np.inf)
+    problem += Parameter(
+        id="p2",
+        estimate=True,
+        lb=1,
+        ub=2,
+        prior_distribution=C.NORMAL,
+        prior_parameters=[1.5, 1],
+    )
+    assert problem.has_map_objective
+    with pytest.raises(ValueError, match=r"Proper priors.*\['p1'\]"):
+        problem.get_priors()
+
+    problem["p1"].prior_distribution = C.NORMAL
+    problem["p1"].prior_parameters = [0, 1]
+    assert set(problem.get_priors()) == {"p1", "p2"}
+
+
+@pytest.mark.parametrize(
+    "prior_distribution, prior_parameters, lb, ub",
+    [
+        (C.NORMAL, [0, 1], -np.inf, np.inf),
+        (C.LOG_NORMAL, [0, 1], 0, np.inf),
+        (C.EXPONENTIAL, [2], 0, np.inf),
+        (C.GAMMA, [2, 1], 0, np.inf),
+        (C.CHI_SQUARED, [2], 0, np.inf),
+        (C.RAYLEIGH, [1], 0, np.inf),
+        (C.LOG_LAPLACE, [0, 1], 0, np.inf),
+        (C.CAUCHY, [0, 1], -np.inf, np.inf),
+        (C.LAPLACE, [0, 1], -np.inf, np.inf),
+    ],
+)
+def test_prior_truncation_noop_at_domain(
+    prior_distribution, prior_parameters, lb, ub
+):
+    """Bounds matching the prior's domain do not truncate the prior."""
+    truncated = Parameter(
+        id="p",
+        lb=lb,
+        ub=ub,
+        prior_distribution=prior_distribution,
+        prior_parameters=prior_parameters,
+    ).prior_dist
+    # reference: the same distribution without truncation
+    untruncated = type(truncated)(
+        *prior_parameters,
+        **({"log": True} if prior_distribution.startswith("log-") else {}),
+    )
+
+    x = np.array([0.1, 0.5, 1.0, 2.0, 5.0])
+    np.testing.assert_allclose(truncated.pdf(x), untruncated.pdf(x))
+    np.testing.assert_allclose(truncated.cdf(x), untruncated.cdf(x))
+    assert np.all(truncated.pdf(x) > 0)
+
+
+def test_prior_truncation_one_sided_infinite():
+    """A finite bound truncates the prior also if the other is infinite."""
+    truncated = Parameter(
+        id="p",
+        lb=1,
+        ub=np.inf,
+        prior_distribution=C.LOG_NORMAL,
+        prior_parameters=[0, 1],
+    ).prior_dist
+    untruncated = Parameter(
+        id="p",
+        lb=0,
+        ub=np.inf,
+        prior_distribution=C.LOG_NORMAL,
+        prior_parameters=[0, 1],
+    ).prior_dist
+    # median of LogNormal(0, 1) is 1, so truncation at 1 doubles the density
+    x = np.array([1.5, 2.0, 5.0])
+    np.testing.assert_allclose(truncated.pdf(x), 2 * untruncated.pdf(x))
+    assert truncated.pdf(0.5) == 0
+    assert np.all(truncated.sample(100) >= 1)
+
+    # mirrored: finite upper bound
+    truncated = Parameter(
+        id="p",
+        lb=-np.inf,
+        ub=0,
+        prior_distribution=C.NORMAL,
+        prior_parameters=[0, 1],
+    ).prior_dist
+    untruncated = Normal(0, 1)
+    x = np.array([-2.0, -1.0, -0.5])
+    np.testing.assert_allclose(truncated.pdf(x), 2 * untruncated.pdf(x))
+    assert truncated.pdf(0.5) == 0
+    assert np.all(truncated.sample(100) <= 0)
 
 
 def test_problem_config_paths():

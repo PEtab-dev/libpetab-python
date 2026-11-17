@@ -63,6 +63,10 @@ def test_sample_matches_pdf(distribution):
 
     assert p > 0.05, (p, distribution)
 
+    # samples respect the truncation limits
+    assert np.all(sample >= distribution.trunc_low)
+    assert np.all(sample <= distribution.trunc_high)
+
     # check min/max of CDF at the bounds
     assert np.isclose(
         distribution.cdf(
