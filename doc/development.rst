@@ -34,10 +34,23 @@ Release process
 
 1. Update the version number in ``petab/version.py``.
 
-2. Update the changelog in ``doc/CHANGELOG.md``.
-   The update content can be generated automatically:
-   draft a new dummy GitHub release with a dummy tag and the ``develop``
-   branch, then click :guilabel:`Generate release notes`.
+2. Collect the changelog entries from ``changelog.d/`` into
+   ``CHANGELOG.md`` by running
+   `towncrier <https://towncrier.readthedocs.io/>`__
+   (included in the ``test`` dependency group) from the repository root:
+
+   .. code-block:: shell
+
+      towncrier build --version X.Y.Z
+
+   This adds a new section for the release to ``CHANGELOG.md``, and removes
+   the collected fragments (``git rm``). Run with ``--draft`` to only preview
+   the result. Review the new section and edit it as necessary:
+   group related entries (e.g., by PEtab version or module),
+   reorder entries (they are sorted alphabetically within each category),
+   credit new contributors, and add the ``**Full Changelog**`` link.
+   For a new minor version, add a ``## X.Y series`` heading and move the
+   ``<!-- towncrier release notes start -->`` marker below it.
 
 3. Create a pull request with the to-be-released changes to the main branch
    (usually from ``develop``).

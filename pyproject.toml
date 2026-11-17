@@ -71,6 +71,8 @@ test = [
     "pytest",
     "pytest-cov",
     "scipy",
+    # for collecting changelog entries, see changelog.d/README.md
+    "towncrier",
     "petabtests @ git+https://github.com/PEtab-dev/petab_test_suite@main",
     "benchmark_models_petab @ git+https://github.com/PEtab-dev/petab-benchmark-problems.git@main#subdirectory=src/python",
 ]
@@ -140,3 +142,43 @@ docstring-code-format = true
 exclude = [
     "petab/math/_generated/*",  # auto-generated
 ]
+
+# Collecting changelog entries from changelog.d/, see changelog.d/README.md
+[tool.towncrier]
+name = "libpetab-python"
+filename = "CHANGELOG.md"
+directory = "changelog.d"
+template = "changelog.d/template.md.j2"
+start_string = "<!-- towncrier release notes start -->\n"
+title_format = "### {version}"
+underlines = ["", "", ""]
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "deprecation"
+name = "Deprecations"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "fix"
+name = "Fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Other changes"
+showcontent = true
