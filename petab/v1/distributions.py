@@ -381,6 +381,8 @@ class Normal(Distribution):
 class Uniform(Distribution):
     """A (log-)uniform distribution.
 
+    The bounds must be finite with ``low < high``.
+
     :param low: The lower bound of the distribution.
     :param high: The upper bound of the distribution.
     :param log: If ``True``, the distribution is transformed to a log-uniform
@@ -406,6 +408,11 @@ class Uniform(Distribution):
             from scipy.stats import uniform
         except ImportError as e:
             raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        if not (np.isfinite(low) and np.isfinite(high) and low < high):
+            raise ValueError(
+                "Uniform distribution requires finite limits with low < high, "
+                f"but got low={low}, high={high}."
+            )
         self._dist = uniform
         self._low = low
         self._high = high
@@ -432,7 +439,7 @@ class LogUniform(Distribution):
 
     A random variable is log-uniformly distributed between ``low`` and ``high``
     if its logarithm is uniformly distributed between ``log(low)`` and
-    ``log(high)``.
+    ``log(high)``. The bounds must satisfy ``0 < low < high < inf``.
 
     :param low: The lower bound of the distribution.
     :param high: The upper bound of the distribution.
@@ -445,6 +452,11 @@ class LogUniform(Distribution):
         high: float,
         trunc: tuple[float, float] | None = None,
     ):
+        if not (0 < low < high < np.inf):
+            raise ValueError(
+                "Log-uniform distribution requires 0 < low < high < inf, "
+                f"but got low={low}, high={high}."
+            )
         try:
             from scipy.stats import uniform
         except ImportError as e:

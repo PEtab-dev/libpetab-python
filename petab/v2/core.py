@@ -1209,6 +1209,12 @@ class Parameter(BaseModel):
             # `Uniform.__init__` does not accept the `trunc` parameter
             low = max(self.prior_parameters[0], self.lb)
             high = min(self.prior_parameters[1], self.ub)
+            if low >= high:
+                raise ValueError(
+                    f"Uniform prior parameters {self.prior_parameters} and "
+                    f"bounds [{self.lb}, {self.ub}] of parameter `{self.id}' "
+                    "do not define a non-empty interval."
+                )
             return cls(low, high)
 
         if cls == LogUniform:

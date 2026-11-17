@@ -148,3 +148,30 @@ def test_trunc_sequence():
     assert d._trunc == (-1, 1)
     assert d.trunc_low == -1
     assert d.trunc_high == 1
+
+
+@pytest.mark.parametrize(
+    "low, high",
+    [
+        (0, np.inf),
+        (-np.inf, 0),
+        (-np.inf, np.inf),
+        (np.nan, 1),
+        (1, 1),
+        (2, 1),
+    ],
+)
+@pytest.mark.parametrize("log", [False, True, 10])
+def test_uniform_invalid_limits(low, high, log):
+    """Uniform distributions require finite limits with low < high."""
+    with pytest.raises(ValueError, match="finite limits"):
+        Uniform(low, high, log=log)
+
+
+@pytest.mark.parametrize(
+    "low, high", [(0, 1), (-1, 1), (1, np.inf), (np.nan, 1), (1, 1), (2, 1)]
+)
+def test_log_uniform_invalid_limits(low, high):
+    """Log-uniform distributions require 0 < low < high < inf."""
+    with pytest.raises(ValueError, match="0 < low < high < inf"):
+        LogUniform(low, high)
