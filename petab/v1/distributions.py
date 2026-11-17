@@ -51,6 +51,7 @@ class Distribution(abc.ABC):
         If ``False``, no transformation is applied.
     :param trunc: The truncation points (lower, upper) of the distribution
         or ``None`` if the distribution is not truncated.
+        ``(-inf, inf)`` is equivalent to ``None``.
         If the distribution is log-scaled, the truncation limits are expected
         to be on the same log scale.
     """
@@ -64,8 +65,10 @@ class Distribution(abc.ABC):
         if log is True:
             log = np.exp(1)
 
-        if trunc == (-np.inf, np.inf):
-            trunc = None
+        if trunc is not None:
+            trunc = tuple(trunc)
+            if trunc == (-np.inf, np.inf):
+                trunc = None
 
         if trunc is not None and trunc[0] >= trunc[1]:
             raise ValueError(
