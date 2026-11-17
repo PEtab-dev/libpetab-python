@@ -13,6 +13,8 @@ General:
 * Please document all modules, functions, classes, attributes, arguments,
   return values, ... in a style consistent with the rest of the library
 * Use descriptive commit messages
+* For user-visible changes, add a changelog entry to `changelog.d/`
+  (see [`changelog.d/README.md`](changelog.d/README.md))
 
 To contribute to this repository:
 
