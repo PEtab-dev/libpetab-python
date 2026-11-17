@@ -180,9 +180,9 @@ class Distribution(abc.ABC):
 
         return _as_scalar_or_array(
             np.where(
-                (x >= self.trunc_low) & (x <= self.trunc_high),
-                self._pdf_untruncated(x) * self._truncation_normalizer,
+                (x < self.trunc_low) | (x > self.trunc_high),
                 0,
+                self._pdf_untruncated(x) * self._truncation_normalizer,
             )
         )
 

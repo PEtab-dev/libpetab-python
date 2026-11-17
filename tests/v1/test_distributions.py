@@ -178,11 +178,12 @@ def test_log_uniform_invalid_limits(low, high):
 
 
 def test_truncated_cdf_ppf():
-    """Test CDF and PPF of truncated distributions outside the support."""
+    """Test PDF, CDF and PPF of truncated distributions outside the support
+    and for NaN input."""
     from scipy.stats import truncnorm
 
     dist = Normal(0, 1, trunc=(-1, 0))
-    x = [-2, -1, -0.5, 0, 1]
+    x = [-2, -1, -0.5, 0, 1, np.nan]
     assert_allclose(dist.cdf(x), truncnorm.cdf(x, -1, 0), atol=1e-14)
     assert_allclose(dist.pdf(x), truncnorm.pdf(x, -1, 0), atol=1e-14)
     assert dist.cdf(-2) == 0
@@ -191,6 +192,7 @@ def test_truncated_cdf_ppf():
     assert dist.cdf(1) == 1
     assert 0 < dist.cdf(-0.5) < 1
     assert np.isnan(dist.cdf(np.nan))
+    assert np.isnan(dist.pdf(np.nan))
 
     q = [-0.1, 0, 0.5, 1, 1.5]
     assert_allclose(dist.ppf(q), truncnorm.ppf(q, -1, 0), atol=1e-14)
@@ -201,6 +203,7 @@ def test_truncated_cdf_ppf():
     dist = Normal(0, 1, log=True, trunc=(1, 2))
     assert_allclose(dist.cdf([-1, 0, 0.5, 1, 2, 3]), [0, 0, 0, 0, 1, 1])
     assert 0 < dist.cdf(1.5) < 1
+    assert np.isnan(dist.pdf(np.nan))
     assert np.isnan(dist.ppf(1.5))
     assert 1 < dist.ppf(0.5) < 2
 
