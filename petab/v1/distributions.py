@@ -35,6 +35,11 @@ __all__ = [
 ]
 
 
+def _as_scalar_or_array(x) -> np.ndarray | float:
+    """Convert 0-d arrays to NumPy scalars; leave other arrays unchanged."""
+    return np.asarray(x)[()]
+
+
 class Distribution(abc.ABC):
     """A univariate probability distribution.
 
@@ -169,14 +174,16 @@ class Distribution(abc.ABC):
         :return: The value of the PDF at ``x``.
             NaN, if ``x`` is outside the domain of the PDF.
         """
-        if self._trunc is None:
-            return self._pdf_untruncated(x)
-
         x = np.asarray(x)
-        return np.where(
-            (x >= self.trunc_low) & (x <= self.trunc_high),
-            self._pdf_untruncated(x) * self._truncation_normalizer,
-            0,
+        if self._trunc is None:
+            return _as_scalar_or_array(self._pdf_untruncated(x))
+
+        return _as_scalar_or_array(
+            np.where(
+                (x >= self.trunc_low) & (x <= self.trunc_high),
+                self._pdf_untruncated(x) * self._truncation_normalizer,
+                0,
+            )
         )
 
     @abc.abstractmethod
@@ -231,19 +238,21 @@ class Distribution(abc.ABC):
         :param x: The value at which to evaluate the CDF.
         :return: The value of the CDF at ``x``.
         """
-        if self._trunc is None:
-            return self._cdf_transformed_untruncated(x)
-
         x = np.asarray(x)
-        return np.where(
-            x < self.trunc_low,
-            0,
+        if self._trunc is None:
+            return _as_scalar_or_array(self._cdf_transformed_untruncated(x))
+
+        return _as_scalar_or_array(
             np.where(
-                x >= self.trunc_high,
-                1,
-                (self._cdf_transformed_untruncated(x) - self._cd_low)
-                * self._truncation_normalizer,
-            ),
+                x < self.trunc_low,
+                0,
+                np.where(
+                    x >= self.trunc_high,
+                    1,
+                    (self._cdf_transformed_untruncated(x) - self._cd_low)
+                    * self._truncation_normalizer,
+                ),
+            )
         )
 
     def _cdf_transformed_untruncated(self, x) -> np.ndarray | float:
@@ -294,16 +303,18 @@ class Distribution(abc.ABC):
         :param q: The quantile at which to evaluate the PPF.
         :return: The value of the PPF at ``q``.
         """
+        q = np.asarray(q)
         if self._trunc is None:
-            return self._ppf_transformed_untruncated(q)
+            return _as_scalar_or_array(self._ppf_transformed_untruncated(q))
 
         # Adjust quantiles to account for truncation
-        q = np.asarray(q)
         adjusted_q = self._cd_low + q * (self._cd_high - self._cd_low)
-        return np.where(
-            (q >= 0) & (q <= 1),
-            self._ppf_transformed_untruncated(adjusted_q),
-            np.nan,
+        return _as_scalar_or_array(
+            np.where(
+                (q >= 0) & (q <= 1),
+                self._ppf_transformed_untruncated(adjusted_q),
+                np.nan,
+            )
         )
 
     def _inverse_transform_sample(self, shape) -> np.ndarray | float:

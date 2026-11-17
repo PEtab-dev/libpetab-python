@@ -203,3 +203,32 @@ def test_truncated_cdf_ppf():
     assert 0 < dist.cdf(1.5) < 1
     assert np.isnan(dist.ppf(1.5))
     assert 1 < dist.ppf(0.5) < 2
+
+
+@pytest.mark.parametrize(
+    "distribution",
+    [
+        Normal(0, 1),
+        Normal(0, 1, log=True),
+        Normal(0, 1, trunc=(-1, 2)),
+        Normal(0, 1, log=True, trunc=(1, 2)),
+        Uniform(0, 2, log=10),
+        Exponential(1, trunc=(0, 2)),
+    ],
+)
+@pytest.mark.parametrize("method", ["pdf", "cdf", "ppf"])
+def test_scalar_and_array_output(distribution, method):
+    """Scalar input gives scalar output; sequences give arrays."""
+    f = getattr(distribution, method)
+    x = 0.7 if method == "ppf" else 1.5
+
+    res = f(x)
+    assert isinstance(res, float) and not isinstance(res, np.ndarray)
+    assert np.isfinite(res) and res > 0
+
+    for xs in ([x, x], np.array([x, x])):
+        res_arr = f(xs)
+        assert isinstance(res_arr, np.ndarray)
+        assert res_arr.shape == (2,)
+        assert_allclose(res_arr, res)
+    assert f(np.array([[x]])).shape == (1, 1)
