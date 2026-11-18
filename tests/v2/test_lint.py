@@ -6,7 +6,7 @@ import pysb
 import pytest
 
 from petab.v2 import Problem
-from petab.v2.C import TIME_SYMBOL
+from petab.v2.C import LOG_NORMAL, NORMAL, TIME_SYMBOL, UNIFORM
 from petab.v2.lint import *
 from petab.v2.lint import (
     get_required_parameters_for_parameter_table,
@@ -290,3 +290,33 @@ def test_check_prior_distribution_invalid_uniform(
     assert (error := CheckPriorDistribution().run(problem)) is not None
     assert "`p1` are invalid" in error.message
     assert hint in error.message
+
+
+def test_check_prior_distribution_infinite_bounds():
+    """Estimated parameters with infinite bounds need a prior if the problem
+    has a MAP objective."""
+    problem = Problem()
+    problem.add_parameter("p1", estimate=True, lb=0, ub=float("inf"))
+    problem.add_parameter("p2", estimate=True, lb=0, ub=1)
+    # non-estimated parameters are irrelevant
+    problem.add_parameter("p3", estimate=False, nominal_value=1)
+
+    check = CheckPriorDistribution()
+    # ML problem: infinite bounds are fine
+    assert check.run(problem) is None
+
+    problem["p2"].prior_distribution = NORMAL
+    problem["p2"].prior_parameters = [0.5, 1]
+    assert (error := check.run(problem)) is not None
+    assert error.level == ValidationIssueSeverity.ERROR
+    assert "['p1']" in error.message
+
+    problem["p1"].prior_distribution = LOG_NORMAL
+    problem["p1"].prior_parameters = [0, 1]
+    assert check.run(problem) is None
+
+    # improper explicit prior
+    problem["p1"].prior_distribution = UNIFORM
+    problem["p1"].prior_parameters = [0, float("inf")]
+    assert (error := check.run(problem)) is not None
+    assert "`p1` are invalid" in error.message
