@@ -73,6 +73,7 @@ __all__ = [
     "MappingTable",
     "Measurement",
     "MeasurementTable",
+    "MissingColumnsError",
     "NoiseDistribution",
     "Observable",
     "ObservableTable",
@@ -85,6 +86,10 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+class MissingColumnsError(ValueError):
+    """A PEtab table lacks required columns."""
 
 
 def _field_to_column(info: ValidationInfo) -> str:
@@ -136,6 +141,43 @@ def _reset_index(df: pd.DataFrame) -> pd.DataFrame:
     Avoids spurious ``index`` columns for DataFrames with a default index.
     """
     return df.reset_index(drop=all(name is None for name in df.index.names))
+
+
+def _prepare_table_df(
+    df: pd.DataFrame | None,
+    table_name: str,
+    required_columns: list[str],
+    rel_path: str | Path | AnyUrl | None = None,
+    base_path: str | Path | AnyUrl | None = None,
+    **_,
+) -> pd.DataFrame | None:
+    """Prepare a DataFrame for creating a PEtab table.
+
+    Moves named index levels to columns and checks for required columns.
+
+    :param df: The table.
+    :param table_name: The table name for the error message.
+    :param required_columns: The required columns.
+    :param rel_path: The table file, for the error message.
+    :param base_path: The base path of ``rel_path``.
+    :return: The prepared DataFrame, or ``None`` if ``df`` is ``None`` or
+        has no columns, i.e., the table is empty.
+    :raises MissingColumnsError: If any required column is missing.
+    """
+    if df is None:
+        return None
+    df = _reset_index(df)
+    if df.columns.empty:
+        return None
+    if missing := [c for c in required_columns if c not in df.columns]:
+        msg = (
+            f"{table_name} is missing required column(s): "
+            f"{', '.join(missing)}."
+        )
+        if rel_path is not None:
+            msg += f" File: {_generate_path(rel_path, base_path)}"
+        raise MissingColumnsError(msg)
+    return df
 
 
 def _column_name(name: str, field: FieldInfo) -> str:
@@ -302,9 +344,29 @@ class BaseTable[T: BaseModel](BaseModel):
         raise KeyError(f"{T.__name__} ID {id_} not found")
 
     @classmethod
+    def from_df(cls, df: pd.DataFrame | None, **kwargs) -> BaseTable[T]:
+        """Create a table from a DataFrame.
+
+        :param df: The table. Named index levels are treated as columns.
+            ``None`` or a DataFrame without any columns gives an empty table.
+        :param kwargs: Passed to the constructor
+            (e.g., ``rel_path``, ``base_path``).
+        :raises MissingColumnsError: If any required column is missing.
+        """
+        df = _prepare_table_df(
+            df, cls.__name__, cls._required_columns, **kwargs
+        )
+        if df is None:
+            return cls(**kwargs)
+        return cls._from_df(df, **kwargs)
+
+    @classmethod
     @abstractmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
-        """Create a table from a DataFrame."""
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> BaseTable[T]:
+        """Create a table from a DataFrame with all required columns.
+
+        ``df`` has no named index levels.
+        """
 
     def to_df(
         self, *, columns: TableColumns | str | None = None
@@ -523,12 +585,10 @@ class ObservableTable(BaseTable[Observable]):
         )
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> ObservableTable:
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> ObservableTable:
         """Create an ObservableTable from a DataFrame."""
-        if df is None:
-            return cls(**kwargs)
 
-        df = get_observable_df(df.copy())
+        df = get_observable_df(df)
         observables = [
             Observable(**row.to_dict())
             for _, row in _reset_index(df).iterrows()
@@ -654,11 +714,8 @@ class ConditionTable(BaseTable[Condition]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> ConditionTable:
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> ConditionTable:
         """Create a ConditionTable from a DataFrame."""
-        if df is None or df.empty:
-            return cls(**kwargs)
-
         conditions = []
         for condition_id, sub_df in df.groupby(C.CONDITION_ID):
             changes = [
@@ -817,10 +874,8 @@ class ExperimentTable(BaseTable[Experiment]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> ExperimentTable:
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> ExperimentTable:
         """Create an ExperimentTable from a DataFrame."""
-        if df is None:
-            return cls(**kwargs)
 
         experiments = []
         for experiment_id, cur_exp_df in df.groupby(C.EXPERIMENT_ID):
@@ -952,12 +1007,9 @@ class MeasurementTable(BaseTable[Measurement]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> MeasurementTable:
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> MeasurementTable:
         """Create a MeasurementTable from a DataFrame."""
-        if df is None:
-            return cls(**kwargs)
 
-        df = _reset_index(df)
         if C.MODEL_ID in df.columns:
             df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
 
@@ -1036,14 +1088,10 @@ class MappingTable(BaseTable[Mapping]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> MappingTable:
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> MappingTable:
         """Create a MappingTable from a DataFrame."""
-        if df is None:
-            return cls(**kwargs)
 
-        mappings = [
-            Mapping(**row.to_dict()) for _, row in _reset_index(df).iterrows()
-        ]
+        mappings = [Mapping(**row.to_dict()) for _, row in df.iterrows()]
         return cls(mappings, **kwargs)
 
     def _to_df(self) -> pd.DataFrame:
@@ -1261,15 +1309,10 @@ class ParameterTable(BaseTable[Parameter]):
         return self.elements
 
     @classmethod
-    def from_df(cls, df: pd.DataFrame, **kwargs) -> ParameterTable:
+    def _from_df(cls, df: pd.DataFrame, **kwargs) -> ParameterTable:
         """Create a ParameterTable from a DataFrame."""
-        if df is None:
-            return cls(**kwargs)
 
-        parameters = [
-            Parameter(**row.to_dict())
-            for _, row in _reset_index(df).iterrows()
-        ]
+        parameters = [Parameter(**row.to_dict()) for _, row in df.iterrows()]
 
         return cls(parameters, **kwargs)
 

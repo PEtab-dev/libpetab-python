@@ -79,6 +79,11 @@ class HybridizationTable:
     @classmethod
     def from_df(cls, df: pd.DataFrame, **kwargs) -> HybridizationTable:
         """Create a HybridizationTable from a DataFrame."""
+        from ..core import _prepare_table_df
+
+        df = _prepare_table_df(
+            df, cls.__name__, [C.TARGET_ID, C.TARGET_VALUE], **kwargs
+        )
         if df is None:
             return cls(**kwargs)
 
