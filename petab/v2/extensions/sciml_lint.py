@@ -15,10 +15,10 @@ from petab_sciml import (
     TensorOps,
 )
 
-from petab.v1.lint import is_valid_identifier
 from petab.v1.math import petab_math_str, sympify_petab
 
 from .. import core, lint
+from .._helpers import is_valid_identifier
 from ..C import EXT_ID_SCIML
 
 __all__ = [

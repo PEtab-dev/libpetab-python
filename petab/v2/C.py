@@ -306,6 +306,57 @@ PARAMETER_SEPARATOR = ";"
 #: The time symbol for use in any PEtab-specific mathematical expressions
 TIME_SYMBOL = "time"
 
+#: Names of the functions available in PEtab math expressions
+MATH_FUNCTIONS = frozenset(
+    {
+        # power, exponential, logarithm
+        "pow",
+        "exp",
+        "sqrt",
+        "log",
+        "ln",
+        "log2",
+        "log10",
+        # trigonometric
+        "sin",
+        "cos",
+        "tan",
+        "cot",
+        "sec",
+        "csc",
+        "arcsin",
+        "arccos",
+        "arctan",
+        "arccot",
+        "arcsec",
+        "arccsc",
+        # hyperbolic
+        "sinh",
+        "cosh",
+        "tanh",
+        "coth",
+        "sech",
+        "csch",
+        "arcsinh",
+        "arccosh",
+        "arctanh",
+        "arccoth",
+        "arcsech",
+        "arccsch",
+        # other
+        "piecewise",
+        "abs",
+        "sign",
+        "min",
+        "max",
+    }
+)
+
+#: Keywords that must not be used as identifiers (case-insensitive)
+RESERVED_KEYWORDS = frozenset(
+    {"true", "false", "inf", "nan", TIME_SYMBOL} | MATH_FUNCTIONS
+)
+
 
 __all__ = [
     x

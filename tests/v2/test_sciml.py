@@ -249,10 +249,11 @@ def test_nn_model_duplicate_input_ids():
     assert "duplicate input" in issue.message.lower()
 
 
-def test_nn_model_invalid_input_id():
+@pytest.mark.parametrize("input_id", ["1_invalid", "Time"])
+def test_nn_model_invalid_input_id(input_id):
     problem = _get_test_problem()
     problem.extensions.sciml.neural_networks[0].inputs = [
-        Input(input_id="1_invalid")
+        Input(input_id=input_id)
     ]
     issue = CheckNeuralNetworkModel().run(problem)
     assert issue is not None

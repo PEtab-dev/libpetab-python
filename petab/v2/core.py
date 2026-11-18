@@ -49,12 +49,12 @@ from ..v1 import (
     yaml,
 )
 from ..v1.distributions import *
-from ..v1.lint import is_valid_identifier
 from ..v1.math import petab_math_str, sympify_petab
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
+from ._helpers import is_reserved_keyword, is_valid_identifier
 from .extensions import ExtensionConfig, parse_extension_config
 from .options import TableColumns, get_options
 
@@ -146,12 +146,23 @@ def _column_name(name: str, field: FieldInfo) -> str:
     return field.alias or name
 
 
+def _check_petab_id(v: str, kind: str = "ID") -> None:
+    """Raise a ValueError if `v` is not a valid PEtab ID."""
+    if is_valid_identifier(v):
+        return
+    if is_reserved_keyword(v):
+        raise ValueError(
+            f"Invalid {kind}: `{v}` is a reserved keyword and must not be "
+            "used as an identifier."
+        )
+    raise ValueError(f"Invalid {kind}: `{v}`")
+
+
 def _valid_petab_id(v: str) -> str:
     """Field validator for PEtab IDs."""
     if not v:
         raise ValueError("ID must not be empty.")
-    if not is_valid_identifier(v):
-        raise ValueError(f"Invalid ID: {v}")
+    _check_petab_id(v)
     return v
 
 
@@ -159,8 +170,7 @@ def _valid_petab_id_or_none(v: str) -> str | None:
     """Field validator for optional PEtab IDs."""
     if not v:
         return None
-    if not is_valid_identifier(v):
-        raise ValueError(f"Invalid ID: {v}")
+    _check_petab_id(v)
     return v
 
 
@@ -736,8 +746,7 @@ class ExperimentPeriod(BaseModel):
             #  above. Having a combination of empty and non-empty IDs is an
             #  error, since the targets of conditions to be combined must be
             #  disjoint.
-            if not is_valid_identifier(condition_id):
-                raise ValueError(f"Invalid {C.CONDITION_ID}: `{condition_id}'")
+            _check_petab_id(condition_id, C.CONDITION_ID)
         return condition_ids
 
     @property

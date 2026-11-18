@@ -1811,3 +1811,78 @@ def test_get_unused_id_invalid():
     """Test that invalid base IDs are rejected."""
     with pytest.raises(ValueError, match="not a valid identifier"):
         Problem().get_unused_id("1x")
+    with pytest.raises(ValueError, match="not a valid identifier"):
+        Problem().get_unused_id("time")
+
+
+def test_math_functions_complete():
+    """Test that `MATH_FUNCTIONS` matches the functions of the parser."""
+    from petab.v1.math.SympyVisitor import (
+        _binary_funcs,
+        _trig_funcs,
+        _unary_funcs,
+    )
+
+    supported_functions = (
+        {"log", "piecewise"}
+        | set(_trig_funcs)
+        | set(_unary_funcs)
+        | set(_binary_funcs)
+    )
+    assert C.MATH_FUNCTIONS == supported_functions
+
+
+_RESERVED_IDS = [
+    *("time", "Time", "TRUE", "false", "Inf", "NaN"),
+    *("exp", "EXP", "Max", "log", "piecewise", "arccsch", "sign"),
+]
+_NON_RESERVED_IDS = ["time_", "exp1", "infinity", "t", "log_k", "maximum"]
+
+_ID_CONSTRUCTORS = {
+    "parameter": lambda id_: Parameter(
+        id=id_, estimate=False, nominal_value=1
+    ),
+    "observable": lambda id_: Observable(
+        id=id_, formula="1", noise_formula="1"
+    ),
+    "placeholder": lambda id_: Observable(
+        id="obs",
+        formula="1",
+        noise_formula="1",
+        observable_placeholders=[id_],
+    ),
+    "condition": lambda id_: Condition(id=id_, changes=[]),
+    "change_target": lambda id_: Change(target_id=id_, target_value=1),
+    "experiment": lambda id_: Experiment(id=id_),
+    "period_condition": lambda id_: ExperimentPeriod(
+        time=0, condition_ids=[id_]
+    ),
+    "measurement_observable": lambda id_: Measurement(
+        observable_id=id_, time=0, measurement=1
+    ),
+    "measurement_experiment": lambda id_: Measurement(
+        observable_id="obs", experiment_id=id_, time=0, measurement=1
+    ),
+    "measurement_model": lambda id_: Measurement(
+        model_id=id_, observable_id="obs", time=0, measurement=1
+    ),
+    "mapping": lambda id_: Mapping(petab_id=id_, model_id=f" {id_}"),
+}
+
+
+@pytest.mark.parametrize("kind", _ID_CONSTRUCTORS)
+def test_reserved_keyword_ids(kind):
+    """Test that reserved keywords are rejected as PEtab IDs."""
+    construct = _ID_CONSTRUCTORS[kind]
+    for id_ in _NON_RESERVED_IDS:
+        construct(id_)
+
+    for id_ in _RESERVED_IDS:
+        with pytest.raises(ValidationError, match="reserved keyword"):
+            construct(id_)
+
+
+def test_mapping_reserved_model_id():
+    """Test that model entities with reserved IDs can be aliased."""
+    Mapping(petab_id="t", model_id="time")
+    Mapping(petab_id="max_", model_id="Max")
