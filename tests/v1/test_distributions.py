@@ -179,3 +179,63 @@ def test_log_uniform_invalid_limits(low, high):
     """Log-uniform distributions require 0 < low < high < inf."""
     with pytest.raises(ValueError, match="0 < low < high < inf"):
         LogUniform(low, high)
+
+
+def test_truncated_cdf_ppf():
+    """Test PDF, CDF and PPF of truncated distributions outside the support
+    and for NaN input."""
+    from scipy.stats import truncnorm
+
+    dist = Normal(0, 1, trunc=(-1, 0))
+    x = [-2, -1, -0.5, 0, 1, np.nan]
+    assert_allclose(dist.cdf(x), truncnorm.cdf(x, -1, 0), atol=1e-14)
+    assert_allclose(dist.pdf(x), truncnorm.pdf(x, -1, 0), atol=1e-14)
+    assert dist.cdf(-2) == 0
+    assert dist.cdf(-1) == 0
+    assert dist.cdf(0) == 1
+    assert dist.cdf(1) == 1
+    assert 0 < dist.cdf(-0.5) < 1
+    assert np.isnan(dist.cdf(np.nan))
+    assert np.isnan(dist.pdf(np.nan))
+
+    q = [-0.1, 0, 0.5, 1, 1.5]
+    assert_allclose(dist.ppf(q), truncnorm.ppf(q, -1, 0), atol=1e-14)
+    assert np.isnan(dist.ppf(-0.1))
+    assert np.isnan(dist.ppf(1.5))
+    assert -1 < dist.ppf(0.5) < 0
+
+    dist = Normal(0, 1, log=True, trunc=(1, 2))
+    assert_allclose(dist.cdf([-1, 0, 0.5, 1, 2, 3]), [0, 0, 0, 0, 1, 1])
+    assert 0 < dist.cdf(1.5) < 1
+    assert np.isnan(dist.pdf(np.nan))
+    assert np.isnan(dist.ppf(1.5))
+    assert 1 < dist.ppf(0.5) < 2
+
+
+@pytest.mark.parametrize(
+    "distribution",
+    [
+        Normal(0, 1),
+        Normal(0, 1, log=True),
+        Normal(0, 1, trunc=(-1, 2)),
+        Normal(0, 1, log=True, trunc=(1, 2)),
+        Uniform(0, 2, log=10),
+        Exponential(1, trunc=(0, 2)),
+    ],
+)
+@pytest.mark.parametrize("method", ["pdf", "cdf", "ppf"])
+def test_scalar_and_array_output(distribution, method):
+    """Scalar input gives scalar output; sequences give arrays."""
+    f = getattr(distribution, method)
+    x = 0.7 if method == "ppf" else 1.5
+
+    res = f(x)
+    assert isinstance(res, float) and not isinstance(res, np.ndarray)
+    assert np.isfinite(res) and res > 0
+
+    for xs in ([x, x], np.array([x, x])):
+        res_arr = f(xs)
+        assert isinstance(res_arr, np.ndarray)
+        assert res_arr.shape == (2,)
+        assert_allclose(res_arr, res)
+    assert f(np.array([[x]])).shape == (1, 1)
