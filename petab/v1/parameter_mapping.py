@@ -117,6 +117,10 @@ def get_optimization_to_simulation_parameter_mapping(
         condition.
         If no preequilibration condition is defined, the respective dicts will
         be empty. ``NaN`` is used where no mapping exists.
+
+    Raises:
+        ValueError: An estimated model parameter with no usable model value
+            is absent from all simulation and preequilibration mappings.
     """
     if sbml_model:
         warnings.warn(
@@ -154,50 +158,48 @@ def get_optimization_to_simulation_parameter_mapping(
         for par_id in output_parameters:
             simulation_parameters[par_id] = np.nan
 
+    args = _map_condition_arg_packer(
+        simulation_conditions,
+        measurement_df,
+        condition_df,
+        parameter_df,
+        mapping_df,
+        model,
+        simulation_parameters,
+        warn_unmapped,
+        scaled_parameters,
+        fill_fixed_parameters,
+        allow_timepoint_specific_numeric_noise_parameters,
+    )
     num_threads = int(os.environ.get(ENV_NUM_THREADS, "1"))
 
     # If sequential execution is requested, let's not create any
     # thread-allocation overhead
     if num_threads == 1:
-        mapping = map(
-            _map_condition,
-            _map_condition_arg_packer(
-                simulation_conditions,
-                measurement_df,
-                condition_df,
-                parameter_df,
-                mapping_df,
-                model,
-                simulation_parameters,
-                warn_unmapped,
-                scaled_parameters,
-                fill_fixed_parameters,
-                allow_timepoint_specific_numeric_noise_parameters,
-            ),
-        )
-        return list(mapping)
+        mappings = list(map(_map_condition, args))
+    else:
+        from concurrent.futures import ThreadPoolExecutor
 
-    # Run multi-threaded
-    from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            mappings = list(executor.map(_map_condition, args))
 
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        mapping = executor.map(
-            _map_condition,
-            _map_condition_arg_packer(
-                simulation_conditions,
-                measurement_df,
-                condition_df,
-                parameter_df,
-                mapping_df,
-                model,
-                simulation_parameters,
-                warn_unmapped,
-                scaled_parameters,
-                fill_fixed_parameters,
-                allow_timepoint_specific_numeric_noise_parameters,
-            ),
-        )
-    return list(mapping)
+    if mappings and parameter_df is not None and ESTIMATE in parameter_df:
+        estimated = parameter_df.index[parameter_df[ESTIMATE] == 1]
+        unresolved = set(model.get_parameter_ids()).intersection(estimated)
+        unresolved.difference_update(simulation_parameters)
+        if unresolved:
+            # A condition or output override may still supply the parameter.
+            for preeq, simulation, _, _ in mappings:
+                unresolved.difference_update(
+                    preeq.values(), simulation.values()
+                )
+            if unresolved:
+                names = ", ".join(sorted(unresolved))
+                raise ValueError(
+                    f"Estimated model parameter(s) {names} have no usable "
+                    "model value and are absent from all parameter mappings."
+                )
+    return mappings
 
 
 def _map_condition_arg_packer(
