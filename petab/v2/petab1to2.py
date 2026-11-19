@@ -439,11 +439,10 @@ def _copy_file(src: Path | str, dest: Path):
             dest_handle.write(src_handle.handle.read())
         return
 
-    try:
+    with suppress(FileNotFoundError):
         if dest.samefile(src):
             return
-    except FileNotFoundError:
-        shutil.copy(str(src), str(dest))
+    shutil.copy(src, dest)
 
 
 def v1v2_condition_df(

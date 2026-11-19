@@ -953,6 +953,8 @@ def _petab1to2_with_conditions(
     condition_df: pd.DataFrame,
     conditions: list[tuple[str, str]],
     output_dir: Path | None = None,
+    *,
+    model_parameter_value: float = 0.5,
 ) -> Problem:
     """Convert a minimal PEtab v1 problem with the given condition table.
 
@@ -962,7 +964,7 @@ def _petab1to2_with_conditions(
     """
     problem = v1.Problem(
         model=SbmlModel.from_antimony(
-            "A = 1; B = 0; k1 = 0.5; A -> B; k1 * A"
+            f"A = 1; B = 0; k1 = {model_parameter_value}; A -> B; k1 * A"
         ),
         condition_df=v1.get_condition_df(condition_df),
         observable_df=v1.get_observable_df(
@@ -1007,6 +1009,24 @@ def _petab1to2_with_conditions(
         return petab1to2(yaml_file)
     petab1to2(yaml_file, output_dir)
     return Problem.from_yaml(output_dir / Path(yaml_file).name)
+
+
+def test_petab1to2_replaces_stale_model_file(tmp_path):
+    """Reusing the output directory must copy the current input model."""
+    conditions = pd.DataFrame({v1.C.CONDITION_ID: ["c1"]})
+    output_dir = tmp_path / "v2"
+    output_dir.mkdir()
+    for value in (0.5, 0.7):
+        converted = _petab1to2_with_conditions(
+            tmp_path / f"source-{value}",
+            conditions,
+            [("", "c1")],
+            output_dir,
+            model_parameter_value=value,
+        )
+        assert (
+            converted.model.sbml_model.getParameter("k1").getValue() == value
+        )
 
 
 def _measured_periods(
