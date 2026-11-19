@@ -3,6 +3,7 @@ from math import nan
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import petab.v1 as petab
 from petab import ENV_NUM_THREADS
@@ -691,6 +692,33 @@ class TestGetSimulationToOptimizationParameterMapping:
         ]
 
         assert actual == expected
+
+
+@pytest.mark.parametrize("with_scales", [True, False])
+def test_mapping_rejects_unresolved_condition_reference(with_scales):
+    """Report which override cannot be turned into a parameter value."""
+    model = SbmlModel.from_antimony(
+        "base = 1.5; derived = base + 1; decay = 1; "
+        "conc = 1; conc' = -decay * conc;"
+    )
+    condition_df = pd.DataFrame(
+        {"decay": ["derived"]},
+        index=pd.Index(["c1"], name=CONDITION_ID),
+    )
+    parameter_df = pd.DataFrame(
+        {ESTIMATE: [1], NOMINAL_VALUE: [1.5]},
+        index=pd.Index(["base"], name=PARAMETER_ID),
+    )
+    if with_scales:
+        parameter_df[PARAMETER_SCALE] = LIN
+
+    with pytest.raises(ValueError, match=r"parameter 'derived'.*'decay'"):
+        petab.get_optimization_to_simulation_parameter_mapping(
+            condition_df=condition_df,
+            measurement_df=pd.DataFrame({SIMULATION_CONDITION_ID: ["c1"]}),
+            parameter_df=parameter_df,
+            model=model,
+        )
 
 
 def test_fill_in_nominal_values():
