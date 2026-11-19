@@ -48,8 +48,10 @@ def test_pysb_model(clean_pysb_exports):
     pysb.Monomer("B", ["s"], {"s": ["a", "b"]})
     petab_model = PySBModel(model=model, model_id="test_model")
 
-    assert petab_model.is_state_variable("A()") is True
-    assert petab_model.is_state_variable("B(s='a')") is True
+    assert petab_model.is_state_variable("A()") is False
+    assert petab_model.is_state_variable("B(s='a')") is False
+    assert petab_model.is_state_variable("A() ** c1") is True
+    assert petab_model.is_state_variable("B(s='a') ** c1") is True
 
     # a compartment
     assert petab_model.is_state_variable("c1") is False
@@ -67,10 +69,22 @@ def test_pysb_model(clean_pysb_exports):
     assert petab_model.is_state_variable("A(s='a')") is False
 
 
+def test_is_state_variable_compartment_for_complex(clean_pysb_exports):
+    """A complex can specify a shared compartment or one per monomer."""
+    model = pysb.Model()
+    pysb.Compartment("c")
+    pysb.Monomer("A", ["b"])
+    pysb.Monomer("B", ["a"])
+    petab_model = PySBModel(model=model, model_id="test_model")
+
+    assert petab_model.is_state_variable("(A(b=1) % B(a=1)) ** c")
+    assert petab_model.is_state_variable("A(b=1) ** c % B(a=1) ** c")
+    assert not petab_model.is_state_variable("A(b=1) ** c % B(a=1)")
+
+
 def test_is_state_variable_sites(clean_pysb_exports):
     """Species with binding sites, bonds, and multi-state sites."""
     model = pysb.Model()
-    pysb.Compartment("c")
     A = pysb.Monomer("A", ["b", "s"], {"s": ["u", "p"]})
     B = pysb.Monomer("B", ["a"])
     C = pysb.Monomer("C", ["x", "x"], {"x": ["u", "p"]})
@@ -87,16 +101,12 @@ def test_is_state_variable_sites(clean_pysb_exports):
         "A(b=1, s='u') % B(a=1)",
         "A(b=None, s=('u', 1)) % B(a=1)",
         "C(x=MultiState('u', 'p'))",
-        "A(b=None, s='u') ** c",
-        "A(b=1, s='u') ** c % B(a=1) ** c",
-        "(A(b=1, s='u') % B(a=1)) ** c",
     ]
     for species in valid:
         assert petab_model.is_state_variable(species) is True, species
     # str(pattern) round trip
     for pattern in (
         A(b=1, s=("p", 2)) % B(a=1) % B(a=2),
-        (A(b=1, s="u") % B(a=1)) ** model.compartments["c"],
         C(x=pysb.MultiState("u", "p")),
         E(b=[1, 2]) % E(b=1) % E(b=2),
     ):
