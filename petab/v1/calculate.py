@@ -86,6 +86,28 @@ def calculate_residuals(
     return residual_dfs
 
 
+def _get_simulation_for_measurement(
+    row: pd.Series, simulation_df: pd.DataFrame, compared_cols: set[str]
+) -> float:
+    """Match a measurement using shared columns, ignoring empty values."""
+    masks = [
+        (simulation_df[col] == row[col]) | petab.is_empty(row[col])
+        for col in compared_cols
+    ]
+    mask = reduce(operator.and_, masks)
+    if mask.sum() == 0:
+        raise ValueError(f"Could not find simulation for measurement {row}.")
+    if (
+        mask.sum() > 1
+        and simulation_df.loc[mask].drop_duplicates().shape[0] > 1
+    ):
+        raise ValueError(
+            f"Multiple different simulations found for measurement "
+            f"{row}:\n{simulation_df.loc[mask]}"
+        )
+    return simulation_df.loc[mask][SIMULATION].iloc[0]
+
+
 def calculate_residuals_for_table(
     measurement_df: pd.DataFrame,
     simulation_df: pd.DataFrame,
@@ -115,27 +137,9 @@ def calculate_residuals_for_table(
     # iterate over measurements, find corresponding simulations
     for irow, row in measurement_df.iterrows():
         measurement = row[MEASUREMENT]
-        # look up in simulation df
-        masks = [
-            (simulation_df[col] == row[col]) | petab.is_empty(row[col])
-            for col in compared_cols
-        ]
-        mask = reduce(lambda x, y: x & y, masks)
-        if mask.sum() == 0:
-            raise ValueError(
-                f"Could not find simulation for measurement {row}."
-            )
-        # if we have multiple matches, check that the rows are all identical
-        elif (
-            mask.sum() > 1
-            and simulation_df.loc[mask].drop_duplicates().shape[0] > 1
-        ):
-            raise ValueError(
-                f"Multiple different simulations found for measurement "
-                f"{row}:\n{simulation_df.loc[mask]}"
-            )
-
-        simulation = simulation_df.loc[mask][SIMULATION].iloc[0]
+        simulation = _get_simulation_for_measurement(
+            row, simulation_df, compared_cols
+        )
         if scale:
             # apply scaling
             observable = observable_df.loc[row[OBSERVABLE_ID]]
