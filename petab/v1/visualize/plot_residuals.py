@@ -11,11 +11,24 @@ import pandas as pd
 from scipy import stats
 
 from ..C import *
-from ..calculate import calculate_residuals
+from ..calculate import _get_simulation_for_measurement, calculate_residuals
 from ..core import get_simulation_df
 from ..problem import Problem
 
 __all__ = ["plot_goodness_of_fit", "plot_residuals_vs_simulation"]
+
+
+def _aligned_simulations(
+    measurements: pd.DataFrame, simulations: pd.DataFrame
+) -> np.ndarray:
+    """Return simulation values in measurement order, including replicates."""
+    compared_cols = set(measurements.columns) & set(simulations.columns)
+    return np.array(
+        [
+            _get_simulation_for_measurement(row, simulations, compared_cols)
+            for _, row in measurements.iterrows()
+        ]
+    )
 
 
 def plot_residuals_vs_simulation(
@@ -87,9 +100,12 @@ def plot_residuals_vs_simulation(
     normal_residuals = residual_df[
         residual_df[OBSERVABLE_ID].isin(observable_ids)
     ]
-    simulations_normal = simulations_df[
-        simulations_df[OBSERVABLE_ID].isin(observable_ids)
-    ]
+    simulations_normal = _aligned_simulations(
+        petab_problem.measurement_df[
+            petab_problem.measurement_df[OBSERVABLE_ID].isin(observable_ids)
+        ],
+        simulations_df,
+    )
 
     # compare to standard normal distribution
     ks_result = stats.kstest(normal_residuals[RESIDUAL], stats.norm.cdf)
@@ -97,12 +113,12 @@ def plot_residuals_vs_simulation(
     # plot the residuals plot
     axes[0].hlines(
         y=0,
-        xmin=min(simulations_normal[SIMULATION]),
-        xmax=max(simulations_normal[SIMULATION]),
+        xmin=min(simulations_normal),
+        xmax=max(simulations_normal),
         ls="--",
         color="gray",
     )
-    axes[0].scatter(simulations_normal[SIMULATION], normal_residuals[RESIDUAL])
+    axes[0].scatter(simulations_normal, normal_residuals[RESIDUAL])
     axes[0].text(
         0.15,
         0.85,
@@ -193,8 +209,11 @@ def plot_goodness_of_fit(
         error_name = "mean of squared residuals"
     error = np.mean(np.power(residual_df["residual"], 2))
 
+    simulations = _aligned_simulations(
+        petab_problem.measurement_df, simulations_df
+    )
     slope, intercept, r_value, p_value, _std_err = stats.linregress(
-        simulations_df["simulation"],
+        simulations,
         petab_problem.measurement_df["measurement"],
     )  # x, y
 
@@ -203,7 +222,7 @@ def plot_goodness_of_fit(
         fig.set_layout_engine("tight")
 
     ax.scatter(
-        simulations_df["simulation"],
+        simulations,
         petab_problem.measurement_df["measurement"],
         c=color,
     )
