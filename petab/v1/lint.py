@@ -871,7 +871,7 @@ def measurement_table_has_timepoint_specific_mappings(
             PREEQUILIBRATION_CONDITION_ID,
         ],
     )
-    grouped_df2 = measurement_df.groupby(grouping_cols)
+    grouped_df2 = measurement_df.groupby(grouping_cols, dropna=False)
     # data frame has timepoint specific overrides if grouping by noise
     # parameters and observable parameters in addition to observable,
     # condition and preeq id yields more groups

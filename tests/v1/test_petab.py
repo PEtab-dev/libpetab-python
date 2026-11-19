@@ -359,6 +359,60 @@ def test_create_parameter_df(
     assert parameter_df.loc["p0", NOMINAL_VALUE] == 3.0
 
 
+@pytest.mark.parametrize("overrides", [False, True])
+def test_flatten_without_timepoint_specific_overrides(overrides):
+    """Preserve the input tables when overrides do not vary within a group."""
+    measurement_df = pd.DataFrame(
+        {
+            OBSERVABLE_ID: ["obs"] * 3,
+            SIMULATION_CONDITION_ID: ["c1", "c1", "c2"],
+            PREEQUILIBRATION_CONDITION_ID: [None, None, "pre"],
+            TIME: [0, 1, 0],
+            MEASUREMENT: [1.0, 2.0, 3.0],
+        }
+    )
+    if overrides:
+        measurement_df[NOISE_PARAMETERS] = ["noise1", "noise1", "noise2"]
+    observable_df = pd.DataFrame(
+        {OBSERVABLE_FORMULA: ["x", "y"], NOISE_FORMULA: ["1", "1"]},
+        index=pd.Index(["obs", "unused"], name=OBSERVABLE_ID),
+    )
+    visualization_df = pd.DataFrame({Y_VALUES: ["obs"]})
+    problem = petab.Problem(
+        measurement_df=measurement_df,
+        observable_df=observable_df,
+        visualization_df=visualization_df,
+    )
+    simulation_df = measurement_df.rename(columns={MEASUREMENT: SIMULATION})
+    petab.flatten_timepoint_specific_output_overrides(problem)
+
+    pd.testing.assert_frame_equal(problem.measurement_df, measurement_df)
+    pd.testing.assert_frame_equal(problem.observable_df, observable_df)
+    pd.testing.assert_frame_equal(problem.visualization_df, visualization_df)
+    pd.testing.assert_frame_equal(
+        petab.core.unflatten_simulation_df(simulation_df, problem),
+        simulation_df,
+    )
+
+
+def test_unflatten_observable_ids_from_older_conversion():
+    """Previously generated synthetic IDs still map back to the inputs."""
+    measurement_df = pd.DataFrame(
+        {OBSERVABLE_ID: ["obs"], SIMULATION_CONDITION_ID: ["c1"]}
+    )
+    problem = petab.Problem(
+        measurement_df=measurement_df,
+        observable_df=pd.DataFrame(
+            index=pd.Index(["obs"], name=OBSERVABLE_ID)
+        ),
+    )
+    simulation_df = measurement_df.assign(observableId="obs__c1", simulation=1)
+    pd.testing.assert_frame_equal(
+        petab.core.unflatten_simulation_df(simulation_df, problem),
+        measurement_df.assign(simulation=1),
+    )
+
+
 def test_flatten_timepoint_specific_output_overrides():
     """Test flatten_timepoint_specific_output_overrides"""
     observable_df = pd.DataFrame(
