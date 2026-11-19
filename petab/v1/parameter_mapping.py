@@ -596,8 +596,12 @@ def _apply_parameter_table(
             par_mapping[problem_par] = par_mapping[sim_par]
             scale_mapping[problem_par] = scale_mapping[sim_par]
         except KeyError:
-            if parameter_df is None:
-                raise
+            if sim_par not in parameter_df.index:
+                raise ValueError(
+                    f"Cannot resolve parameter {sim_par!r} referenced by "
+                    f"{problem_par!r}: it has no available model value "
+                    "and is not in the parameter table."
+                ) from None
 
             # or the overridee is only defined in the parameter table
             scale = (
