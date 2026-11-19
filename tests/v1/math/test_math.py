@@ -8,12 +8,43 @@ import yaml
 from sympy.abc import _clash
 from sympy.logic.boolalg import Boolean, BooleanFalse, BooleanTrue
 
-from petab.v1.math import petab_math_str, petab_symbol, sympify_petab
+from petab.v1.math import (
+    PetabStrPrinter,
+    petab_math_str,
+    petab_symbol,
+    sympify_petab,
+)
 from petab.v1.math.SympyVisitor import num2bool
 
 
 def test_sympify_numpy():
     assert sympify_petab(np.float64(1.0)) == sp.Float(1.0)
+
+
+@pytest.mark.parametrize(
+    "printer", [petab_math_str, PetabStrPrinter().doprint]
+)
+@pytest.mark.parametrize(
+    "expr",
+    [
+        sp.nan,
+        sp.zoo,
+        sympify_petab("x / 0"),
+        sp.Add(petab_symbol("x"), sp.nan, evaluate=False),
+        sp.Piecewise((sp.nan, petab_symbol("x") > 0), (0, True)),
+        sp.Piecewise((1, petab_symbol("x") > 0), (sp.zoo, True)),
+    ],
+)
+def test_printer_rejects_undefined_values(printer, expr):
+    """Undefined values must not be exported as unreadable PEtab math."""
+    with pytest.raises(ValueError, match="cannot be represented in PEtab"):
+        printer(expr)
+
+
+@pytest.mark.parametrize("expr", [sp.oo, -sp.oo])
+def test_printer_infinity_roundtrip(expr):
+    """Real infinities remain supported, unlike complex infinity."""
+    assert sympify_petab(petab_math_str(expr)) == expr
 
 
 def test_parse_simple():

@@ -110,6 +110,16 @@ class PetabStrPrinter(StrPrinter):
         """Custom printing for negative infinity"""
         return "-inf"
 
+    def _print_NaN(self, expr: sp.Basic) -> typing.NoReturn:
+        """Reject undefined values instead of emitting invalid PEtab math."""
+        raise ValueError("NaN cannot be represented in PEtab.")
+
+    def _print_ComplexInfinity(self, expr: sp.Basic) -> typing.NoReturn:
+        """Reject complex infinity, which has no PEtab representation."""
+        raise ValueError(
+            "Complex infinity (zoo) cannot be represented in PEtab."
+        )
+
     def _print_Function(self, expr):
         """Custom printing for specific functions"""
 
@@ -152,6 +162,10 @@ class PetabStrPrinter(StrPrinter):
 
 def petab_math_str(expr: sp.Basic | sp.Expr | None) -> str:
     """Convert a sympy expression to a PEtab-compatible math expression string.
+
+    Raises:
+        ValueError: If the expression contains NaN or complex infinity, or
+            a piecewise expression without a default value.
 
     :example:
     >>> expr = sp.sympify("x**2 + sin(y)")
