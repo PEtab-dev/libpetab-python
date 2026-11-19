@@ -251,21 +251,33 @@ def flatten_timepoint_specific_output_overrides(
 
     This is a helper function for some tools which may not support such
     timepoint-specific mappings. The observable table and measurement table
-    are modified in place.
+    are modified in place only if timepoint-specific overrides exist.
 
     Arguments:
         petab_problem:
             PEtab problem to work on. Modified in place.
     """
+    from .lint import measurement_table_has_timepoint_specific_mappings
+
+    measurement_df = petab_problem.measurement_df
+    if (
+        measurement_df is None
+        or measurement_df.empty
+        or not measurement_table_has_timepoint_specific_mappings(
+            measurement_df
+        )
+    ):
+        return
+
     new_measurement_dfs = []
     new_observable_dfs = []
     groupvars = get_notnull_columns(
-        petab_problem.measurement_df, POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
+        measurement_df, POSSIBLE_GROUPVARS_FLATTENED_PROBLEM
     )
 
     mappings = get_flattened_id_mappings(petab_problem)
 
-    for groupvar, measurements in petab_problem.measurement_df.groupby(
+    for groupvar, measurements in measurement_df.groupby(
         groupvars, dropna=False
     ):
         obs_id = groupvar[groupvars.index(OBSERVABLE_ID)]
@@ -341,6 +353,13 @@ def unflatten_simulation_df(
     Returns:
         The simulation dataframe for the unflattened PEtab problem.
     """
+    if (
+        simulation_df[OBSERVABLE_ID]
+        .isin(petab_problem.observable_df.index)
+        .all()
+    ):
+        return simulation_df.copy()
+
     mappings = get_flattened_id_mappings(petab_problem)
     original_observable_ids = simulation_df[OBSERVABLE_ID].replace(
         mappings[OBSERVABLE_ID]
