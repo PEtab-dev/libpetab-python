@@ -3,6 +3,7 @@ from math import nan
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import petab.v1 as petab
 from petab import ENV_NUM_THREADS
@@ -691,6 +692,42 @@ class TestGetSimulationToOptimizationParameterMapping:
         ]
 
         assert actual == expected
+
+
+@pytest.mark.parametrize("num_threads", ["1", "2"])
+@pytest.mark.parametrize("condition_override", [False, True])
+def test_estimated_parameter_with_unresolved_model_value(
+    monkeypatch, num_threads, condition_override
+):
+    """An estimated model parameter must appear in a simulation mapping."""
+    monkeypatch.setenv(ENV_NUM_THREADS, num_threads)
+    model = SbmlModel.from_antimony(
+        "base = 1.5; derived = base + 1; conc = 1; conc' = -derived * conc;"
+    )
+    condition_df = pd.DataFrame(
+        {"derived": [2.5]} if condition_override else {},
+        index=pd.Index(["c1"], name=CONDITION_ID),
+    )
+    parameter_df = pd.DataFrame(
+        {ESTIMATE: [1], NOMINAL_VALUE: [2.5], PARAMETER_SCALE: [LIN]},
+        index=pd.Index(["derived"], name=PARAMETER_ID),
+    )
+    arguments = {
+        "condition_df": condition_df,
+        "measurement_df": pd.DataFrame({SIMULATION_CONDITION_ID: ["c1"]}),
+        "model": model,
+        "parameter_df": parameter_df,
+    }
+    if condition_override:
+        [mapping] = petab.get_optimization_to_simulation_parameter_mapping(
+            **arguments
+        )
+        assert mapping[1]["derived"] == "derived"
+    else:
+        with pytest.raises(
+            ValueError, match=r"Estimated model parameter.*derived"
+        ):
+            petab.get_optimization_to_simulation_parameter_mapping(**arguments)
 
 
 def test_fill_in_nominal_values():
