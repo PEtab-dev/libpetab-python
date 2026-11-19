@@ -201,7 +201,7 @@ class ExperimentsToSbmlConverter:
 
         for event in model.getListOfEvents():
             # Check for undefined event priorities and warn
-            if (prio := event.getPriority()) and prio.getMath() is None:
+            if not self._has_priority(event):
                 warnings.warn(
                     f"Event `{event.getId()}` has no priority set. "
                     "Make sure that this event cannot trigger at the time of "

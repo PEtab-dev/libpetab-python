@@ -347,7 +347,7 @@ PETAB_EVENT = "_petab_event_experiment1_1"
         ("", {PETAB_EVENT: None}),
     ],
 )
-def test_auto_event_priority(model_events, expected):
+def test_auto_event_priority(model_events, expected, recwarn):
     """Test automatic priority assignment for pre-existing events."""
     problem = _problem_0030(model_events)
     orig_priorities = _event_priorities(problem.model.sbml_model)
@@ -355,6 +355,17 @@ def test_auto_event_priority(model_events, expected):
     converted = ExperimentsToSbmlConverter(problem).convert()
 
     assert _event_priorities(converted.model.sbml_model) == expected
+    expected_warnings = {
+        f"Event `{event_id}` has no priority set."
+        for event_id in orig_priorities
+        if expected[event_id] is None
+    }
+    actual_warnings = {
+        str(warning.message).split(" Make sure", 1)[0]
+        for warning in recwarn
+        if "has no priority set." in str(warning.message)
+    }
+    assert actual_warnings == expected_warnings
     # the original problem is not modified
     assert _event_priorities(problem.model.sbml_model) == orig_priorities
 
