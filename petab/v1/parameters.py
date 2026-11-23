@@ -250,7 +250,8 @@ def create_parameter_df(
             )
         except ValueError:
             # parameter was introduced as condition-specific override and
-            # is potentially not present in the model
+            # is potentially not present in the model, or the model defines
+            # its value by an expression (DerivedValueError)
             pass
     return df
 

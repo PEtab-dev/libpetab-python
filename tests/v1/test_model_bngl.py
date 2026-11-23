@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from petab.v1.models.bngl_model import BnglEntities, BnglModel, parse_bngl
+from petab.v1.models.model import DerivedValueError
 
 #: A self-contained BNGL model exercising every entity kind read by the
 #: PEtab layer: parameters, a molecule type, a seed species, an observable,
@@ -338,3 +339,58 @@ def test_full_petab_validation_is_clean(tmp_path):
         and issue.level == ValidationIssueSeverity.ERROR
     ]
     assert errors == []
+
+
+def test_get_parameter_value_expression():
+    model = BnglModel(
+        parse_bngl("begin parameters\n a 2\n b 2*a\nend parameters\n"),
+        model_id="m",
+    )
+    assert model.get_parameter_value("a") == 2
+    with pytest.raises(DerivedValueError):
+        model.get_parameter_value("b")
+    # for callers that caught the former `NotImplementedError`
+    with pytest.raises(NotImplementedError):
+        model.get_parameter_value("b")
+    with pytest.raises(ValueError, match="does not exist"):
+        model.get_parameter_value("c")
+
+
+def test_create_parameter_df_with_expression_parameter():
+    """Expression-valued parameters get no nominal value from the model."""
+    import pandas as pd
+
+    from petab.v1 import C
+    from petab.v1.parameters import create_parameter_df
+
+    model = BnglModel(
+        parse_bngl("begin parameters\n a 2\n b 2*a\nend parameters\n"),
+        model_id="m",
+    )
+    observable_df = pd.DataFrame(
+        {
+            C.OBSERVABLE_ID: ["o"],
+            C.OBSERVABLE_FORMULA: ["a * b"],
+            C.NOISE_FORMULA: ["1"],
+        }
+    ).set_index(C.OBSERVABLE_ID)
+    measurement_df = pd.DataFrame(
+        {
+            C.OBSERVABLE_ID: ["o"],
+            C.SIMULATION_CONDITION_ID: ["c0"],
+            C.TIME: [0],
+            C.MEASUREMENT: [1],
+        }
+    )
+    condition_df = pd.DataFrame({C.CONDITION_ID: ["c0"]}).set_index(
+        C.CONDITION_ID
+    )
+    df = create_parameter_df(
+        model=model,
+        condition_df=condition_df,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
+        include_optional=True,
+    )
+    assert df.loc["a", C.NOMINAL_VALUE] == 2
+    assert pd.isna(df.loc["b", C.NOMINAL_VALUE])

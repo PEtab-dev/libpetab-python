@@ -13,12 +13,13 @@ known_model_types = {
     MODEL_TYPE_BNGL,
 }
 
-from .model import Model  # noqa F401
+from .model import DerivedValueError, Model  # noqa F401
 
 __all__ = [
     "MODEL_TYPE_BNGL",
     "MODEL_TYPE_PYSB",
     "MODEL_TYPE_SBML",
+    "DerivedValueError",
     "Model",
     "known_model_types",
 ]

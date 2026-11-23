@@ -24,7 +24,7 @@ from . import (
 )
 from .C import *
 from .mapping import resolve_mapping
-from .models import Model
+from .models import DerivedValueError, Model
 
 logger = logging.getLogger(__name__)
 __all__ = [
@@ -535,6 +535,8 @@ def _apply_condition_parameters(
                 par_mapping[overridee_id] = model.get_parameter_value(
                     overridee_id
                 )
+            except DerivedValueError:
+                raise
             except ValueError as e:
                 raise NotImplementedError(
                     "Not sure how to handle NaN in condition table for "

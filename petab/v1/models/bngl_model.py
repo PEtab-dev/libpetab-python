@@ -42,7 +42,7 @@ from pathlib import Path
 from ..._utils import _generate_path
 from .. import is_valid_identifier
 from . import MODEL_TYPE_BNGL
-from .model import Model
+from .model import DerivedValueError, Model
 
 __all__ = ["BnglEntities", "BnglModel", "parse_bngl"]
 
@@ -313,7 +313,7 @@ class BnglModel(Model):
         try:
             return float(rhs)
         except ValueError as e:
-            raise NotImplementedError(
+            raise DerivedValueError(
                 f"Parameter '{id_}' has an expression value '{rhs}'. "
                 "Evaluating a BNGL parameter expression requires BNG2.pl / "
                 "network generation, which is out of scope for the "

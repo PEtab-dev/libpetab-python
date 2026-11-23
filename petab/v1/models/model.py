@@ -7,7 +7,11 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-__all__ = ["Model", "model_factory"]
+__all__ = ["DerivedValueError", "Model", "model_factory"]
+
+
+class DerivedValueError(ValueError, NotImplementedError):
+    """The model defines a value by an expression, not by a number."""
 
 
 class Model(abc.ABC):
@@ -60,6 +64,8 @@ class Model(abc.ABC):
 
         :param id_: ID of the parameter whose value is to be returned
         :raises ValueError: If no parameter with the given ID exists
+        :raises DerivedValueError: May be raised if the model defines the
+            value by an expression that cannot be evaluated here
         :returns: The value of the given parameter as specified in the model
         """
         ...
