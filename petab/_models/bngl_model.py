@@ -39,8 +39,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..._utils import _generate_path
-from .. import is_valid_identifier
+from .._utils import _generate_path
+from ..v1.lint import is_valid_identifier
 from . import MODEL_TYPE_BNGL
 from .model import Model
 

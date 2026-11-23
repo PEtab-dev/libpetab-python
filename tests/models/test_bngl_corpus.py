@@ -1,6 +1,6 @@
 """Corpus regression gate: the BNGL reader agrees with BNG2.pl on real models.
 
-Asserts :func:`petab.v1.models.bngl_model.parse_bngl` enumerates the same model
+Asserts :func:`petab.v2.models.bngl_model.parse_bngl` enumerates the same model
 entities BNG2.pl does, over a curated set of public community BNGL models under
 ``bngl_corpus/``. BNG2.pl's answers are cached in ``bngl_corpus/golden.json``:
 the entity name sets BNG2.pl emits from ``writeModel`` (its canonical parse, no
@@ -13,7 +13,7 @@ still catching a genuinely missing or invented species.
 Regenerate the golden after adding a fixture or changing the reader (needs a
 BNG2.pl on ``BNGPATH``/``PATH``) and review the diff::
 
-    python tests/v1/test_bngl_corpus.py
+    python tests/models/test_bngl_corpus.py
 """
 
 from __future__ import annotations
@@ -28,14 +28,14 @@ from pathlib import Path
 
 import pytest
 
-from petab.v1.models.bngl_model import parse_bngl
+from petab.v2.models.bngl_model import parse_bngl
 
 _CORPUS = Path(__file__).parent / "bngl_corpus"
 _GOLDEN = _CORPUS / "golden.json"
 _MODELS = sorted(_CORPUS.glob("*.bngl"))
 _NO_CORPUS_REASON = (
-    "no .bngl files in tests/v1/bngl_corpus/ -- fetch them first with "
-    "`python tests/v1/fetch_bngl_corpus.py`"
+    "no .bngl files in tests/models/bngl_corpus/ -- fetch them first with "
+    "`python tests/models/fetch_bngl_corpus.py`"
 )
 
 
@@ -170,7 +170,7 @@ def _canonical_bngl(model_text, bng2):
 
 
 def _regenerate():
-    from petab.v1.models.bngl_model import _locate_bng2
+    from petab.v2.models.bngl_model import _locate_bng2
 
     bng2 = _locate_bng2()
     if bng2 is None:

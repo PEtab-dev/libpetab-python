@@ -13,8 +13,8 @@ from typing import Any
 
 import pysb
 
-from ..._utils import _generate_path
-from .. import is_valid_identifier
+from .._utils import _generate_path
+from ..v1.lint import is_valid_identifier
 from . import MODEL_TYPE_PYSB
 from .model import Model
 

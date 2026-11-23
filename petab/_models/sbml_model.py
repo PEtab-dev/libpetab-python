@@ -10,8 +10,8 @@ import libsbml
 import sympy as sp
 from sbmlmath import sbml_math_to_sympy
 
-from ..._utils import _generate_path
-from ..sbml import (
+from .._utils import _generate_path
+from ..v1.sbml import (
     get_sbml_model,
     is_sbml_consistent,
     load_sbml_from_string,
