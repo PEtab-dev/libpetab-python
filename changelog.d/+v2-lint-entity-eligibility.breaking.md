@@ -4,4 +4,4 @@ allow as condition targets (e.g., targets of assignment rules, reactions) or
 in the parameter table (e.g., targets of assignment rules, rate rules, or
 event assignments), and warnings for questionable but valid uses.
 Currently implemented for SBML models
-([#TODO](https://github.com/PEtab-dev/libpetab-python/pull/TODO))
+([#623](https://github.com/PEtab-dev/libpetab-python/pull/623))
