@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from functools import cached_property
+from math import isnan as math_isnan
 from pathlib import Path
 
 import libsbml
@@ -18,6 +20,14 @@ from ..v1.sbml import (
     write_sbml,
 )
 from . import MODEL_TYPE_SBML
+from ._entities import (
+    Dynamics,
+    EntityCategory,
+    EntityInfo,
+    Initializer,
+    SpeciesQuantity,
+    _matches,
+)
 from .model import Model
 
 __all__ = ["SbmlModel"]
@@ -302,6 +312,488 @@ class SbmlModel(Model):
             or self.sbml_model.getCompartment(id_) is not None
             or self.sbml_model.getRuleByVariable(id_) is not None
         )
+
+    def _get_entity(self, id_: str) -> EntityInfo | None:
+        """Get the description of the model entity with the given ID.
+
+        Elements are classified as follows:
+
+        * parameters, species, compartments, and species references
+          (stoichiometries): by their rules, event assignments, and
+          participation in reactions;
+        * reactions (their rates): read-only quantities;
+        * events and function definitions: non-quantities.
+
+        Other elements with an ID, e.g., local parameters, unit definitions,
+        or elements of SBML packages, are not entities.
+        Of ``comp`` models, only the main model is considered.
+        Results reflect the current state of the SBML model.
+
+        See :meth:`petab.v2.models.Model._get_entity`.
+        """
+        element = self.sbml_model.getElementBySId(id_)
+        if (
+            element is None
+            or element.getPackageName() != "core"
+            or element.getTypeCode() not in _SBML_ENTITY_TYPES
+        ):
+            return None
+        return _classify_sbml_element(
+            element, _SbmlModelIndex(self.sbml_model, single=True)
+        )
+
+    def _iter_entities(
+        self,
+        category: EntityCategory | None = None,
+        dynamics: Dynamics | None = None,
+    ) -> Iterator[EntityInfo]:
+        """Iterate over the entities of the model.
+
+        See :meth:`_get_entity` and
+        :meth:`petab.v2.models.Model._iter_entities`.
+        """
+        index = _SbmlModelIndex(self.sbml_model)
+        # Not `getListOfAllElements`, which is quadratic in the model size,
+        #  and which would include local parameters of SBML L2 models.
+        elements = [
+            element
+            for element in _iter_sbml_elements(self.sbml_model)
+            if element.isSetIdAttribute()
+        ]
+
+        def generate():
+            for element in elements:
+                info = _classify_sbml_element(element, index)
+                if info is not None and _matches(info, category, dynamics):
+                    yield info
+
+        return generate()
+
+
+def _iter_sbml_elements(model: libsbml.Model) -> Iterator[libsbml.SBase]:
+    """Iterate over the SBML core elements of a model that may have an ID.
+
+    Local parameters are not included.
+    """
+    # Not rules, initial assignments, or event assignments: libsbml does not
+    #  resolve their `id` attribute in `getElementBySId`.
+    yield from model.getListOfFunctionDefinitions()
+    yield from model.getListOfCompartments()
+    yield from model.getListOfSpecies()
+    yield from model.getListOfParameters()
+    for reaction in model.getListOfReactions():
+        yield reaction
+        yield from reaction.getListOfReactants()
+        yield from reaction.getListOfProducts()
+        yield from reaction.getListOfModifiers()
+    yield from model.getListOfEvents()
+
+
+def _iter_sbml_math(model: libsbml.Model) -> Iterator[libsbml.ASTNode]:
+    """Iterate over the math of all SBML core elements of a model."""
+    for element in itertools.chain(
+        model.getListOfFunctionDefinitions(),
+        model.getListOfInitialAssignments(),
+        model.getListOfRules(),
+        model.getListOfConstraints(),
+        (
+            reaction.getKineticLaw()
+            for reaction in model.getListOfReactions()
+            if reaction.isSetKineticLaw()
+        ),
+        *(
+            (
+                event.getTrigger(),
+                event.getDelay(),
+                event.getPriority(),
+                *event.getListOfEventAssignments(),
+            )
+            for event in model.getListOfEvents()
+        ),
+    ):
+        if element is not None and element.isSetMath():
+            yield element.getMath()
+
+
+#: Type codes of SBML elements whose value can be set or computed.
+_SBML_VARIABLE_TYPES = {
+    libsbml.SBML_PARAMETER,
+    libsbml.SBML_SPECIES,
+    libsbml.SBML_COMPARTMENT,
+    libsbml.SBML_SPECIES_REFERENCE,
+}
+
+#: Type codes of the SBML core elements that are entities
+#: (see :func:`_iter_sbml_elements`).
+_SBML_ENTITY_TYPES = {
+    *_SBML_VARIABLE_TYPES,
+    libsbml.SBML_FUNCTION_DEFINITION,
+    libsbml.SBML_REACTION,
+    libsbml.SBML_MODIFIER_SPECIES_REFERENCE,
+    libsbml.SBML_EVENT,
+}
+
+
+class _SbmlModelIndex:
+    """Model-wide information needed to classify SBML elements.
+
+    In bulk mode, each aggregate is computed on first use, by one pass over
+    the model. In single mode (for classifying a single element), targeted
+    lookups are used where possible.
+    Only valid as long as the model is not modified.
+    """
+
+    def __init__(self, model: libsbml.Model, single: bool = False):
+        self.model = model
+        self.single = single
+
+    def rule_type(self, id_: str) -> int | None:
+        """The type code of the assignment or rate rule for the given ID."""
+        if not self.single:
+            return self.rule_types.get(id_)
+        rule = self.model.getRuleByVariable(id_)
+        if rule is None or rule.isAlgebraic():
+            return None
+        return rule.getTypeCode()
+
+    def initial_assignment(self, id_: str) -> libsbml.InitialAssignment | None:
+        if not self.single:
+            return self.initial_assignments.get(id_)
+        return self.model.getInitialAssignmentBySymbol(id_)
+
+    def is_event_assigned(self, id_: str) -> bool:
+        if not self.single:
+            return id_ in self.event_assignment_targets
+        return any(
+            ea.getVariable() == id_
+            for event in self.model.getListOfEvents()
+            for ea in event.getListOfEventAssignments()
+        )
+
+    def is_reactant_or_product(self, id_: str) -> bool:
+        if not self.single:
+            return id_ in self.reactants_and_products
+        return any(
+            species_ref.getSpecies() == id_
+            for reaction in self.model.getListOfReactions()
+            for species_ref in itertools.chain(
+                reaction.getListOfReactants(), reaction.getListOfProducts()
+            )
+        )
+
+    def algebraic_info(self, id_: str) -> tuple[bool, list[str]]:
+        """Whether the entity is determined by an algebraic rule, and notes.
+
+        See :attr:`algebraic`.
+        """
+        if self.single and not any(
+            node.getType() == libsbml.AST_NAME and node.getName() == id_
+            for rule in self.model.getListOfRules()
+            if rule.isAlgebraic() and rule.isSetMath()
+            for node in _iter_ast(rule.getMath())
+        ):
+            return False, []
+        determined, notes = self.algebraic
+        return id_ in determined, notes.get(id_, [])
+
+    @cached_property
+    def rule_types(self) -> dict[str, int]:
+        """Rule type codes by rule variable."""
+        return {
+            rule.getVariable(): rule.getTypeCode()
+            for rule in self.model.getListOfRules()
+            if not rule.isAlgebraic()
+        }
+
+    @cached_property
+    def event_assignment_targets(self) -> set[str]:
+        return {
+            ea.getVariable()
+            for event in self.model.getListOfEvents()
+            for ea in event.getListOfEventAssignments()
+        }
+
+    @cached_property
+    def initial_assignments(self) -> dict[str, libsbml.InitialAssignment]:
+        return {
+            ia.getSymbol(): ia
+            for ia in self.model.getListOfInitialAssignments()
+        }
+
+    @cached_property
+    def reactants_and_products(self) -> set[str]:
+        """IDs of species that are reactants or products of any reaction."""
+        return {
+            species_ref.getSpecies()
+            for reaction in self.model.getListOfReactions()
+            for species_ref in itertools.chain(
+                reaction.getListOfReactants(), reaction.getListOfProducts()
+            )
+        }
+
+    @cached_property
+    def algebraic(self) -> tuple[set[str], dict[str, list[str]]]:
+        """Entities determined by algebraic rules.
+
+        :returns: The IDs of entities that are the only candidate for being
+            determined by some algebraic rule, and notes for entities that
+            are one of several candidates.
+        """
+        rules = [
+            rule for rule in self.model.getListOfRules() if rule.isAlgebraic()
+        ]
+        if not rules:
+            return set(), {}
+
+        rate_of_targets = {
+            node.getChild(0).getName()
+            for math in _iter_sbml_math(self.model)
+            for node in _iter_ast(math)
+            if node.getType() == libsbml.AST_FUNCTION_RATE_OF
+            and node.getNumChildren() == 1
+        }
+
+        def is_candidate(id_: str) -> bool:
+            element = self.model.getElementBySId(id_)
+            if (
+                element is None
+                or element.getTypeCode() not in _SBML_VARIABLE_TYPES
+                or element.getConstant()
+                or self.rule_type(id_) is not None
+                or id_ in rate_of_targets
+            ):
+                return False
+            return not (
+                element.getTypeCode() == libsbml.SBML_SPECIES
+                and not element.getBoundaryCondition()
+                and self.is_reactant_or_product(id_)
+            )
+
+        # (rule formula, candidates) for each rule not yet resolved
+        undecided = [
+            (
+                libsbml.formulaToL3String(rule.getMath()),
+                [
+                    c
+                    for c in sorted(
+                        {
+                            node.getName()
+                            for node in _iter_ast(rule.getMath())
+                            if node.getType() == libsbml.AST_NAME
+                        }
+                    )
+                    if is_candidate(c)
+                ],
+            )
+            for rule in rules
+            if rule.isSetMath()
+        ]
+        # A rule with a single undetermined candidate determines it;
+        #  repeat until no rule determines a new entity.
+        determined = set()
+        changed = True
+        while changed:
+            changed = False
+            still_undecided = []
+            for formula, candidates in undecided:
+                remaining = [c for c in candidates if c not in determined]
+                if len(remaining) <= 1:
+                    determined.update(remaining)
+                    changed = True
+                else:
+                    still_undecided.append((formula, remaining))
+            undecided = still_undecided
+
+        notes = {}
+        for formula, candidates in undecided:
+            for candidate in candidates:
+                notes.setdefault(candidate, []).append(
+                    f"It may be determined by the algebraic rule "
+                    f"`0 = {formula}`, which has several candidate "
+                    f"variables ({', '.join(candidates)})."
+                )
+        return determined, notes
+
+
+def _iter_ast(node: libsbml.ASTNode) -> Iterator[libsbml.ASTNode]:
+    """Iterate over all nodes of an AST."""
+    nodes = [node]
+    while nodes:
+        node = nodes.pop()
+        yield node
+        nodes.extend(node.getChild(i) for i in range(node.getNumChildren()))
+
+
+#: AST node types that refer to the model state or time.
+_AST_NON_CLOSED_TYPES = {
+    libsbml.AST_NAME,
+    libsbml.AST_NAME_TIME,
+    libsbml.AST_FUNCTION,
+    libsbml.AST_FUNCTION_DELAY,
+    libsbml.AST_FUNCTION_RATE_OF,
+}
+
+
+def _initializer_from_math(math: libsbml.ASTNode) -> Initializer:
+    """Classify an initial-assignment formula.
+
+    Formulas over numbers only are evaluated; anything referring to model
+    entities, time, or function definitions is ``FORMULA``.
+    """
+    dependencies = set()
+    closed = True
+    for node in _iter_ast(math):
+        if node.getType() in _AST_NON_CLOSED_TYPES:
+            closed = False
+            if node.getType() in (libsbml.AST_NAME, libsbml.AST_FUNCTION):
+                dependencies.add(node.getName())
+
+    if closed:
+        value = libsbml.SBMLTransforms.evaluateASTNode(math)
+        # libsbml returns NaN for anything it cannot evaluate
+        if not math_isnan(value) or math.isNaN():
+            return Initializer.literal(value)
+
+    math = math.deepCopy()
+    return Initializer.formula(
+        raw=libsbml.formulaToL3String(math),
+        dependencies=dependencies,
+        expression=lambda: sympify_sbml(math),
+    )
+
+
+def _formula_initializer(
+    formula: str, dependencies: set[str], model: libsbml.Model
+) -> Initializer:
+    # with the model, so that IDs like `pi` or `time` are not taken as
+    #  constants or csymbols
+    math = libsbml.parseL3FormulaWithModel(formula, model)
+    return Initializer.formula(
+        raw=formula,
+        dependencies=dependencies,
+        expression=lambda: sympify_sbml(math),
+    )
+
+
+def _attribute_initializer(element: libsbml.SBase) -> Initializer:
+    """The initial value given by the attributes of an element."""
+    type_code = element.getTypeCode()
+    if type_code == libsbml.SBML_PARAMETER:
+        if element.isSetValue():
+            return Initializer.literal(element.getValue())
+    elif type_code == libsbml.SBML_COMPARTMENT:
+        if element.isSetSize():
+            return Initializer.literal(element.getSize())
+    elif type_code == libsbml.SBML_SPECIES_REFERENCE:
+        # defaults to 1 before SBML L3
+        if element.isSetStoichiometry() or element.getLevel() < 3:
+            return Initializer.literal(element.getStoichiometry())
+    elif type_code == libsbml.SBML_SPECIES:
+        compartment = element.getCompartment()
+        if element.getHasOnlySubstanceUnits():
+            if element.isSetInitialAmount():
+                return Initializer.literal(element.getInitialAmount())
+            if element.isSetInitialConcentration():
+                return _formula_initializer(
+                    f"{element.getInitialConcentration()!r} * {compartment}",
+                    {compartment},
+                    element.getModel(),
+                )
+        else:
+            if element.isSetInitialConcentration():
+                return Initializer.literal(element.getInitialConcentration())
+            if element.isSetInitialAmount():
+                return _formula_initializer(
+                    f"{element.getInitialAmount()!r} / {compartment}",
+                    {compartment},
+                    element.getModel(),
+                )
+    return Initializer.unspecified()
+
+
+def _classify_sbml_element(
+    element: libsbml.SBase, index: _SbmlModelIndex
+) -> EntityInfo | None:
+    """Classify an SBML element with an ID."""
+    type_code = element.getTypeCode()
+    id_ = element.getIdAttribute()
+    native_type = f"sbml:{type(element).__name__}"
+
+    if type_code == libsbml.SBML_REACTION:
+        return EntityInfo(
+            id=id_,
+            category=EntityCategory.OTHER_QUANTITY,
+            dynamics=Dynamics.ALGEBRAIC,
+            native_type=native_type,
+        )
+
+    if type_code not in _SBML_VARIABLE_TYPES:
+        return EntityInfo(
+            id=id_,
+            category=EntityCategory.NON_QUANTITY,
+            dynamics=None,
+            usable_in_math=False,
+            native_type=native_type,
+        )
+
+    category = {
+        libsbml.SBML_PARAMETER: EntityCategory.PARAMETER,
+        libsbml.SBML_SPECIES: EntityCategory.SPECIES,
+        libsbml.SBML_COMPARTMENT: EntityCategory.COMPARTMENT,
+        libsbml.SBML_SPECIES_REFERENCE: EntityCategory.OTHER_QUANTITY,
+    }[type_code]
+
+    rule_type = index.rule_type(id_)
+    algebraic_determined, algebraic_notes = (
+        index.algebraic_info(id_) if rule_type is None else (False, [])
+    )
+    if (
+        rule_type == libsbml.SBML_ASSIGNMENT_RULE
+        or algebraic_determined
+        or (
+            type_code == libsbml.SBML_SPECIES_REFERENCE
+            and element.isSetStoichiometryMath()
+        )
+    ):
+        dynamics = Dynamics.ALGEBRAIC
+    elif rule_type == libsbml.SBML_RATE_RULE or (
+        type_code == libsbml.SBML_SPECIES
+        and not element.getBoundaryCondition()
+        and not element.getConstant()
+        and index.is_reactant_or_product(id_)
+    ):
+        dynamics = Dynamics.DIFFERENTIAL
+    else:
+        dynamics = Dynamics.CONSTANT
+
+    if dynamics == Dynamics.ALGEBRAIC:
+        initializer = Initializer.unspecified()
+    elif (ia := index.initial_assignment(id_)) is not None and ia.isSetMath():
+        initializer = _initializer_from_math(ia.getMath())
+    else:
+        initializer = _attribute_initializer(element)
+
+    species_quantity = None
+    if type_code == libsbml.SBML_SPECIES:
+        species_quantity = (
+            SpeciesQuantity.AMOUNT
+            if element.getHasOnlySubstanceUnits()
+            else SpeciesQuantity.CONCENTRATION
+        )
+
+    return EntityInfo(
+        id=id_,
+        category=category,
+        dynamics=dynamics,
+        event_assigned=index.is_event_assigned(id_),
+        initializer=initializer,
+        # species reference IDs only have a mathematical meaning since L3
+        usable_in_math=element.getLevel() >= 3
+        or type_code != libsbml.SBML_SPECIES_REFERENCE,
+        native_type=native_type,
+        species_quantity=species_quantity,
+        notes=tuple(algebraic_notes),
+    )
 
 
 def sympify_sbml(sbml_obj: libsbml.ASTNode | libsbml.SBase) -> sp.Expr:

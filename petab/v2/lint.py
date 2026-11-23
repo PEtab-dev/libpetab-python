@@ -14,7 +14,13 @@ from pathlib import Path
 import pandas as pd
 import sympy as sp
 
+from .._models._entities import (
+    EligibilityIssue,
+    condition_target_issue,
+    parameter_table_issue,
+)
 from ..v2.C import *
+from ._helpers import _matches_id_pattern
 from .core import PriorDistribution, Problem
 
 logger = logging.getLogger(__name__)
@@ -31,6 +37,7 @@ __all__ = [
     "CheckMeasuredObservablesDefined",
     "CheckMeasurementModelId",
     "CheckModel",
+    "CheckModelEntityEligibility",
     "CheckNeuralNetworkModel",
     "CheckObservablesDoNotShadowModelEntities",
     "CheckOverridesMatchPlaceholders",
@@ -612,6 +619,76 @@ class CheckAllParametersPresentInParameterTable(ValidationTask):
                 + str(extraneous)
             )
 
+        return None
+
+
+class CheckModelEntityEligibility(ValidationTask):
+    """Check that model entities are only changed by conditions and listed
+    in the parameter table where the PEtab specification allows it.
+
+    For example, targets of assignment rules must not be condition targets,
+    and targets of event assignments must not be in the parameter table.
+    Condition targets and parameter-table IDs are resolved via the mapping
+    table. IDs that are not model entities are not checked here.
+    Models that do not support entity classification are skipped.
+    """
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        model_ids = {
+            m.petab_id: m.model_id for m in problem.mappings if m.model_id
+        }
+        targets = {
+            change.target_id
+            for cond in problem.conditions
+            for change in cond.changes
+        }
+        checks = [
+            *((id_, condition_target_issue) for id_ in sorted(targets)),
+            *(
+                (id_, parameter_table_issue)
+                for id_ in sorted({p.id for p in problem.parameters})
+            ),
+        ]
+
+        errors = []
+        warnings = []
+        for model in problem.models:
+            try:
+                entities = {e.id: e for e in model._iter_entities()}
+            except NotImplementedError:
+                continue
+
+            for petab_id, check in checks:
+                model_id = model_ids.get(petab_id, petab_id)
+                if (info := entities.get(model_id)) is None:
+                    # only species patterns may be missing from
+                    #  `_iter_entities`, and they are no valid identifiers
+                    if _matches_id_pattern(model_id):
+                        continue
+                    if (info := model._get_entity(model_id)) is None:
+                        continue
+                issue: EligibilityIssue | None = check(info, petab_version=2)
+                if issue is None:
+                    continue
+                where = (
+                    "Condition table"
+                    if check is condition_target_issue
+                    else "Parameter table"
+                )
+                alias = (
+                    f" (`{petab_id}` in the mapping table)"
+                    if model_id != petab_id
+                    else ""
+                )
+                message = f"{where}{alias}: {issue.message}"
+                (errors if issue.level == "error" else warnings).append(
+                    message
+                )
+
+        if errors:
+            return ValidationError("\n".join(errors))
+        if warnings:
+            return ValidationWarning("\n".join(warnings))
         return None
 
 
@@ -1270,6 +1347,7 @@ default_validation_tasks = [
     CheckObservablesDoNotShadowModelEntities(),
     CheckAllParametersPresentInParameterTable(),
     CheckValidParameterInConditionOrParameterTable(),
+    CheckModelEntityEligibility(),
     CheckUnusedExperiments(),
     CheckUnusedConditions(),
     CheckUnusedPlaceholders(),

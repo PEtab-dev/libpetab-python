@@ -320,3 +320,47 @@ def test_check_prior_distribution_infinite_bounds():
     problem["p1"].prior_parameters = [0, float("inf")]
     assert (error := check.run(problem)) is not None
     assert "`p1` are invalid" in error.message
+
+
+def test_check_model_entity_eligibility():
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("""
+        k = 1
+        k_rule := 2 * k
+        k_event = 1
+        at time > 1: k_event = 2
+        k_ia = 2 * k
+    """)
+    problem.add_parameter("k", estimate=True, nominal_value=1, lb=0, ub=10)
+    check = CheckModelEntityEligibility()
+    assert check.run(problem) is None
+
+    # parameter defined by an initial assignment: allowed, but questionable
+    problem.add_parameter("k_ia", estimate=False, nominal_value=1)
+    assert (issue := check.run(problem)) is not None
+    assert issue.level == ValidationIssueSeverity.WARNING
+    assert "k_ia" in issue.message
+
+    # event-assigned parameter in the parameter table
+    problem.add_parameter("k_event", estimate=False, nominal_value=1)
+    assert (issue := check.run(problem)) is not None
+    assert issue.level == ValidationIssueSeverity.ERROR
+    assert "k_event" in issue.message
+    assert "k_ia" not in issue.message
+
+    # assignment rule target as condition target
+    problem.parameter_tables[0].elements = [
+        p for p in problem.parameters if p.id == "k"
+    ]
+    problem.add_condition("c1", k_rule="1")
+    assert (issue := check.run(problem)) is not None
+    assert issue.level == ValidationIssueSeverity.ERROR
+    assert "Condition table: `k_rule`" in issue.message
+    assert "k_event" not in issue.message
+
+    # models without entity classification are skipped
+    def not_implemented(*args, **kwargs):
+        raise NotImplementedError
+
+    problem.model._iter_entities = not_implemented
+    assert check.run(problem) is None

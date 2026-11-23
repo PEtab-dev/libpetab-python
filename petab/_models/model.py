@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ._entities import Dynamics, EntityCategory, EntityInfo
 
 __all__ = ["Model", "model_factory"]
 
@@ -135,6 +138,43 @@ class Model(abc.ABC):
     def is_state_variable(self, id_: str) -> bool:
         """Check whether the given ID corresponds to a model state variable"""
         ...
+
+    def _get_entity(self, id_: str) -> EntityInfo | None:
+        """Get the description of the model entity with the given ID.
+
+        Private for now; the interface may still change.
+
+        :param id_: The entity's ID in the model, or, for PySB and BNGL
+            models, a species pattern string.
+        :returns: The entity description, or ``None`` if the model has no
+            such entity.
+        :raises NotImplementedError: If the model type does not support
+            entity classification yet.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement `_get_entity`."
+        )
+
+    def _iter_entities(
+        self,
+        category: EntityCategory | None = None,
+        dynamics: Dynamics | None = None,
+    ) -> Iterator[EntityInfo]:
+        """Iterate over the entities of the model.
+
+        Private for now; the interface may still change.
+        Species that the model does not declare, e.g., species generated
+        by reaction rules, are not included.
+
+        :param category: Only include entities of this category.
+        :param dynamics: Only include entities with this dynamics.
+        :returns: Iterator over entity descriptions.
+        :raises NotImplementedError: If the model type does not support
+            entity classification yet.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement `_iter_entities`."
+        )
 
 
 def model_factory(
