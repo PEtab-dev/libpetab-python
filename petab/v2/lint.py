@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import typing
+import warnings
 from abc import ABC, abstractmethod
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from enum import IntEnum
 from itertools import chain
@@ -24,6 +25,7 @@ __all__ = [
     "CheckArrayDataFiles",
     "CheckExperimentConditionsExist",
     "CheckExperimentTable",
+    "CheckGloballyUniqueIds",
     "CheckHybridizationTable",
     "CheckInitialChangeSymbols",
     "CheckMappingTable",
@@ -34,6 +36,7 @@ __all__ = [
     "CheckNeuralNetworkModel",
     "CheckObservablesDoNotShadowModelEntities",
     "CheckOverridesMatchPlaceholders",
+    "CheckPlaceholdersOnlyUsedInOwnObservable",
     "CheckPosLogMeasurements",
     "CheckPriorDistribution",
     "CheckProblemConfig",
@@ -447,9 +450,6 @@ class CheckUniquePrimaryKeys(ValidationTask):
     """Check that all primary keys are unique."""
 
     def run(self, problem: Problem) -> ValidationIssue | None:
-        # TODO: check that IDs are globally unique
-        #  -- replaces CheckObservablesDoNotShadowModelEntities
-
         # check for uniqueness of all primary keys
         counter = Counter(c.id for c in problem.conditions)
         duplicates = sorted(id_ for id_, count in counter.items() if count > 1)
@@ -486,10 +486,249 @@ class CheckUniquePrimaryKeys(ValidationTask):
         return None
 
 
-class CheckObservablesDoNotShadowModelEntities(ValidationTask):
-    """A task to check that observable IDs do not shadow model entities."""
+class CheckGloballyUniqueIds(ValidationTask):
+    """Check that identifiers are unique within the PEtab problem.
 
-    # TODO: all PEtab entity IDs must be disjoint from the model entity IDs
+    Condition, experiment, observable, model and placeholder IDs,
+    mapping table ``petabEntityId`` values and parameter IDs must not be
+    defined more than once, and must not be model entity IDs.
+    A parameter table entry for a model entity or a mapped entity refers
+    to that entity.
+    A mapping table row with an empty ``modelEntityId`` is for an entity
+    that is not in any model, so its ``petabEntityId`` must not be a model
+    entity ID.
+    Duplicates within a single table are reported by
+    :class:`CheckUniquePrimaryKeys`.
+
+    With multiple models, IDs from the condition, experiment, observable
+    and parameter tables only clash with the entities of the models they
+    are used with, and IDs not used with any model don't clash with model
+    entities.
+    """
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        definitions = self._get_definitions(problem)
+        self._add_model_entities(problem, definitions)
+
+        if clashes := [
+            f"`{id_}` ({', '.join(sources)})"
+            for id_, sources in definitions.items()
+            if len(sources) > 1
+        ]:
+            return ValidationError(
+                "Identifiers must be unique within the PEtab problem: "
+                + "; ".join(clashes)
+            )
+
+        return None
+
+    @staticmethod
+    def _get_definitions(problem: Problem) -> dict[str, list[str]]:
+        """Get the places where IDs are defined in the PEtab tables."""
+        definitions: dict[str, list[str]] = defaultdict(list)
+
+        def add(ids: typing.Iterable[str], source: str) -> None:
+            for id_ in dict.fromkeys(ids):
+                definitions[id_].append(source)
+
+        add((c.id for c in problem.conditions), "condition ID")
+        add((e.id for e in problem.experiments), "experiment ID")
+        add((o.id for o in problem.observables), "observable ID")
+        add(
+            (m.model_id for m in problem.models if m.model_id),
+            "model ID",
+        )
+        for o in problem.observables:
+            # not deduplicated: a placeholder must occur only once
+            for placeholder in o.observable_placeholders:
+                definitions[str(placeholder)].append(
+                    f"observable placeholder of `{o.id}`"
+                )
+            for placeholder in o.noise_placeholders:
+                definitions[str(placeholder)].append(
+                    f"noise placeholder of `{o.id}`"
+                )
+        # identity mappings and rows without modelEntityId don't define IDs
+        add(
+            (
+                m.petab_id
+                for m in problem.mappings
+                if m.model_id and m.petab_id != m.model_id
+            ),
+            "mapping table petabEntityId",
+        )
+        mapped_ids = {m.petab_id for m in problem.mappings if m.model_id}
+        add(
+            (p.id for p in problem.parameters if p.id not in mapped_ids),
+            "parameter ID",
+        )
+        return definitions
+
+    @classmethod
+    def _add_model_entities(
+        cls, problem: Problem, definitions: dict[str, list[str]]
+    ) -> None:
+        """Add the model entities that IDs clash with to `definitions`."""
+        # mapping table entries for entities that are not in any model
+        unmodeled_ids = {
+            m.petab_id for m in problem.mappings if not m.model_id
+        }
+        unmodeled_source = "mapping table entry without modelEntityId"
+        if len(problem.models) > 1:
+            try:
+                parts = problem.split_by_model()
+            except ValueError:
+                # reported by CheckMeasurementModelId
+                return
+            # mapping table and model IDs are shared by all models
+            shared_ids = unmodeled_ids | {
+                id_
+                for id_, sources in definitions.items()
+                if "model ID" in sources
+                or "mapping table petabEntityId" in sources
+            }
+            # IDs not used with any model, e.g., of unused conditions,
+            #  are not compared with any model
+            ids_by_model = {
+                model: set(cls._get_definitions(part)) | shared_ids
+                for part in parts.values()
+                for model in part.models
+            }
+        else:
+            ids_by_model = {
+                model: set(definitions) | unmodeled_ids
+                for model in problem.models
+            }
+
+        for model in problem.models:
+            source = (
+                "model entity"
+                if len(problem.models) == 1
+                else f"entity of model `{model.model_id}`"
+            )
+            for id_ in sorted(ids_by_model.get(model, ())):
+                unmodeled = id_ in unmodeled_ids
+                # a parameter table entry for a model entity is no clash
+                if definitions.get(id_) == ["parameter ID"] and not unmodeled:
+                    continue
+                if not model.has_entity_with_id(id_):
+                    continue
+                if unmodeled and unmodeled_source not in definitions[id_]:
+                    definitions[id_].append(unmodeled_source)
+                definitions[id_].append(source)
+
+
+class CheckPlaceholdersOnlyUsedInOwnObservable(ValidationTask):
+    """Check that placeholders are only used in their own observable.
+
+    Placeholders are overridden per measurement. They must not be used in
+    other observables, in the condition table, or in measurement overrides,
+    and noise placeholders must not be used in the observable formula.
+    """
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        # placeholder -> IDs of the observables that declare it
+        declared_by: dict[str, set[str]] = defaultdict(set)
+        for o in problem.observables:
+            for placeholder in chain(
+                o.observable_placeholders, o.noise_placeholders
+            ):
+                declared_by[str(placeholder)].add(o.id)
+
+        uses = self._get_uses(problem)
+        clashes = []
+        for placeholder, observable_ids in declared_by.items():
+            # duplicate declarations are reported by CheckGloballyUniqueIds
+            where = [
+                use
+                for use, observable_id in uses.get(placeholder, [])
+                if observable_id not in observable_ids
+            ]
+            if where:
+                observables = ", ".join(
+                    f"`{x}`" for x in sorted(observable_ids)
+                )
+                clashes.append(
+                    f"`{placeholder}` of observable {observables} "
+                    f"(used in {', '.join(where)})"
+                )
+
+        if clashes:
+            return ValidationError(
+                "Placeholders must only be used in their own observable: "
+                + "; ".join(clashes)
+            )
+
+        return None
+
+    @staticmethod
+    def _get_uses(
+        problem: Problem,
+    ) -> dict[str, list[tuple[str, str | None]]]:
+        """Get where symbols are used.
+
+        :returns: Symbol ID -> list of (description, observable ID or
+            ``None``).
+        """
+        uses: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
+
+        def add(
+            expressions: typing.Iterable[sp.Basic],
+            use: str,
+            observable_id: str | None = None,
+        ) -> None:
+            for symbol in dict.fromkeys(
+                str(s) for e in expressions for s in e.free_symbols
+            ):
+                uses[symbol].append((use, observable_id))
+
+        for o in problem.observables:
+            add([o.formula, o.noise_formula], f"observable `{o.id}`", o.id)
+            noise_only = set(map(str, o.noise_placeholders)) - set(
+                map(str, o.observable_placeholders)
+            )
+            for symbol in map(str, o.formula.free_symbols):
+                if symbol in noise_only:
+                    uses[symbol].append(
+                        (f"observable formula of `{o.id}`", None)
+                    )
+        for c in problem.conditions:
+            for change in c.changes:
+                uses[change.target_id].append((f"condition `{c.id}`", None))
+            add(
+                (change.target_value for change in c.changes),
+                f"condition `{c.id}`",
+            )
+        add(
+            (
+                override
+                for m in problem.measurements
+                for override in chain(
+                    m.observable_parameters, m.noise_parameters
+                )
+            ),
+            "measurement table",
+        )
+        for symbol, symbol_uses in uses.items():
+            uses[symbol] = list(dict.fromkeys(symbol_uses))
+        return uses
+
+
+class CheckObservablesDoNotShadowModelEntities(ValidationTask):
+    """A task to check that observable IDs do not shadow model entities.
+
+    .. deprecated:: 0.11.0
+       Use :class:`CheckGloballyUniqueIds`.
+    """
+
+    def __init__(self):
+        warnings.warn(
+            "`CheckObservablesDoNotShadowModelEntities` is deprecated, "
+            "use `CheckGloballyUniqueIds` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     def run(self, problem: Problem) -> ValidationIssue | None:
         if not problem.observables or problem.model is None:
             return None
@@ -993,8 +1232,6 @@ class CheckMappingTable(ValidationTask):
         if not problem.mappings:
             return None
 
-        messages = []
-
         # Check that each id, across both the petabEntityId and
         # modelEntityId columns, occurs only once
         must_be_unique_ids = []
@@ -1019,41 +1256,6 @@ class CheckMappingTable(ValidationTask):
             return ValidationError(
                 f"Mapping table contains non-unique IDs: {non_unique_ids}."
             )
-
-        # petabEntityId is not defined elsewhere in the PEtab problem
-        new_petab_ids = {
-            m.petab_id
-            for m in problem.mappings
-            # Ignore identity mappings and annotation-only rows
-            if m.model_id and m.petab_id != m.model_id
-        }
-        old_petab_ids = (
-            {c.id for c in problem.conditions}
-            | {e.id for e in problem.experiments}
-            | {o.id for o in problem.observables}
-        )
-        if overdefined_ids := sorted(new_petab_ids & old_petab_ids):
-            messages.append(
-                f"PEtab IDs `{overdefined_ids}` are "
-                "defined in the mapping table but also defined through "
-                "other PEtab tables."
-            )
-
-        for mapping in problem.mappings:
-            # petabEntityId not referenced in any model, if alias
-            for model in problem.models:
-                if (
-                    mapping.petab_id != mapping.model_id
-                    and model.has_entity_with_id(mapping.petab_id)
-                ):
-                    messages.append(
-                        f"`{mapping.petab_id}` is used in the mapping "
-                        "table and referenced directly in the model "
-                        f"`{model.model_id}`."
-                    )
-
-        if messages:
-            return ValidationError("\n".join(messages))
 
         return None
 
@@ -1279,7 +1481,8 @@ default_validation_tasks = [
     CheckExperimentTable(),
     CheckExperimentConditionsExist(),
     CheckUndefinedExperiments(),
-    CheckObservablesDoNotShadowModelEntities(),
+    CheckGloballyUniqueIds(),
+    CheckPlaceholdersOnlyUsedInOwnObservable(),
     CheckAllParametersPresentInParameterTable(),
     CheckValidParameterInConditionOrParameterTable(),
     CheckUnusedExperiments(),

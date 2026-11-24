@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import pysb
 import pytest
+import sympy as sp
 
 from petab.v2 import Problem
 from petab.v2.C import LOG_NORMAL, NORMAL, TIME_SYMBOL, UNIFORM
@@ -159,11 +160,9 @@ def test_check_mapping_table(clean_pysb_exports):
     problem.model = PySBModel(
         model=pysb_model_invalid, model_id="test_model_invalid"
     )
-    assert (error := check.run(problem)) is not None
-    assert (
-        "`A` is used in the mapping table and referenced directly"
-        in error.message
-    )
+    assert check.run(problem) is None
+    assert (error := CheckGloballyUniqueIds().run(problem)) is not None
+    assert "`A` (mapping table petabEntityId, model entity)" in error.message
 
 
 def test_pysb_species_with_sites_as_condition_target(
@@ -338,3 +337,340 @@ def test_check_prior_distribution_infinite_bounds():
     problem["p1"].prior_parameters = [0, float("inf")]
     assert (error := check.run(problem)) is not None
     assert "`p1` are invalid" in error.message
+
+
+def _unique_ids_problem() -> Problem:
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(
+        "species x = 1; k = 1", model_id="model1"
+    )
+    problem.add_observable(
+        "o1", "a * x", noise_formula="1", observable_placeholders=["a"]
+    )
+    return problem
+
+
+@pytest.mark.parametrize(
+    "modify, expected",
+    [
+        (
+            lambda p: p.add_observable(
+                "o2", "a", noise_formula="1", observable_placeholders=["a"]
+            ),
+            (
+                "`a` (observable placeholder of `o1`, "
+                "observable placeholder of `o2`)"
+            ),
+        ),
+        (
+            lambda p: p.add_observable(
+                "o2",
+                "b",
+                noise_formula="b",
+                observable_placeholders=["b"],
+                noise_placeholders=["b"],
+            ),
+            "`b` (observable placeholder of `o2`, noise placeholder of `o2`)",
+        ),
+        (
+            lambda p: p.add_observable(
+                "o2", "x", noise_formula="1", observable_placeholders=["x"]
+            ),
+            "`x` (observable placeholder of `o2`, model entity)",
+        ),
+        (
+            lambda p: p.add_observable(
+                "o2", "o1", noise_formula="1", observable_placeholders=["o1"]
+            ),
+            "`o1` (observable ID, observable placeholder of `o2`)",
+        ),
+        (
+            lambda p: p.add_condition("a", k=2),
+            "`a` (condition ID, observable placeholder of `o1`)",
+        ),
+        (
+            lambda p: p.add_experiment("a", 0, "c1"),
+            "`a` (experiment ID, observable placeholder of `o1`)",
+        ),
+        (
+            lambda p: p.add_parameter("a", estimate=False, nominal_value=1),
+            "`a` (observable placeholder of `o1`, parameter ID)",
+        ),
+        (
+            lambda p: p.add_mapping("a", "net.out[0]"),
+            (
+                "`a` (observable placeholder of `o1`, "
+                "mapping table petabEntityId)"
+            ),
+        ),
+        (
+            lambda p: (
+                p.add_parameter("a", estimate=False, nominal_value=1),
+                p.add_mapping("a", None, name="annotation"),
+            ),
+            "`a` (observable placeholder of `o1`, parameter ID)",
+        ),
+        (
+            lambda p: p.add_observable("x", "x", noise_formula="1"),
+            "`x` (observable ID, model entity)",
+        ),
+        (
+            lambda p: (
+                p.add_condition("c1", k=2),
+                p.add_experiment("c1", 0, "c1"),
+            ),
+            "`c1` (condition ID, experiment ID)",
+        ),
+        (
+            lambda p: p.add_condition("model1", k=2),
+            "`model1` (condition ID, model ID)",
+        ),
+    ],
+)
+def test_check_globally_unique_ids(modify, expected):
+    """Test ``CheckGloballyUniqueIds``."""
+    problem = _unique_ids_problem()
+    check = CheckGloballyUniqueIds()
+    assert check.run(problem) is None
+
+    modify(problem)
+    assert (error := check.run(problem)) is not None
+    assert expected in error.message
+    assert error.message.count("`") == expected.count("`")
+
+
+def test_check_globally_unique_ids_unmodeled_model_entity():
+    """Mapping rows without modelEntityId are for entities not in any model."""
+    problem = _unique_ids_problem()
+    problem.add_mapping("k", None, name="k")
+    assert (error := CheckGloballyUniqueIds().run(problem)) is not None
+    assert error.message.endswith(
+        "`k` (mapping table entry without modelEntityId, model entity)"
+    )
+
+
+def test_check_globally_unique_ids_unmodeled_parameter():
+    """A mapping row without modelEntityId for a model entity parameter."""
+    problem = _unique_ids_problem()
+    problem.add_parameter("k", estimate=True, lb=0, ub=10, nominal_value=1)
+    assert CheckGloballyUniqueIds().run(problem) is None
+
+    problem.add_mapping("k", None, name="k")
+    assert (error := CheckGloballyUniqueIds().run(problem)) is not None
+    assert error.message.endswith(
+        "`k` (parameter ID, mapping table entry without modelEntityId, "
+        "model entity)"
+    )
+
+
+def test_check_globally_unique_ids_references():
+    """References to model entities or mapped IDs are not definitions."""
+    problem = _unique_ids_problem()
+    # model parameter in the parameter table and as condition target
+    problem.add_parameter("k", estimate=True, lb=0, ub=10, nominal_value=1)
+    problem.add_condition("c1", k=2)
+    problem.add_experiment("e1", 0, "c1")
+    # identity mapping
+    problem.add_mapping("x", "x")
+    # mapped entity in the parameter table
+    problem.add_mapping("w", "net.parameters[0]")
+    problem.add_parameter("w", estimate=True, lb=0, ub=10, nominal_value=1)
+    # mapping row without modelEntityId
+    problem.add_mapping("o1", None, name="Observable 1")
+
+    assert CheckGloballyUniqueIds().run(problem) is None
+
+
+def _multi_model_problem(m2: str = "species y = 1; o1 = 1") -> Problem:
+    problem = Problem()
+    problem.models = [
+        SbmlModel.from_antimony("species x = 1", model_id="m1"),
+        SbmlModel.from_antimony(m2, model_id="m2"),
+    ]
+    problem.add_observable("o1", "x", noise_formula="1")
+    problem.add_observable(
+        "o2", "a * y", noise_formula="1", observable_placeholders=["a"]
+    )
+    problem.add_experiment("e1", 0, "c1")
+    problem.add_condition("c1", x=2)
+    problem.add_measurement(
+        "o1", experiment_id="e1", time=1, measurement=1, model_id="m1"
+    )
+    problem.add_measurement(
+        "o2",
+        experiment_id="e1",
+        time=1,
+        measurement=1,
+        model_id="m2",
+        observable_parameters=[2],
+    )
+    return problem
+
+
+def _unique_id_issues(problem: Problem) -> list[ValidationIssue]:
+    return [
+        issue
+        for issue in problem.validate()
+        if issue.task == "CheckGloballyUniqueIds"
+    ]
+
+
+def test_check_globally_unique_ids_multi_model():
+    """Model entities only clash with IDs used for the same model."""
+    # `o1` is an entity of m2, but only measured with m1
+    assert _unique_id_issues(_multi_model_problem()) == []
+
+    problem = _multi_model_problem("species y = 1; a = 1")
+    assert len(issues := _unique_id_issues(problem)) == 1
+    assert issues[0].message == (
+        "Identifiers must be unique within the PEtab problem: "
+        "`a` (observable placeholder of `o2`, entity of model `m2`)"
+    )
+
+    # entity of both models, used by both: reported once
+    problem = _multi_model_problem("species y = 1; c1 = 1")
+    problem.models[0] = SbmlModel.from_antimony(
+        "species x = 1; c1 = 1", model_id="m1"
+    )
+    assert len(issues := _unique_id_issues(problem)) == 1
+    assert issues[0].message.endswith(
+        "`c1` (condition ID, entity of model `m1`, entity of model `m2`)"
+    )
+
+    # unused entries don't clash with model entities
+    problem = _multi_model_problem("species y = 1; z = 1")
+    problem.add_condition("z", y=2)
+    assert _unique_id_issues(problem) == []
+    # ...but with other table entries
+    problem.add_observable("z", "y", noise_formula="1")
+    assert len(issues := _unique_id_issues(problem)) == 1
+    assert issues[0].message.endswith("`z` (condition ID, observable ID)")
+
+
+@pytest.mark.parametrize(
+    "m2, modify, expected",
+    [
+        # parameter table entries are shared by all models
+        (
+            "species y = 1; k = 1",
+            lambda p: (
+                p.add_parameter(
+                    "k", estimate=True, lb=0, ub=10, nominal_value=1
+                ),
+                p.add_observable(
+                    "o3",
+                    "k * x",
+                    noise_formula="1",
+                    observable_placeholders=["k"],
+                ),
+                p.add_measurement(
+                    "o3",
+                    experiment_id="e1",
+                    time=1,
+                    measurement=1,
+                    model_id="m1",
+                    observable_parameters=[2],
+                ),
+            ),
+            (
+                "`k` (observable placeholder of `o3`, parameter ID, "
+                "entity of model `m2`)"
+            ),
+        ),
+        # model IDs are shared by all models
+        (
+            "species y = 1; m1 = 1",
+            lambda p: None,
+            "`m1` (model ID, entity of model `m2`)",
+        ),
+    ],
+)
+def test_check_globally_unique_ids_multi_model_shared(m2, modify, expected):
+    """IDs shared by all models are compared with all models."""
+    assert _unique_id_issues(_multi_model_problem("species y = 1")) == []
+
+    problem = _multi_model_problem(m2)
+    modify(problem)
+    issues = CheckGloballyUniqueIds().run(problem)
+    assert issues is not None
+    assert issues.message.endswith(expected)
+
+
+def test_check_globally_unique_ids_multi_model_tables():
+    """Tables are compared across models."""
+    problem = _multi_model_problem()
+    # experiment used with both models, observable only with m2
+    problem.add_observable("e1", "y", noise_formula="1")
+    problem.add_measurement(
+        "e1", experiment_id="e1", time=1, measurement=1, model_id="m2"
+    )
+    assert len(issues := _unique_id_issues(problem)) == 1
+    assert issues[0].message.endswith("`e1` (experiment ID, observable ID)")
+
+
+@pytest.mark.parametrize(
+    "modify, expected",
+    [
+        (
+            lambda p: p.add_observable("o2", "a + x", noise_formula="1"),
+            "`a` of observable `o1` (used in observable `o2`)",
+        ),
+        (
+            lambda p: p.add_observable("o2", "x", noise_formula="a"),
+            "`a` of observable `o1` (used in observable `o2`)",
+        ),
+        (
+            lambda p: p.add_condition("c1", a=2),
+            "`a` of observable `o1` (used in condition `c1`)",
+        ),
+        (
+            lambda p: p.add_condition("c1", k="a + 1"),
+            "`a` of observable `o1` (used in condition `c1`)",
+        ),
+        (
+            lambda p: p.add_measurement(
+                "o1", time=1, measurement=1, observable_parameters=["a"]
+            ),
+            "`a` of observable `o1` (used in measurement table)",
+        ),
+        (
+            lambda p: p.add_observable(
+                "o2",
+                "b * x",
+                noise_formula="b",
+                noise_placeholders=["b"],
+            ),
+            "`b` of observable `o2` (used in observable formula of `o2`)",
+        ),
+    ],
+)
+def test_check_placeholders_only_used_in_own_observable(modify, expected):
+    """Test ``CheckPlaceholdersOnlyUsedInOwnObservable``."""
+    problem = _unique_ids_problem()
+    # observable placeholders may be used in the noise formula
+    problem["o1"].noise_formula = sp.Symbol("a")
+    problem.add_measurement(
+        "o1", time=1, measurement=1, observable_parameters=[2]
+    )
+    check = CheckPlaceholdersOnlyUsedInOwnObservable()
+    assert check.run(problem) is None
+
+    modify(problem)
+    assert (error := check.run(problem)) is not None
+    assert error.message == (
+        "Placeholders must only be used in their own observable: " + expected
+    )
+
+
+def test_check_placeholders_only_used_in_own_observable_duplicates():
+    """Duplicate placeholders are left to ``CheckGloballyUniqueIds``."""
+    problem = _unique_ids_problem()
+    problem.add_observable(
+        "o2", "a * x", noise_formula="1", observable_placeholders=["a"]
+    )
+    assert CheckPlaceholdersOnlyUsedInOwnObservable().run(problem) is None
+
+
+def test_check_observables_do_not_shadow_model_entities_deprecated():
+    with pytest.deprecated_call():
+        CheckObservablesDoNotShadowModelEntities()
