@@ -1145,7 +1145,8 @@ def get_required_parameters_for_parameter_table(
         Set of parameter IDs which PEtab requires to be present in the
         parameter table. That is all {observable,noise}Parameters from the
         measurement table as well as all parametric condition table overrides
-        that are not defined in the model.
+        that are not defined in the model (directly or via the mapping
+        table).
     """
     parameter_ids = set()
     condition_targets = {
@@ -1191,12 +1192,23 @@ def get_required_parameters_for_parameter_table(
         )
 
     # Add condition table parametric overrides unless already defined in the
-    #  model
+    #  model, directly or via a mapping table alias
+    model_aliases = {
+        m.petab_id
+        for m in problem.mappings
+        if m.model_id
+        and problem.model is not None
+        and (
+            problem.model.has_entity_with_id(m.model_id)
+            or problem.model.is_state_variable(m.model_id)
+        )
+    }
     parameter_ids.update(
         str(p)
         for ct in problem.condition_tables
         for p in ct.free_symbols
         if str(p) != TIME_SYMBOL
+        and str(p) not in model_aliases
         and not problem.model.has_entity_with_id(str(p))
     )
 

@@ -193,6 +193,24 @@ def test_pysb_species_with_sites_as_condition_target(
     ]
 
 
+def test_mapped_model_entity_in_condition_target_value(clean_pysb_exports):
+    """Mapping table aliases of model entities in condition target values
+    are not parameters."""
+    pysb_model = pysb.Model("test_model", _export=False)
+    pysb_model.add_component(pysb.Monomer("A", _export=False))
+    pysb_model.add_component(pysb.Monomer("B", _export=False))
+    problem = Problem()
+    problem.model = PySBModel(model=pysb_model, model_id="test_model")
+    problem.add_mapping("A_c", "A()")
+    problem.add_mapping("B_c", "B()")
+    problem.add_condition("c1", A_c="B_c + p")
+
+    assert get_required_parameters_for_parameter_table(problem) == {"p"}
+    check = CheckAllParametersPresentInParameterTable()
+    problem.add_parameter("p", estimate=True, lb=0, ub=1, nominal_value=1)
+    assert (error := check.run(problem)) is None, error
+
+
 def test_time_in_condition_target_value_not_a_parameter():
     """`time` in condition target values is not a parameter."""
     problem = Problem()
