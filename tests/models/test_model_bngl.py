@@ -1,10 +1,10 @@
-"""Tests for petab.v1.models.bngl_model"""
+"""Tests for petab.v2.models.bngl_model"""
 
 from pathlib import Path
 
 import pytest
 
-from petab.v1.models.bngl_model import BnglEntities, BnglModel, parse_bngl
+from petab.v2.models.bngl_model import BnglEntities, BnglModel, parse_bngl
 
 #: A self-contained BNGL model exercising every entity kind read by the
 #: PEtab layer: parameters, a molecule type, a seed species, an observable,
@@ -233,7 +233,7 @@ def test_is_valid(model):
 
 
 def test_is_valid_detects_broken_model_when_bng_available(tmp_path):
-    from petab.v1.models.bngl_model import _locate_bng2
+    from petab.v2.models.bngl_model import _locate_bng2
 
     if _locate_bng2() is None:
         pytest.skip("BNG2.pl not available; is_valid falls back to True")
@@ -249,7 +249,7 @@ def test_is_valid_detects_broken_model_when_bng_available(tmp_path):
 
 
 def test_model_factory_routes_bngl():
-    from petab.v1.models.model import model_factory
+    from petab.v2.models.model import model_factory
 
     model = model_factory(EXAMPLE_BNGL, "bngl")
     assert isinstance(model, BnglModel)

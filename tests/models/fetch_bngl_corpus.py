@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize the BNGL test corpus backing ``tests/v1/test_bngl_corpus.py``.
+"""Materialize the BNGL test corpus for ``tests/models/test_bngl_corpus.py``.
 
 The corpus is 21 third-party ``.bngl`` fixture files.
 Rather than vendoring ~3200 lines of model text, this script fetches them on
@@ -14,7 +14,7 @@ fetched at test/CI time. Same idea as lanl/bngsim's
 ``parity_checks/bng_parity/vendor_corpus.py``.
 
 Usage:
-    python tests/v1/fetch_bngl_corpus.py [--dest DIR] [--force] [--dry-run]
+    python tests/models/fetch_bngl_corpus.py [--dest DIR] [--force] [--dry-run]
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ _BNGL_MODELS = (
 # (dest filename, (repo, sha), upstream path, expected sha256 of the RAW
 # upstream bytes, optional (find, replace, expected_count) repair applied
 # after the hash check). Transcribed from
-# tests/v1/bngl_corpus/README.md's provenance table.
+# tests/models/bngl_corpus/README.md's provenance table.
 CORPUS = [
     (
         "An_2009.bngl",
@@ -255,7 +255,7 @@ def main() -> int:
         type=Path,
         default=Path(__file__).parent / "bngl_corpus",
         help="directory to write fetched .bngl files into (default: "
-        "bngl_corpus/ next to this script, i.e. tests/v1/bngl_corpus)",
+        "bngl_corpus/ next to this script, i.e. tests/models/bngl_corpus)",
     )
     ap.add_argument(
         "--force",

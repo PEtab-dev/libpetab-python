@@ -77,7 +77,7 @@ have been downloaded via:
 
 .. code-block:: bash
 
-    uv run --no-project python -P tests/v1/fetch_bngl_corpus.py
+    uv run --no-project python -P tests/models/fetch_bngl_corpus.py
 
 Style guide
 -----------

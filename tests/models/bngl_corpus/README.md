@@ -1,13 +1,13 @@
 # Curated BNGL corpus fixtures
 
 Public community BNGL models, chosen for feature coverage, backing
-`tests/v1/test_bngl_corpus.py`: it asserts `parse_bngl` enumerates the same
+`tests/models/test_bngl_corpus.py`: it asserts `parse_bngl` enumerates the same
 model entities BNG2.pl does. The BNG2.pl answers are cached in `golden.json`
 (the entity name sets BNG2.pl emits from `writeModel`, its canonical parse),
 so the test needs **no BNG2.pl** -- it compares the reader against the frozen
 oracle. Regenerate the golden (needs BNG2.pl) with:
 
-    python tests/v1/test_bngl_corpus.py
+    python tests/models/test_bngl_corpus.py
 
 Vendored from public repos
 ([RuleWorld/RuleHub](https://github.com/RuleWorld/rulehub),
