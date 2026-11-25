@@ -14,6 +14,7 @@ Create a file `changelog.d/<name>.<type>.md`, where `<type>` is one of
 * `deprecation`: **Deprecations**
 * `feature`: **Features**
 * `fix`: **Fixes**
+* `perf`: **Performance**
 * `doc`: **Documentation**
 * `misc`: **Other changes**
 
