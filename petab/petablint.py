@@ -202,6 +202,7 @@ def main():
                 ret = petab.lint.lint_problem(problem)
                 sys.exit(ret)
             case 2:
+                from petab.v2.core import TableError
                 from petab.v2.lint import (
                     ValidationIssueSeverity,
                     lint_problem,
@@ -231,6 +232,9 @@ def main():
                         # TODO: include model info here once available
                         #  https://github.com/pydantic/pydantic/issues/7224
                         logger.error(f"Error in field(s) `{loc}`: {msg}")
+                    sys.exit(1)
+                except TableError as e:
+                    logger.error(str(e))
                     sys.exit(1)
 
             case _:
