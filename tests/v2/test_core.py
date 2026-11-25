@@ -95,6 +95,7 @@ def test_condition_table_round_trip():
             pd.DataFrame(
                 {
                     C.OBSERVABLE_ID: ["obs1", "obs2"],
+                    C.EXPERIMENT_ID: ["exp1", "exp1"],
                     C.TIME: [0.0, 1.0],
                     C.MEASUREMENT: [1.0, 2.0],
                 }
@@ -127,6 +128,72 @@ def test_from_df_ignores_unnamed_index(table_cls, df):
     id_col = df.columns[0]
     table2 = table_cls.from_df(df.set_index(id_col))
     assert table2 == table
+
+
+_VALID_TABLE_ROWS = {
+    ObservableTable: {
+        C.OBSERVABLE_ID: "obs1",
+        C.OBSERVABLE_FORMULA: "x",
+        C.NOISE_FORMULA: "1",
+    },
+    ConditionTable: {
+        C.CONDITION_ID: "c1",
+        C.TARGET_ID: "x",
+        C.TARGET_VALUE: "1",
+    },
+    ExperimentTable: {
+        C.EXPERIMENT_ID: "e1",
+        C.TIME: 0.0,
+        C.CONDITION_ID: "c1",
+    },
+    MeasurementTable: {
+        C.OBSERVABLE_ID: "obs1",
+        C.EXPERIMENT_ID: "e1",
+        C.TIME: 1.0,
+        C.MEASUREMENT: 2.0,
+    },
+    ParameterTable: {
+        C.PARAMETER_ID: "p1",
+        C.LOWER_BOUND: 0.0,
+        C.UPPER_BOUND: 1.0,
+        C.NOMINAL_VALUE: 0.5,
+        C.ESTIMATE: "true",
+    },
+    MappingTable: {
+        PETAB_ENTITY_ID: "a",
+        MODEL_ENTITY_ID: "1a",
+    },
+}
+
+
+@pytest.mark.parametrize(
+    "table_cls", _VALID_TABLE_ROWS, ids=lambda cls: cls.__name__
+)
+def test_from_df_missing_required_columns(table_cls):
+    """Missing required columns are reported."""
+    row = _VALID_TABLE_ROWS[table_cls]
+    assert set(row) == set(table_cls._required_columns)
+    df = pd.DataFrame([row])
+    table = table_cls.from_df(df)
+    assert len(table.elements) == 1
+    # required columns may be in the index
+    assert table_cls.from_df(df.set_index(df.columns[0])) == table
+    assert table_cls.from_df(df.set_index(list(df.columns))) == table
+    # a DataFrame without any columns is an empty table
+    assert table_cls.from_df(pd.DataFrame()).elements == []
+
+    for column in row:
+        with pytest.raises(
+            MissingColumnsError, match=f"column.*: {column}\\.$"
+        ):
+            table_cls.from_df(df.drop(columns=column))
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        df.drop(columns=df.columns[-1]).to_csv(
+            Path(tmp_dir, "table.tsv"), sep="\t", index=False
+        )
+        with pytest.raises(MissingColumnsError, match=r"File: .*table\.tsv"):
+            table_cls.from_tsv("table.tsv", base_path=tmp_dir)
 
 
 @pytest.mark.filterwarnings(
@@ -1241,6 +1308,20 @@ def test_petablint_v2(tmpdir):
         text=True,
     )
     assert result.returncode == 1
+
+    # missing required columns are reported without a traceback
+    parameter_file = Path(tmpdir, problem.parameter_tables[0].rel_path)
+    df = pd.read_csv(parameter_file, sep="\t")
+    df.drop(columns=C.ESTIMATE).to_csv(parameter_file, sep="\t", index=False)
+    result = subprocess.run(  # noqa S607
+        ["petablint", str(Path(tmpdir, "problem.yaml"))],  # noqa S607
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "ParameterTable is missing required column(s): estimate" in output
+    assert "Traceback" not in output
 
 
 def test_problem_id(tmpdir):
