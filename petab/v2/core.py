@@ -66,6 +66,7 @@ __all__ = [
     "Change",
     "Condition",
     "ConditionTable",
+    "EmptyIdError",
     "Experiment",
     "ExperimentPeriod",
     "ExperimentTable",
@@ -83,13 +84,22 @@ __all__ = [
     "PriorDistribution",
     "Problem",
     "ProblemConfig",
+    "TableError",
 ]
 
 logger = logging.getLogger(__name__)
 
 
-class MissingColumnsError(ValueError):
+class TableError(ValueError):
+    """A PEtab table is invalid and cannot be loaded."""
+
+
+class MissingColumnsError(TableError):
     """A PEtab table lacks required columns."""
+
+
+class EmptyIdError(TableError):
+    """A PEtab table has rows with an empty ID."""
 
 
 def _field_to_column(info: ValidationInfo) -> str:
@@ -147,36 +157,52 @@ def _prepare_table_df(
     df: pd.DataFrame | None,
     table_name: str,
     required_columns: list[str],
+    id_column: str | None = None,
     rel_path: str | Path | AnyUrl | None = None,
     base_path: str | Path | AnyUrl | None = None,
     **_,
 ) -> pd.DataFrame | None:
     """Prepare a DataFrame for creating a PEtab table.
 
-    Moves named index levels to columns and checks for required columns.
+    Moves named index levels to columns and checks for required columns
+    and empty IDs.
 
     :param df: The table.
     :param table_name: The table name for the error message.
     :param required_columns: The required columns.
+    :param id_column: The ID column by which rows are grouped into
+        elements. Empty values are rejected here, because grouping would
+        drop those rows. All other values are validated with the elements.
     :param rel_path: The table file, for the error message.
     :param base_path: The base path of ``rel_path``.
     :return: The prepared DataFrame, or ``None`` if ``df`` is ``None`` or
         has no columns, i.e., the table is empty.
     :raises MissingColumnsError: If any required column is missing.
+    :raises EmptyIdError: If any row has an empty ID.
     """
     if df is None:
         return None
     df = _reset_index(df)
     if df.columns.empty:
         return None
+    file = (
+        f" File: {_generate_path(rel_path, base_path)}"
+        if rel_path is not None
+        else ""
+    )
     if missing := [c for c in required_columns if c not in df.columns]:
-        msg = (
+        raise MissingColumnsError(
             f"{table_name} is missing required column(s): "
-            f"{', '.join(missing)}."
+            f"{', '.join(missing)}.{file}"
         )
-        if rel_path is not None:
-            msg += f" File: {_generate_path(rel_path, base_path)}"
-        raise MissingColumnsError(msg)
+    if id_column is not None:
+        ids = df[id_column]
+        if (empty := ids.isna() | (ids == "")).any():
+            rows = df[empty].to_string(index=False, max_rows=10)
+            raise EmptyIdError(
+                f"{table_name} has {empty.sum()} row(s) with empty "
+                f"{id_column}.{file}\n{rows}"
+            )
     return df
 
 
@@ -316,6 +342,9 @@ class BaseTable[T: BaseModel](BaseModel):
 
     #: Columns that are always included, even if empty.
     _required_columns: ClassVar[list[str]] = []
+    #: The ID column by which rows are grouped into elements, if any.
+    #: Checked for empty values in :meth:`from_df`.
+    _id_column: ClassVar[str | None] = None
 
     def __init__(self, elements: list[T] | None = None, **kwargs) -> None:
         """Initialize the BaseTable with a list of elements."""
@@ -352,9 +381,14 @@ class BaseTable[T: BaseModel](BaseModel):
         :param kwargs: Passed to the constructor
             (e.g., ``rel_path``, ``base_path``).
         :raises MissingColumnsError: If any required column is missing.
+        :raises EmptyIdError: If any row has an empty ID.
         """
         df = _prepare_table_df(
-            df, cls.__name__, cls._required_columns, **kwargs
+            df,
+            cls.__name__,
+            cls._required_columns,
+            id_column=cls._id_column,
+            **kwargs,
         )
         if df is None:
             return cls(**kwargs)
@@ -707,6 +741,7 @@ class ConditionTable(BaseTable[Condition]):
     """PEtab condition table."""
 
     _required_columns: ClassVar[list[str]] = C.CONDITION_DF_REQUIRED_COLS
+    _id_column: ClassVar[str] = C.CONDITION_ID
 
     @property
     def conditions(self) -> list[Condition]:
@@ -867,6 +902,7 @@ class ExperimentTable(BaseTable[Experiment]):
     """PEtab experiment table."""
 
     _required_columns: ClassVar[list[str]] = C.EXPERIMENT_DF_REQUIRED_COLS
+    _id_column: ClassVar[str] = C.EXPERIMENT_ID
 
     @property
     def experiments(self) -> list[Experiment]:

@@ -536,6 +536,45 @@ def test_condition_table_from_df_condition_id():
     assert loaded.to_df()[CONDITION_ID].tolist() == ["c2"]
 
 
+@pytest.mark.parametrize("empty_id", [np.nan, None, ""])
+def test_empty_condition_and_experiment_ids(empty_id):
+    """Rows with empty condition or experiment IDs raise an error."""
+    condition_df = pd.DataFrame(
+        {
+            CONDITION_ID: ["c1", empty_id, empty_id],
+            TARGET_ID: ["k1", "k2", "k3"],
+            TARGET_VALUE: [1.0, 2.0, 3.0],
+        }
+    )
+    experiment_df = pd.DataFrame(
+        {
+            C.EXPERIMENT_ID: ["e1", empty_id, empty_id],
+            C.TIME: [0.0, 0.0, 0.0],
+            CONDITION_ID: ["c1", "c1", "c1"],
+        }
+    )
+    with pytest.raises(
+        EmptyIdError,
+        match=rf"ConditionTable has 2 row\(s\) with empty {CONDITION_ID}\.",
+    ):
+        ConditionTable.from_df(condition_df)
+    with pytest.raises(
+        EmptyIdError,
+        match=rf"ExperimentTable has 2 row\(s\) with empty "
+        rf"{C.EXPERIMENT_ID}\.",
+    ):
+        ExperimentTable.from_df(experiment_df)
+
+    # valid rows only
+    assert (
+        ConditionTable.from_df(condition_df.iloc[:1]).conditions[0].id == "c1"
+    )
+    assert (
+        ExperimentTable.from_df(experiment_df.iloc[:1]).experiments[0].id
+        == "e1"
+    )
+
+
 def test_condition_table():
     assert ConditionTable().free_symbols == set()
 
@@ -1321,6 +1360,23 @@ def test_petablint_v2(tmpdir):
     output = result.stdout + result.stderr
     assert result.returncode == 1
     assert "ParameterTable is missing required column(s): estimate" in output
+    assert "Traceback" not in output
+
+    # empty condition IDs are reported without a traceback
+    problem.to_files(Path(tmpdir))
+    with open(Path(tmpdir, "conditions.tsv"), "a") as f:
+        f.write("\tB\t2\n")
+    result = subprocess.run(  # noqa S607
+        ["petablint", str(Path(tmpdir, "problem.yaml"))],  # noqa S607
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert (
+        f"ConditionTable has 1 row(s) with empty {CONDITION_ID}. File:"
+        in output
+    )
     assert "Traceback" not in output
 
 
