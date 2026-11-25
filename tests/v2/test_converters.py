@@ -157,18 +157,20 @@ def _kept_changes(problem: Problem) -> dict[str, list[dict[str, float]]]:
 def test_condition_parameters_stay_in_conditions():
     """Numeric first-period changes of a constant parameter that nothing else
     assigns stay in the condition table, instead of becoming a piecewise
-    initial assignment with a branch per experiment; those of a species stay
-    there as changes of a parameter holding its initial value. Only
-    experiments with changes encoded in the model get an indicator."""
+    initial assignment with a branch per experiment; those of a constant
+    species stay there as changes of a parameter holding its initial value.
+    Only experiments with changes encoded in the model get an indicator."""
     n_experiments = 300
     ant_model = """
-    species A = 1
+    species $A = 1
     species B = 0
     k = 3
     R1: A -> B; k * A
     """
     problem = Problem()
     problem.model = SbmlModel.from_antimony(ant_model)
+    # Antimony doesn't mark boundary species as constant
+    problem.model.sbml_model.getSpecies("A").setConstant(True)
     for i in range(n_experiments):
         problem.add_condition(f"c{i}", k=i + 1)
         problem.add_experiment(f"e{i}", 0, f"c{i}")
@@ -257,16 +259,15 @@ def test_condition_parameters_encoded_otherwise(case):
     "case",
     [
         "initial_assignment",
-        "rate_rule",
-        "event_assignment",
+        "not_constant",
         "compartment_target",
         "compartment_not_constant",
     ],
 )
 def test_condition_parameters_species_encoded_otherwise(case):
-    """A species with an initial assignment, a rule or an event assignment,
-    or whose initial value depends on a compartment that conditions resize
-    or that is not constant, keeps its piecewise initial assignment."""
+    """A species that is not constant or has an initial assignment, or whose
+    initial value depends on a compartment that conditions resize or that is
+    not constant, keeps its piecewise initial assignment."""
     compartment = (
         "var compartment"
         if case == "compartment_not_constant"
@@ -279,16 +280,13 @@ def test_condition_parameters_species_encoded_otherwise(case):
     """
     if case == "initial_assignment":
         ant_model += "A = 2 * p\n"
-    elif case == "rate_rule":
-        ant_model += "A' = -p\n"
-    elif case == "event_assignment":
-        ant_model += "E1: at time > 1, fromTrigger=false: A = 0\n"
     problem = Problem()
     problem.model = SbmlModel.from_antimony(ant_model)
+    species = problem.model.sbml_model.getSpecies("A")
+    species.setConstant(case != "not_constant")
     if case.startswith("compartment_"):
         # concentration-based, given as an amount: the initial
         #  concentration depends on the size of C
-        species = problem.model.sbml_model.getSpecies("A")
         species.unsetInitialConcentration()
         species.setInitialAmount(4)
     if case == "compartment_target":
@@ -314,9 +312,9 @@ def test_condition_parameters_species_encoded_otherwise(case):
 
 @pytest.mark.parametrize("only_substance_units", [False, True])
 def test_condition_parameters_species_compartment_size(only_substance_units):
-    """A species whose initial value depends on the size of a constant
-    compartment gets the initial value in its own units, and its changes stay
-    in the condition table."""
+    """A constant species whose initial value depends on the size of a
+    constant compartment gets the initial value in its own units, and its
+    changes stay in the condition table."""
     ant_model = """
     compartment C = 2
     species A in C = 1
@@ -324,6 +322,7 @@ def test_condition_parameters_species_compartment_size(only_substance_units):
     problem = Problem()
     problem.model = SbmlModel.from_antimony(ant_model)
     species = problem.model.sbml_model.getSpecies("A")
+    species.setConstant(True)
     species.setHasOnlySubstanceUnits(only_substance_units)
     if only_substance_units:
         # amount-based, given as a concentration

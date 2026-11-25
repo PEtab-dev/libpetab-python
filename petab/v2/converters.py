@@ -98,11 +98,8 @@ class ExperimentsToSbmlConverter:
     Encoding them in the model would add a branch per experiment to the
     initial assignment of every such parameter.
 
-    The initial value of a species is handled the same way, if the species
-    meets these criteria and its initial value in the model is a number.
-    The species does not have to be constant, since only its initial value
-    is set per experiment, but it must not be the target of a rule or an
-    event assignment.
+    A constant species is handled the same way, if it meets the same
+    criteria and its initial value in the model is a number.
     It gets a new parameter ``_petab_initial_value_<species ID>`` that holds
     its initial value, and the initial assignment
     ``<species ID> = _petab_initial_value_<species ID>``. The changes of the
@@ -111,6 +108,9 @@ class ExperimentsToSbmlConverter:
     amount, or vice versa, depends on the size of its compartment. It is a
     number only if that compartment is constant, has a size, has no initial
     assignment and is not changed by any condition.
+
+    Changes of non-constant parameters and species are always encoded in the
+    model.
     """
 
     #: Prefix of the parameters that hold the initial value of a species
@@ -379,24 +379,11 @@ class ExperimentsToSbmlConverter:
         model = self._model
         problem = self._new_problem
 
-        # Parameters and compartments qualify only if they are constant.
-        #  SBML does not allow rules or event assignments for constant
-        #  entities, but initial assignments.
+        # Parameters, species and compartments qualify only if they are
+        #  constant. SBML does not allow rules or event assignments for
+        #  constant entities, but initial assignments.
         initially_assigned = {
             ia.getSymbol() for ia in model.getListOfInitialAssignments()
-        }
-        # Species don't have to be constant: a condition sets the initial
-        #  value of a species, which is constant per experiment even if the
-        #  species changes during the simulation. Also, unchanging species
-        #  are often not marked as constant; e.g., Antimony writes
-        #  constant="false" for boundary species. Instead, the model must
-        #  not assign them.
-        assigned_species = {
-            rule.getVariable() for rule in model.getListOfRules()
-        } | {
-            ea.getVariable()
-            for event in model.getListOfEvents()
-            for ea in event.getListOfEventAssignments()
         }
         used_by_problem = {parameter.id for parameter in problem.parameters}
         for mapping in problem.mappings:
@@ -412,18 +399,14 @@ class ExperimentsToSbmlConverter:
                 )
             }
 
-        candidates = (
-            {
-                parameter.getId()
-                for parameter in model.getListOfParameters()
-                if parameter.getConstant()
-            }
-            | {
-                species.getId()
-                for species in model.getListOfSpecies()
-                if species.getId() not in assigned_species
-            }
-        ) - (initially_assigned | used_by_problem)
+        candidates = {
+            element.getId()
+            for element in (
+                *model.getListOfParameters(),
+                *model.getListOfSpecies(),
+            )
+            if element.getConstant()
+        } - (initially_assigned | used_by_problem)
 
         targets = set()
         for experiment in problem.experiments:
