@@ -125,6 +125,29 @@ def reparametrize_log(
         table entries for the parameters, priors of non-estimated parameters,
         or placeholders with overrides that cannot be log-transformed.
     """
+    return _reparametrize_log_inplace(
+        deepcopy(problem),
+        parameter_ids,
+        base=base,
+        priors=priors,
+        stacklevel=3,
+    )
+
+
+def _reparametrize_log_inplace(
+    problem: Problem,
+    parameter_ids: Iterable[str],
+    *,
+    base: Literal[10, "e"] = 10,
+    priors: dict[str, tuple[str, list[float]] | None] | None = None,
+    stacklevel: int = 2,
+) -> tuple[Problem, dict[str, str]]:
+    """Like :func:`reparametrize_log`, but modifies `problem` in place.
+
+    For large problems, this avoids the cost of copying the problem.
+    If an error is raised, `problem` may have been partially modified.
+    `stacklevel` is passed to :func:`warnings.warn`.
+    """
     parameter_ids = list(dict.fromkeys(parameter_ids))
     priors = priors or {}
     if base == 10:
@@ -144,7 +167,6 @@ def reparametrize_log(
     if unknown := set(priors) - set(parameter_ids):
         raise ValueError(f"Priors given for unknown parameters: {unknown}")
 
-    problem = deepcopy(problem)
     if not parameter_ids:
         return problem, {}
 
@@ -170,12 +192,12 @@ def reparametrize_log(
         )
     model = problem.model
 
+    parameters = {par.id: par for par in problem.parameters}
     new_parameters = {}
     model_entities = []
     for p in parameter_ids:
-        if p not in problem.get_x_ids():
+        if (par := parameters.get(p)) is None:
             raise ValueError(f"Parameter `{p}' is not in the parameter table.")
-        par = problem[p]
         if any(p in (m.petab_id, m.model_id) for m in problem.mappings):
             raise NotImplementedError(
                 f"Parameter `{p}' occurs in the mapping table."
@@ -210,7 +232,7 @@ def reparametrize_log(
                 f"Parameter `{p}' has no non-negative nominal value "
                 f"({par.nominal_value}). The nominal value of its "
                 "reparametrization is left empty.",
-                stacklevel=2,
+                stacklevel=stacklevel,
             )
             nominal_value = None
         else:
@@ -280,32 +302,38 @@ def reparametrize_log(
         )
 
     # assign new IDs
+    used_ids = problem._get_used_ids()
     id_map = {}
     for p in parameter_ids:
-        id_map[p] = new_parameters[p].id = problem.get_unused_id(
-            f"{prefix}{p}", exclude=id_map.values()
+        id_map[p] = new_parameters[p].id = problem._get_unused_id(
+            f"{prefix}{p}", used_ids=used_ids
         )
+        used_ids.add(id_map[p])
 
-    _reparametrize_overrides(problem, id_map, b_expr, log_function)
+    _reparametrize_overrides(
+        problem, id_map, b_expr, log_function, used_ids=used_ids
+    )
 
     # substitute p -> b^q in all expressions
     def subs(expr: sp.Basic | None) -> sp.Basic | None:
         if expr is None:
             return expr
-        return expr.subs(
-            {
-                s: b_expr ** petab_symbol(id_map[s.name])
-                for s in expr.free_symbols
-                if isinstance(s, sp.Symbol) and s.name in id_map
-            }
-        )
+        replacements = {
+            s: b_expr ** petab_symbol(id_map[s.name])
+            for s in expr.free_symbols
+            if isinstance(s, sp.Symbol) and s.name in id_map
+        }
+        return expr.subs(replacements) if replacements else expr
 
     for observable in problem.observables:
         observable.formula = subs(observable.formula)
         observable.noise_formula = subs(observable.noise_formula)
     for condition in problem.conditions:
         for change in condition.changes:
-            change.target_value = subs(change.target_value)
+            if (new_value := subs(change.target_value)) is not (
+                change.target_value
+            ):
+                change.target_value = new_value
 
     # update parameter tables
     for table in problem.parameter_tables:
@@ -352,6 +380,8 @@ def _reparametrize_overrides(
     id_map: dict[str, str],
     b_expr: sp.Expr,
     log_function,
+    *,
+    used_ids: set[str],
 ) -> None:
     """Log-transform placeholders overridden by reparametrized parameters.
 
@@ -362,6 +392,7 @@ def _reparametrize_overrides(
     to be split, which is not supported.
     Numeric overrides are log-transformed. Since overrides must be finite,
     ``0`` is replaced by a new fixed parameter with nominal value ``-inf``.
+    Its ID is chosen to not be in ``used_ids``, and is added to it.
     """
     observables = {o.id: o for o in problem.observables}
 
@@ -449,9 +480,10 @@ def _reparametrize_overrides(
             return petab_symbol(id_map[value.name])
         if value.is_zero:
             if neg_inf_id is None:
-                neg_inf_id = problem.get_unused_id(
-                    "negative_infinity", exclude=id_map.values()
+                neg_inf_id = problem._get_unused_id(
+                    "negative_infinity", used_ids=used_ids
                 )
+                used_ids.add(neg_inf_id)
                 problem.add_parameter(
                     neg_inf_id, estimate=False, nominal_value=-math.inf
                 )

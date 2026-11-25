@@ -1862,10 +1862,24 @@ class Problem:
             already chosen for entities that are not added to the problem yet.
         :return: The unused identifier.
         """
+        return self._get_unused_id(
+            base, used_ids=self._get_used_ids(), exclude=exclude
+        )
+
+    def _get_unused_id(
+        self,
+        base: str,
+        *,
+        used_ids: Collection[str],
+        exclude: Collection[str] = (),
+    ) -> str:
+        """Like :meth:`get_unused_id`, but with precomputed used IDs.
+
+        For generating many IDs, compute `used_ids` once via
+        :meth:`_get_used_ids` and add the generated IDs to it.
+        """
         if not is_valid_identifier(base):
             raise ValueError(f"`{base}' is not a valid identifier.")
-
-        used_ids = self._get_used_ids()
 
         def is_used(id_: str) -> bool:
             return (

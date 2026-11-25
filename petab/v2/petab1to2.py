@@ -25,7 +25,7 @@ from .reparametrize import (
     _get_override_slots,
     _log,
     _log10,
-    reparametrize_log,
+    _reparametrize_log_inplace,
 )
 
 __all__ = ["petab1to2"]
@@ -936,7 +936,8 @@ def _reparametrize_log_scaled(
         if not base_selected:
             continue
         try:
-            problem, _ = reparametrize_log(
+            # the problem was created by the converter; no need to copy
+            problem, _ = _reparametrize_log_inplace(
                 problem,
                 # keep the parameter table order
                 [p for p in candidates[base] if p in base_selected],
