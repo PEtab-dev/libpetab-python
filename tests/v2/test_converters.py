@@ -207,11 +207,19 @@ def test_condition_parameters_stay_in_conditions():
 
 
 @pytest.mark.parametrize(
-    "case", ["estimated", "later_period", "expression", "initial_assignment"]
+    "case",
+    [
+        "estimated",
+        "later_period",
+        "expression",
+        "initial_assignment",
+        "not_constant",
+    ],
 )
 def test_condition_parameters_encoded_otherwise(case):
     """A parameter change that is not constant per experiment, or a parameter
-    that something else assigns, is still encoded in the model."""
+    that something else assigns or that is not constant, is still encoded in
+    the model."""
     ant_model = """
     species A = 1
     k = 3
@@ -220,6 +228,8 @@ def test_condition_parameters_encoded_otherwise(case):
     """
     if case == "initial_assignment":
         ant_model += "k = 2 * p\n"
+    elif case == "not_constant":
+        ant_model += "var k\n"
     problem = Problem()
     problem.model = SbmlModel.from_antimony(ant_model)
     problem.add_condition("c0", k="2 * p" if case == "expression" else 1)
@@ -243,26 +253,45 @@ def test_condition_parameters_encoded_otherwise(case):
     assert sbml_model.getInitialAssignmentBySymbol("A") is None
 
 
-@pytest.mark.parametrize("case", ["initial_assignment", "compartment_target"])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "initial_assignment",
+        "rate_rule",
+        "event_assignment",
+        "compartment_target",
+        "compartment_not_constant",
+    ],
+)
 def test_condition_parameters_species_encoded_otherwise(case):
-    """A species with an initial assignment, or whose initial value depends
-    on a compartment that conditions resize, keeps its piecewise initial
-    assignment."""
-    ant_model = """
-    compartment C = 2
+    """A species with an initial assignment, a rule or an event assignment,
+    or whose initial value depends on a compartment that conditions resize
+    or that is not constant, keeps its piecewise initial assignment."""
+    compartment = (
+        "var compartment"
+        if case == "compartment_not_constant"
+        else "compartment"
+    )
+    ant_model = f"""
+    {compartment} C = 2
     species A in C = 1
     p = 3
     """
     if case == "initial_assignment":
         ant_model += "A = 2 * p\n"
+    elif case == "rate_rule":
+        ant_model += "A' = -p\n"
+    elif case == "event_assignment":
+        ant_model += "E1: at time > 1, fromTrigger=false: A = 0\n"
     problem = Problem()
     problem.model = SbmlModel.from_antimony(ant_model)
-    if case == "compartment_target":
+    if case.startswith("compartment_"):
         # concentration-based, given as an amount: the initial
         #  concentration depends on the size of C
         species = problem.model.sbml_model.getSpecies("A")
         species.unsetInitialConcentration()
         species.setInitialAmount(4)
+    if case == "compartment_target":
         problem.add_condition("c1", C=3)
         problem.add_experiment("e1", 0, "c1")
     problem.add_condition("c0", A=5)
@@ -281,6 +310,43 @@ def test_condition_parameters_species_encoded_otherwise(case):
         )
         is None
     )
+
+
+@pytest.mark.parametrize("only_substance_units", [False, True])
+def test_condition_parameters_species_compartment_size(only_substance_units):
+    """A species whose initial value depends on the size of a constant
+    compartment gets the initial value in its own units, and its changes stay
+    in the condition table."""
+    ant_model = """
+    compartment C = 2
+    species A in C = 1
+    """
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony(ant_model)
+    species = problem.model.sbml_model.getSpecies("A")
+    species.setHasOnlySubstanceUnits(only_substance_units)
+    if only_substance_units:
+        # amount-based, given as a concentration
+        species.setInitialConcentration(3)
+        expected_initial_value = 6
+    else:
+        # concentration-based, given as an amount
+        species.unsetInitialConcentration()
+        species.setInitialAmount(4)
+        expected_initial_value = 2
+    problem.add_condition("c0", A=5)
+    problem.add_experiment("e0", 0, "c0")
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    assert converted.validate().has_errors() is False
+    sbml_model = converted.model.sbml_model
+
+    initial_value_a = ExperimentsToSbmlConverter.INITIAL_VALUE_PREFIX + "A"
+    assert (
+        sbml_model.getParameter(initial_value_a).getValue()
+        == expected_initial_value
+    )
+    assert _kept_changes(converted)["e0"] == [{initial_value_a: 5.0}]
 
 
 def test_condition_parameters_preequilibration():

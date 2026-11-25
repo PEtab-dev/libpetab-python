@@ -24,6 +24,7 @@ from .core import (
     ExperimentPeriod,
     Problem,
 )
+from .math import petab_symbol
 from .models._sbml_utils import (
     add_sbml_parameter,
     check,
@@ -85,11 +86,11 @@ class ExperimentsToSbmlConverter:
     has any changes encoded in the model), and the changes that set
     *condition parameters*.
 
-    A condition parameter is a constant SBML parameter that the model does
-    not assign (no rule, initial assignment or event assignment), that is
-    neither in the parameter table nor in the mapping table, nor an
-    observable or noise placeholder, and that is changed only in the first
-    period of an experiment, and only to numbers.
+    A condition parameter is a constant (``constant="true"``) SBML parameter
+    without an initial assignment, that is neither in the parameter table
+    nor in the mapping table, nor an observable or noise placeholder, and
+    that is changed only in the first period of an experiment, and only to
+    numbers.
     Its value is constant per experiment, like a column of a PEtab v1
     condition table, so its changes are kept as conditions of the first
     period (and, for an experiment with pre-equilibration, of both kept
@@ -97,12 +98,19 @@ class ExperimentsToSbmlConverter:
     Encoding them in the model would add a branch per experiment to the
     initial assignment of every such parameter.
 
-    A species that meets the same criteria, and whose initial value in the
-    model is a number, is handled the same way through a new parameter
-    ``_petab_initial_value_<species ID>``: it holds the species' initial
-    value, the species gets the initial assignment
-    ``<species ID> = _petab_initial_value_<species ID>``, and the changes of
-    the species are kept as changes of that parameter.
+    The initial value of a species is handled the same way, if the species
+    meets these criteria and its initial value in the model is a number.
+    The species does not have to be constant, since only its initial value
+    is set per experiment, but it must not be the target of a rule or an
+    event assignment.
+    It gets a new parameter ``_petab_initial_value_<species ID>`` that holds
+    its initial value, and the initial assignment
+    ``<species ID> = _petab_initial_value_<species ID>``. The changes of the
+    species are kept as changes of that parameter.
+    The initial value of a concentration-based species that is given as an
+    amount, or vice versa, depends on the size of its compartment. It is a
+    number only if that compartment is constant, has a size, has no initial
+    assignment and is not changed by any condition.
     """
 
     #: Prefix of the parameters that hold the initial value of a species
@@ -371,13 +379,21 @@ class ExperimentsToSbmlConverter:
         model = self._model
         problem = self._new_problem
 
-        assigned_in_model = {
-            rule.getVariable() for rule in model.getListOfRules()
-        }
-        assigned_in_model |= {
+        # Parameters and compartments qualify only if they are constant.
+        #  SBML does not allow rules or event assignments for constant
+        #  entities, but initial assignments.
+        initially_assigned = {
             ia.getSymbol() for ia in model.getListOfInitialAssignments()
         }
-        assigned_in_model |= {
+        # Species don't have to be constant: a condition sets the initial
+        #  value of a species, which is constant per experiment even if the
+        #  species changes during the simulation. Also, unchanging species
+        #  are often not marked as constant; e.g., Antimony writes
+        #  constant="false" for boundary species. Instead, the model must
+        #  not assign them.
+        assigned_species = {
+            rule.getVariable() for rule in model.getListOfRules()
+        } | {
             ea.getVariable()
             for event in model.getListOfEvents()
             for ea in event.getListOfEventAssignments()
@@ -397,17 +413,17 @@ class ExperimentsToSbmlConverter:
             }
 
         candidates = (
-            (
-                {
-                    parameter.getId()
-                    for parameter in model.getListOfParameters()
-                    if parameter.getConstant()
-                }
-                | {species.getId() for species in model.getListOfSpecies()}
-            )
-            - assigned_in_model
-            - used_by_problem
-        )
+            {
+                parameter.getId()
+                for parameter in model.getListOfParameters()
+                if parameter.getConstant()
+            }
+            | {
+                species.getId()
+                for species in model.getListOfSpecies()
+                if species.getId() not in assigned_species
+            }
+        ) - (initially_assigned | used_by_problem)
 
         targets = set()
         for experiment in problem.experiments:
@@ -428,13 +444,15 @@ class ExperimentsToSbmlConverter:
         candidates &= targets
 
         # A species needs a numeric initial value for its parameter. The
-        #  value of a concentration-based species given by an amount depends
-        #  on its compartment, which must then have a fixed size.
+        #  value of a concentration-based species given by an amount, or
+        #  vice versa, depends on its compartment, which must then have a
+        #  fixed size.
         fixed_sizes = {
-            sp.Symbol(compartment.getId()): sp.Float(compartment.getSize())
+            petab_symbol(compartment.getId()): sp.Float(compartment.getSize())
             for compartment in model.getListOfCompartments()
-            if compartment.isSetSize()
-            and compartment.getId() not in assigned_in_model
+            if compartment.getConstant()
+            and compartment.isSetSize()
+            and compartment.getId() not in initially_assigned
             and compartment.getId() not in targets
         }
         self._initial_values = {}
@@ -465,7 +483,7 @@ class ExperimentsToSbmlConverter:
                     "the model."
                 )
             add_sbml_parameter(model, id_=par_id, constant=True, value=value)
-            set_initial_assignment(model, species_id, sp.Symbol(par_id))
+            set_initial_assignment(model, species_id, petab_symbol(par_id))
 
     def _condition_target(self, target_id: str) -> str:
         """The ID that a kept change of `target_id` sets: the parameter
@@ -640,7 +658,7 @@ class ExperimentsToSbmlConverter:
             # Only create the initial assignment if there is
             #  actually something to change.
             if expr_cond_pairs := [
-                (target_value, sp.Symbol(exp_ind) > 0.5)
+                (target_value, petab_symbol(exp_ind) > 0.5)
                 for exp_ind, target_value in changes
                 if target_value != default
             ]:
@@ -679,20 +697,17 @@ class ExperimentsToSbmlConverter:
             return sp.Float(target.getSize())
 
         if target.getTypeCode() == libsbml.SBML_SPECIES:
+            size = petab_symbol(target.getCompartment())
             if target.getHasOnlySubstanceUnits():
                 # amount-based -> return amount
                 if target.isSetInitialAmount():
                     return sp.Float(target.getInitialAmount())
-                return sp.Float(target.getInitialConcentration()) * sp.Symbol(
-                    target.getCompartment()
-                )
+                return sp.Float(target.getInitialConcentration()) * size
             # concentration-based -> return concentration
             if target.isSetInitialConcentration():
                 return sp.Float(target.getInitialConcentration())
 
-            return sp.Float(target.getInitialAmount()) / sp.Symbol(
-                target.getCompartment()
-            )
+            return sp.Float(target.getInitialAmount()) / size
 
         if target.getTypeCode() == libsbml.SBML_PARAMETER:
             return sp.Float(target.getValue())
@@ -847,7 +862,7 @@ class ExperimentsToSbmlConverter:
                         new_conc = species_change.target_value
                     else:
                         # no explicit change, use the pre-event concentration
-                        new_conc = sp.Symbol(species_id)
+                        new_conc = petab_symbol(species_id)
 
                     _add_assignment(
                         event,
@@ -855,7 +870,7 @@ class ExperimentsToSbmlConverter:
                         # new_conc * new_volume / old_volume
                         new_conc
                         * change.target_value
-                        / sp.Symbol(change.target_id),
+                        / petab_symbol(change.target_id),
                     )
             elif (
                 target_type != libsbml.SBML_SPECIES
