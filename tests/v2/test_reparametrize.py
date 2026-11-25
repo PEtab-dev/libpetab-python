@@ -211,10 +211,14 @@ def test_reparametrize_log_nominal_and_fixed_bounds():
     problem["k2_c1"].nominal_value = 0
     problem["offset2"].lb = -1
     problem["offset2"].ub = 10
-    with pytest.warns(UserWarning, match="no non-negative nominal value"):
+    with pytest.warns(
+        UserWarning, match="no non-negative nominal value"
+    ) as record:
         problem, _ = reparametrize_log(
             problem, ["scaling", "offset1", "k2_c1", "offset2"]
         )
+    # check `stacklevel`
+    assert {w.filename for w in record} == {__file__}
     assert problem["log10_scaling"].nominal_value is None
     assert problem["log10_offset1"].nominal_value is None
     assert problem["log10_k2_c1"].nominal_value == -math.inf
