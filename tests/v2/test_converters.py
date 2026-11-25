@@ -584,3 +584,40 @@ def test_infinite_priority():
         "E2": 5,
         PETAB_EVENT: inf,
     }
+
+
+def test_time_in_target_value():
+    """`time` in target values maps to the SBML time csymbol."""
+    from sbmlmath import TimeSymbol
+
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("species A = 1; species B = 1")
+    # first period -> initial assignment; second period -> event
+    problem.add_condition("c0", B="time + 2")
+    problem.add_condition("c1", A="time + 3")
+    problem.add_experiment("e1", 0, "c0", 5, "c1")
+    problem.add_observable("obs1", "A", noise_formula="1")
+    problem.add_measurement("obs1", experiment_id="e1", time=1, measurement=1)
+
+    converted = ExperimentsToSbmlConverter(problem).convert()
+    sbml_model = converted.model.sbml_model
+
+    assert sbml_model.getElementBySId("time") is None
+
+    (ea,) = (
+        ea
+        for ev in sbml_model.getListOfEvents()
+        for ea in ev.getListOfEventAssignments()
+        if ea.getVariable() == "A"
+    )
+    ea_expr = sbml_math_to_sympy(ea.getMath())
+    (t,) = ea_expr.free_symbols
+    assert isinstance(t, TimeSymbol)
+    assert ea_expr.subs(t, 7) == 10
+
+    ia = sbml_model.getInitialAssignmentBySymbol("B")
+    ia_expr = sbml_math_to_sympy(ia.getMath())
+    assert {type(s) for s in ia_expr.free_symbols} == {sp.Symbol, TimeSymbol}
+    assert {
+        s.name for s in ia_expr.free_symbols if not isinstance(s, TimeSymbol)
+    } == {"_petab_experiment_indicator_e1"}

@@ -15,10 +15,10 @@ from petab_sciml import (
     TensorOps,
 )
 
-from petab.v1.lint import is_valid_identifier
-from petab.v1.math import sympify_petab
+from petab.v1.math import petab_math_str, sympify_petab
 
 from .. import core, lint
+from .._helpers import is_valid_identifier
 from ..C import EXT_ID_SCIML
 
 __all__ = [
@@ -274,7 +274,7 @@ class CheckHybridizationTable(lint.ValidationTask):
             # value is sympified on construction); this is a defensive
             # re-check in case a target value was assigned some other way.
             try:
-                sympify_petab(str(hyb.target_value))
+                sympify_petab(petab_math_str(hyb.target_value))
             except Exception as e:  # noqa BLE001
                 messages.append(
                     f"Hybridization target value for `{hyb.target_id}` is "

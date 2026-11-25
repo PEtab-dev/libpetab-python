@@ -23,20 +23,36 @@ remove it earlier.
 Python compatibility
 --------------------
 
-We follow `numpy's Python support policy <https://numpy.org/neps/nep-0029-deprecation_policy.html>`_.
+We follow `SPEC 0 <https://scientific-python.org/specs/spec-0000/>`_
+for the minimum supported versions of Python and core dependencies
+(NumPy, SciPy, Matplotlib, pandas, ...),
+but may keep supporting a Python version
+as long as current NumPy releases support it.
 
 Release process
 ---------------
 
 1. Update the version number in ``petab/version.py``.
 
-2. Update the changelog in ``doc/CHANGELOG.md``.
-   The update content can be generated automatically:
-   draft a new dummy GitHub release with a dummy tag and the ``develop``
-   branch, then click :guilabel:`Generate release notes`.
+2. Collect the changelog entries from ``changelog.d/`` into
+   ``CHANGELOG.md`` by running
+   `towncrier <https://towncrier.readthedocs.io/>`__
+   (included in the ``test`` dependency group) from the repository root:
 
-3. Create a pull request with the to-be-released changes to the main branch
-   (usually from ``develop``).
+   .. code-block:: shell
+
+      uv run towncrier build --version X.Y.Z
+
+   This adds a new section for the release to ``CHANGELOG.md``, and removes
+   the collected fragments (``git rm``). Run with ``--draft`` to only preview
+   the result. Review the new section and edit it as necessary:
+   group related entries (e.g., by PEtab version or module),
+   reorder entries (they are sorted alphabetically within each category),
+   credit new contributors, and add the ``**Full Changelog**`` link.
+   For a new minor version, add a ``## X.Y series`` heading and move the
+   ``<!-- towncrier release notes start -->`` marker below it.
+
+3. Create a pull request with these changes to ``main``.
 
 4. Once the pull request is merged, create a new release on GitHub.
    Make sure to set the tag to the version number prefixed with 'v'
@@ -47,7 +63,21 @@ Release process
    The upload to PyPI is performed automatically by a GitHub Actions workflow,
    which may take a few minutes to complete.
 
-6. Merge the main branch back into the `develop` branch.
+Testing
+-------
+
+To run the unit tests, run:
+
+.. code-block:: bash
+
+    uv run pytest tests
+
+Tests for the BNGL import are skipped unless the respective test models
+have been downloaded via:
+
+.. code-block:: bash
+
+    uv run --no-project python -P tests/v1/fetch_bngl_corpus.py
 
 Style guide
 -----------
@@ -55,19 +85,20 @@ Style guide
 Code style
 ~~~~~~~~~~
 
-We use pre-commit with ruff to enforce code style. To install pre-commit and
-the pre-commit hooks, run:
+We use pre-commit with ruff to enforce code style.
+pre-commit is part of the default ``dev`` dependency group.
+To install it and the pre-commit hooks, run:
 
 .. code-block:: bash
 
-    uv tool install pre-commit
-    pre-commit install
+    uv sync
+    uv run pre-commit install
 
 To run the pre-commit checks manually on all, not just the modified files, run:
 
 .. code-block:: bash
 
-    pre-commit run --all-files
+    uv run pre-commit run --all-files
 
 Documentation style
 ~~~~~~~~~~~~~~~~~~~

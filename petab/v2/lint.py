@@ -43,6 +43,7 @@ __all__ = [
     "CheckUniquePrimaryKeys",
     "CheckUnusedConditions",
     "CheckUnusedExperiments",
+    "CheckUnusedPlaceholders",
     "CheckValidConditionTargets",
     "CheckValidParameterInConditionOrParameterTable",
     "ValidationError",
@@ -753,6 +754,68 @@ class CheckUnusedConditions(ValidationTask):
         return None
 
 
+class CheckUnusedPlaceholders(ValidationTask):
+    """A task to check for placeholders that are not used in any formula.
+
+    Observable placeholders may occur in the observable formula or the noise
+    formula; noise placeholders may only occur in the noise formula.
+
+    Unused placeholders are valid PEtab, but they still require override
+    values in the measurement table, add complexity without any effect,
+    and may indicate a typo in a formula. Therefore, a warning is issued.
+    """
+
+    def run(self, problem: Problem) -> ValidationIssue | None:
+        messages = []
+        for o in problem.observables:
+            obs_syms = _free_symbol_names(o.formula)
+            noise_syms = _free_symbol_names(o.noise_formula)
+            unused_obs = [
+                str(p)
+                for p in o.observable_placeholders
+                if str(p) not in obs_syms | noise_syms
+            ]
+            unused_noise = [
+                str(p)
+                for p in o.noise_placeholders
+                if str(p) not in noise_syms
+            ]
+            if unused_obs:
+                messages.append(
+                    f"Observable `{o.id}`: observable placeholders "
+                    f"{_fmt_ids(unused_obs)} are not used in the observable "
+                    "or noise formula."
+                )
+            if unused_noise:
+                messages.append(
+                    f"Observable `{o.id}`: noise placeholders "
+                    f"{_fmt_ids(unused_noise)} are not used in the noise "
+                    "formula."
+                )
+
+        if messages:
+            messages.append(
+                "Unused placeholders are allowed, but they have no effect and "
+                "still require override values in the measurement table. "
+                "Consider removing them."
+            )
+            return ValidationWarning("\n".join(messages))
+
+        return None
+
+
+def _fmt_ids(ids: list[str]) -> str:
+    """Format IDs as a comma-separated list of backticked IDs."""
+    return ", ".join(f"`{i}`" for i in ids)
+
+
+def _free_symbol_names(expr: sp.Basic | None) -> set[str]:
+    """Get the names of the free symbols in an expression."""
+    if expr is None:
+        return set()
+    return {str(s) for s in expr.free_symbols}
+
+
 class CheckInitialChangeSymbols(ValidationTask):
     """
     Check that changes of any first period of any experiment only refers to
@@ -835,6 +898,18 @@ class CheckPriorDistribution(ValidationTask):
 
     def run(self, problem: Problem) -> ValidationIssue | None:
         messages = []
+
+        # The default uniform(lowerBound, upperBound) prior is improper for
+        #  infinite bounds
+        if problem.has_map_objective and (
+            unbounded := problem._get_unbounded_ids_without_prior()
+        ):
+            messages.append(
+                "If any estimated parameter has a prior, all estimated "
+                "parameters with infinite bounds require an explicit proper "
+                f"prior, but the following parameters have none: {unbounded}."
+            )
+
         for parameter in problem.parameters:
             if parameter.prior_distribution is None:
                 continue
@@ -1052,7 +1127,8 @@ def get_valid_parameters_for_parameter_table(
     # Append parameter overrides from condition table
     for ct in problem.condition_tables:
         for p in ct.free_symbols:
-            parameter_ids[str(p)] = None
+            if (str_p := str(p)) != TIME_SYMBOL:
+                parameter_ids[str_p] = None
 
     return set(parameter_ids.keys())
 
@@ -1069,7 +1145,8 @@ def get_required_parameters_for_parameter_table(
         Set of parameter IDs which PEtab requires to be present in the
         parameter table. That is all {observable,noise}Parameters from the
         measurement table as well as all parametric condition table overrides
-        that are not defined in the model.
+        that are not defined in the model (directly or via the mapping
+        table).
     """
     parameter_ids = set()
     condition_targets = {
@@ -1115,12 +1192,24 @@ def get_required_parameters_for_parameter_table(
         )
 
     # Add condition table parametric overrides unless already defined in the
-    #  model
+    #  model, directly or via a mapping table alias
+    model_aliases = {
+        m.petab_id
+        for m in problem.mappings
+        if m.model_id
+        and problem.model is not None
+        and (
+            problem.model.has_entity_with_id(m.model_id)
+            or problem.model.is_state_variable(m.model_id)
+        )
+    }
     parameter_ids.update(
         str(p)
         for ct in problem.condition_tables
         for p in ct.free_symbols
-        if not problem.model.has_entity_with_id(str(p))
+        if str(p) != TIME_SYMBOL
+        and str(p) not in model_aliases
+        and not problem.model.has_entity_with_id(str(p))
     )
 
     # Parameters that are overridden via the condition table are not allowed
@@ -1195,6 +1284,7 @@ default_validation_tasks = [
     CheckValidParameterInConditionOrParameterTable(),
     CheckUnusedExperiments(),
     CheckUnusedConditions(),
+    CheckUnusedPlaceholders(),
     CheckPriorDistribution(),
     CheckInitialChangeSymbols(),
     CheckMappingTable(),

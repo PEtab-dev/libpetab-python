@@ -51,6 +51,7 @@ class Distribution(abc.ABC):
         If ``False``, no transformation is applied.
     :param trunc: The truncation points (lower, upper) of the distribution
         or ``None`` if the distribution is not truncated.
+        ``(-inf, inf)`` is equivalent to ``None``.
         If the distribution is log-scaled, the truncation limits are expected
         to be on the same log scale.
     """
@@ -64,8 +65,10 @@ class Distribution(abc.ABC):
         if log is True:
             log = np.exp(1)
 
-        if trunc == (-np.inf, np.inf):
-            trunc = None
+        if trunc is not None:
+            trunc = tuple(trunc)
+            if trunc == (-np.inf, np.inf):
+                trunc = None
 
         if trunc is not None and trunc[0] >= trunc[1]:
             raise ValueError(
@@ -378,6 +381,8 @@ class Normal(Distribution):
 class Uniform(Distribution):
     """A (log-)uniform distribution.
 
+    The bounds must be finite with ``low < high``.
+
     :param low: The lower bound of the distribution.
     :param high: The upper bound of the distribution.
     :param log: If ``True``, the distribution is transformed to a log-uniform
@@ -403,6 +408,11 @@ class Uniform(Distribution):
             from scipy.stats import uniform
         except ImportError as e:
             raise ImportError(_SCIPY_IMPORT_ERROR) from e
+        if not (np.isfinite(low) and np.isfinite(high) and low < high):
+            raise ValueError(
+                "Uniform distribution requires finite limits with low < high, "
+                f"but got low={low}, high={high}."
+            )
         self._dist = uniform
         self._low = low
         self._high = high
@@ -429,7 +439,7 @@ class LogUniform(Distribution):
 
     A random variable is log-uniformly distributed between ``low`` and ``high``
     if its logarithm is uniformly distributed between ``log(low)`` and
-    ``log(high)``.
+    ``log(high)``. The bounds must satisfy ``0 < low < high < inf``.
 
     :param low: The lower bound of the distribution.
     :param high: The upper bound of the distribution.
@@ -442,6 +452,11 @@ class LogUniform(Distribution):
         high: float,
         trunc: tuple[float, float] | None = None,
     ):
+        if not (0 < low < high < np.inf):
+            raise ValueError(
+                "Log-uniform distribution requires 0 < low < high < inf, "
+                f"but got low={low}, high={high}."
+            )
         try:
             from scipy.stats import uniform
         except ImportError as e:

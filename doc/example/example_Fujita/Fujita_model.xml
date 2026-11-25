@@ -39,18 +39,6 @@
       <parameter id="reaction_7_k1" value="0.0119329694583145" constant="true"/>
       <parameter id="reaction_8_k1" value="0.000941161525754959" constant="true"/>
       <parameter id="reaction_9_k1" value="0.0273281571867514" constant="true"/>
-      <parameter id="observableParameter1_pAkt_tot" value="334.979345701912" constant="true"/>
-      <parameter id="observableParameter1_pEGFR_tot" value="9.60908283106834e-08" constant="true"/>
-      <parameter id="observableParameter1_pS6_tot" value="380222.792056961" constant="true"/>
-      <parameter id="sigma_pAkt_tot" value="0.1" constant="false"/>
-      <parameter id="sigma_pEGFR_tot" value="0.1" constant="false"/>
-      <parameter id="sigma_pS6_tot" value="0.1" constant="false"/>
-      <parameter id="noiseParameter1_pAkt_tot" value="0.1" constant="true"/>
-      <parameter id="noiseParameter1_pEGFR_tot" value="0.1" constant="true"/>
-      <parameter id="noiseParameter1_pS6_tot" value="0.1" constant="true"/>
-      <parameter id="observable_pEGFR_tot" value="0" constant="false"/>
-      <parameter id="observable_pAkt_tot" value="0" constant="false"/>
-      <parameter id="observable_pS6_tot" value="0" constant="false"/>
       <parameter id="EGF" value="0.1" constant="false"/>
     </listOfParameters>
     <listOfInitialAssignments>
@@ -70,58 +58,6 @@
         </math>
       </initialAssignment>
     </listOfInitialAssignments>
-    <listOfRules>
-      <assignmentRule variable="sigma_pAkt_tot">
-        <math xmlns="http://www.w3.org/1998/Math/MathML">
-          <ci> noiseParameter1_pAkt_tot </ci>
-        </math>
-      </assignmentRule>
-      <assignmentRule variable="sigma_pEGFR_tot">
-        <math xmlns="http://www.w3.org/1998/Math/MathML">
-          <ci> noiseParameter1_pEGFR_tot </ci>
-        </math>
-      </assignmentRule>
-      <assignmentRule variable="sigma_pS6_tot">
-        <math xmlns="http://www.w3.org/1998/Math/MathML">
-          <ci> noiseParameter1_pS6_tot </ci>
-        </math>
-      </assignmentRule>
-      <assignmentRule variable="observable_pEGFR_tot">
-        <math xmlns="http://www.w3.org/1998/Math/MathML">
-          <apply>
-            <times/>
-            <ci> observableParameter1_pEGFR_tot </ci>
-            <apply>
-              <plus/>
-              <ci> pEGFR </ci>
-              <ci> pEGFR_Akt </ci>
-            </apply>
-          </apply>
-        </math>
-      </assignmentRule>
-      <assignmentRule variable="observable_pAkt_tot">
-        <math xmlns="http://www.w3.org/1998/Math/MathML">
-          <apply>
-            <times/>
-            <ci> observableParameter1_pAkt_tot </ci>
-            <apply>
-              <plus/>
-              <ci> pAkt </ci>
-              <ci> pAkt_S6 </ci>
-            </apply>
-          </apply>
-        </math>
-      </assignmentRule>
-      <assignmentRule variable="observable_pS6_tot">
-        <math xmlns="http://www.w3.org/1998/Math/MathML">
-          <apply>
-            <times/>
-            <ci> pS6 </ci>
-            <ci> observableParameter1_pS6_tot </ci>
-          </apply>
-        </math>
-      </assignmentRule>
-    </listOfRules>
     <listOfReactions>
       <reaction id="v1_reaction_1" name="reaction_1" reversible="true">
         <listOfReactants>

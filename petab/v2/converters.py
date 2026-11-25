@@ -9,12 +9,13 @@ from copy import deepcopy
 
 import libsbml
 import sympy as sp
-from sbmlmath import sbml_math_to_sympy, set_math
+from sbmlmath import CSymbol, TimeSymbol, sbml_math_to_sympy, set_math
 
 from .assignments_to_experiments import (
     DEFAULT_EXPERIMENT_ID,
     assignments_to_experiments,
 )
+from .C import TIME_SYMBOL
 from .core import (
     Change,
     Condition,
@@ -37,6 +38,21 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def _petab_to_sbml_math(expr: sp.Basic) -> sp.Basic:
+    """Convert a PEtab math expression for SBML math export via `sbmlmath`.
+
+    Currently, this only replaces the PEtab ``time`` symbol by the SBML
+    time csymbol.
+    """
+    return expr.subs(
+        {
+            s: TimeSymbol(TIME_SYMBOL)
+            for s in expr.free_symbols
+            if s.name == TIME_SYMBOL and not isinstance(s, CSymbol)
+        }
+    )
 
 
 class ExperimentsToSbmlConverter:
@@ -548,7 +564,12 @@ class ExperimentsToSbmlConverter:
                         continue
                     period0_assignments.setdefault(
                         change.target_id, []
-                    ).append((use_indicator(), change.target_value))
+                    ).append(
+                        (
+                            use_indicator(),
+                            _petab_to_sbml_math(change.target_value),
+                        )
+                    )
             else:
                 use_indicator()
                 ev = self._create_period_start_event(
@@ -635,7 +656,10 @@ class ExperimentsToSbmlConverter:
         #  introduced in the PEtab parameter table - those need
         #  to be added to the model
         for sym in free_symbols_in_assignments:
-            if model.getElementBySId(sym.name) is None:
+            if (
+                not isinstance(sym, CSymbol)
+                and model.getElementBySId(sym.name) is None
+            ):
                 add_sbml_parameter(model, id_=sym.name, constant=True, value=0)
 
     @staticmethod
@@ -851,6 +875,7 @@ class ExperimentsToSbmlConverter:
         """Add a single event assignment to the given event
         and apply any necessary changes to the model."""
         sbml_model = event.getModel()
+        target_value = _petab_to_sbml_math(target_value)
         ea = event.createEventAssignment()
         ea.setVariable(target_id)
         set_math(ea, target_value)
@@ -872,7 +897,10 @@ class ExperimentsToSbmlConverter:
         #  introduced in the PEtab parameter table - those need
         #  to be added to the model
         for sym in target_value.free_symbols:
-            if sbml_model.getElementBySId(sym.name) is None:
+            if (
+                not isinstance(sym, CSymbol)
+                and sbml_model.getElementBySId(sym.name) is None
+            ):
                 add_sbml_parameter(
                     sbml_model, id_=sym.name, constant=True, value=0
                 )

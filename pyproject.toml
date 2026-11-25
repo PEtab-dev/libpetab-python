@@ -11,7 +11,7 @@ dynamic = ["version", "readme"]
 description = "Parameter estimation tabular data"
 requires-python = ">=3.12"
 dependencies = [
-    "numpy>=2.1",
+    "numpy>=2.2",
     "pandas>=2.3",
     "python-libsbml>=5.17.0",
     "sympy",
@@ -40,9 +40,9 @@ combine = [
     "python-libcombine>=0.2.6",
 ]
 vis = [
-    "matplotlib>=3.6.0",
+    "matplotlib>=3.10",
     "seaborn",
-    "scipy"
+    "scipy>=1.15"
 ]
 reports = [
     "Jinja2",
@@ -71,8 +71,10 @@ test = [
     "pytest",
     "pytest-cov",
     "scipy",
+    # for collecting changelog entries, see changelog.d/README.md
+    "towncrier",
     "petabtests @ git+https://github.com/PEtab-dev/petab_test_suite@main",
-    "benchmark_models_petab @ git+https://github.com/Benchmarking-Initiative/Benchmark-Models-PEtab.git@master#subdirectory=src/python",
+    "benchmark_models_petab @ git+https://github.com/PEtab-dev/petab-benchmark-problems.git@main#subdirectory=src/python",
 ]
 doc = [
     "petab[antimony,vis]",
@@ -81,8 +83,7 @@ doc = [
     "sphinx-rtd-theme>=0.5.1",
     "m2r2",
     "myst-nb>=0.14.0",
-    # https://github.com/spatialaudio/nbsphinx/issues/687#issuecomment-1339271312
-    "ipython>=7.21.0, !=8.7.0",
+    "ipython>=8.30",
     "pysb",
 ]
 dev = [
@@ -141,3 +142,48 @@ docstring-code-format = true
 exclude = [
     "petab/math/_generated/*",  # auto-generated
 ]
+
+# Collecting changelog entries from changelog.d/, see changelog.d/README.md
+[tool.towncrier]
+name = "libpetab-python"
+filename = "CHANGELOG.md"
+directory = "changelog.d"
+template = "changelog.d/template.md.j2"
+start_string = "<!-- towncrier release notes start -->\n"
+title_format = "### {version}"
+underlines = ["", "", ""]
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "deprecation"
+name = "Deprecations"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "fix"
+name = "Fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "perf"
+name = "Performance"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Other changes"
+showcontent = true

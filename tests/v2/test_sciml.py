@@ -3,10 +3,12 @@ import pytest
 from petab_sciml import Input, Node
 from pydantic import ConfigDict
 
+from petab.v2 import C
 from petab.v2.core import *
 from petab.v2.core import ModelFile, ProblemExtensions
 from petab.v2.extensions.sciml import (
     Hybridization,
+    HybridizationTable,
     NeuralNetConfig,
     SciMLConfig,
     SciMLExt,
@@ -247,10 +249,11 @@ def test_nn_model_duplicate_input_ids():
     assert "duplicate input" in issue.message.lower()
 
 
-def test_nn_model_invalid_input_id():
+@pytest.mark.parametrize("input_id", ["1_invalid", "Time"])
+def test_nn_model_invalid_input_id(input_id):
     problem = _get_test_problem()
     problem.extensions.sciml.neural_networks[0].inputs = [
-        Input(input_id="1_invalid")
+        Input(input_id=input_id)
     ]
     issue = CheckNeuralNetworkModel().run(problem)
     assert issue is not None
@@ -301,6 +304,27 @@ def test_hybridization_invalid_math_rejected():
     """Invalid PEtab math target values are rejected when parsed."""
     with pytest.raises(ValueError):
         Hybridization(target_id="alpha", target_value="1 +* 2")
+
+
+@pytest.mark.parametrize("target_value", ["A^2", "abs(A)", "A > 0"])
+def test_hybridization_valid_math_not_rejected(target_value):
+    """Valid PEtab math target values pass the lint check."""
+    problem = _get_test_problem()
+    for hyb in problem.extensions.sciml.hybridization_tables[0].hybridizations:
+        if hyb.target_id == "net1_input1":
+            hyb.target_value = target_value
+    assert CheckHybridizationTable().run(problem) is None
+
+
+def test_hybridization_table_to_df_petab_math():
+    """Target values are written as PEtab math expressions."""
+    table = HybridizationTable(
+        [
+            Hybridization(target_id="a", target_value="x^2"),
+            Hybridization(target_id="b", target_value="abs(y)"),
+        ]
+    )
+    assert table.to_df()[C.TARGET_VALUE].tolist() == ["x ^ 2", "abs(y)"]
 
 
 def test_hybridization_pre_initialization_not_evaluable():

@@ -49,12 +49,12 @@ from ..v1 import (
     yaml,
 )
 from ..v1.distributions import *
-from ..v1.lint import is_valid_identifier
 from ..v1.math import petab_math_str, sympify_petab
 from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
+from ._helpers import is_reserved_keyword, is_valid_identifier
 from .extensions import ExtensionConfig, parse_extension_config
 from .options import TableColumns, get_options
 
@@ -87,18 +87,30 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _is_finite_or_neg_inf(v: float, info: ValidationInfo) -> float:
-    if not np.isfinite(v) and v != -np.inf:
+def _field_to_column(info: ValidationInfo) -> str:
+    """The PEtab column name for the validated field."""
+    return {"lb": C.LOWER_BOUND, "ub": C.UPPER_BOUND}.get(
+        info.field_name, info.field_name
+    )
+
+
+def _is_finite_or_neg_inf(
+    v: float | None, info: ValidationInfo
+) -> float | None:
+    if v is not None and not np.isfinite(v) and v != -np.inf:
         raise ValueError(
-            f"{info.field_name} value must be finite or -inf but got {v}"
+            f"{_field_to_column(info)} value must be finite or -inf "
+            f"but got {v}"
         )
     return v
 
 
-def _is_finite_or_pos_inf(v: float, info: ValidationInfo) -> float:
-    if not np.isfinite(v) and v != np.inf:
+def _is_finite_or_pos_inf(
+    v: float | None, info: ValidationInfo
+) -> float | None:
+    if v is not None and not np.isfinite(v) and v != np.inf:
         raise ValueError(
-            f"{info.field_name} value must be finite or inf but got {v}"
+            f"{_field_to_column(info)} value must be finite or inf but got {v}"
         )
     return v
 
@@ -134,12 +146,23 @@ def _column_name(name: str, field: FieldInfo) -> str:
     return field.alias or name
 
 
+def _check_petab_id(v: str, kind: str = "ID") -> None:
+    """Raise a ValueError if `v` is not a valid PEtab ID."""
+    if is_valid_identifier(v):
+        return
+    if is_reserved_keyword(v):
+        raise ValueError(
+            f"Invalid {kind}: `{v}` is a reserved keyword and must not be "
+            "used as an identifier."
+        )
+    raise ValueError(f"Invalid {kind}: `{v}`")
+
+
 def _valid_petab_id(v: str) -> str:
     """Field validator for PEtab IDs."""
     if not v:
         raise ValueError("ID must not be empty.")
-    if not is_valid_identifier(v):
-        raise ValueError(f"Invalid ID: {v}")
+    _check_petab_id(v)
     return v
 
 
@@ -147,8 +170,7 @@ def _valid_petab_id_or_none(v: str) -> str | None:
     """Field validator for optional PEtab IDs."""
     if not v:
         return None
-    if not is_valid_identifier(v):
-        raise ValueError(f"Invalid ID: {v}")
+    _check_petab_id(v)
     return v
 
 
@@ -724,8 +746,7 @@ class ExperimentPeriod(BaseModel):
             #  above. Having a combination of empty and non-empty IDs is an
             #  error, since the targets of conditions to be combined must be
             #  disjoint.
-            if not is_valid_identifier(condition_id):
-                raise ValueError(f"Invalid {C.CONDITION_ID}: `{condition_id}'")
+            _check_petab_id(condition_id, C.CONDITION_ID)
         return condition_ids
 
     @property
@@ -1061,13 +1082,17 @@ class Parameter(BaseModel):
         alias=C.PARAMETER_NAME, default=None
     )
     #: Lower bound.
-    lb: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
-        alias=C.LOWER_BOUND, default=None
-    )
+    lb: Annotated[
+        float | None,
+        BeforeValidator(_convert_nan_to_none),
+        AfterValidator(_is_finite_or_neg_inf),
+    ] = Field(alias=C.LOWER_BOUND, default=None)
     #: Upper bound.
-    ub: Annotated[float | None, BeforeValidator(_convert_nan_to_none)] = Field(
-        alias=C.UPPER_BOUND, default=None
-    )
+    ub: Annotated[
+        float | None,
+        BeforeValidator(_convert_nan_to_none),
+        AfterValidator(_is_finite_or_pos_inf),
+    ] = Field(alias=C.UPPER_BOUND, default=None)
     #: Nominal value.
     nominal_value: Annotated[
         # PEtab SciML supports arrays via "array" nominal values
@@ -1209,6 +1234,12 @@ class Parameter(BaseModel):
             # `Uniform.__init__` does not accept the `trunc` parameter
             low = max(self.prior_parameters[0], self.lb)
             high = min(self.prior_parameters[1], self.ub)
+            if low >= high:
+                raise ValueError(
+                    f"Uniform prior parameters {self.prior_parameters} and "
+                    f"bounds [{self.lb}, {self.ub}] of parameter `{self.id}' "
+                    "do not define a non-empty interval."
+                )
             return cls(low, high)
 
         if cls == LogUniform:
@@ -2096,6 +2127,17 @@ class Problem:
         """
         return not self.has_map_objective
 
+    def _get_unbounded_ids_without_prior(self) -> list[str]:
+        """IDs of estimated parameters with infinite or missing bounds and
+        no prior."""
+        return [
+            p.id
+            for p in self.parameters
+            if p.estimate
+            and p.prior_distribution is None
+            and any(b is None or np.isinf(b) for b in (p.lb, p.ub))
+        ]
+
     def get_priors(self) -> dict[str, Distribution]:
         """Get prior distributions.
 
@@ -2104,15 +2146,13 @@ class Problem:
 
         :returns: The prior distributions for the estimated parameters in case
             the problem has a MAP objective, an empty dictionary otherwise.
+        :raises ValueError: If an estimated parameter without prior has an
+            infinite or missing bound.
         """
         if not self.has_map_objective:
             return {}
 
-        return {
-            p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
-            for p in self.parameters
-            if p.estimate
-        }
+        return self.get_startpoint_distributions()
 
     def get_startpoint_distributions(self) -> dict[str, Distribution]:
         """Get distributions for sampling startpoints.
@@ -2124,17 +2164,42 @@ class Problem:
 
         :returns: Mapping of parameter IDs to distributions for sampling
             startpoints.
+        :raises ValueError: If an estimated parameter without prior has an
+            infinite or missing bound.
         """
+        if unbounded := self._get_unbounded_ids_without_prior():
+            if self.has_map_objective:
+                raise ValueError(
+                    "Proper priors are required for estimated parameters "
+                    "with infinite or missing bounds. Affected parameters: "
+                    f"{unbounded}."
+                )
+            raise ValueError(
+                "The default uniform distribution is undefined for estimated "
+                "parameters with infinite or missing bounds and no prior: "
+                f"{unbounded}."
+            )
+
         return {
             p.id: p.prior_dist if p.prior_distribution else Uniform(p.lb, p.ub)
             for p in self.parameters
             if p.estimate
         }
 
-    def sample_parameter_startpoints(self, n_starts: int = 100, **kwargs):
-        """Create 2D array with starting points for optimization"""
-        priors = self.get_priors()
-        return np.vstack([p.sample(n_starts) for p in priors.values()]).T
+    def sample_parameter_startpoints(self, n_starts: int = 100) -> np.ndarray:
+        """Create 2D array with starting points for optimization.
+
+        :param n_starts: Number of starting points.
+        :returns: Array of shape ``(n_starts, n_estimated)`` with columns
+            ordered as :attr:`x_free_ids`.
+        :raises ValueError: See :meth:`get_startpoint_distributions`.
+        """
+        distributions = self.get_startpoint_distributions()
+        if not distributions:
+            return np.empty((n_starts, 0))
+        return np.vstack(
+            [d.sample(n_starts) for d in distributions.values()]
+        ).T
 
     def sample_parameter_startpoints_dict(
         self, n_starts: int = 100
@@ -2878,6 +2943,9 @@ ExperimentPeriod(time=2.0, condition_ids=['condition2a', 'condition2b'])])
         # filter out symbols that are defined in the model or mapped to
         #  such symbols
         for candidate in sorted(candidates):
+            if candidate == C.TIME_SYMBOL:
+                continue
+
             if self.model and self.model.symbol_allowed_in_observable_formula(
                 candidate
             ):

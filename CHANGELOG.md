@@ -1,5 +1,12 @@
 # PEtab changelog
 
+Changes that are not released yet are collected in
+[`changelog.d/`](https://github.com/PEtab-dev/libpetab-python/tree/main/changelog.d).
+
+## 0.11 series
+
+<!-- towncrier release notes start -->
+
 ## 0.10 series
 
 ### 0.10.0

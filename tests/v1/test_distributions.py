@@ -63,6 +63,10 @@ def test_sample_matches_pdf(distribution):
 
     assert p > 0.05, (p, distribution)
 
+    # samples respect the truncation limits
+    assert np.all(sample >= distribution.trunc_low)
+    assert np.all(sample <= distribution.trunc_high)
+
     # check min/max of CDF at the bounds
     assert np.isclose(
         distribution.cdf(
@@ -132,3 +136,46 @@ def test_log_uniform():
     assert dist.pdf(1) > 0
     assert dist.pdf(2) > 0
     assert dist.pdf(3) == 0
+
+
+@pytest.mark.parametrize("trunc", [(-np.inf, np.inf), [-np.inf, np.inf]])
+def test_infinite_truncation_is_no_truncation(trunc):
+    """Truncation at (-inf, inf) is equivalent to no truncation."""
+    d = Normal(0, 1, trunc=trunc)
+    assert d._trunc is None
+    assert repr(d) == repr(Normal(0, 1))
+
+
+def test_trunc_sequence():
+    """Truncation limits may be given as any sequence."""
+    d = Normal(0, 1, trunc=[-1, 1])
+    assert d._trunc == (-1, 1)
+    assert d.trunc_low == -1
+    assert d.trunc_high == 1
+
+
+@pytest.mark.parametrize(
+    "low, high",
+    [
+        (0, np.inf),
+        (-np.inf, 0),
+        (-np.inf, np.inf),
+        (np.nan, 1),
+        (1, 1),
+        (2, 1),
+    ],
+)
+@pytest.mark.parametrize("log", [False, True, 10])
+def test_uniform_invalid_limits(low, high, log):
+    """Uniform distributions require finite limits with low < high."""
+    with pytest.raises(ValueError, match="finite limits"):
+        Uniform(low, high, log=log)
+
+
+@pytest.mark.parametrize(
+    "low, high", [(0, 1), (-1, 1), (1, np.inf), (np.nan, 1), (1, 1), (2, 1)]
+)
+def test_log_uniform_invalid_limits(low, high):
+    """Log-uniform distributions require 0 < low < high < inf."""
+    with pytest.raises(ValueError, match="0 < low < high < inf"):
+        LogUniform(low, high)

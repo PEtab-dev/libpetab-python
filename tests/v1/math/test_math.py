@@ -9,6 +9,7 @@ from sympy.abc import _clash
 from sympy.logic.boolalg import Boolean, BooleanFalse, BooleanTrue
 
 from petab.v1.math import petab_math_str, petab_symbol, sympify_petab
+from petab.v1.math.SympyVisitor import num2bool
 
 
 def test_sympify_numpy():
@@ -62,6 +63,9 @@ def test_printer():
     )
     assert petab_math_str(sp.Eq(a, 1)) == "a == 1"
     assert petab_math_str(sp.Ne(a, 1)) == "a != 1"
+    assert petab_math_str(sp.ITE(a > 0, b > 0, c > 0)) == (
+        "((a <= 0) || (b > 0)) && ((a > 0) || (c > 0))"
+    )
     # min/max are binary in PEtab
     assert petab_math_str(sp.Min(a, b, c)) == "min(min(a, b), c)"
     assert petab_math_str(sp.Max(a, b, c)) == "max(max(a, b), c)"
@@ -110,6 +114,40 @@ def test_print_parse_round_trip(expr_str, evaluate):
     expected = complex(expr.subs(values))
     actual = complex(reparsed.subs(values))
     assert np.isclose(actual, expected, rtol=1e-15, atol=0), printed
+
+
+@pytest.mark.parametrize(
+    "expr_str, expected",
+    [
+        # expected values for x = -1, 0, 1 (y = 3)
+        ("(x + 1) && (y > 2)", [0.0, 1.0, 1.0]),
+        ("(x + 1) || (y < 2)", [0.0, 1.0, 1.0]),
+        ("!(x + 1)", [1.0, 0.0, 0.0]),
+        ("piecewise(1, x + 1, 0)", [0.0, 1.0, 1.0]),
+        ("x && y", [1.0, 0.0, 1.0]),
+        ("!x", [0.0, 1.0, 0.0]),
+        ("piecewise(1, x > 0, 0) && true", [0.0, 0.0, 1.0]),
+        ("!piecewise(1, x < 0, 0)", [0.0, 1.0, 1.0]),
+        ("piecewise(true, x > 0, false) && true", [0.0, 0.0, 1.0]),
+        ("!piecewise(true, x < 0, false)", [0.0, 1.0, 1.0]),
+        ("piecewise(1, piecewise(true, x > 0, false), 0)", [0.0, 0.0, 1.0]),
+    ],
+)
+@pytest.mark.parametrize("evaluate", [True, False])
+def test_num2bool(expr_str, expected, evaluate):
+    """Non-constant numbers in Boolean context: 0 is false, else true."""
+    x, y = sp.symbols("x y", real=True)
+    expr = sympify_petab(expr_str, evaluate=evaluate)
+    reparsed = sympify_petab(petab_math_str(expr), evaluate=evaluate)
+    for e in (expr, reparsed):
+        assert {x, y} & e.free_symbols, e
+        actual = [
+            e.subs({x: sp.Float(x_val), y: sp.Float(3.0)})
+            for x_val in (-1.0, 0.0, 1.0)
+        ]
+        # sympy may return Integer(0), which is != Float(0)
+        actual = [float(a) for a in actual]
+        assert actual == expected, e
 
 
 def read_cases():
@@ -163,6 +201,86 @@ def test_parse_cases(expr_str, expected):
         assert np.isclose(float(resympified), float(sym_expr))
     else:
         assert resympified.equals(sym_expr), (sym_expr, resympified)
+
+
+@pytest.mark.parametrize(
+    "expr_str, expected",
+    [
+        # expected values for x = -1, 0, 1 (y = 3)
+        ("x > 0", [0.0, 0.0, 1.0]),
+        ("1 + (x > 0)", [1.0, 1.0, 2.0]),
+        ("2 * (x >= 0)", [0.0, 2.0, 2.0]),
+        ("-(x > 0)", [0.0, 0.0, -1.0]),
+        ("(x >= 0) ^ 2", [0.0, 1.0, 1.0]),
+        ("sign(x >= 0)", [0.0, 1.0, 1.0]),
+        ("(x > 0) && (y > 2)", [0.0, 0.0, 1.0]),
+        ("!(x > 0)", [1.0, 1.0, 0.0]),
+        ("(x > 0) == (y > 2)", [0.0, 0.0, 1.0]),
+        ("piecewise(true, x > 0, false)", [0.0, 0.0, 1.0]),
+        ("piecewise(true, x > 0, false) + 1", [1.0, 1.0, 2.0]),
+    ],
+)
+@pytest.mark.parametrize("evaluate", [True, False])
+def test_bool2num(expr_str, expected, evaluate):
+    """Non-constant Booleans in numeric context: true is 1, false is 0."""
+    x, y = sp.symbols("x y", real=True)
+    expr = sympify_petab(expr_str, evaluate=evaluate)
+    reparsed = sympify_petab(petab_math_str(expr), evaluate=evaluate)
+    for e in (expr, reparsed):
+        assert {x, y} & e.free_symbols, e
+        actual = [
+            e.subs({x: sp.Float(x_val), y: sp.Float(3.0)})
+            for x_val in (-1.0, 0.0, 1.0)
+        ]
+        # sympy may return Integer(0), which is != Float(0)
+        actual = [float(a) for a in actual]
+        assert actual == expected, e
+
+
+@pytest.mark.parametrize(
+    "expr_str, expected_str",
+    [
+        ("1 + (1 > 0)", "piecewise(1, 1 > 0, 0) + 1"),
+        ("piecewise(2, 1, 3)", "piecewise(2, 1 != 0, 3)"),
+    ],
+)
+def test_bool_num_conversion_unevaluated(expr_str, expected_str):
+    """Boolean/numeric conversions respect ``evaluate=False``."""
+    expr = sympify_petab(expr_str, evaluate=False)
+    assert petab_math_str(expr) == expected_str
+    assert float(expr) == float(sympify_petab(expr_str))
+
+
+def test_sympify_sympy_input_unevaluated():
+    expr = sympify_petab(sp.Gt(1, 0, evaluate=False), evaluate=False)
+    assert petab_math_str(expr) == "piecewise(1, 1 > 0, 0)"
+
+
+def test_num2bool_returns_boolean():
+    x = sp.Symbol("x", real=True)
+    assert isinstance(num2bool(x + 1), Boolean)
+    assert num2bool(sp.Float(0)) == sp.false
+    assert num2bool(sp.Float(2)) == sp.true
+    # Boolean-valued pieces
+    pw = sp.Piecewise((sp.true, x > 0), (sp.false, True))
+    assert [num2bool(pw).subs(x, v) for v in (-1, 1)] == [sp.false, sp.true]
+    # inverse of bool2num
+    assert num2bool(sp.Piecewise((1.0, x > 0), (0.0, True))) == (x > 0)
+
+
+@pytest.mark.parametrize(
+    "expr_str, expected_str",
+    [
+        ("((x > 0) + 0) && (y > 0)", "piecewise(1, (x > 0) && (y > 0), 0)"),
+        (
+            "piecewise(1, x > 0, 0) && y",
+            "piecewise(1, (x > 0) && (y != 0), 0)",
+        ),
+    ],
+)
+def test_bool_num_bool_round_trip(expr_str, expected_str):
+    """Booleans converted to numbers and back are not wrapped further."""
+    assert petab_math_str(sympify_petab(expr_str)) == expected_str
 
 
 def test_ids():
