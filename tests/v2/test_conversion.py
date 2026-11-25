@@ -13,7 +13,31 @@ from petab.v1.priors import Prior
 from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
 from petab.v2.math import petab_symbol
-from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
+from petab.v2.petab1to2 import (
+    petab1to2,
+    v1v2_condition_df,
+    v1v2_observable_df,
+)
+
+
+def test_v1v2_condition_df_order():
+    """The changes of each condition are contiguous, in the order of the
+    v1 rows and columns."""
+    v1_df = v1.get_condition_df(
+        pd.DataFrame(
+            {
+                v1.C.CONDITION_ID: ["c2", "c1", "c3"],
+                "k2": [1.0, 2.0, np.nan],
+                "k1": [3.0, np.nan, np.nan],
+            }
+        )
+    )
+    v2_df = v1v2_condition_df(v1_df, model=None)
+    assert v2_df.values.tolist() == [
+        ["c2", "k2", 1.0],
+        ["c2", "k1", 3.0],
+        ["c1", "k2", 2.0],
+    ]
 
 
 def test_v1v2_observable_df_noise_distribution():
