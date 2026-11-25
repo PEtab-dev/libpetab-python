@@ -469,6 +469,46 @@ def test_condition_table_from_df_condition_id():
     assert loaded.to_df()[CONDITION_ID].tolist() == ["c2"]
 
 
+def test_condition_table_from_df_order_and_types():
+    """Conditions are in order of first occurrence, with all their changes,
+    and equal values of different types are sympified as without caching."""
+    df = pd.DataFrame(
+        {
+            CONDITION_ID: ["c2", "c1", "c2", "c1", None],
+            TARGET_ID: ["k1", "k1", "k2", "k2", "k3"],
+            TARGET_VALUE: pd.Series([2, 2.0, 2.0, 2, 2.0], dtype=object),
+        }
+    )
+    conditions = ConditionTable.from_df(df)
+    assert [
+        (c.id, [(ch.target_id, type(ch.target_value)) for ch in c.changes])
+        for c in conditions.conditions
+    ] == [
+        ("c2", [("k1", sp.Integer), ("k2", sp.Float)]),
+        ("c1", [("k1", sp.Float), ("k2", sp.Integer)]),
+    ]
+
+    # invalid IDs are still reported
+    df.loc[0, TARGET_ID] = "1k"
+    with pytest.raises(ValidationError, match="1k"):
+        ConditionTable.from_df(df)
+
+
+def test_measurement_table_from_df_nullable_dtypes():
+    """Missing values in nullable columns are treated as empty."""
+    df = pd.DataFrame(
+        {
+            OBSERVABLE_ID: ["obs1", "obs1"],
+            C.EXPERIMENT_ID: ["e1", "e1"],
+            C.TIME: [0.0, 1.0],
+            C.MEASUREMENT: [1.0, 2.0],
+            C.NOISE_PARAMETERS: pd.array([1, pd.NA], dtype="Int64"),
+        }
+    ).convert_dtypes()
+    measurements = MeasurementTable.from_df(df).measurements
+    assert [m.noise_parameters for m in measurements] == [[sp.Integer(1)], []]
+
+
 def test_condition_table():
     assert ConditionTable().free_symbols == set()
 
