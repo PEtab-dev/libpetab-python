@@ -118,6 +118,31 @@ def test_validate_initial_change_symbols():
     assert "contains additional symbols: {'p2'}" in error.message
 
 
+def test_validate_initial_change_symbols_missing_condition():
+    """Undefined conditions at the start of an experiment are reported,
+    and don't affect the checks of other conditions."""
+    problem = Problem()
+    problem.model = SbmlModel.from_antimony("p1 = 1")
+    problem.add_experiment("e1", 0, "missing", 1, "c1")
+    problem.add_experiment("e2", 0, "c1")
+    problem.add_experiment("e3", 0, ["c1", "missing"])
+    problem.add_condition("c1", p1="p2")
+
+    check = CheckInitialChangeSymbols()
+    assert (error := check.run(problem)) is not None
+    assert error.message.count("\n") == 3
+    assert error.message.count("Condition c1 is applied") == 2
+    assert "condition missing applied at the start of experiment e3" in (
+        error.message
+    )
+    assert "condition missing applied at the start of experiment e1" in (
+        error.message
+    )
+    assert "Condition c1 is applied at the start of experiment e2" in (
+        error.message
+    )
+
+
 def test_check_mapping_table(clean_pysb_exports):
     """Test checks related to the mapping table."""
     problem = Problem()

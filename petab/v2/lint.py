@@ -408,11 +408,13 @@ class CheckValidConditionTargets(ValidationTask):
             m.petab_id for m in problem.mappings if m.model_id is not None
         }
 
-        used_targets = {
-            change.target_id
-            for cond in problem.conditions
-            for change in cond.changes
-        }
+        # condition ID -> targets
+        condition_targets = {}
+        for cond in problem.conditions:
+            condition_targets.setdefault(cond.id, set()).update(
+                change.target_id for change in cond.changes
+            )
+        used_targets = set().union(*condition_targets.values())
 
         if invalid := (used_targets - allowed_targets):
             return ValidationError(
@@ -427,19 +429,14 @@ class CheckValidConditionTargets(ValidationTask):
                     continue
                 period_targets = set()
                 for condition_id in period.condition_ids:
-                    condition_targets = {
-                        change.target_id
-                        for cond in problem.conditions
-                        if cond.id == condition_id
-                        for change in cond.changes
-                    }
-                    if invalid := (period_targets & condition_targets):
+                    targets = condition_targets.get(condition_id, set())
+                    if invalid := (period_targets & targets):
                         return ValidationError(
                             "Simultaneously applied conditions for experiment "
                             f"{experiment.id} have overlapping targets "
                             f"{invalid} at time {period.time}."
                         )
-                    period_targets |= condition_targets
+                    period_targets |= targets
         return None
 
 
@@ -856,6 +853,7 @@ class CheckInitialChangeSymbols(ValidationTask):
                         f"experiment {experiment.id}, as the condition "
                         "does not exist."
                     )
+                    continue
 
                 used_symbols = {
                     str(sym)
@@ -872,6 +870,8 @@ class CheckInitialChangeSymbols(ValidationTask):
                         "However, it contains additional symbols: "
                         f"{invalid_symbols}. "
                     )
+                else:
+                    valid_conditions.add(condition_id)
 
         if messages:
             return ValidationError("\n".join(messages))
