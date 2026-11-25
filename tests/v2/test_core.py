@@ -469,6 +469,23 @@ def test_condition_table_from_df_condition_id():
     assert loaded.to_df()[CONDITION_ID].tolist() == ["c2"]
 
 
+def test_measurement_table_empty_model_id(tmp_path):
+    """Empty model IDs are None."""
+    tsv_file = tmp_path / "measurements.tsv"
+    tsv_file.write_text(
+        f"{C.MODEL_ID}\t{OBSERVABLE_ID}\t{C.EXPERIMENT_ID}\t{C.TIME}\t"
+        f"{C.MEASUREMENT}\n"
+        "m1\tobs1\te1\t0\t1\n"
+        "\tobs1\te1\t1\t2\n"
+    )
+    table = MeasurementTable.from_tsv(tsv_file)
+    assert [m.model_id for m in table.measurements] == ["m1", None]
+
+    df = pd.read_csv(tsv_file, sep="\t").convert_dtypes()
+    table = MeasurementTable.from_df(df)
+    assert [m.model_id for m in table.measurements] == ["m1", None]
+
+
 def test_condition_table():
     assert ConditionTable().free_symbols == set()
 
