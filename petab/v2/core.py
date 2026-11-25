@@ -50,12 +50,12 @@ from ..v1 import (
 )
 from ..v1.distributions import *
 from ..v1.math import petab_math_str, sympify_petab
-from ..v1.models.model import Model, model_factory
 from ..v1.yaml import get_path_prefix
 from ..versions import parse_version
 from . import C, get_observable_df
 from ._helpers import is_reserved_keyword, is_valid_identifier
 from .extensions import ExtensionConfig, parse_extension_config
+from .models.model import Model, model_factory
 from .options import TableColumns, get_options
 
 if TYPE_CHECKING:

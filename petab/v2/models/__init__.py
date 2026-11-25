@@ -1,3 +1,4 @@
 """Handling of different model types supported by PEtab."""
 
-from ...v1.models import *
+from ..._models import *
+from ..._models import __all__  # noqa: F401
