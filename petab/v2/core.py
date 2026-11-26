@@ -86,6 +86,52 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+#: Keys of caches in the pydantic validation context, to avoid repeatedly
+#: validating the same values when creating many objects, e.g., in `from_df`.
+#: Sympified values:
+_SYMPIFY_CACHE = "sympify_cache"
+#: Already validated IDs:
+_VALID_IDS = "valid_ids"
+
+
+def _new_validation_context() -> dict:
+    """A pydantic validation context with empty caches."""
+    return {_SYMPIFY_CACHE: {}, _VALID_IDS: set()}
+
+
+def _records(df: pd.DataFrame) -> list[dict]:
+    """Like ``df.to_dict("records")``, but faster for large DataFrames."""
+    columns = list(df.columns)
+
+    def to_list(series: pd.Series) -> list:
+        if isinstance(series.dtype, np.dtype):
+            return series.tolist()
+        # e.g., nullable dtypes: `pd.NA` -> NaN
+        return series.to_numpy(dtype=object, na_value=np.nan).tolist()
+
+    return [
+        dict(zip(columns, values, strict=True))
+        for values in zip(*(to_list(df[c]) for c in columns), strict=True)
+    ]
+
+
+def _sympify_cached(v, info: ValidationInfo) -> sp.Basic:
+    """`sympify_petab(v)`, cached in the validation context, if available."""
+    cache = info.context.get(_SYMPIFY_CACHE) if info.context else None
+    if cache is None:
+        return sympify_petab(v)
+    # the type is part of the key, because, e.g., `1` and `1.0` compare
+    #  equal, but are sympified differently
+    key = (type(v), v)
+    try:
+        return cache[key]
+    except KeyError:
+        cache[key] = result = sympify_petab(v)
+        return result
+    except TypeError:
+        # unhashable
+        return sympify_petab(v)
+
 
 def _field_to_column(info: ValidationInfo) -> str:
     """The PEtab column name for the validated field."""
@@ -163,6 +209,18 @@ def _valid_petab_id(v: str) -> str:
     if not v:
         raise ValueError("ID must not be empty.")
     _check_petab_id(v)
+    return v
+
+
+def _valid_petab_id_cached(v: str, info: ValidationInfo) -> str:
+    """Like :func:`_valid_petab_id`, but skips IDs that were already
+    validated in the same validation context."""
+    valid_ids = info.context.get(_VALID_IDS) if info.context else None
+    if valid_ids is not None and v in valid_ids:
+        return v
+    _valid_petab_id(v)
+    if valid_ids is not None:
+        valid_ids.add(v)
     return v
 
 
@@ -571,7 +629,7 @@ class Change(BaseModel):
     """
 
     #: The ID of the target entity to change.
-    target_id: Annotated[str, AfterValidator(_valid_petab_id)] = Field(
+    target_id: Annotated[str, AfterValidator(_valid_petab_id_cached)] = Field(
         alias=C.TARGET_ID
     )
     #: The value to set the target entity to.
@@ -588,13 +646,13 @@ class Change(BaseModel):
 
     @field_validator("target_value", mode="before")
     @classmethod
-    def _sympify(cls, v):
+    def _sympify(cls, v, info: ValidationInfo):
         if v is None or isinstance(v, sp.Basic):
             return v
         if isinstance(v, float) and np.isnan(v):
             return None
 
-        return sympify_petab(v)
+        return _sympify_cached(v, info)
 
 
 class Condition(BaseModel):
@@ -659,15 +717,22 @@ class ConditionTable(BaseTable[Condition]):
         if df is None or df.empty:
             return cls(**kwargs)
 
-        conditions = []
-        for condition_id, sub_df in df.groupby(C.CONDITION_ID):
-            changes = [
-                Change(**row)
-                for row in sub_df.drop(columns=C.CONDITION_ID).to_dict(
-                    "records"
-                )
-            ]
-            conditions.append(Condition(id=condition_id, changes=changes))
+        # condition ID -> rows, in order of first occurrence
+        #  (rows without condition ID are ignored)
+        rows_by_id = {}
+        for row in _records(df[df[C.CONDITION_ID].notna()]):
+            rows_by_id.setdefault(row.pop(C.CONDITION_ID), []).append(row)
+
+        context = _new_validation_context()
+        conditions = [
+            Condition(
+                id=condition_id,
+                changes=[
+                    Change.model_validate(row, context=context) for row in rows
+                ],
+            )
+            for condition_id, rows in rows_by_id.items()
+        ]
 
         return cls(conditions, **kwargs)
 
@@ -926,7 +991,7 @@ class Measurement(BaseModel):
         "observable_parameters", "noise_parameters", mode="before"
     )
     @classmethod
-    def _sympify_list(cls, v):
+    def _sympify_list(cls, v, info: ValidationInfo):
         if v is None or v == "":
             return []
 
@@ -938,7 +1003,7 @@ class Measurement(BaseModel):
         elif not isinstance(v, Sequence):
             v = [v]
 
-        return [sympify_petab(x) for x in v]
+        return [_sympify_cached(x, info) for x in v]
 
 
 class MeasurementTable(BaseTable[Measurement]):
@@ -961,11 +1026,10 @@ class MeasurementTable(BaseTable[Measurement]):
         if C.MODEL_ID in df.columns:
             df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
 
+        context = _new_validation_context()
         measurements = [
-            Measurement(
-                **row.to_dict(),
-            )
-            for _, row in df.iterrows()
+            Measurement.model_validate(row, context=context)
+            for row in _records(df)
         ]
 
         return cls(measurements, **kwargs)
