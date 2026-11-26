@@ -455,11 +455,27 @@ def v1v2_condition_df(
         # conditionName was dropped in PEtab v2
         condition_df = condition_df.drop(columns=[v1.C.CONDITION_NAME])
 
-    condition_df = condition_df.melt(
-        id_vars=[v1.C.CONDITION_ID],
-        var_name=v2.C.TARGET_ID,
-        value_name=v2.C.TARGET_VALUE,
-    ).dropna(subset=[v2.C.TARGET_VALUE])
+    # condition ID -> row index, to keep the rows of a condition together,
+    #  in the original order
+    row_index = {
+        condition_id: i
+        for i, condition_id in enumerate(condition_df[v1.C.CONDITION_ID])
+    }
+    condition_df = (
+        condition_df.melt(
+            id_vars=[v1.C.CONDITION_ID],
+            var_name=v2.C.TARGET_ID,
+            value_name=v2.C.TARGET_VALUE,
+        )
+        .dropna(subset=[v2.C.TARGET_VALUE])
+        .sort_values(
+            v1.C.CONDITION_ID,
+            key=lambda ids: ids.map(row_index),
+            # keep the column order within each condition
+            kind="stable",
+        )
+        .reset_index(drop=True)
+    )
 
     if condition_df.empty:
         # This happens if there weren't any condition-specific changes
