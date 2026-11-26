@@ -1,3 +1,4 @@
+import io
 import logging
 from pathlib import Path
 
@@ -35,6 +36,28 @@ def test_v1v2_observable_df_noise_distribution():
         v2.C.NORMAL,
         v2.C.LOG_NORMAL,
     ]
+
+
+def test_v1v2_observable_df_empty_columns():
+    """All-empty observableTransformation and noiseDistribution columns,
+    as read from a file, are treated as defaults."""
+    observable_df = v1.get_observable_df(
+        pd.read_csv(
+            io.StringIO(
+                f"{v1.C.OBSERVABLE_ID}\t{v1.C.OBSERVABLE_FORMULA}\t"
+                f"{v1.C.NOISE_FORMULA}\t{v1.C.OBSERVABLE_TRANSFORMATION}\t"
+                f"{v1.C.NOISE_DISTRIBUTION}\n"
+                "obs1\ta\t1\t\t\n"
+            ),
+            sep="\t",
+        )
+    )
+    assert observable_df[v1.C.OBSERVABLE_TRANSFORMATION].dtype == float
+    assert observable_df[v1.C.NOISE_DISTRIBUTION].dtype == float
+
+    new_df = v1v2_observable_df(observable_df)
+
+    assert list(new_df[v2.C.NOISE_DISTRIBUTION]) == [v2.C.NORMAL]
 
 
 def test_v1v2_observable_df_log10():

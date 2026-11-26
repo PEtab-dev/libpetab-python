@@ -486,13 +486,18 @@ def v1v2_observable_df(observable_df: pd.DataFrame) -> pd.DataFrame:
     # drop observableTransformation, update noiseDistribution
     #  if there is no observableTransformation, no need to update
     if v1.C.OBSERVABLE_TRANSFORMATION in df.columns:
-        df[v1.C.OBSERVABLE_TRANSFORMATION] = df[
-            v1.C.OBSERVABLE_TRANSFORMATION
-        ].fillna(v1.C.LIN)
+        # all-empty columns are read as float, so cast before filling
+        df[v1.C.OBSERVABLE_TRANSFORMATION] = (
+            df[v1.C.OBSERVABLE_TRANSFORMATION]
+            .astype("object")
+            .fillna(v1.C.LIN)
+        )
 
         if v1.C.NOISE_DISTRIBUTION in df:
-            df[v1.C.NOISE_DISTRIBUTION] = df[v1.C.NOISE_DISTRIBUTION].fillna(
-                v1.C.NORMAL
+            df[v1.C.NOISE_DISTRIBUTION] = (
+                df[v1.C.NOISE_DISTRIBUTION]
+                .astype("object")
+                .fillna(v1.C.NORMAL)
             )
         else:
             df[v1.C.NOISE_DISTRIBUTION] = v1.C.NORMAL
