@@ -85,9 +85,7 @@ def reparametrize_log(
       placeholder ``ph`` is substituted by ``base^ph`` in the observable
       (and noise) formula. This requires that all overrides for that
       placeholder are reparametrized parameters or non-negative numbers.
-      Numbers are log-transformed. Since overrides must be finite, ``0`` is
-      replaced by a new non-estimated parameter ``negative_infinity`` with
-      nominal value ``-inf``.
+      Numbers are log-transformed; ``0`` becomes ``-inf``.
 
     The new ID is ``log10_<p>`` for base 10 and ``log_<p>`` for base e,
     with a numeric suffix if necessary to make it unique.
@@ -360,8 +358,7 @@ def _reparametrize_overrides(
     (across all measurements of the observable) to be reparametrized
     parameters or non-negative numbers. Otherwise, the observable would have
     to be split, which is not supported.
-    Numeric overrides are log-transformed. Since overrides must be finite,
-    ``0`` is replaced by a new fixed parameter with nominal value ``-inf``.
+    Numeric overrides are log-transformed; ``0`` becomes ``-inf``.
     """
     observables = {o.id: o for o in problem.observables}
 
@@ -441,21 +438,9 @@ def _reparametrize_overrides(
         )
 
     # update override values
-    neg_inf_id = None
-
     def transform(value: sp.Basic) -> sp.Basic:
-        nonlocal neg_inf_id
         if isinstance(value, sp.Symbol):
             return petab_symbol(id_map[value.name])
-        if value.is_zero:
-            if neg_inf_id is None:
-                neg_inf_id = problem.get_unused_id(
-                    "negative_infinity", exclude=id_map.values()
-                )
-                problem.add_parameter(
-                    neg_inf_id, estimate=False, nominal_value=-math.inf
-                )
-            return petab_symbol(neg_inf_id)
         return sp.Float(log_function(float(value)))
 
     slots_to_transform = set(slots_to_transform)
