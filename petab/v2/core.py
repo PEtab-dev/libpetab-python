@@ -875,7 +875,10 @@ class Measurement(BaseModel):
 
     #: The model ID.
     model_id: Annotated[
-        str | None, BeforeValidator(_valid_petab_id_or_none)
+        str | None,
+        BeforeValidator(_valid_petab_id_or_none),
+        # runs first
+        BeforeValidator(_convert_nan_to_none),
     ] = Field(alias=C.MODEL_ID, default=None)
     #: The observable ID.
     observable_id: Annotated[str, BeforeValidator(_valid_petab_id)] = Field(
@@ -958,9 +961,6 @@ class MeasurementTable(BaseTable[Measurement]):
             return cls(**kwargs)
 
         df = _reset_index(df)
-        if C.MODEL_ID in df.columns:
-            df[C.MODEL_ID] = df[C.MODEL_ID].apply(_convert_nan_to_none)
-
         measurements = [
             Measurement(
                 **row.to_dict(),
