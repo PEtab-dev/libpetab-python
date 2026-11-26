@@ -1182,6 +1182,125 @@ def test_petab1to2_validate(tmp_path):
     assert len(problem.measurements) == 2
 
 
+def test_petab1to2_experiment_id_clash(tmp_path):
+    """Different condition pairs whose experiment IDs would be equal
+    get different experiments."""
+    measurements = [
+        {
+            v1.C.OBSERVABLE_ID: "obs_B",
+            v1.C.PREEQUILIBRATION_CONDITION_ID: preeq,
+            v1.C.SIMULATION_CONDITION_ID: sim,
+            v1.C.TIME: 1.0,
+            v1.C.MEASUREMENT: measurement,
+        }
+        # both `experiment__a____b`
+        for preeq, sim, measurement in (
+            ("a_", "b", 0.1),
+            ("a", "_b", 0.2),
+            ("a_", "b", 0.3),
+        )
+    ]
+    problem = v1.Problem(
+        model=SbmlModel.from_antimony(
+            "r1: A -> B; k1 * A; A = 1; B = 0; k1 = 0.5"
+        ),
+        condition_df=v1.get_condition_df(
+            pd.DataFrame(
+                {
+                    v1.C.CONDITION_ID: ["a", "a_", "b", "_b"],
+                    "A": [1.0, 2.0, 3.0, 4.0],
+                }
+            )
+        ),
+        observable_df=v1.get_observable_df(
+            pd.DataFrame(
+                [
+                    {
+                        v1.C.OBSERVABLE_ID: "obs_B",
+                        v1.C.OBSERVABLE_FORMULA: "B",
+                        v1.C.NOISE_FORMULA: "0.1",
+                    }
+                ]
+            )
+        ),
+        measurement_df=v1.get_measurement_df(pd.DataFrame(measurements)),
+        parameter_df=v1.get_parameter_df(pd.DataFrame([_K1])),
+    )
+    yaml_file = problem.to_files_generic(tmp_path)
+
+    problem = petab1to2(tmp_path / yaml_file)
+
+    experiments = {
+        e.id: [(p.time, p.condition_ids) for p in e.sorted_periods]
+        for e in problem.experiments
+    }
+    assert experiments == {
+        "experiment__a____b": [(-np.inf, ["a"]), (0, ["_b"])],
+        "experiment__a____b_1": [(-np.inf, ["a_"]), (0, ["b"])],
+    }
+    assert [
+        (m.experiment_id, m.measurement) for m in problem.measurements
+    ] == [
+        ("experiment__a____b_1", 0.1),
+        ("experiment__a____b", 0.2),
+        ("experiment__a____b_1", 0.3),
+    ]
+
+
+def test_petab1to2_experiment_id_avoids_existing_ids(tmp_path):
+    """Generated experiment IDs don't clash with condition, observable,
+    or parameter IDs."""
+    problem = v1.Problem(
+        model=SbmlModel.from_antimony(
+            "r1: A -> B; k1 * A; A = 1; B = 0; k1 = 0.5"
+        ),
+        condition_df=v1.get_condition_df(
+            pd.DataFrame(
+                {
+                    v1.C.CONDITION_ID: ["c", "experiment____c"],
+                    "A": [1.0, 2.0],
+                }
+            )
+        ),
+        observable_df=v1.get_observable_df(
+            pd.DataFrame(
+                [
+                    {
+                        v1.C.OBSERVABLE_ID: "experiment____c_1",
+                        v1.C.OBSERVABLE_FORMULA: "B",
+                        v1.C.NOISE_FORMULA: "experiment____c_2",
+                    }
+                ]
+            )
+        ),
+        measurement_df=v1.get_measurement_df(
+            pd.DataFrame(
+                [
+                    {
+                        v1.C.OBSERVABLE_ID: "experiment____c_1",
+                        v1.C.SIMULATION_CONDITION_ID: "c",
+                        v1.C.TIME: 1.0,
+                        v1.C.MEASUREMENT: 0.1,
+                    }
+                ]
+            )
+        ),
+        parameter_df=v1.get_parameter_df(
+            pd.DataFrame(
+                [_K1, {**_K1, v1.C.PARAMETER_ID: "experiment____c_2"}]
+            )
+        ),
+    )
+    yaml_file = problem.to_files_generic(tmp_path)
+
+    problem = petab1to2(tmp_path / yaml_file)
+
+    assert [e.id for e in problem.experiments] == ["experiment____c_3"]
+    assert [m.experiment_id for m in problem.measurements] == [
+        "experiment____c_3"
+    ]
+
+
 @pytest.mark.parametrize("clash", [False, True])
 def test_petab1to2_existing_experiment_id_column(tmp_path, clash):
     """Test that a pre-existing `experimentId` column is renamed

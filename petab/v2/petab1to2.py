@@ -216,6 +216,12 @@ def petab_files_1to2(
     # records for the experiment table to be created
     experiments = []
 
+    condition_df = petab_problem.condition_df
+    # conditions with changes
+    nonempty_conditions = set(
+        condition_df.index[condition_df.notna().any(axis=1)]
+    )
+
     def v2_condition_id(cond_id: str) -> str:
         """Get the condition ID to use in the v2 experiment table.
 
@@ -223,26 +229,48 @@ def petab_files_1to2(
         v2 condition table. Periods applying such a condition get an empty
         condition ID ("use the model as is").
         """
-        if petab_problem.condition_df.loc[cond_id].notna().any():
+        if cond_id in nonempty_conditions:
             return cond_id
+        if cond_id not in condition_df.index:
+            raise KeyError(cond_id)
         return ""
 
+    # (simulation condition ID, pre-equilibration condition ID)
+    #  -> experiment ID
+    experiment_ids = {}
+    # IDs that must not be used for new experiments
+    used_ids = (
+        set(condition_df.index)
+        | set(petab_problem.observable_df.index)
+        | set(petab_problem.parameter_df.index)
+    )
+
     def create_experiment_id(sim_cond_id: str, preeq_cond_id: str) -> str:
-        if not sim_cond_id and not preeq_cond_id:
-            return ""
-        if not preeq_cond_id and not v2_condition_id(sim_cond_id):
+        """Get the ID of the experiment for the given condition pair.
+
+        Returns the same ID for the same pair, unique IDs for different
+        pairs, or ``""`` if no experiment is needed."""
+        if pd.isna(preeq_cond_id):
+            preeq_cond_id = ""
+        key = (sim_cond_id, preeq_cond_id)
+        if (exp_id := experiment_ids.get(key)) is not None:
+            return exp_id
+
+        if (not sim_cond_id and not preeq_cond_id) or (
+            not preeq_cond_id and not v2_condition_id(sim_cond_id)
+        ):
             # without pre-equilibration and without any changes, there is
             #  nothing to be described by an experiment
-            return ""
-
-        if preeq_cond_id:
-            preeq_cond_id = f"{preeq_cond_id}_"
-        exp_id = f"experiment__{preeq_cond_id}__{sim_cond_id}"
-        if exp_id in experiments:
-            i = 1
-            while f"{exp_id}_{i}" in experiments:
+            exp_id = ""
+        else:
+            preeq_part = f"{preeq_cond_id}_" if preeq_cond_id else ""
+            base_id = exp_id = f"experiment__{preeq_part}__{sim_cond_id}"
+            i = 0
+            while exp_id in used_ids:
                 i += 1
-            exp_id = f"{exp_id}_{i}"
+                exp_id = f"{base_id}_{i}"
+            used_ids.add(exp_id)
+        experiment_ids[key] = exp_id
         return exp_id
 
     measured_experiments = (
@@ -330,13 +358,14 @@ def petab_files_1to2(
         measurement_df.insert(
             0,
             v2.C.EXPERIMENT_ID,
-            measurement_df.apply(
-                lambda row: create_experiment_id(
-                    row[v1.C.SIMULATION_CONDITION_ID],
-                    row.get(v1.C.PREEQUILIBRATION_CONDITION_ID, ""),
-                ),
-                axis=1,
-            ),
+            [
+                create_experiment_id(sim_cond_id, preeq_cond_id)
+                for sim_cond_id, preeq_cond_id in zip(
+                    measurement_df[v1.C.SIMULATION_CONDITION_ID],
+                    measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID],
+                    strict=True,
+                )
+            ],
         )
         del measurement_df[v1.C.SIMULATION_CONDITION_ID]
         del measurement_df[v1.C.PREEQUILIBRATION_CONDITION_ID]
