@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import sympy as sp
 import yaml
 
 from petab import v1, v2
@@ -12,7 +13,6 @@ from petab.v1.models.sbml_model import SbmlModel
 from petab.v1.priors import Prior
 from petab.v2 import Problem
 from petab.v2.calculate import calculate_llh as calculate_llh_v2
-from petab.v2.math import petab_symbol
 from petab.v2.petab1to2 import petab1to2, v1v2_observable_df
 
 
@@ -694,21 +694,25 @@ def test_petab1to2_reparametrize_overrides(tmp_path):
     )
     assert not v1.lint_problem(v1.Problem.from_yaml(yaml_file))
     # s2-s4 aren't selected, but share the placeholder with s1
+    outdir = tmp_path / "v2"
     with pytest.warns(UserWarning, match="non-estimated parameters s4 were"):
-        problem = petab1to2(yaml_file, reparametrize="priors")
+        petab1to2(yaml_file, outdir, reparametrize="priors")
+    problem = v2.Problem.from_yaml(outdir / Path(yaml_file).name)
+    assert not problem.validate().has_errors()
     assert [p.id for p in problem.parameters] == [
         "k1",
         "log10_s1",
         "log10_s2",
         "log10_s3",
         "log10_s4",
-        # replaces the override `0`
-        "negative_infinity",
     ]
-    assert problem["negative_infinity"].nominal_value == -np.inf
+    # the override `0` becomes `-inf`
     assert problem.measurements[-1].observable_parameters == [
-        petab_symbol("negative_infinity")
+        sp.S.NegativeInfinity
     ]
+    (meas_file,) = problem.config.measurement_files
+    meas_df = pd.read_csv(outdir / meas_file, sep="\t", dtype=str)
+    assert meas_df[v2.C.OBSERVABLE_PARAMETERS].iloc[-1] == "-inf"
     assert problem["log10_s1"].prior_distribution == v2.C.NORMAL
     assert problem["log10_s1"].prior_parameters == [0, 1]
     # explicit default prior, as other parameters have priors

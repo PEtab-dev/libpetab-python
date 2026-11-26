@@ -3,6 +3,7 @@ import math
 import libsbml
 import numpy as np
 import pytest
+import sympy as sp
 from sbmlmath import sbml_math_to_sympy
 
 from petab.v1.math import sympify_petab
@@ -400,36 +401,26 @@ def test_reparametrize_log_unresolvable_override():
     assert "not reparametrized" not in msg
 
 
-def test_reparametrize_log_zero_override():
-    """Zero overrides are replaced by a fixed parameter with value -inf."""
+def test_reparametrize_log_numeric_overrides():
+    """Numeric overrides are log-transformed, with 0 becoming -inf."""
     problem = _problem()
     problem.measurements[0].noise_parameters = ["offset1"]
     problem.measurements[1].observable_parameters = [0]
-    problem.measurements[1].noise_parameters = [0]
+    problem.measurements[1].noise_parameters = [100]
     problem.parameter_tables[0].elements = [
         p for p in problem.parameters if p.id != "offset2"
     ]
-    # the preferred ID is taken
-    sbml_par = problem.model.sbml_model.createParameter()
-    sbml_par.setId("negative_infinity")
-    sbml_par.setConstant(True)
     assert not problem.validate().has_errors()
 
     problem, id_map = reparametrize_log(problem, ["offset1"])
     assert id_map == {"offset1": "log10_offset1"}
-    # a single parameter for all zero overrides
-    neg_inf = petab_symbol("negative_infinity_1")
     assert [
         (m.observable_parameters, m.noise_parameters)
         for m in problem.measurements
     ] == [
         ([petab_symbol("log10_offset1")], [petab_symbol("log10_offset1")]),
-        ([neg_inf], [neg_inf]),
+        ([sp.S.NegativeInfinity], [sp.Float(2)]),
     ]
-    par = problem["negative_infinity_1"]
-    assert not par.estimate
-    assert par.nominal_value == -math.inf
-    assert "negative_infinity_1" in [p.id for p in problem.parameters]
     assert problem.observables[0].formula == (
         petab_symbol("scaling") * petab_symbol("A")
         + 10 ** petab_symbol("offset_A")
