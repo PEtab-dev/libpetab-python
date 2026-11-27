@@ -574,6 +574,27 @@ def test_check_parameter_df():
     parameter_df[NOMINAL_VALUE] = parameter_df[NOMINAL_VALUE].astype("object")
     lint.check_parameter_df(df=parameter_df)
 
+    # NOMINAL_VALUE missing for estimated parameter is fine
+    parameter_df.loc["par1", NOMINAL_VALUE] = nan
+    lint.check_parameter_df(df=parameter_df)
+
+    # NOMINAL_VALUE missing for non-estimated parameter
+    for missing_value in (nan, None, pd.NA):
+        parameter_df.loc["par2", NOMINAL_VALUE] = missing_value
+        with pytest.raises(AssertionError, match=r"missing for \['par2'\]"):
+            lint.check_parameter_df(df=parameter_df)
+    # ... with float column, as from `get_parameter_df`
+    parameter_df.loc["par2", NOMINAL_VALUE] = nan
+    float_df = parameter_df.astype({NOMINAL_VALUE: float})
+    with pytest.raises(AssertionError, match=r"missing for \['par2'\]"):
+        lint.check_parameter_df(df=float_df)
+    # ... with string ESTIMATE column
+    str_df = parameter_df.astype({ESTIMATE: str})
+    with pytest.raises(AssertionError, match=r"missing for \['par2'\]"):
+        lint.check_parameter_df(df=str_df)
+    str_df.loc["par2", NOMINAL_VALUE] = 1.0
+    lint.check_parameter_df(df=str_df)
+
     # NOMINAL_VALUE empty, for non-estimated parameter
     parameter_df.loc["par2", NOMINAL_VALUE] = ""
     with pytest.raises(AssertionError):
