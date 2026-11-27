@@ -359,6 +359,110 @@ def test_create_parameter_df(
     assert parameter_df.loc["p0", NOMINAL_VALUE] == 3.0
 
 
+def test_create_parameter_df_initial_assignments():
+    """Test petab.create_parameter_df with initial assignment targets."""
+    model = SbmlModel.from_antimony(
+        """
+        function f(x)
+            2 * x
+        end
+        k_base = 1.5
+        k_derived = k_base + 1
+        k_num = 2 * 3
+        k_log = ln(4)
+        k_fun = f(2)
+        k_zero = k_base - k_base
+        k_override = k_base * 2
+        k_override_num = 2 * 4
+        k_time = time
+        k_nan = sqrt(-1)
+        k_fun_unused = f(3)
+        k_cond = 1
+        conc = 1
+        conc' = -k_derived * conc
+        """
+    )
+    # all but k_base are initial assignment targets
+    assert {
+        ia.getSymbol() for ia in model.sbml_model.getListOfInitialAssignments()
+    } == {
+        "k_derived",
+        "k_num",
+        "k_log",
+        "k_fun",
+        "k_zero",
+        "k_override",
+        "k_override_num",
+        "k_time",
+        "k_nan",
+        "k_fun_unused",
+    }
+
+    # condition table reference to a non-closed-form IA target
+    condition_df = pd.DataFrame(
+        {"k_cond": ["k_fun"]}, index=pd.Index(["c1"], name=CONDITION_ID)
+    )
+    observable_df = pd.DataFrame(
+        {
+            OBSERVABLE_FORMULA: [
+                "observableParameter1_obs * observableParameter2_obs * conc"
+            ],
+            NOISE_FORMULA: ["noiseParameter1_obs"],
+        },
+        index=pd.Index(["obs"], name=OBSERVABLE_ID),
+    )
+    measurement_df = pd.DataFrame(
+        {
+            OBSERVABLE_ID: ["obs", "obs"],
+            SIMULATION_CONDITION_ID: ["c1", "c1"],
+            TIME: [1.0, 2.0],
+            MEASUREMENT: [0.5, 0.4],
+            OBSERVABLE_PARAMETERS: ["k_zero;k_override_num", "1.0;2.0"],
+            NOISE_PARAMETERS: ["k_override", np.nan],
+        }
+    )
+    parameter_df = petab.create_parameter_df(
+        model=model,
+        condition_df=condition_df,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
+        include_optional=True,
+    )
+    # targets of non-closed-form initial assignments are omitted, unless
+    #  referenced in the measurement or condition table
+    assert parameter_df.index.tolist() == [
+        "k_base",
+        "k_num",
+        "k_log",
+        "k_fun",
+        "k_zero",
+        "k_override",
+        "k_override_num",
+    ]
+    assert parameter_df.loc["k_base", NOMINAL_VALUE] == 1.5
+    assert parameter_df.loc["k_override_num", NOMINAL_VALUE] == 8.0
+    # closed-form initial assignments are evaluated
+    assert parameter_df.loc["k_num", NOMINAL_VALUE] == 6.0
+    assert parameter_df.loc["k_log", NOMINAL_VALUE] == pytest.approx(np.log(4))
+
+    # required parameters only
+    parameter_df = petab.create_parameter_df(
+        model=model,
+        condition_df=condition_df,
+        observable_df=observable_df,
+        measurement_df=measurement_df,
+    )
+    assert parameter_df.index.tolist() == [
+        "k_zero",
+        "k_override_num",
+        "k_override",
+    ]
+    assert parameter_df.loc["k_override_num", NOMINAL_VALUE] == 8.0
+    # not closed-form: SBML value attribute, which is unset here
+    assert np.isnan(parameter_df.loc["k_override", NOMINAL_VALUE])
+    assert np.isnan(parameter_df.loc["k_zero", NOMINAL_VALUE])
+
+
 def test_flatten_timepoint_specific_output_overrides():
     """Test flatten_timepoint_specific_output_overrides"""
     observable_df = pd.DataFrame(

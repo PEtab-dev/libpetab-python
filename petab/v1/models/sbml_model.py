@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import math
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -234,6 +235,18 @@ class SbmlModel(Model):
             if p.getId() not in rule_targets
         )
 
+    def _get_initial_assignment_values(self) -> dict[str, float | None]:
+        """Get the targets of all initial assignments and their values.
+
+        The value is the result of evaluating the assignment if it is
+        closed-form (see :func:`_evaluate_closed_math`), otherwise ``None``.
+        """
+        return {
+            ia.getSymbol(): _evaluate_closed_math(ia.getMath())
+            for ia in self.sbml_model.getListOfInitialAssignments()
+            if ia.isSetMath()
+        }
+
     def has_entity_with_id(self, entity_id) -> bool:
         return self.sbml_model.getElementBySId(entity_id) is not None
 
@@ -302,6 +315,40 @@ class SbmlModel(Model):
             or self.sbml_model.getCompartment(id_) is not None
             or self.sbml_model.getRuleByVariable(id_) is not None
         )
+
+
+# AST node types that make a formula depend on the model or on time
+_AST_NON_CLOSED_TYPES = {
+    libsbml.AST_NAME,
+    libsbml.AST_NAME_TIME,
+    libsbml.AST_FUNCTION,
+    libsbml.AST_FUNCTION_DELAY,
+    libsbml.AST_FUNCTION_RATE_OF,
+}
+
+
+def _evaluate_closed_math(math_: libsbml.ASTNode) -> float | None:
+    """Evaluate a closed-form SBML math expression.
+
+    An expression is closed-form if it refers to no model entities, function
+    definitions, or time, e.g., ``2 * 3`` or ``log(4)``. This is decided
+    syntactically: ``a - a`` is not closed-form.
+
+    :returns: The value of the expression, or ``None`` if it is not
+        closed-form or cannot be evaluated.
+    """
+    nodes = [math_]
+    while nodes:
+        node = nodes.pop()
+        if node.getType() in _AST_NON_CLOSED_TYPES:
+            return None
+        nodes.extend(node.getChild(i) for i in range(node.getNumChildren()))
+
+    value = libsbml.SBMLTransforms.evaluateASTNode(math_)
+    # libsbml returns NaN for anything it cannot evaluate
+    if math.isnan(value) and not math_.isNaN():
+        return None
+    return value
 
 
 def sympify_sbml(sbml_obj: libsbml.ASTNode | libsbml.SBase) -> sp.Expr:
