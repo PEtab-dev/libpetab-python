@@ -249,17 +249,15 @@ def check_parameter_df(
                 df[column_name].values, column_name
             )
 
-    # nominal value is generally optional, but required if any for any
-    #  parameter estimate != 1
-    non_estimated_par_ids = list(
-        df.index[
-            (df[ESTIMATE] != 1)
-            | (
-                pd.api.types.is_string_dtype(df[ESTIMATE])
-                and df[ESTIMATE] != "1"
-            )
-        ]
-    )
+    assert_parameter_id_is_string(df)
+    assert_parameter_scale_is_valid(df)
+    assert_parameter_bounds_are_numeric(df)
+    assert_parameter_estimate_is_boolean(df)
+    assert_unique_parameter_ids(df)
+
+    # nominal value is generally optional, but required for parameters
+    #  with estimate == 0
+    non_estimated_par_ids = list(df.index[df[ESTIMATE].apply(int) != 1])
     if non_estimated_par_ids:
         if NOMINAL_VALUE not in df:
             raise AssertionError(
@@ -269,18 +267,20 @@ def check_parameter_df(
                 f"but column {NOMINAL_VALUE} is missing."
             )
         try:
-            df.loc[non_estimated_par_ids, NOMINAL_VALUE].apply(float)
-        except ValueError as e:
+            nominal_values = df.loc[
+                non_estimated_par_ids, NOMINAL_VALUE
+            ].apply(lambda x: np.nan if pd.isna(x) else float(x))
+        except (ValueError, TypeError) as e:
             raise AssertionError(
                 f"Expected numeric values for `{NOMINAL_VALUE}` in parameter "
                 "table for all non-estimated parameters."
             ) from e
+        if missing := list(nominal_values.index[nominal_values.isna()]):
+            raise AssertionError(
+                f"`{NOMINAL_VALUE}` is required for parameters with "
+                f"`{ESTIMATE}=0`, but is missing for {missing}."
+            )
 
-    assert_parameter_id_is_string(df)
-    assert_parameter_scale_is_valid(df)
-    assert_parameter_bounds_are_numeric(df)
-    assert_parameter_estimate_is_boolean(df)
-    assert_unique_parameter_ids(df)
     check_parameter_bounds(df)
     assert_parameter_prior_type_is_valid(df)
     assert_parameter_prior_parameters_are_valid(df)
