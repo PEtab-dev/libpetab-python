@@ -171,6 +171,31 @@ def create_parameter_df(
     All table entries can be provided as string or list-like with length
     matching the number of parameters
 
+    .. note::
+
+       Listing a parameter that is the target of an initial assignment in
+       the parameter table replaces that assignment.
+       Therefore, with ``include_optional=True``, targets of initial
+       assignments that are not closed-form are omitted, since listing them
+       would discard the definition in the model (e.g., ``k_base + 1``).
+       Exception: such parameters are still included if they are referenced
+       in the measurement table (as observable or noise parameter overrides)
+       or in the condition table (as values), since these references require
+       a parameter table entry: named measurement table overrides must be
+       listed in the parameter table, and a condition table reference cannot
+       be resolved from a non-closed-form initial assignment. In these cases,
+       the parameter table entry also replaces the initial assignment in the
+       model; to keep the initial assignment, reference a separate parameter
+       instead.
+       An initial assignment is closed-form if it refers to no model
+       entities, function definitions, or time, and can be evaluated,
+       e.g., ``2 * 3``, but not ``k_base + 1`` or ``sqrt(-1)``.
+       This is decided syntactically, i.e., ``k - k`` is not closed-form.
+
+       For targets of closed-form initial assignments, the nominal value is
+       the value of the assignment. For all other model parameters,
+       it is the SBML ``value`` attribute.
+
     Arguments:
         sbml_model: SBML Model (deprecated, mutually exclusive with ``model``)
         model: PEtab model (mutually exclusive with ``sbml_model``)
@@ -181,7 +206,7 @@ def create_parameter_df(
             required to be present in the parameter table. If set to ``True``,
             this returns all parameters that are allowed to be present in the
             parameter table (i.e. also including parameters specified in the
-            model).
+            model), with the exception described in the note above.
         parameter_scale: parameter scaling
         lower_bound: lower bound for parameter value
         upper_bound: upper bound for parameter value
@@ -205,6 +230,7 @@ def create_parameter_df(
                 "Arguments `model` and `sbml_model` are mutually exclusive."
             )
         model = SbmlModel(sbml_model=sbml_model)
+    ia_values = _get_initial_assignment_values(model)
     if include_optional:
         parameter_ids = list(
             get_valid_parameters_for_parameter_table(
@@ -214,6 +240,29 @@ def create_parameter_df(
                 measurement_df=measurement_df,
             )
         )
+        # A parameter table entry for an initial assignment target replaces
+        #  the initial assignment. If the assignment is not closed-form,
+        #  this would discard its definition, so we omit such parameters.
+        #  Exception: parameters that are referenced in the measurement
+        #  table, which must be listed in the parameter table (see
+        #  `get_required_parameters_for_parameter_table`), or in the
+        #  condition table, where they can only be resolved via the
+        #  parameter table, since their initial assignment has no numeric
+        #  value.
+        skip = {id_ for id_, value in ia_values.items() if value is None}
+        if skip and measurement_df is not None:
+            for col in (OBSERVABLE_PARAMETERS, NOISE_PARAMETERS):
+                if col not in measurement_df:
+                    continue
+                for value in measurement_df[col]:
+                    skip.difference_update(
+                        measurements.split_parameter_replacement_list(value)
+                    )
+        if skip and condition_df is not None:
+            skip.difference_update(
+                conditions.get_parametric_overrides(condition_df)
+            )
+        parameter_ids = [p for p in parameter_ids if p not in skip]
     else:
         parameter_ids = list(
             get_required_parameters_for_parameter_table(
@@ -244,6 +293,9 @@ def create_parameter_df(
 
     # For model parameters, set nominal values as defined in the model
     for parameter_id in df.index:
+        if (value := ia_values.get(parameter_id)) is not None:
+            df.loc[parameter_id, NOMINAL_VALUE] = value
+            continue
         try:
             df.loc[parameter_id, NOMINAL_VALUE] = model.get_parameter_value(
                 parameter_id
@@ -253,6 +305,21 @@ def create_parameter_df(
             # is potentially not present in the model
             pass
     return df
+
+
+def _get_initial_assignment_values(
+    model: Model | None,
+) -> dict[str, float | None]:
+    """Get the initial assignment targets of the model and their values.
+
+    See ``SbmlModel._get_initial_assignment_values``.
+    Empty for non-SBML models.
+    """
+    from .models.sbml_model import SbmlModel
+
+    if not isinstance(model, SbmlModel):
+        return {}
+    return model._get_initial_assignment_values()
 
 
 def get_required_parameters_for_parameter_table(

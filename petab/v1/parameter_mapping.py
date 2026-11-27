@@ -77,6 +77,12 @@ def get_optimization_to_simulation_parameter_mapping(
     by the environment variable with the name of
     :py:data:`petab.ENV_NUM_THREADS`.
 
+    A parameter table entry for a model parameter that is the target of an
+    initial assignment replaces that initial assignment, i.e., the parameter
+    is mapped to the parameter table entry. Model parameters with
+    non-numeric initial assignments that are not listed in the parameter
+    table are not included in the mapping; their initial assignments apply.
+
     Parameters:
         condition_df, measurement_df, parameter_df, observable_df:
             The dataframes in the PEtab format.
@@ -145,7 +151,9 @@ def get_optimization_to_simulation_parameter_mapping(
             measurement_df
         )
 
-    simulation_parameters = dict(model.get_free_parameter_ids_with_values())
+    simulation_parameters = _get_model_parameters_for_mapping(
+        model, parameter_df
+    )
     # Add output parameters that are not already defined in the model
     if observable_df is not None:
         output_parameters = observables.get_output_parameters(
@@ -343,9 +351,14 @@ def get_parameter_mapping_for_condition(
         model:
             The model.
         simulation_parameters:
-            Model simulation parameter IDs mapped to parameter values (output
-            of ``petab.v1.sbml.get_model_parameters(.., with_values=True)``).
-            Optional, saves time if precomputed.
+            Model simulation parameter IDs mapped to parameter values.
+            Optional, saves time if precomputed. If not provided, these are
+            the free model parameters with their values
+            (:meth:`Model.get_free_parameter_ids_with_values`), plus the
+            model parameters with non-numeric initial assignments that are
+            listed in the parameter table (see
+            :func:`get_optimization_to_simulation_parameter_mapping`).
+            If provided, it must include the latter, too.
         warn_unmapped:
             If ``True``, log warning regarding unmapped parameters
         scaled_parameters:
@@ -391,9 +404,20 @@ def get_parameter_mapping_for_condition(
         )
 
     if simulation_parameters is None:
-        simulation_parameters = dict(
-            model.get_free_parameter_ids_with_values()
+        simulation_parameters = _get_model_parameters_for_mapping(
+            model, parameter_df
         )
+    elif parameter_df is not None:
+        # Otherwise, the parameter table entries of these parameters would
+        #  be silently ignored
+        missing = set(parameter_df.index) - simulation_parameters.keys()
+        if missing:
+            missing &= set(model.get_valid_parameters_for_parameter_table())
+        if missing:
+            raise ValueError(
+                "`simulation_parameters` must include all model parameters "
+                f"that are listed in the parameter table. Missing: {missing}."
+            )
 
     # NOTE: order matters here - the former is overwritten by the latter:
     #  model < condition table < measurement < table parameter table
@@ -542,6 +566,29 @@ def _apply_condition_parameters(
                 ) from e
 
         scale_mapping[overridee_id] = LIN
+
+
+def _get_model_parameters_for_mapping(
+    model: Model, parameter_df: pd.DataFrame | None
+) -> dict[str, float]:
+    """Get the model parameters to include in the mapping.
+
+    These are the free model parameters with their values in the model
+    (see :meth:`Model.get_free_parameter_ids_with_values`), plus the model
+    parameters that have a non-numeric initial assignment and are listed in
+    the parameter table. For the latter, the parameter table entry replaces
+    the initial assignment, and the value in the returned dict is ``NaN``,
+    since it will be taken from the parameter table.
+    """
+    model_parameters = dict(model.get_free_parameter_ids_with_values())
+    if parameter_df is None:
+        return model_parameters
+
+    listed = set(parameter_df.index)
+    for par_id in model.get_valid_parameters_for_parameter_table():
+        if par_id in listed and par_id not in model_parameters:
+            model_parameters[par_id] = np.nan
+    return model_parameters
 
 
 def _apply_parameter_table(

@@ -3,6 +3,7 @@ from math import nan
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import petab.v1 as petab
 from petab import ENV_NUM_THREADS
@@ -712,3 +713,110 @@ def test_fill_in_nominal_values():
 
     assert expected_par == par_mapping
     assert expected_scale == scale_mapping
+
+
+def test_parameter_table_replaces_initial_assignment():
+    """A parameter table entry replaces a model parameter's initial
+    assignment, also if the assignment is not numeric."""
+    model = SbmlModel.from_antimony(
+        """
+        k_base = 1.5
+        k_derived = k_base + 1
+        k_other = k_base + 2
+        k_cond = 3
+        x = 1
+        x' = -(k_derived + k_other + k_cond) * x
+        """
+    )
+    condition_df = pd.DataFrame(
+        {CONDITION_ID: ["c1"], "k_cond": ["k_derived"]}
+    ).set_index(CONDITION_ID)
+    observable_df = pd.DataFrame(
+        {
+            OBSERVABLE_ID: ["obs"],
+            OBSERVABLE_FORMULA: ["x"],
+            NOISE_FORMULA: ["noiseParameter1_obs"],
+        }
+    ).set_index(OBSERVABLE_ID)
+    measurement_df = pd.DataFrame(
+        {
+            OBSERVABLE_ID: ["obs"],
+            SIMULATION_CONDITION_ID: ["c1"],
+            TIME: [1.0],
+            MEASUREMENT: [0.5],
+            NOISE_PARAMETERS: ["k_derived"],
+        }
+    )
+    # the nominal value differs from the initial assignment (2.5) and from
+    #  the (unset) SBML value attribute
+    assert np.isnan(model.sbml_model.getParameter("k_derived").getValue())
+    parameter_df = pd.DataFrame(
+        {
+            PARAMETER_ID: ["k_base", "k_derived"],
+            PARAMETER_SCALE: [LIN, LOG10],
+            LOWER_BOUND: [0.1, 0.1],
+            UPPER_BOUND: [100, 100],
+            NOMINAL_VALUE: [1.5, 7.0],
+            ESTIMATE: [1, 1],
+        }
+    ).set_index(PARAMETER_ID)
+    kwargs = {
+        "model": model,
+        "condition_df": condition_df,
+        "observable_df": observable_df,
+        "measurement_df": measurement_df,
+    }
+
+    # estimated
+    ((_, par_map, _, scale_map),) = (
+        petab.get_optimization_to_simulation_parameter_mapping(
+            parameter_df=parameter_df, **kwargs
+        )
+    )
+    assert par_map["k_derived"] == "k_derived"
+    assert scale_map["k_derived"] == LOG10
+    # condition and measurement table references resolve to the same value
+    assert par_map["k_cond"] == "k_derived"
+    assert par_map["noiseParameter1_obs"] == "k_derived"
+    # not listed in the parameter table: the initial assignment applies
+    assert "k_other" not in par_map
+
+    # fixed
+    parameter_df.loc["k_derived", ESTIMATE] = 0
+    for scaled, expected in ((False, 7.0), (True, np.log10(7.0))):
+        ((_, par_map, _, _),) = (
+            petab.get_optimization_to_simulation_parameter_mapping(
+                parameter_df=parameter_df, scaled_parameters=scaled, **kwargs
+            )
+        )
+        assert par_map["k_derived"] == expected
+        assert par_map["k_cond"] == expected
+        assert par_map["noiseParameter1_obs"] == expected
+        assert "k_other" not in par_map
+
+    # same for the single-condition mapping
+    par_map, _ = petab.get_parameter_mapping_for_condition(
+        condition_id="c1",
+        is_preeq=False,
+        cur_measurement_df=measurement_df,
+        parameter_df=parameter_df,
+        model=model,
+        condition_df=condition_df,
+    )
+    assert par_map["k_derived"] == 7.0
+    assert par_map["k_cond"] == 7.0
+    assert "k_other" not in par_map
+
+    # precomputed simulation parameters must include listed parameters
+    with pytest.raises(ValueError, match="k_derived"):
+        petab.get_parameter_mapping_for_condition(
+            condition_id="c1",
+            is_preeq=False,
+            cur_measurement_df=measurement_df,
+            parameter_df=parameter_df,
+            model=model,
+            condition_df=condition_df,
+            simulation_parameters=dict(
+                model.get_free_parameter_ids_with_values()
+            ),
+        )
